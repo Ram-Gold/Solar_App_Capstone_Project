@@ -10,9 +10,14 @@ import {
   HiOutlineCpuChip,
 } from 'react-icons/hi2'
 
-import solarHeroImg from '../assets/solar_hero.png'
-import solarPanelsImg from '../assets/solar_panels_closeup.png'
-import solarTechnicianImg from '../assets/solar_technician.png'
+import pic1 from '../assets/pictures/pic1.jpg'
+import pic3 from '../assets/pictures/pic3.jpg'
+import pic4 from '../assets/pictures/pic4.jpg'
+import pic5 from '../assets/pictures/pic5.jpg'
+import pic7 from '../assets/pictures/pic7.jpg'
+import pic8 from '../assets/pictures/pic8.jpg'
+import pic9 from '../assets/pictures/pic9.jpg'
+import pic10 from '../assets/pictures/pic10.jpg'
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -120,7 +125,7 @@ export default function LandingPage() {
             <div className="relative z-10 rounded-2xl overflow-hidden shadow-2xl transform lg:rotate-3 hover:rotate-0 transition-transform duration-500">
               <img
                 className="w-full aspect-[4/5] object-cover"
-                src={solarHeroImg}
+                src={pic1}
                 alt="Modern rooftop solar panel installation under golden hour sun"
               />
             </div>
@@ -192,7 +197,7 @@ export default function LandingPage() {
               <div className="space-y-4">
                 <img
                   className="rounded-xl w-full h-64 object-cover shadow-md"
-                  src={solarPanelsImg}
+                  src={pic3}
                   alt="Close-up of high-quality monocrystalline solar panel cells"
                 />
                 <div className="bg-jd-primary text-jd-on-primary p-6 rounded-xl">
@@ -203,7 +208,7 @@ export default function LandingPage() {
               <div className="pt-12">
                 <img
                   className="rounded-xl w-full h-80 object-cover shadow-md"
-                  src={solarTechnicianImg}
+                  src={pic4}
                   alt="Solar technician inspecting a modern smart inverter system"
                 />
               </div>
@@ -243,6 +248,95 @@ export default function LandingPage() {
             </Link>
           </motion.div>
         </div>
+      </section>
+
+      {/* Bento Box Gallery Section */}
+      <section className="py-24 px-0 max-w-screen-2xl mx-auto md:py-32">
+        <motion.div
+          className="text-center mb-16"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+        >
+          <h2 className="text-headline-lg text-jd-on-surface mb-4 tracking-tight font-bold">
+            Project Gallery
+          </h2>
+          <p className="text-jd-on-surface-variant max-w-lg mx-auto">
+            Experience our commitment to excellence through these captured moments of our solar installations across Manila.
+          </p>
+        </motion.div>
+
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-4 h-auto md:h-[700px]"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={staggerContainer}
+        >
+          {/* Main Feature Image */}
+          <motion.div 
+            variants={fadeInUp}
+            className="md:col-span-2 md:row-span-2 relative overflow-hidden rounded-3xl group shadow-lg"
+          >
+            <img 
+              src={pic8} 
+              alt="Major solar installation" 
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-8">
+              <span className="text-white font-bold text-headline-md">Industrial Scale Solar</span>
+            </div>
+          </motion.div>
+
+          {/* Top Center */}
+          <motion.div 
+            variants={fadeInUp}
+            className="md:col-span-1 md:row-span-1 relative overflow-hidden rounded-3xl group shadow-md"
+          >
+            <img 
+              src={pic5} 
+              alt="Solar panel detail" 
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+          </motion.div>
+
+          {/* Right Column (Tall) */}
+          <motion.div 
+            variants={fadeInUp}
+            className="md:col-span-1 md:row-span-2 relative overflow-hidden rounded-3xl group shadow-lg"
+          >
+            <img 
+              src={pic7} 
+              alt="Rooftop installation" 
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+          </motion.div>
+
+          {/* Bottom Center Left */}
+          <motion.div 
+            variants={fadeInUp}
+            className="md:col-span-1 md:row-span-1 relative overflow-hidden rounded-3xl group shadow-md"
+          >
+            <img 
+              src={pic9} 
+              alt="Solar technician at work" 
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+          </motion.div>
+
+          {/* Bottom Center Right */}
+          <motion.div 
+            variants={fadeInUp}
+            className="md:col-span-1 md:row-span-1 relative overflow-hidden rounded-3xl group shadow-md"
+          >
+            <img 
+              src={pic10} 
+              alt="Renewable energy concept" 
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* CTA Section */}

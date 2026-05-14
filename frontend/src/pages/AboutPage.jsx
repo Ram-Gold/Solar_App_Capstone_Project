@@ -8,6 +8,9 @@ import {
   HiOutlineBolt,
 } from 'react-icons/hi2'
 
+import pic2 from '../assets/pictures/pic2.jpg'
+import pic6 from '../assets/pictures/pic6.jpg'
+
 const features = [
   {
     icon: HiOutlineSparkles,
@@ -83,7 +86,7 @@ export default function AboutPage() {
             <div className="aspect-square rounded-xl overflow-hidden shadow-[0px_4px_12px_rgba(0,0,0,0.05)]">
               <img
                 className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBgWOrR1BZj9SxtMG3Nuoh5tPDyAeYNeAAi6tqbrmQQe7KNxvkKDz_5u6QeAEn9pdUVi_eGdI5EzVvkDY9f2o_XewBaMXvwXHETo6qLWwNKALlzFjGKUIXuAQCqx5tz3sN-iRwNjoDh0G96altU1tgqyuwmmY3w8NEIHib0fAPUp7CI_JlglKgMPWn4Qty0BOpUdx0oeKUDiL1qgFbp15pQXvA6K83jSqXaTccqixvMrdtBXvu9f_mem0siCCbUlntL8Q0A7Fzuhkg"
+                src={pic6}
                 alt="Solar panels on a rooftop under clear Philippine sky"
               />
             </div>
@@ -151,7 +154,7 @@ export default function AboutPage() {
             <div className="relative h-[500px] overflow-hidden rounded-2xl shadow-2xl">
               <img
                 className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuC22UDzWtnnpsCTT6kAOj1IVX4S6r4CUV3TvSCwjjbiGdOVB4VuqElU96TAY4HMVL7ykdSzUB4GCMwKEFHooBJj0UiKByPbwN3kMRFxLF7cis7LSJZoj5Xy7rnRB46Ak6hNfLWdYtYzANjXoiywmfpK4p4wHBaffQ-tJE05GJM41I9kj8AdSCHefNV6xMKSQJZp9ItpIyH6uaNGP_ssR_IT3EC2v_zdNM15JSttjHFUa_gUl7C5rXEezabBLR48thLL7Xy2O4Dq1kE"
+                src={pic2}
                 alt="Vibrant street scene in Quiapo, Manila"
               />
             </div>
