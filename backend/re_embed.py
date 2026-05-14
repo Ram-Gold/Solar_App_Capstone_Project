@@ -1,5 +1,5 @@
-"""Re-generates embeddings for all products using Gemini text-embedding-004.
-Run this ONCE after adding your GEMINI_API_KEY to .env."""
+"""Re-generates embeddings for all products using the Nvidia Nemotron model via OpenRouter.
+Matches the implementation in embedder.py."""
 
 import os
 from dotenv import load_dotenv
@@ -23,7 +23,8 @@ def re_embed_all():
             f"Category: {p['type']}\n"
             f"Specs: {p['watt']}W, {p['efficiency']}% efficiency\n"
             f"Features: {'Includes battery' if p.get('battery') else 'No battery'}\n"
-            f"Best for: {p.get('roof_size', 'Any')} roof size\n"
+            f"Measurements: {p.get('measurements', 'Any')}\n"
+            f"Overview: {p.get('product_overview', '')}\n"
             f"Price: {p['price']}\n"
             f"Description: {p['description']}"
         )

@@ -206,9 +206,9 @@ export default function ProductInfoPage() {
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2 text-jds-on-surface-variant">
                     <HiOutlineSquare2Stack className="text-lg" />
-                    <span className="text-label-md">Roof Size</span>
+                    <span className="text-label-md">Measurements</span>
                   </div>
-                  <span className="text-headline-md text-jds-on-surface">Standard</span>
+                  <span className="text-headline-md text-jds-on-surface text-sm">{product.measurements || 'Standard'}</span>
                 </div>
               </div>
             </div>
@@ -222,7 +222,7 @@ export default function ProductInfoPage() {
                   <h3 className="text-headline-md">Product Overview</h3>
                 </div>
                 <p className="text-body-md text-jds-on-surface-variant leading-relaxed">
-                  {product.description || `Lead-free solar panel with excellent temperature coefficient for high performance in hot climates. Designed for maximum power density in residential applications where roof space is at a premium.`}
+                  {product.product_overview || product.description || `Lead-free solar panel with excellent temperature coefficient for high performance in hot climates. Designed for maximum power density in residential applications where roof space is at a premium.`}
                 </p>
               </div>
 
@@ -247,10 +247,16 @@ export default function ProductInfoPage() {
                       className="overflow-hidden mt-4"
                     >
                       <ul className="space-y-2 text-body-md text-jds-on-surface-variant">
-                        <li>• Cell Type: {product.type}</li>
-                        <li>• Temperature Coefficient: -0.26%/°C</li>
-                        <li>• Weight: 21.5 kg</li>
-                        <li>• Warranty: 25 years product, 25 years performance</li>
+                        {product.product_details && typeof product.product_details === 'object' ? (
+                          Object.entries(product.product_details).map(([key, value]) => (
+                            <li key={key}>• {key}: {value}</li>
+                          ))
+                        ) : (
+                          <>
+                            <li>• Cell Type: {product.type}</li>
+                            <li>• Warranty: 25 years product, 25 years performance</li>
+                          </>
+                        )}
                       </ul>
                     </motion.div>
                   )}
@@ -278,10 +284,7 @@ export default function ProductInfoPage() {
                       className="overflow-hidden mt-4"
                     >
                       <ul className="space-y-2 text-body-md text-jds-on-surface-variant">
-                        <li>• Length: 1,755 mm</li>
-                        <li>• Width: 1,038 mm</li>
-                        <li>• Depth: 30 mm</li>
-                        <li>• Frame: Anodized aluminum alloy</li>
+                        <li>• {product.measurements || '1,755 x 1,038 x 30 mm'}</li>
                       </ul>
                     </motion.div>
                   )}

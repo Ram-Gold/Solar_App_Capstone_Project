@@ -1,4 +1,4 @@
-name,type,watt,price,efficiency,battery,roof_size,image_url,description
+name,type,watt,price,efficiency,battery,measurements,image_url,description,product_overview,product_details,sales
 SunPower Maxeon 6,Monocrystalline,440,350,22.8,False,Medium,https://via.placeholder.com/150,Premium solar panel with industry-leading efficiency and durability. Ideal for residential roofs with limited space.
 REC Alpha Pure-R,Heterojunction,430,320,22.3,False,Medium,https://via.placeholder.com/150,Lead-free solar panel with excellent temperature coefficient for high performance in hot climates.
 Qcells Q.Tron BLK M-G2+,Monocrystalline,425,290,21.5,False,Small,https://via.placeholder.com/150,All-black aesthetic panel offering a great balance of price and performance for homeowners.

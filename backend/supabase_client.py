@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True)
 
 def get_supabase_client() -> Client | None:
     """Returns an authenticated Supabase client."""

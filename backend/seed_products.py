@@ -33,7 +33,8 @@ def seed_database():
                 f"Category: {row['type']}\n"
                 f"Specs: {row['watt']}W, {row['efficiency']}% efficiency\n"
                 f"Features: {'Includes battery' if row['battery'].lower() == 'true' else 'No battery'}\n"
-                f"Best for: {row['roof_size']} roof size\n"
+                f"Measurements: {row.get('measurements', 'Any')}\n"
+                f"Overview: {row.get('product_overview', '')}\n"
                 f"Description: {row['description']}"
             )
             
@@ -56,9 +57,12 @@ def seed_database():
                     "price": float(row['price']) if row['price'] else None,
                     "efficiency": float(row['efficiency']) if row['efficiency'] else None,
                     "battery": is_battery,
-                    "roof_size": row['roof_size'],
+                    "measurements": row.get('measurements', ''),
                     "image_url": row['image_url'],
                     "description": row['description'],
+                    "product_overview": row.get('product_overview', ''),
+                    "product_details": row.get('product_details', '{}'),
+                    "sales": int(row.get('sales', 0)) if row.get('sales') else 0,
                     "embedding": embedding
                 }
                 

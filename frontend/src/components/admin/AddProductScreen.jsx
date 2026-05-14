@@ -11,7 +11,9 @@ export default function AddProductScreen({ onNavigate }) {
     price: '',
     efficiency: '',
     battery: false,
-    roof_size: 'Small',
+    measurements: '',
+    product_overview: '',
+    sales: 0,
     stock: '',
     description: '',
     image_url: 'https://via.placeholder.com/150',
@@ -35,7 +37,9 @@ export default function AddProductScreen({ onNavigate }) {
       price: Number(form.price),
       efficiency: Number(form.efficiency),
       battery: form.battery,
-      roof_size: form.roof_size,
+      measurements: form.measurements,
+      product_overview: form.product_overview,
+      sales: Number(form.sales),
       stock: Number(form.stock),
       description: form.description,
       image_url: form.image_url,
@@ -131,17 +135,13 @@ export default function AddProductScreen({ onNavigate }) {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Roof Size</label>
-            <select
-              value={form.roof_size}
-              onChange={(e) => handleChange('roof_size', e.target.value)}
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Measurements</label>
+            <input
+              value={form.measurements}
+              onChange={(e) => handleChange('measurements', e.target.value)}
               className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-            >
-              <option>Small</option>
-              <option>Medium</option>
-              <option>Large</option>
-              <option>N/A</option>
-            </select>
+              placeholder="e.g. 1046mm x 1690mm x 40mm"
+            />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Stock</label>
@@ -185,6 +185,30 @@ export default function AddProductScreen({ onNavigate }) {
             className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
             placeholder="Brief product description..."
           />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Product Overview</label>
+          <textarea
+            value={form.product_overview}
+            onChange={(e) => handleChange('product_overview', e.target.value)}
+            rows={4}
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+            placeholder="Detailed product overview..."
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sales Count</label>
+            <input
+              type="number"
+              value={form.sales}
+              onChange={(e) => handleChange('sales', e.target.value)}
+              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+              placeholder="0"
+            />
+          </div>
         </div>
 
         <Button type="submit" disabled={saving} className="w-full sm:w-auto">

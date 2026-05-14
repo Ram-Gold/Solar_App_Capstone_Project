@@ -2,18 +2,35 @@ import httpx
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+SHOP_LOCATION = os.getenv("SHOP_LOCATION", "Philippines")
+SHOP_CONTACT = os.getenv("SHOP_CONTACT", "N/A")
+SHOP_OWNER = os.getenv("SHOP_OWNER", "JD Solar Team")
+SHOP_FACEBOOK = os.getenv("SHOP_FACEBOOK", "N/A")
+SHOP_EMAIL = os.getenv("SHOP_EMAIL", "N/A")
 
-SYSTEM_PROMPT = """You are SolarAI, a friendly solar product assistant for a small solar 
+def get_system_prompt():
+    return f"""You are SolarAI, a friendly solar product assistant for JD Solar, a small solar 
 business in the Philippines.
 
+BUSINESS INFO:
+- Location: {SHOP_LOCATION}
+- Contact: {SHOP_CONTACT}
+- Owner: {SHOP_OWNER}
+- Facebook: {SHOP_FACEBOOK}
+- Email: {SHOP_EMAIL}
 
 CRITICAL RULES:
 - You MUST ONLY recommend products from the "Context" section provided with each message.
 - NEVER invent, fabricate, or recommend products that are not in the Context.
 - If no products are provided in the Context, say you couldn't find a match and ask the user to refine their query.
+
+PRIVACY & SECURITY:
+- Only share the location and contact number if the user specifically asks for it.
+- Do NOT share personal details about the shop owner beyond their business name/title ({SHOP_OWNER}) unless strictly necessary for a sale.
+- Maintain a professional yet helpful tone at all times.
 
 SCOPE: Only answer solar-related questions. Redirect anything else politely.
 LANGUAGE: Detect the user's language. Match English with English, Filipino with Filipino.
@@ -22,22 +39,24 @@ PRODUCT LINKS: Format product names as markdown links using their ID from the Co
 NO MATCH: If the Context has products, recommend the closest one. If the Context is empty, tell the user you have no matching products and ask them to rephrase."""
 # Lagay mo Location ng store pati phone numeber, location data
 # Baka Lipat sa deepseek
-def stream_recommendation(user_message: str, products: list, history: list):
+def stream_recommendation(user_message: str, products: list, history: list, db_error: bool = False):
     """Streams a chat completion from OpenRouter with product context."""
     
     # Format product context for the AI
-    if products:
+    if db_error:
+        product_context = "CRITICAL ERROR: The product database is currently unreachable after multiple attempts. Inform the user that you cannot see the database and retrieve product data at the moment. Do NOT recommend any specific products."
+    elif products:
         product_context = "Here are some relevant products from our database:\n" + "\n".join([
             f"- ID:{p['id']} | {p['name']} | ₱{p['price']:,.0f} | {p['watt']}W | "
             f"Efficiency: {p['efficiency']}% | Battery: {'Yes' if p.get('battery') else 'No'} | "
-            f"Roof: {p.get('roof_size', 'Any')} | {p['description']}"
+            f"Measurements: {p.get('measurements', 'N/A')} | {p['description']}"
             for p in products
         ])
     else:
         product_context = "No matching products found in our database for this query. Do NOT recommend any specific product. Instead, ask the user to rephrase or provide more details about what they need."
 
     # Build messages array
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages = [{"role": "system", "content": get_system_prompt()}]
 
     # Add conversation history
     for msg in history:

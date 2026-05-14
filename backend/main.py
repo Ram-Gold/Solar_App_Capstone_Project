@@ -39,7 +39,7 @@ def get_products():
         raise HTTPException(status_code=500, detail="Database connection not configured")
         
     try:
-        response = supabase.table("products").select("id,name,type,watt,price,efficiency,battery,roof_size,image_url,description").execute()
+        response = supabase.table("products").select("id,name,type,watt,price,efficiency,battery,measurements,image_url,description,product_overview,product_details,sales,stock").execute()
         return {"products": response.data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -49,28 +49,38 @@ async def chat_endpoint(request: ChatRequest):
     """Streaming chat endpoint using Semantic Search (RAG)."""
     supabase = get_supabase_client()
     
-    # 1. Semantic Search
-    # We turn the user's message into a vector and find matching products in Supabase
-    try:
-        query_vector = get_embedding(request.message)
-        
-        # Call the RPC function we created in Supabase
-        search_res = supabase.rpc("match_products", {
-            "query_embedding": query_vector,
-            "match_threshold": 0.2,
-            "match_count": 3
-        }).execute()
-        
-        products = search_res.data
-    except Exception as e:
-        print(f"Search failed: {e}. Falling back to general knowledge.")
-        products = []
+    products = []
+    db_error = False
+    
+    # 1. Semantic Search with 3 Retries
+    for attempt in range(3):
+        try:
+            # We turn the user's message into a vector
+            query_vector = get_embedding(request.message)
+            
+            # Call the RPC function we created in Supabase
+            search_res = supabase.rpc("match_products", {
+                "query_embedding": query_vector,
+                "match_threshold": 0.15, # Slightly lowered for better recall
+                "match_count": 3
+            }).execute()
+            
+            products = search_res.data
+            db_error = False
+            print(f"Search success on attempt {attempt + 1}. Products found: {len(products)}")
+            break # Success, exit loop
+            
+        except Exception as e:
+            print(f"Search attempt {attempt + 1} failed: {e}")
+            db_error = True
+            if attempt == 2:
+                print("All search attempts failed after 3 tries.")
 
     # 2. Convert history to list of dicts
     history = [{"role": m.role, "content": m.content} for m in request.history]
 
     # 3. Stream response from OpenRouter
     return StreamingResponse(
-        stream_recommendation(request.message, products, history),
+        stream_recommendation(request.message, products, history, db_error=db_error),
         media_type="text/event-stream"
     )

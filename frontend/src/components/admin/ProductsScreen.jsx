@@ -18,7 +18,7 @@ export default function ProductsScreen({ onNavigate }) {
   const fetchProducts = async () => {
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, type, price, efficiency, battery, roof_size, stock, watt, description, image_url')
+      .select('id, name, type, price, efficiency, battery, measurements, stock, watt, description, image_url, product_overview, product_details, sales')
       .order('id')
     if (!error) setProducts(data || [])
     setLoading(false)
@@ -32,10 +32,10 @@ export default function ProductsScreen({ onNavigate }) {
 
   const handleEditSave = async () => {
     if (!editingProduct) return
-    const { id, name, type, price, efficiency, battery, roof_size, stock, watt, description, image_url } = editingProduct
+    const { id, name, type, price, efficiency, battery, measurements, stock, watt, description, image_url, product_overview, product_details, sales } = editingProduct
     const { error } = await supabase
       .from('products')
-      .update({ name, type, price, efficiency, battery, roof_size, stock, watt, description, image_url })
+      .update({ name, type, price, efficiency, battery, measurements, stock, watt, description, image_url, product_overview, product_details, sales })
       .eq('id', id)
     if (!error) {
       setProducts(products.map(p => p.id === id ? editingProduct : p))
@@ -98,7 +98,8 @@ export default function ProductsScreen({ onNavigate }) {
               { key: 'watt', label: 'Watt', type: 'number' },
               { key: 'price', label: 'Price', type: 'number' },
               { key: 'efficiency', label: 'Efficiency (%)', type: 'number' },
-              { key: 'roof_size', label: 'Roof Size', type: 'text' },
+              { key: 'measurements', label: 'Measurements', type: 'text' },
+              { key: 'sales', label: 'Sales', type: 'number' },
               { key: 'stock', label: 'Stock', type: 'number' },
               { key: 'image_url', label: 'Image URL', type: 'text' },
             ].map(field => (
@@ -148,9 +149,9 @@ export default function ProductsScreen({ onNavigate }) {
               <TableHead>Product</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Price</TableHead>
-              <TableHead>Size</TableHead>
+              <TableHead>Measurements</TableHead>
               <TableHead>Efficiency</TableHead>
-              <TableHead>Battery</TableHead>
+              <TableHead>Sales</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -168,9 +169,9 @@ export default function ProductsScreen({ onNavigate }) {
                   <TableCell className="font-medium">{p.name}</TableCell>
                   <TableCell>{p.type}</TableCell>
                   <TableCell>₱{Number(p.price).toLocaleString()}</TableCell>
-                  <TableCell>{p.roof_size}</TableCell>
+                  <TableCell>{p.measurements}</TableCell>
                   <TableCell>{p.efficiency}%</TableCell>
-                  <TableCell>{p.battery ? 'Yes' : 'No'}</TableCell>
+                  <TableCell>{p.sales || 0}</TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                       (p.stock || 0) >= 10
