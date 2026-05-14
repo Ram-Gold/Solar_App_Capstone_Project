@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 import { useChat } from '../context/ChatContext'
@@ -22,14 +22,22 @@ const categories = ['All Products', 'Residential', 'Commercial', 'Accessories']
 
 export default function BrowsePage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { sendMessage } = useChat()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(searchParams.get('search') || '')
   const [activeCategory, setActiveCategory] = useState('All Products')
   const [maxPrice, setMaxPrice] = useState(100000)
   const [sortBy, setSortBy] = useState('newest')
+
+  useEffect(() => {
+    const query = searchParams.get('search')
+    if (query !== null) {
+      setSearch(query)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const fetchProducts = async () => {
