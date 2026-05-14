@@ -37,8 +37,7 @@ LANGUAGE: Detect the user's language. Match English with English, Filipino with 
 ONBOARDING: If the user's first message is vague, ask for: budget → location → roof size.
 PRODUCT LINKS: Format product names as markdown links using their ID from the Context. Example: [EcoVolt 400W](/product/1)
 NO MATCH: If the Context has products, recommend the closest one. If the Context is empty, tell the user you have no matching products and ask them to rephrase."""
-# Lagay mo Location ng store pati phone numeber, location data
-# Baka Lipat sa deepseek
+
 def stream_recommendation(user_message: str, products: list, history: list, db_error: bool = False):
     """Streams a chat completion from OpenRouter with product context."""
     

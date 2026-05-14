@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabaseClient'
 import { motion } from 'framer-motion'
 import {
   HiOutlineEnvelope,
@@ -25,11 +26,21 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const { error } = await signIn(email, password)
+      const { data, error } = await signIn(email, password)
       if (error) {
         setError(error.message)
       } else {
-        navigate('/admin')
+        const userId = data?.user?.id
+        if (userId) {
+          const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single()
+          if (profile?.role === 'staff') {
+            navigate('/staff')
+          } else {
+            navigate('/admin')
+          }
+        } else {
+          navigate('/admin')
+        }
       }
     } catch {
       setError('An unexpected system error occurred.')

@@ -35,7 +35,7 @@ function AppLayout() {
           <Route 
             path="/admin" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['admin']}>
                 <AdminPage />
               </ProtectedRoute>
             } 
@@ -43,7 +43,7 @@ function AppLayout() {
           <Route 
             path="/staff" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['staff']}>
                 <StaffPage />
               </ProtectedRoute>
             } 

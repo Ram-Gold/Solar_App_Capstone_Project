@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 import { Search, Plus, Pencil, Trash2 } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 export default function ProductsScreen({ onNavigate }) {
   const [products, setProducts] = useState([])
@@ -10,6 +11,7 @@ export default function ProductsScreen({ onNavigate }) {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('All Types')
   const [editingProduct, setEditingProduct] = useState(null)
+  const { role } = useAuth()
 
   useEffect(() => {
     fetchProducts()
@@ -186,9 +188,11 @@ export default function ProductsScreen({ onNavigate }) {
                       <Button variant="ghost" size="icon-sm" onClick={() => setEditingProduct({ ...p })}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(p.id)} className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {role === 'admin' && (
+                        <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(p.id)} className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
