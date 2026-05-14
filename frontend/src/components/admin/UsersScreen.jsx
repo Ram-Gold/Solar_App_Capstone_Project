@@ -74,97 +74,108 @@ export default function UsersScreen() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Users</h1>
+    <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in duration-500">
+      <div className="space-y-1">
+        <h1 className="text-headline-md font-bold text-jds-on-surface">Staff & User Management</h1>
+        <p className="text-body-md text-jds-on-surface-variant">Control access levels and manage administrative accounts.</p>
+      </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
         {/* Add User Form */}
-        <div className="rounded-xl border bg-card p-5 space-y-4">
-          <h3 className="text-sm font-semibold">Add a New User</h3>
+        <div className="lg:col-span-2 rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-8 space-y-6 shadow-sm h-fit">
+          <h3 className="text-body-lg font-bold text-jds-on-surface border-b border-jds-outline-variant/20 pb-4">Create Account</h3>
 
           {error && (
-            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">{error}</div>
+            <div className="rounded-lg bg-jds-error-container/10 border border-jds-error/20 p-4 text-body-sm text-jds-error">{error}</div>
           )}
           {success && (
-            <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-sm text-emerald-600">{success}</div>
+            <div className="rounded-lg bg-jds-secondary-container/10 border border-jds-secondary/20 p-4 text-body-sm text-jds-secondary">{success}</div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {[
-              { key: 'name', label: 'Name', type: 'text' },
-              { key: 'email', label: 'Email', type: 'email' },
-              { key: 'password', label: 'Password', type: 'password' },
-              { key: 'phone', label: 'Phone', type: 'text' },
+              { key: 'name', label: 'Full Name', type: 'text', placeholder: 'e.g. Maria Clara' },
+              { key: 'email', label: 'Email Address', type: 'email', placeholder: 'name@solarapp.com' },
+              { key: 'password', label: 'Initial Password', type: 'password', placeholder: '••••••••' },
+              { key: 'phone', label: 'Phone Number', type: 'text', placeholder: '+63 9XX XXX XXXX' },
             ].map(f => (
-              <div key={f.key} className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">{f.label}</label>
+              <div key={f.key} className="space-y-1.5">
+                <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">{f.label}</label>
                 <input
                   type={f.type}
                   required={f.key !== 'phone'}
                   value={form[f.key]}
                   onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                  className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                  placeholder={f.placeholder}
                 />
               </div>
             ))}
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Role</label>
+            <div className="space-y-1.5">
+              <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Access Role</label>
               <select
                 value={form.role}
                 onChange={(e) => setForm({ ...form, role: e.target.value })}
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
               >
-                <option value="staff">Staff</option>
-                <option value="admin">Admin</option>
+                <option value="staff">Staff Member</option>
+                <option value="admin">Administrator</option>
               </select>
             </div>
-            <Button type="submit" disabled={saving} className="w-full">
-              {saving ? 'Creating...' : 'Add User'}
+            <Button type="submit" disabled={saving} className="w-full bg-jds-primary text-jds-on-primary h-12 rounded-lg font-bold shadow-sm hover:opacity-90">
+              {saving ? 'Processing...' : 'Register User'}
             </Button>
           </form>
         </div>
 
         {/* Users Table */}
-        <div className="rounded-xl border bg-card">
-          <div className="border-b px-5 py-4">
-            <h3 className="text-sm font-semibold">Users</h3>
+        <div className="lg:col-span-3 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest overflow-hidden shadow-sm h-fit">
+          <div className="border-b border-jds-outline-variant/20 px-6 py-5 bg-jds-surface-container-low/10">
+            <h3 className="text-body-md font-bold text-jds-on-surface">Registered Members</h3>
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.length === 0 ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-jds-surface-container-low/5">
                 <TableRow>
-                  <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">No user profiles yet.</TableCell>
+                  <TableHead className="text-jds-on-surface-variant font-bold">Name</TableHead>
+                  <TableHead className="text-jds-on-surface-variant font-bold">Role</TableHead>
+                  <TableHead className="text-jds-on-surface-variant font-bold">Phone</TableHead>
+                  <TableHead className="text-right text-jds-on-surface-variant font-bold">Actions</TableHead>
                 </TableRow>
-              ) : (
-                users.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.full_name || '—'}</TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                        u.role === 'admin' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {u.role}
-                      </span>
-                    </TableCell>
-                    <TableCell>{u.phone || '—'}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(u.id)} className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
+              </TableHeader>
+              <TableBody>
+                {users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-20 text-center text-body-md text-jds-on-surface-variant/50">No administrative profiles found.</TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  users.map((u) => (
+                    <TableRow key={u.id} className="hover:bg-jds-surface-container-low/5 transition-colors">
+                      <TableCell className="font-bold text-jds-on-surface">{u.full_name || u.id.slice(0, 8)}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-label-sm font-bold uppercase ${
+                          u.role === 'admin' ? 'bg-jds-primary-container/10 text-jds-primary' : 'bg-jds-surface-container-high/30 text-jds-on-surface-variant'
+                        }`}>
+                          {u.role}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-jds-on-surface-variant font-medium">{u.phone || '—'}</TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDelete(u.id)} 
+                          className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </div>
     </div>

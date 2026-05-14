@@ -11,7 +11,7 @@ const navLinks = [
 export default function Navbar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const { user, signOut } = useAuth()
+  const { user, role, signOut } = useAuth()
 
   const handleAuthClick = async () => {
     if (user) {
@@ -20,6 +20,13 @@ export default function Navbar() {
     } else {
       navigate('/login')
     }
+  }
+
+  const dynamicNavLinks = [...navLinks]
+  if (user && (role === 'admin' || role === 'staff')) {
+    const dashboardPath = role === 'admin' ? '/admin' : '/staff'
+    // Insert after Products (which is at index 2)
+    dynamicNavLinks.splice(3, 0, { to: dashboardPath, label: 'Dashboard' })
   }
 
   return (
@@ -32,7 +39,7 @@ export default function Navbar() {
 
         {/* Center Nav Links — desktop only */}
         <nav className="hidden md:flex items-center gap-6">
-          {navLinks.map((link) => {
+          {dynamicNavLinks.map((link) => {
             const isActive = link.to !== '#' && pathname === link.to
             return (
               <Link
@@ -53,20 +60,12 @@ export default function Navbar() {
         {/* Right Actions */}
         <div className="flex items-center gap-3">
           {user ? (
-            <>
-              <Link
-                to="/admin"
-                className="font-inter text-label-md text-jds-on-surface-variant hover:text-jds-primary transition-colors hidden md:inline-block"
-              >
-                Dashboard
-              </Link>
-              <button
-                onClick={handleAuthClick}
-                className="font-inter text-label-md text-jds-on-surface-variant hover:text-jds-primary transition-colors"
-              >
-                Sign Out
-              </button>
-            </>
+            <button
+              onClick={handleAuthClick}
+              className="font-inter text-label-md text-jds-on-surface-variant hover:text-jds-primary transition-colors"
+            >
+              Sign Out
+            </button>
           ) : (
             <button
               onClick={handleAuthClick}

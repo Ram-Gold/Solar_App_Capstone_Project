@@ -60,62 +60,80 @@ export default function ProfileScreen() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
-        <p className="text-sm text-muted-foreground">Update your personal information.</p>
+    <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in duration-500">
+      <div className="space-y-1">
+        <h1 className="text-headline-md font-bold text-jds-on-surface">Personal Profile</h1>
+        <p className="text-body-md text-jds-on-surface-variant">Manage your account information and administrative settings.</p>
       </div>
 
-      {error && (
-        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">{error}</div>
-      )}
-      {success && (
-        <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-sm text-emerald-600">{success}</div>
-      )}
+      <div className="max-w-2xl">
+        <div className="rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-8 space-y-8 shadow-sm">
+          <div className="flex items-center gap-4 border-b border-jds-outline-variant/20 pb-6">
+            <div className="h-16 w-16 rounded-full bg-jds-primary/10 flex items-center justify-center text-jds-primary">
+              <span className="text-headline-sm font-bold">{form.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}</span>
+            </div>
+            <div>
+              <h3 className="text-body-lg font-bold text-jds-on-surface">{form.full_name || 'Administrator'}</h3>
+              <p className="text-label-md font-bold text-jds-secondary uppercase tracking-wider">{form.role}</p>
+            </div>
+          </div>
 
-      <form onSubmit={handleSubmit} className="max-w-lg space-y-5 rounded-xl border bg-card p-6">
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</label>
-          <input
-            disabled
-            value={user?.email || ''}
-            className="h-10 w-full rounded-lg border border-input bg-muted/50 px-3 text-sm text-muted-foreground cursor-not-allowed"
-          />
+          {error && (
+            <div className="rounded-lg bg-jds-error-container/10 border border-jds-error/20 p-4 text-body-sm text-jds-error">{error}</div>
+          )}
+          {success && (
+            <div className="rounded-lg bg-jds-secondary-container/10 border border-jds-secondary/20 p-4 text-body-sm text-jds-secondary">{success}</div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Account Email</label>
+                <input
+                  disabled
+                  value={user?.email || ''}
+                  className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/50 px-4 text-body-md text-jds-on-surface-variant/60 cursor-not-allowed"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Access Level</label>
+                <input
+                  disabled
+                  value={form.role}
+                  className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/50 px-4 text-body-md text-jds-on-surface-variant/60 cursor-not-allowed capitalize"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Full Name</label>
+                <input
+                  value={form.full_name}
+                  onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                  className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                  placeholder="e.g. Maria Clara"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Contact Number</label>
+                <input
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                  placeholder="+63 9XX XXX XXXX"
+                />
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-jds-outline-variant/20">
+              <Button type="submit" disabled={saving} className="bg-jds-primary text-jds-on-primary h-12 px-10 rounded-lg font-bold shadow-sm hover:opacity-90">
+                {saving ? 'Saving Updates...' : 'Update Account Info'}
+              </Button>
+            </div>
+          </form>
         </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Full Name</label>
-          <input
-            value={form.full_name}
-            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-            className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-            placeholder="Your full name"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone</label>
-          <input
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-            placeholder="Your phone number"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Role</label>
-          <input
-            disabled
-            value={form.role}
-            className="h-10 w-full rounded-lg border border-input bg-muted/50 px-3 text-sm text-muted-foreground cursor-not-allowed capitalize"
-          />
-        </div>
-
-        <Button type="submit" disabled={saving}>
-          {saving ? 'Saving...' : 'Save Changes'}
-        </Button>
-      </form>
+      </div>
     </div>
   )
 }

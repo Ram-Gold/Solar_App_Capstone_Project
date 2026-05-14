@@ -75,114 +75,133 @@ export default function OrdersScreen() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
-        <Button onClick={() => { resetForm(); setShowForm(true) }} className="gap-2">
+        <div className="space-y-1">
+          <h1 className="text-headline-md font-bold text-jds-on-surface">Order Management</h1>
+          <p className="text-body-md text-jds-on-surface-variant">Track and fulfill customer solar installation orders.</p>
+        </div>
+        <Button onClick={() => { resetForm(); setShowForm(true) }} className="bg-jds-primary text-jds-on-primary hover:opacity-90 rounded-lg px-6 gap-2">
           <Plus className="h-4 w-4" /> Add Order
         </Button>
       </div>
 
       {/* Add / Edit Form */}
       {showForm && (
-        <div className="rounded-xl border bg-card p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">{editingId ? 'Edit Order' : 'New Order'}</h3>
-            <Button variant="ghost" size="icon-sm" onClick={resetForm}><X className="h-4 w-4" /></Button>
+        <div className="rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-8 space-y-6 shadow-lg animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center justify-between border-b border-jds-outline-variant/20 pb-4">
+            <h3 className="text-body-lg font-bold text-jds-on-surface">{editingId ? 'Edit Order Details' : 'Create New Order'}</h3>
+            <Button variant="ghost" size="icon" onClick={resetForm} className="h-10 w-10 text-jds-on-surface-variant hover:bg-jds-surface-container-low">
+              <X className="h-5 w-5" />
+            </Button>
           </div>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              { key: 'customer_name', label: 'Customer Name', type: 'text' },
-              { key: 'address', label: 'Address', type: 'text' },
-              { key: 'product_name', label: 'Product Name', type: 'text' },
-              { key: 'quantity', label: 'Quantity', type: 'number' },
-              { key: 'price', label: 'Price', type: 'number' },
-            ].map(f => (
-              <div key={f.key} className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">{f.label}</label>
-                <input
-                  type={f.type}
-                  required
-                  value={form[f.key]}
-                  onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                  className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-                />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                { key: 'customer_name', label: 'Customer Full Name', type: 'text', placeholder: 'e.g. Juan Dela Cruz' },
+                { key: 'address', label: 'Installation Address', type: 'text', placeholder: 'e.g. Quezon City, Metro Manila' },
+                { key: 'product_name', label: 'Solar Product', type: 'text', placeholder: 'e.g. SunPower Panel' },
+                { key: 'quantity', label: 'Unit Quantity', type: 'number', placeholder: '1' },
+                { key: 'price', label: 'Unit Price (₱)', type: 'number', placeholder: '0.00' },
+              ].map(f => (
+                <div key={f.key} className="space-y-1.5">
+                  <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">{f.label}</label>
+                  <input
+                    type={f.type}
+                    required
+                    value={form[f.key]}
+                    onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                    className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                    placeholder={f.placeholder}
+                  />
+                </div>
+              ))}
+              <div className="space-y-1.5">
+                <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Order Status</label>
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                >
+                  <option>Pending</option>
+                  <option>Processing</option>
+                  <option>Shipped</option>
+                  <option>Delivered</option>
+                  <option>Cancelled</option>
+                </select>
               </div>
-            ))}
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Status</label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-                className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-              >
-                <option>Pending</option>
-                <option>Processing</option>
-                <option>Shipped</option>
-                <option>Delivered</option>
-                <option>Cancelled</option>
-              </select>
             </div>
-            <div className="sm:col-span-2 lg:col-span-3">
-              <Button type="submit">{editingId ? 'Save Changes' : 'Create Order'}</Button>
+            <div className="flex gap-4 pt-4 border-t border-jds-outline-variant/20">
+              <Button type="submit" className="bg-jds-primary text-jds-on-primary px-8">{editingId ? 'Update Order' : 'Publish Order'}</Button>
+              <Button variant="outline" onClick={resetForm} className="border-jds-outline-variant text-jds-on-surface-variant px-8">Discard</Button>
             </div>
           </form>
         </div>
       )}
 
       {/* Orders Table */}
-      <div className="rounded-xl border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Address</TableHead>
-              <TableHead>Product Name</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {orders.length === 0 ? (
+      <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-jds-surface-container-low/10">
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">No orders yet.</TableCell>
+                <TableHead className="text-jds-on-surface-variant font-bold">Customer</TableHead>
+                <TableHead className="text-jds-on-surface-variant font-bold">Location</TableHead>
+                <TableHead className="text-jds-on-surface-variant font-bold">Product</TableHead>
+                <TableHead className="text-jds-on-surface-variant font-bold">Qty</TableHead>
+                <TableHead className="text-jds-on-surface-variant font-bold">Total Price</TableHead>
+                <TableHead className="text-jds-on-surface-variant font-bold">Status</TableHead>
+                <TableHead className="text-right text-jds-on-surface-variant font-bold">Actions</TableHead>
               </TableRow>
-            ) : (
-              orders.map((o) => (
-                <TableRow key={o.id}>
-                  <TableCell className="font-medium">{o.customer_name}</TableCell>
-                  <TableCell>{o.address}</TableCell>
-                  <TableCell>{o.product_name}</TableCell>
-                  <TableCell>{o.quantity}</TableCell>
-                  <TableCell>₱{Number(o.price).toLocaleString()}</TableCell>
-                  <TableCell>{o.order_date ? new Date(o.order_date).toLocaleDateString() : '—'}</TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      o.status === 'Delivered' ? 'bg-emerald-500/10 text-emerald-500'
-                        : o.status === 'Cancelled' ? 'bg-red-500/10 text-red-500'
-                        : 'bg-amber-500/10 text-amber-600'
-                    }`}>
-                      {o.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon-sm" onClick={() => handleEdit(o)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(o.id)} className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
+            </TableHeader>
+            <TableBody>
+              {orders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-16 text-center text-body-md text-jds-on-surface-variant/50">No orders currently in the system.</TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                orders.map((o) => (
+                  <TableRow key={o.id} className="hover:bg-jds-surface-container-low/5 transition-colors">
+                    <TableCell className="font-bold text-jds-on-surface">{o.customer_name}</TableCell>
+                    <TableCell className="text-jds-on-surface-variant max-w-[200px] truncate">{o.address}</TableCell>
+                    <TableCell className="text-jds-on-surface-variant">{o.product_name}</TableCell>
+                    <TableCell className="text-jds-on-surface font-medium">{o.quantity}</TableCell>
+                    <TableCell className="text-jds-on-surface font-bold">₱{Number(o.price * o.quantity).toLocaleString()}</TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-label-sm font-bold uppercase ${
+                        o.status === 'Delivered' ? 'bg-jds-secondary-container/10 text-jds-secondary'
+                          : o.status === 'Cancelled' ? 'bg-jds-error-container/10 text-jds-error'
+                          : 'bg-jds-primary-container/10 text-jds-primary'
+                      }`}>
+                        {o.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleEdit(o)}
+                          className="h-9 w-9 text-jds-secondary hover:bg-jds-secondary-container/10"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDelete(o.id)} 
+                          className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   )

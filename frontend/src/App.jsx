@@ -17,14 +17,14 @@ import './App.css'
 
 function AppLayout() {
   const { pathname } = useLocation()
-  const isAdminRoute = pathname.startsWith('/admin')
+  const isDashboardRoute = pathname.startsWith('/admin') || pathname.startsWith('/staff')
   const isLoginRoute = pathname === '/login'
-  const showShell = !isAdminRoute && !isLoginRoute
+  const showShell = !isLoginRoute
 
   return (
     <div className="flex flex-col min-h-screen">
       {showShell && <Navbar />}
-      <main className={isAdminRoute ? '' : 'flex-grow'}>
+      <main className={isDashboardRoute ? 'flex-grow' : 'flex-grow'}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/about" element={<AboutPage />} />

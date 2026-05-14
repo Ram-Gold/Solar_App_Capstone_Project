@@ -56,41 +56,46 @@ export default function AddProductScreen({ onNavigate }) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon-sm" onClick={() => onNavigate('products')}>
-          <ArrowLeft className="h-4 w-4" />
+    <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in duration-500">
+      <div className="flex items-center gap-4">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => onNavigate('products')}
+          className="h-10 w-10 text-jds-on-surface-variant hover:bg-jds-surface-container-low"
+        >
+          <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Add New Product</h1>
-          <p className="text-sm text-muted-foreground">Fill in the details for a new solar product.</p>
+        <div className="space-y-1">
+          <h1 className="text-headline-md font-bold text-jds-on-surface">Add New Product</h1>
+          <p className="text-body-md text-jds-on-surface-variant">Expand the solar catalog with a new inventory item.</p>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+        <div className="rounded-lg bg-jds-error-container/10 border border-jds-error/20 p-4 text-body-sm text-jds-error">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="max-w-2xl space-y-5 rounded-xl border bg-card p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Product Name</label>
+      <form onSubmit={handleSubmit} className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest p-8 shadow-sm space-y-8">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-2">
+            <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Product Name</label>
             <input
               required
               value={form.name}
               onChange={(e) => handleChange('name', e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
               placeholder="e.g. SunPower Maxeon 7"
             />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</label>
+          <div className="space-y-2">
+            <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Type</label>
             <select
               value={form.type}
               onChange={(e) => handleChange('type', e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
             >
               <option>Monocrystalline</option>
               <option>Polycrystalline</option>
@@ -100,120 +105,136 @@ export default function AddProductScreen({ onNavigate }) {
               <option>AC/DC Battery</option>
             </select>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Wattage</label>
+          <div className="space-y-2">
+            <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Wattage (W)</label>
             <input
               type="number"
               required
               value={form.watt}
               onChange={(e) => handleChange('watt', e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
               placeholder="440"
             />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Price (₱)</label>
+          <div className="space-y-2">
+            <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Price (₱)</label>
             <input
               type="number"
               required
               value={form.price}
               onChange={(e) => handleChange('price', e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-              placeholder="350"
+              className="h-11 w-full rounded-lg border border-input bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+              placeholder="35000"
             />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Efficiency (%)</label>
+          <div className="space-y-2">
+            <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Efficiency (%)</label>
             <input
               type="number"
               step="0.1"
               required
               value={form.efficiency}
               onChange={(e) => handleChange('efficiency', e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
               placeholder="22.8"
             />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Measurements</label>
+          <div className="space-y-2">
+            <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Measurements</label>
             <input
               value={form.measurements}
               onChange={(e) => handleChange('measurements', e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
               placeholder="e.g. 1046mm x 1690mm x 40mm"
             />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Stock</label>
+          <div className="space-y-2">
+            <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Stock Count</label>
             <input
               type="number"
               required
               value={form.stock}
               onChange={(e) => handleChange('stock', e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
               placeholder="25"
             />
           </div>
-          <div className="flex items-end space-y-1.5">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.battery}
-                onChange={(e) => handleChange('battery', e.target.checked)}
-                className="h-4 w-4 rounded border-input accent-primary"
-              />
-              Includes Battery
-            </label>
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Image URL</label>
-          <input
-            value={form.image_url}
-            onChange={(e) => handleChange('image_url', e.target.value)}
-            className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</label>
-          <textarea
-            value={form.description}
-            onChange={(e) => handleChange('description', e.target.value)}
-            rows={3}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-            placeholder="Brief product description..."
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Product Overview</label>
-          <textarea
-            value={form.product_overview}
-            onChange={(e) => handleChange('product_overview', e.target.value)}
-            rows={4}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-            placeholder="Detailed product overview..."
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sales Count</label>
+          <div className="space-y-2">
+            <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Initial Sales</label>
             <input
               type="number"
               value={form.sales}
               onChange={(e) => handleChange('sales', e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
               placeholder="0"
             />
           </div>
+          <div className="flex items-center gap-3 pt-8">
+            <input
+              type="checkbox"
+              id="includes-battery"
+              checked={form.battery}
+              onChange={(e) => handleChange('battery', e.target.checked)}
+              className="h-5 w-5 rounded border-jds-outline-variant/30 accent-jds-primary cursor-pointer"
+            />
+            <label htmlFor="includes-battery" className="text-body-md font-medium text-jds-on-surface cursor-pointer">Includes Battery</label>
+          </div>
         </div>
 
-        <Button type="submit" disabled={saving} className="w-full sm:w-auto">
-          {saving ? 'Saving...' : 'Add Product'}
-        </Button>
+        <div className="space-y-2">
+          <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Image URL</label>
+          <input
+            value={form.image_url}
+            onChange={(e) => handleChange('image_url', e.target.value)}
+            className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+            placeholder="https://images.unsplash.com/..."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Brief Description</label>
+          <textarea
+            value={form.description}
+            onChange={(e) => handleChange('description', e.target.value)}
+            rows={2}
+            className="w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 py-3 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+            placeholder="Short marketing hook..."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Technical Overview</label>
+          <textarea
+            value={form.product_overview}
+            onChange={(e) => handleChange('product_overview', e.target.value)}
+            rows={4}
+            className="w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 py-3 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+            placeholder="Detailed technical specifications and features..."
+          />
+        </div>
+
+        <div className="flex gap-4 pt-6 border-t border-jds-outline-variant/20">
+          <Button 
+            type="submit" 
+            disabled={saving} 
+            className="bg-jds-primary text-jds-on-primary hover:opacity-90 px-10 h-12 text-body-md font-bold rounded-lg"
+          >
+            {saving ? (
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Saving Product...
+              </div>
+            ) : 'Publish Product'}
+          </Button>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => onNavigate('products')}
+            className="border-jds-outline-variant text-jds-on-surface-variant px-8 h-12 text-body-md rounded-lg"
+          >
+            Cancel
+          </Button>
+        </div>
       </form>
     </div>
   )

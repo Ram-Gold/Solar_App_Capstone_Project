@@ -66,84 +66,104 @@ export default function SuppliersScreen() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Suppliers</h1>
-        <Button onClick={() => { resetForm(); setShowForm(true) }} className="gap-2">
+        <div className="space-y-1">
+          <h1 className="text-headline-md font-bold text-jds-on-surface">Supplier Directory</h1>
+          <p className="text-body-md text-jds-on-surface-variant">Manage relationships with solar component manufacturers and vendors.</p>
+        </div>
+        <Button onClick={() => { resetForm(); setShowForm(true) }} className="bg-jds-primary text-jds-on-primary hover:opacity-90 rounded-lg px-6 gap-2">
           <Plus className="h-4 w-4" /> Add Supplier
         </Button>
       </div>
 
       {showForm && (
-        <div className="rounded-xl border bg-card p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">{editingId ? 'Edit Supplier' : 'Add a New Supplier'}</h3>
-            <Button variant="ghost" size="icon-sm" onClick={resetForm}><X className="h-4 w-4" /></Button>
+        <div className="rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-8 space-y-6 shadow-lg animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center justify-between border-b border-jds-outline-variant/20 pb-4">
+            <h3 className="text-body-lg font-bold text-jds-on-surface">{editingId ? 'Edit Supplier Credentials' : 'Register New Supplier'}</h3>
+            <Button variant="ghost" size="icon" onClick={resetForm} className="h-10 w-10 text-jds-on-surface-variant hover:bg-jds-surface-container-low">
+              <X className="h-5 w-5" />
+            </Button>
           </div>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {[
-              { key: 'name', label: 'Name', required: true },
-              { key: 'email', label: 'Email' },
-              { key: 'phone', label: 'Phone' },
-              { key: 'address', label: 'Address' },
-            ].map(f => (
-              <div key={f.key} className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">{f.label}</label>
-                <input
-                  required={f.required}
-                  value={form[f.key]}
-                  onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                  className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-                />
-              </div>
-            ))}
-            <div className="sm:col-span-2">
-              <Button type="submit">{editingId ? 'Save Changes' : 'Add Supplier'}</Button>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              {[
+                { key: 'name', label: 'Company Name', placeholder: 'e.g. SolarEdge Technologies' },
+                { key: 'email', label: 'Point of Contact Email', placeholder: 'contact@supplier.com' },
+                { key: 'phone', label: 'Contact Number', placeholder: '+63 9XX XXX XXXX' },
+                { key: 'address', label: 'Business Address', placeholder: 'Office location...' },
+              ].map(f => (
+                <div key={f.key} className="space-y-1.5">
+                  <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">{f.label}</label>
+                  <input
+                    value={form[f.key]}
+                    onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                    className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                    placeholder={f.placeholder}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-4 pt-4 border-t border-jds-outline-variant/20">
+              <Button type="submit" className="bg-jds-primary text-jds-on-primary px-8">{editingId ? 'Save Changes' : 'Register Supplier'}</Button>
+              <Button variant="outline" onClick={resetForm} className="border-jds-outline-variant text-jds-on-surface-variant px-8">Discard</Button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="rounded-xl border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Address</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {suppliers.length === 0 ? (
+      <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-jds-surface-container-low/10">
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">No suppliers yet.</TableCell>
+                <TableHead className="text-jds-on-surface-variant font-bold">ID</TableHead>
+                <TableHead className="text-jds-on-surface-variant font-bold">Company Name</TableHead>
+                <TableHead className="text-jds-on-surface-variant font-bold">Email</TableHead>
+                <TableHead className="text-jds-on-surface-variant font-bold">Phone</TableHead>
+                <TableHead className="text-jds-on-surface-variant font-bold">Business Address</TableHead>
+                <TableHead className="text-right text-jds-on-surface-variant font-bold">Actions</TableHead>
               </TableRow>
-            ) : (
-              suppliers.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell>{s.id}</TableCell>
-                  <TableCell className="font-medium">{s.name}</TableCell>
-                  <TableCell>{s.email || '—'}</TableCell>
-                  <TableCell>{s.phone || '—'}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">{s.address || '—'}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon-sm" onClick={() => handleEdit(s)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(s.id)} className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
+            </TableHeader>
+            <TableBody>
+              {suppliers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-16 text-center text-body-md text-jds-on-surface-variant/50">No registered suppliers found.</TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                suppliers.map((s) => (
+                  <TableRow key={s.id} className="hover:bg-jds-surface-container-low/5 transition-colors">
+                    <TableCell className="font-mono text-xs text-jds-secondary">{s.id}</TableCell>
+                    <TableCell className="font-bold text-jds-on-surface">{s.name}</TableCell>
+                    <TableCell className="text-jds-on-surface-variant font-medium">{s.email || '—'}</TableCell>
+                    <TableCell className="text-jds-on-surface-variant font-medium">{s.phone || '—'}</TableCell>
+                    <TableCell className="max-w-[250px] truncate text-jds-on-surface-variant">{s.address || '—'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleEdit(s)}
+                          className="h-9 w-9 text-jds-secondary hover:bg-jds-secondary-container/10"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDelete(s.id)} 
+                          className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   )
