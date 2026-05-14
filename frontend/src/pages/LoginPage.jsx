@@ -1,16 +1,21 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Button } from '../components/ui/button'
 import { motion } from 'framer-motion'
-import { Sun, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react'
+import {
+  HiOutlineEnvelope,
+  HiOutlineLockClosed,
+  HiOutlineArrowRight,
+  HiOutlineArrowLeft,
+  HiOutlineSun,
+} from 'react-icons/hi2'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [focusedInput, setFocusedInput] = useState(null)
+  const [remember, setRemember] = useState(false)
   const { signIn } = useAuth()
   const navigate = useNavigate()
 
@@ -26,7 +31,7 @@ export default function LoginPage() {
       } else {
         navigate('/admin')
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected system error occurred.')
     } finally {
       setLoading(false)
@@ -34,165 +39,182 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-background flex items-center justify-center px-4 py-12">
-      {/* Visual Anchor: Ambient Breathing Solar Sphere */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center">
-        <motion.div 
-          animate={{ 
-            scale: [1, 1.08, 1],
-            opacity: [0.15, 0.25, 0.15] 
-          }}
-          transition={{ 
-            duration: 8, 
-            repeat: Infinity,
-            ease: "easeInOut" 
-          }}
-          className="absolute w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[#ff8e3c]/40 via-[#ff5e3a]/20 to-transparent blur-3xl"
-        />
-        <div className="absolute w-[300px] h-[300px] rounded-full border border-[#ff8e3c]/20 animate-[spin_60s_linear_infinite] border-dashed" />
-      </div>
+    <div className="bg-jds-surface font-inter text-jds-on-surface min-h-screen flex flex-col">
+      {/* Minimal Header */}
+      <header className="w-full">
+        <nav className="flex justify-between items-center w-full px-4 md:px-10 py-8 max-w-[1200px] mx-auto">
+          <Link to="/" className="flex items-center gap-2 group">
+            <HiOutlineSun className="text-jds-primary text-3xl" />
+            <span className="text-headline-md font-bold text-jds-primary">JD Solar</span>
+          </Link>
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-jds-on-surface-variant hover:text-jds-primary transition-colors duration-200"
+          >
+            <HiOutlineArrowLeft className="text-xl" />
+            <span className="text-label-md">Home</span>
+          </Link>
+        </nav>
+      </header>
 
-      {/* Main Container */}
-      <div className="relative w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-        
-        {/* Left Column: Editorial Brand Statement */}
-        <motion.div 
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="lg:col-span-5 space-y-6 text-left"
-        >
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold tracking-wide uppercase">
-            <ShieldCheck className="w-3.5 h-3.5" /> Secure Authentication
-          </div>
-
-          <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground leading-[1.1]">
-            Access the <br />
-            <span className="solar-text-gradient font-black">Solar Core.</span>
-          </h1>
-
-          <p className="text-base text-muted-foreground leading-relaxed max-w-md">
-            Enter your authorized administrative credentials to access real-time system metrics, configuration blueprints, and platform overrides.
-          </p>
-
-          <div className="pt-4 border-t border-border/60 flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Node Active
-            </span>
-            <span>•</span>
-            <span>TLS 1.3 Encrypted</span>
-          </div>
-        </motion.div>
-
-        {/* Right Column: Premium Auth Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
+      {/* Main Content */}
+      <main className="flex-grow flex items-center justify-center px-4">
+        <motion.div
+          className="w-full max-w-[440px]"
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-          className="lg:col-span-7 w-full max-w-md mx-auto lg:ml-auto"
+          transition={{ duration: 0.5 }}
         >
-          <div className="relative backdrop-blur-xl bg-card/80 border border-border/80 rounded-2xl shadow-2xl overflow-hidden p-8 space-y-6">
-            
-            {/* Subtle top border glow */}
-            <div className="absolute top-0 left-0 right-0 h-[3px] solar-gradient opacity-80" />
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h2 className="text-xl font-bold tracking-tight text-foreground">Staff Portal</h2>
-                <p className="text-xs text-muted-foreground">Session token verification</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                <Sun className="w-5 h-5" />
-              </div>
+          {/* Login Card */}
+          <div className="bg-jds-surface-container-lowest border border-jds-outline-variant/30 rounded-xl p-10 shadow-[0px_4px_12px_rgba(0,0,0,0.05)]">
+            {/* Card Header */}
+            <div className="text-center mb-10">
+              <h1 className="text-headline-lg text-jds-on-surface mb-2">Staff Login</h1>
+              <p className="text-body-md text-jds-on-surface-variant">
+                Access the internal solar management dashboard.
+              </p>
             </div>
 
-            {/* Error Message Spell */}
+            {/* Error */}
             {error && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex items-start gap-3 p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm"
+                className="flex items-start gap-3 p-3.5 rounded-xl bg-jds-error-container border border-jds-error/20 text-jds-on-error-container text-sm mb-6"
               >
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span className="leading-tight font-medium">{error}</span>
               </motion.div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Email Field */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground/90 tracking-wide uppercase" htmlFor="email">
-                  Corporate Email
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Email */}
+              <div className="space-y-2">
+                <label
+                  className="block text-label-sm text-jds-on-surface-variant ml-1"
+                  htmlFor="email"
+                >
+                  Email Address
                 </label>
-                <div className="relative">
-                  <Mail className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${focusedInput === 'email' ? 'text-primary' : 'text-muted-foreground'}`} />
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-jds-on-surface-variant group-focus-within:text-jds-secondary transition-colors">
+                    <HiOutlineEnvelope className="text-xl" />
+                  </div>
                   <input
+                    className="w-full pl-11 pr-4 py-3.5 bg-jds-surface-variant/30 border-none focus:ring-2 focus:ring-jds-secondary focus:bg-jds-surface-container-lowest rounded-lg text-body-md text-jds-on-surface transition-all placeholder:text-jds-on-surface-variant/50 outline-none"
                     id="email"
+                    name="email"
+                    placeholder="name@jdsolar.com"
+                    required
                     type="email"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-input bg-background/50 text-sm transition-all outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground/60"
-                    placeholder="admin@solarapp.io"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    onFocus={() => setFocusedInput('email')}
-                    onBlur={() => setFocusedInput(null)}
-                    required
                   />
                 </div>
               </div>
 
-              {/* Password Field */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground/90 tracking-wide uppercase" htmlFor="password">
-                  Security Passkey
-                </label>
-                <div className="relative">
-                  <Lock className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${focusedInput === 'password' ? 'text-primary' : 'text-muted-foreground'}`} />
+              {/* Password */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center px-1">
+                  <label
+                    className="block text-label-sm text-jds-on-surface-variant"
+                    htmlFor="password"
+                  >
+                    Password
+                  </label>
+                  <a
+                    className="text-label-sm text-jds-secondary hover:underline"
+                    href="#"
+                  >
+                    Forgot Password?
+                  </a>
+                </div>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-jds-on-surface-variant group-focus-within:text-jds-secondary transition-colors">
+                    <HiOutlineLockClosed className="text-xl" />
+                  </div>
                   <input
+                    className="w-full pl-11 pr-4 py-3.5 bg-jds-surface-variant/30 border-none focus:ring-2 focus:ring-jds-secondary focus:bg-jds-surface-container-lowest rounded-lg text-body-md text-jds-on-surface transition-all placeholder:text-jds-on-surface-variant/50 outline-none"
                     id="password"
+                    name="password"
+                    placeholder="••••••••"
+                    required
                     type="password"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-input bg-background/50 text-sm transition-all outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground/60"
-                    placeholder="••••••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    onFocus={() => setFocusedInput('password')}
-                    onBlur={() => setFocusedInput(null)}
-                    required
                   />
                 </div>
               </div>
 
-              {/* Submit CTA */}
-              <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} className="pt-2">
-                <Button 
-                  type="submit" 
-                  size="lg" 
-                  className="w-full h-11 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all flex items-center justify-center gap-2 group"
-                  disabled={loading}
+              {/* Remember */}
+              <div className="flex items-center gap-3 px-1">
+                <input
+                  className="w-5 h-5 rounded border-jds-outline-variant text-jds-primary focus:ring-jds-primary"
+                  id="remember"
+                  name="remember"
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
+                <label
+                  className="text-label-md text-jds-on-surface-variant cursor-pointer"
+                  htmlFor="remember"
                 >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Authenticating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Establish Connection</span>
-                      <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-                    </>
-                  )}
-                </Button>
-              </motion.div>
+                  Remember this device
+                </label>
+              </div>
+
+              {/* Submit */}
+              <button
+                className="w-full py-4 bg-jds-primary-container hover:bg-jds-primary transition-all duration-300 rounded-lg text-jds-on-primary-container hover:text-jds-on-primary text-[16px] font-bold shadow-sm hover:shadow-md flex items-center justify-center gap-2 group disabled:opacity-60"
+                type="submit"
+                disabled={loading}
+              >
+                {loading ? 'Signing in...' : 'Sign In to Dashboard'}
+                {!loading && (
+                  <HiOutlineArrowRight className="group-hover:translate-x-1 transition-transform" />
+                )}
+              </button>
             </form>
 
-            <div className="text-center pt-2">
-              <p className="text-[11px] text-muted-foreground">
-                Protected by strict platform policies. Unauthorized access logs are actively tracked and reported.
+            {/* Help */}
+            <div className="mt-8 pt-8 border-t border-jds-outline-variant/30 text-center">
+              <p className="text-label-sm text-jds-on-surface-variant">
+                Technical issues?{' '}
+                <a className="text-jds-secondary font-bold hover:underline" href="#">
+                  Contact IT Support
+                </a>
               </p>
             </div>
           </div>
-        </motion.div>
 
-      </div>
+          {/* Branding Accent */}
+          <div className="mt-12 flex justify-center">
+            <div className="flex items-center gap-6 opacity-30">
+              <HiOutlineSun className="text-3xl text-jds-primary" />
+              <div className="h-6 w-[1px] bg-jds-outline" />
+              <span className="text-label-sm tracking-widest uppercase">Admin Portal v2.4</span>
+            </div>
+          </div>
+        </motion.div>
+      </main>
+
+      {/* Minimal Footer */}
+      <footer className="w-full mt-auto">
+        <div className="flex flex-col md:flex-row justify-between items-center w-full px-4 md:px-10 py-8 max-w-[1200px] mx-auto gap-4">
+          <span className="text-label-sm text-jds-on-surface-variant">
+            © {new Date().getFullYear()} JD Solar Manila. Quiapo's trusted solar partner.
+          </span>
+          <div className="flex gap-6">
+            <a className="text-label-sm text-jds-on-surface-variant hover:text-jds-secondary underline transition-all" href="#">
+              Privacy Policy
+            </a>
+            <a className="text-label-sm text-jds-on-surface-variant hover:text-jds-secondary underline transition-all" href="#">
+              Terms of Service
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

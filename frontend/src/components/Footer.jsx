@@ -1,27 +1,35 @@
-import { Sun } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 export default function Footer() {
   return (
-    <footer className="border-t bg-muted/50">
-      <div className="container mx-auto px-4 py-8 flex flex-col md:flex-row justify-between items-center">
-        <div className="flex items-center space-x-2 mb-4 md:mb-0">
-          <Sun className="h-5 w-5 text-primary" />
-          <span className="font-semibold">SolarApp</span>
+    <footer className="bg-jds-surface-container-low mt-20">
+      <div className="flex flex-col md:flex-row justify-between items-center w-full px-4 md:px-6 py-8 max-w-[1400px] mx-auto gap-4">
+        <div className="flex flex-col gap-1 items-center md:items-start">
+          <span className="font-inter text-label-md font-bold text-jds-on-surface">JD Solar</span>
+          <span className="font-inter text-label-sm text-jds-on-surface-variant text-center md:text-left">
+            © {new Date().getFullYear()} JD Solar Manila. Quiapo's trusted solar partner.
+          </span>
         </div>
-        <div className="text-sm text-muted-foreground">
-          © {new Date().getFullYear()} SolarApp. All rights reserved.
-        </div>
-        <div className="flex space-x-6 mt-4 md:mt-0">
-          <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-            Privacy
+        <nav className="flex gap-6">
+          <a
+            className="font-inter text-label-sm text-jds-on-surface-variant hover:text-jds-secondary underline transition-all"
+            href="#"
+          >
+            Contact Us
           </a>
-          <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-            Terms
+          <a
+            className="font-inter text-label-sm text-jds-on-surface-variant hover:text-jds-secondary underline transition-all"
+            href="#"
+          >
+            Privacy Policy
           </a>
-          <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-            Contact
+          <a
+            className="font-inter text-label-sm text-jds-on-surface-variant hover:text-jds-secondary underline transition-all"
+            href="#"
+          >
+            Terms of Service
           </a>
-        </div>
+        </nav>
       </div>
     </footer>
   )

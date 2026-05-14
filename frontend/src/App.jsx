@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import ChatWidget from './components/ChatWidget'
 import LandingPage from './pages/LandingPage'
 import BrowsePage from './pages/BrowsePage'
 import ChatboxPage from './pages/ChatboxPage'
@@ -17,10 +18,12 @@ import './App.css'
 function AppLayout() {
   const { pathname } = useLocation()
   const isAdminRoute = pathname.startsWith('/admin')
+  const isLoginRoute = pathname === '/login'
+  const showShell = !isAdminRoute && !isLoginRoute
 
   return (
     <div className="flex flex-col min-h-screen">
-      {!isAdminRoute && <Navbar />}
+      {showShell && <Navbar />}
       <main className={isAdminRoute ? '' : 'flex-grow'}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -47,7 +50,8 @@ function AppLayout() {
           />
         </Routes>
       </main>
-      {!isAdminRoute && <Footer />}
+      {showShell && <Footer />}
+      {showShell && <ChatWidget />}
     </div>
   )
 }

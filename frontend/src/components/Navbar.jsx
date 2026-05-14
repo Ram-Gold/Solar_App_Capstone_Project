@@ -1,15 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Sun } from 'lucide-react'
-import { Button } from './ui/button'
 import { useAuth } from '../context/AuthContext'
 
-const links = [
+
+const navLinks = [
   { to: '/', label: 'Home' },
   { to: '/about', label: 'About' },
-  { to: '/browse', label: 'Browse' },
-  { to: '/chat', label: 'SolarAI' },
+  { to: '/browse', label: 'Products' },
 ]
-
 
 export default function Navbar() {
   const { pathname } = useLocation()
@@ -26,41 +23,67 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between mx-auto px-4">
-        <Link to="/" className="flex items-center space-x-2">
-          <Sun className="h-6 w-6 text-primary" />
-          <span className="text-xl font-bold tracking-tight">SolarApp</span>
+    <header className="bg-jds-surface/80 backdrop-blur-md sticky top-0 z-50 border-b border-jds-outline-variant/30">
+      <div className="flex justify-between items-center w-full px-4 md:px-6 py-4 max-w-[1400px] mx-auto">
+        {/* Logo */}
+        <Link to="/" className="font-inter text-headline-md font-bold text-jds-primary shrink-0">
+          JD Solar
         </Link>
-        <div className="flex items-center space-x-8">
-          <div className="hidden md:flex items-center space-x-6">
-            {links.map((link) => (
+
+        {/* Center Nav Links — desktop only */}
+        <nav className="hidden md:flex items-center gap-6">
+          {navLinks.map((link) => {
+            const isActive = link.to !== '#' && pathname === link.to
+            return (
               <Link
-                key={link.to}
+                key={link.label}
                 to={link.to}
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  pathname === link.to ? 'text-primary' : 'text-muted-foreground'
+                className={`font-inter text-label-md transition-colors duration-200 ${
+                  isActive
+                    ? 'text-jds-primary border-b-2 border-jds-primary pb-1'
+                    : 'text-jds-on-surface-variant hover:text-jds-primary'
                 }`}
               >
                 {link.label}
               </Link>
-            ))}
-            {user && (
+            )
+          })}
+        </nav>
+
+        {/* Right Actions */}
+        <div className="flex items-center gap-3">
+          {user ? (
+            <>
               <Link
                 to="/admin"
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  pathname === '/admin' ? 'text-primary' : 'text-muted-foreground'
-                }`}
+                className="font-inter text-label-md text-jds-on-surface-variant hover:text-jds-primary transition-colors hidden md:inline-block"
               >
-                Admin
+                Dashboard
               </Link>
-            )}
-          </div>
-          <Button variant="outline" size="sm" onClick={handleAuthClick}>
-            {user ? 'Sign Out' : 'Sign In'}
-          </Button>
+              <button
+                onClick={handleAuthClick}
+                className="font-inter text-label-md text-jds-on-surface-variant hover:text-jds-primary transition-colors"
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleAuthClick}
+              className="font-inter text-label-md text-jds-on-surface-variant hover:text-jds-primary transition-colors hidden md:inline-block"
+            >
+              Staff Login
+            </button>
+          )}
+
+          <Link
+            to="/chat"
+            className="bg-jds-primary-container text-jds-on-primary-container px-6 py-2 rounded-lg font-inter text-label-md hover:opacity-80 transition-opacity duration-200"
+          >
+            Get Quote
+          </Link>
         </div>
       </div>
-    </nav>
+    </header>
   )
 }

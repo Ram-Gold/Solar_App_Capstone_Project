@@ -61,8 +61,8 @@ export default function LandingPage() {
   return (
     <div className="jd-page-bg font-inter text-jd-on-surface selection:bg-jd-primary-fixed">
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-20 pb-32 md:pt-32 md:pb-48 px-4 md:px-10">
-        <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+      <section className="relative overflow-hidden pt-20 pb-32 md:pt-32 md:pb-48 px-0">
+        <div className="max-w-screen-2xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
           {/* Hero Text */}
           <motion.div
             className="lg:col-span-7 z-10"
@@ -132,8 +132,8 @@ export default function LandingPage() {
       </section>
 
       {/* How it Works Section */}
-      <section className="bg-jd-surface-container-low py-24 px-4 md:px-10 md:py-32">
-        <div className="max-w-[1200px] mx-auto">
+      <section className="bg-jd-surface-container-low py-24 px-0 md:py-32">
+        <div className="max-w-screen-2xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial="hidden"
@@ -178,7 +178,7 @@ export default function LandingPage() {
       </section>
 
       {/* Product Highlight Section */}
-      <section className="py-24 px-4 md:px-10 max-w-[1200px] mx-auto md:py-40">
+      <section className="py-24 px-0 max-w-screen-2xl mx-auto md:py-40">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           {/* Image Grid */}
           <motion.div
@@ -246,9 +246,9 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 md:px-10">
+      <section className="py-20 px-0">
         <motion.div
-          className="max-w-[1200px] mx-auto bg-jd-primary rounded-[2rem] p-12 md:p-20 text-center relative overflow-hidden"
+          className="max-w-screen-2xl mx-auto bg-jd-primary rounded-[2rem] p-12 md:p-20 text-center relative overflow-hidden"
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -272,17 +272,6 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* Floating Chat FAB */}
-      <Link
-        to="/chat"
-        aria-label="Chat with AI Solar Assistant"
-        className="fixed bottom-8 right-8 w-16 h-16 bg-jd-primary-container text-jd-on-primary-container rounded-full shadow-2xl flex items-center justify-center z-[100] hover:scale-110 transition-transform active:scale-95 group"
-      >
-        <HiOutlineCpuChip className="text-[32px]" />
-        <span className="absolute -top-12 right-0 bg-jd-surface-container-highest text-jd-on-surface text-label-sm px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md pointer-events-none">
-          Chat with JD Assistant
-        </span>
-      </Link>
     </div>
   )
 }

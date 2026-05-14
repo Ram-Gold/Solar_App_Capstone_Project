@@ -8,6 +8,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        /* === shadcn/ui CSS variable tokens (keep for existing components) === */
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -42,7 +43,70 @@ export default {
           foreground: "hsl(var(--card-foreground))",
         },
 
-        /* JD Solar Design System Colors */
+        /* === JD Solar Design System (DESIGN.md) — prefixed with jds- === */
+        // Surfaces
+        "jds-surface": "#fff8f3",
+        "jds-surface-dim": "#e5d8c8",
+        "jds-surface-bright": "#fff8f3",
+        "jds-surface-container-lowest": "#ffffff",
+        "jds-surface-container-low": "#fff2e1",
+        "jds-surface-container": "#f9ecdc",
+        "jds-surface-container-high": "#f3e6d6",
+        "jds-surface-container-highest": "#ede1d1",
+        "jds-surface-variant": "#ede1d1",
+        "jds-surface-tint": "#7c5800",
+
+        // On-surface
+        "jds-on-surface": "#211b11",
+        "jds-on-surface-variant": "#504533",
+        "jds-on-background": "#211b11",
+
+        // Primary
+        "jds-primary": "#7c5800",
+        "jds-on-primary": "#ffffff",
+        "jds-primary-container": "#fdb813",
+        "jds-on-primary-container": "#6b4b00",
+        "jds-primary-fixed": "#ffdea7",
+        "jds-primary-fixed-dim": "#ffbb1e",
+        "jds-on-primary-fixed": "#271900",
+        "jds-on-primary-fixed-variant": "#5e4200",
+
+        // Secondary
+        "jds-secondary": "#006399",
+        "jds-on-secondary": "#ffffff",
+        "jds-secondary-container": "#67bafd",
+        "jds-on-secondary-container": "#004972",
+        "jds-secondary-fixed": "#cde5ff",
+        "jds-secondary-fixed-dim": "#94ccff",
+        "jds-on-secondary-fixed": "#001d32",
+        "jds-on-secondary-fixed-variant": "#004b74",
+
+        // Tertiary
+        "jds-tertiary": "#5b5f63",
+        "jds-on-tertiary": "#ffffff",
+        "jds-tertiary-container": "#c1c4c9",
+        "jds-on-tertiary-container": "#4d5156",
+        "jds-tertiary-fixed": "#e0e3e8",
+        "jds-tertiary-fixed-dim": "#c3c7cc",
+        "jds-on-tertiary-fixed": "#181c20",
+        "jds-on-tertiary-fixed-variant": "#43474c",
+
+        // Error
+        "jds-error": "#ba1a1a",
+        "jds-on-error": "#ffffff",
+        "jds-error-container": "#ffdad6",
+        "jds-on-error-container": "#93000a",
+
+        // Outline
+        "jds-outline": "#837560",
+        "jds-outline-variant": "#d5c4ac",
+
+        // Inverse
+        "jds-inverse-surface": "#362f25",
+        "jds-inverse-on-surface": "#fcefdf",
+        "jds-inverse-primary": "#ffbb1e",
+
+        // Legacy aliases (used in LandingPage)
         "jd-primary": "#7c5800",
         "jd-primary-container": "#fdb813",
         "jd-on-primary": "#ffffff",
