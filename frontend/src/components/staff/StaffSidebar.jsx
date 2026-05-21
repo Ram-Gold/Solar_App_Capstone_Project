@@ -7,7 +7,7 @@ const mainLinks = [
   { id: 'products', label: 'Products', icon: Package },
 ]
 
-export default function StaffSidebar({ activeScreen, onNavigate }) {
+export default function StaffSidebar({ activeScreen, onNavigate, isOpen, onClose }) {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
 
@@ -21,7 +21,10 @@ export default function StaffSidebar({ activeScreen, onNavigate }) {
     const isActive = activeScreen === item.id
     return (
       <button
-        onClick={() => onNavigate(item.id)}
+        onClick={() => {
+          onNavigate(item.id)
+          if (onClose) onClose()
+        }}
         className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
           isActive
             ? 'bg-jds-primary/10 text-jds-primary'
@@ -35,7 +38,9 @@ export default function StaffSidebar({ activeScreen, onNavigate }) {
   }
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-jds-outline-variant/30 bg-jds-surface">
+    <aside className={`fixed inset-y-0 left-0 z-40 flex h-full w-64 shrink-0 flex-col border-r border-jds-outline-variant/30 bg-jds-surface transition-transform duration-300 lg:static lg:translate-x-0 ${
+      isOpen ? 'translate-x-0' : '-translate-x-full'
+    }`}>
       {/* Navigation */}
       <nav className="flex-1 space-y-6 overflow-y-auto px-4 py-6">
         <div className="space-y-1">
@@ -48,14 +53,23 @@ export default function StaffSidebar({ activeScreen, onNavigate }) {
 
       {/* User info footer */}
       <div className="border-t border-jds-outline-variant/30 px-5 py-4 bg-jds-surface-container-low/30">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-jds-secondary-container text-jds-on-secondary-container text-xs font-bold">
-            {user?.email?.[0]?.toUpperCase() || 'S'}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-jds-secondary-container text-jds-on-secondary-container text-xs font-bold shrink-0">
+              {user?.email?.[0]?.toUpperCase() || 'S'}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-jds-on-surface">{user?.email?.split('@')[0] || 'Staff'}</p>
+              <p className="text-[11px] text-jds-on-surface-variant capitalize">Staff Member</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-jds-on-surface">{user?.email?.split('@')[0] || 'Staff'}</p>
-            <p className="text-[11px] text-jds-on-surface-variant capitalize">Staff Member</p>
-          </div>
+          <button 
+            onClick={handleLogout}
+            className="text-jds-on-surface-variant hover:text-jds-primary p-1.5 rounded-lg hover:bg-jds-surface-container transition-colors"
+            title="Log Out"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </aside>

@@ -1,27 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 import { useChat } from '../context/ChatContext'
 import {
   HiOutlineArrowLeft,
   HiOutlineBolt,
-  HiOutlineCurrencyDollar,
+  HiOutlineShieldCheck,
+  HiOutlineCog6Tooth,
+  HiOutlineSun,
   HiOutlineClock,
   HiOutlineSquare2Stack,
-  HiOutlineDocumentText,
-  HiOutlineCog6Tooth,
-  HiOutlineArrowsRightLeft,
   HiOutlineChatBubbleLeftRight,
-  HiOutlineChevronDown,
+  HiOutlineSignal,
+  HiOutlineCpuChip,
+  HiOutlineBattery100,
 } from 'react-icons/hi2'
-
-const mockProducts = [
-  { id: 1, name: 'EcoPro 400W Panel', type: 'Monocrystalline', price: 12500, watt: 400, efficiency: 22.8, battery: true, image: 'https://images.unsplash.com/photo-1509391366360-120015d1df0a?w=800&auto=format&fit=crop&q=60', description: 'Lead-free solar panel with excellent temperature coefficient for high performance in hot climates. Designed for maximum power density in residential applications where roof space is at a premium.' },
-  { id: 2, name: 'SmartGrid Inverter 5kW', type: 'Accessories', price: 45000, watt: 0, efficiency: 0, battery: false, image: 'https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=800&auto=format&fit=crop&q=60', description: 'Advanced string inverter with cloud monitoring and smart power optimization for residential systems.' },
-  { id: 3, name: 'Titan Rail Mount System', type: 'Accessories', price: 3200, watt: 0, efficiency: 0, battery: false, image: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=800&auto=format&fit=crop&q=60', description: 'Universal mounting rail system compatible with all standard residential rooftops.' },
-  { id: 4, name: 'Zenith Bifacial 450W', type: 'Monocrystalline', price: 18900, watt: 450, efficiency: 22.3, battery: false, image: 'https://images.unsplash.com/photo-1611365892117-00ac5ef43c90?w=800&auto=format&fit=crop&q=60', description: 'Bifacial panel that captures light on both sides for up to 30% more energy yield.' },
-]
 
 export default function ProductInfoPage() {
   const { id } = useParams()
@@ -29,10 +23,10 @@ export default function ProductInfoPage() {
   const { sendMessage } = useChat()
 
   const [product, setProduct] = useState(null)
+  const [relatedProducts, setRelatedProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedThumb, setSelectedThumb] = useState(0)
-  const [openSection, setOpenSection] = useState(null)
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -45,16 +39,22 @@ export default function ProductInfoPage() {
           .single()
 
         if (error || !data) {
-          const mockItem = mockProducts.find(p => p.id === parseInt(id))
-          if (mockItem) setProduct(mockItem)
-          else setError('Product not found.')
+          setError('Product not found.')
         } else {
           setProduct(data)
+
+          // Fetch related products of same type
+          const { data: related } = await supabase
+            .from('products')
+            .select('id, name, type, watt, waterproof_grade, material, image_url, in_stock')
+            .eq('type', data.type)
+            .neq('id', data.id)
+            .limit(4)
+
+          setRelatedProducts(related || [])
         }
       } catch {
-        const mockItem = mockProducts.find(p => p.id === parseInt(id))
-        if (mockItem) setProduct(mockItem)
-        else setError('Product not found.')
+        setError('Product not found.')
       } finally {
         setTimeout(() => setLoading(false), 500)
       }
@@ -66,16 +66,33 @@ export default function ProductInfoPage() {
     if (!product) return
     navigate('/chat')
     setTimeout(() => {
-      sendMessage(`Tell me more about the ${product.name}. Is it a good fit for me?`)
+      sendMessage(`Tell me more about the ${product.name}. Is it a good fit for my needs?`)
     }, 300)
   }
 
-  const relatedProducts = mockProducts.filter(p => p.id !== parseInt(id)).slice(0, 4)
+  // Build specs array for the 2-column bullet-point grid
+  const getSpecsList = (p) => {
+    if (!p) return []
+    return [
+      { label: 'Power Output', value: p.watt ? `${p.watt}W` : null, icon: HiOutlineBolt },
+      { label: 'Waterproof Grade', value: p.waterproof_grade, icon: HiOutlineShieldCheck },
+      { label: 'Control Method', value: p.method_control, icon: HiOutlineSignal },
+      { label: 'Material', value: p.material, icon: HiOutlineCog6Tooth },
+      { label: 'Solar Panel', value: p.solar_panel, icon: HiOutlineSun },
+      { label: 'Battery', value: p.battery, icon: HiOutlineBattery100 },
+      { label: 'Charging Time', value: p.charging_time, icon: HiOutlineClock },
+      { label: 'Charging Type', value: p.charging_type, icon: HiOutlineBolt },
+      { label: 'SMD Lamp Beads', value: p.smd_lamp_beads, icon: HiOutlineCpuChip },
+      { label: 'Lighting Time', value: p.lighting_time, icon: HiOutlineClock },
+      { label: 'Size', value: p.size, icon: HiOutlineSquare2Stack },
+      { label: 'Availability', value: p.in_stock ? 'In Stock' : 'Out of Stock', icon: HiOutlineShieldCheck },
+    ].filter(spec => spec.value)
+  }
 
   if (loading) {
     return (
       <div className="jds-page-bg font-inter min-h-screen">
-        <div className="max-w-screen-2xl mx-auto px-0 py-10">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="h-6 w-32 bg-jds-surface-variant rounded mb-10 animate-pulse" />
           <div className="grid grid-cols-1 md:grid-cols-12 gap-12">
             <div className="md:col-span-7">
@@ -106,9 +123,11 @@ export default function ProductInfoPage() {
     )
   }
 
+  const specs = getSpecsList(product)
+
   return (
     <div className="jds-page-bg font-inter text-jds-on-surface min-h-screen">
-      <main className="max-w-screen-2xl mx-auto px-0 py-10">
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Back Navigation */}
         <Link
           to="/browse"
@@ -128,11 +147,19 @@ export default function ProductInfoPage() {
             transition={{ duration: 0.5 }}
           >
             <div className="bg-jds-surface-container-lowest rounded-xl overflow-hidden shadow-[0px_4px_12px_rgba(0,0,0,0.05)] aspect-[4/3] relative flex items-center justify-center p-8">
-              <img
-                alt={product.name}
-                className="w-full h-full object-contain"
-                src={product.image || product.image_url}
-              />
+              {product.image_url ? (
+                <img
+                  alt={product.name}
+                  className="w-full h-full object-contain"
+                  src={product.image_url}
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-4 text-jds-on-surface-variant/30">
+                  <HiOutlineBolt className="text-7xl" />
+                  <span className="text-headline-md">{product.watt}W</span>
+                  <span className="text-body-md">{product.type}</span>
+                </div>
+              )}
             </div>
             {/* Thumbnail Strip */}
             <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
@@ -140,17 +167,21 @@ export default function ProductInfoPage() {
                 <button
                   key={i}
                   onClick={() => setSelectedThumb(i)}
-                  className={`flex-shrink-0 w-24 h-24 rounded-lg border-2 overflow-hidden bg-white cursor-pointer transition-colors ${
+                  className={`flex-shrink-0 w-24 h-24 rounded-lg border-2 overflow-hidden bg-white cursor-pointer transition-colors flex items-center justify-center ${
                     selectedThumb === i
                       ? 'border-jds-secondary'
                       : 'border-jds-outline-variant hover:border-jds-secondary'
                   }`}
                 >
-                  <img
-                    className="w-full h-full object-cover"
-                    src={product.image || product.image_url}
-                    alt={`${product.name} view ${i + 1}`}
-                  />
+                  {product.image_url ? (
+                    <img
+                      className="w-full h-full object-cover"
+                      src={product.image_url}
+                      alt={`${product.name} view ${i + 1}`}
+                    />
+                  ) : (
+                    <HiOutlineBolt className="text-2xl text-jds-on-surface-variant/30" />
+                  )}
                 </button>
               ))}
             </div>
@@ -169,126 +200,44 @@ export default function ProductInfoPage() {
                 <span className="bg-jds-secondary-fixed text-jds-on-secondary-fixed-variant px-3 py-1 rounded-full text-label-sm uppercase tracking-wider">
                   {product.type}
                 </span>
-                <span className="bg-jds-surface-container-high text-jds-on-surface-variant px-3 py-1 rounded-full text-label-sm">
-                  In Stock
+                {product.waterproof_grade && (
+                  <span className="bg-jds-surface-container-high text-jds-on-surface-variant px-3 py-1 rounded-full text-label-sm">
+                    {product.waterproof_grade}
+                  </span>
+                )}
+                <span className={`px-3 py-1 rounded-full text-label-sm ${
+                  product.in_stock
+                    ? 'bg-jds-secondary-container/20 text-jds-secondary'
+                    : 'bg-jds-error-container/20 text-jds-error'
+                }`}>
+                  {product.in_stock ? 'In Stock' : 'Out of Stock'}
                 </span>
               </div>
-              <h1 className="text-headline-xl text-jds-on-surface">{product.name}</h1>
+              <h1 className="text-headline-lg-mobile md:text-headline-xl text-jds-on-surface">{product.name}</h1>
               <p className="text-body-lg text-jds-on-surface-variant italic">
-                The gold standard for high-density power generation.
+                {product.watt}W solar-powered light — built for durability and performance.
               </p>
             </div>
 
-            {/* Specs At-a-glance */}
+            {/* 2-Column Specs Bullet Grid */}
             <div className="bg-jds-surface-container-lowest border border-jds-outline-variant rounded-xl p-6 shadow-[0px_4px_12px_rgba(0,0,0,0.05)]">
-              <div className="grid grid-cols-2 gap-y-8 gap-x-4">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2 text-jds-on-surface-variant">
-                    <HiOutlineBolt className="text-lg" />
-                    <span className="text-label-md">Power Output</span>
-                  </div>
-                  <span className="text-headline-md text-jds-on-surface">{product.watt}W</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2 text-jds-on-surface-variant">
-                    <HiOutlineCurrencyDollar className="text-lg" />
-                    <span className="text-label-md">Est. Price</span>
-                  </div>
-                  <span className="text-headline-md text-jds-primary">₱{product.price?.toLocaleString()}</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2 text-jds-on-surface-variant">
-                    <HiOutlineClock className="text-lg" />
-                    <span className="text-label-md">Efficiency</span>
-                  </div>
-                  <span className="text-headline-md text-jds-on-surface">{product.efficiency}%</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2 text-jds-on-surface-variant">
-                    <HiOutlineSquare2Stack className="text-lg" />
-                    <span className="text-label-md">Measurements</span>
-                  </div>
-                  <span className="text-headline-md text-jds-on-surface text-sm">{product.measurements || 'Standard'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Accordion Sections */}
-            <div className="flex flex-col gap-4">
-              {/* Overview */}
-              <div className="border-b border-jds-outline-variant pb-6">
-                <div className="flex items-center gap-2 mb-3 text-jds-on-surface">
-                  <HiOutlineDocumentText className="text-jds-primary text-xl" />
-                  <h3 className="text-headline-md">Product Overview</h3>
-                </div>
-                <p className="text-body-md text-jds-on-surface-variant leading-relaxed">
-                  {product.product_overview || product.description || `Lead-free solar panel with excellent temperature coefficient for high performance in hot climates. Designed for maximum power density in residential applications where roof space is at a premium.`}
-                </p>
-              </div>
-
-              {/* Details Dropdown */}
-              <div
-                className="border-b border-jds-outline-variant py-4 cursor-pointer group"
-                onClick={() => setOpenSection(openSection === 'details' ? null : 'details')}
-              >
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-jds-on-surface">
-                    <HiOutlineCog6Tooth className="text-jds-on-surface-variant text-xl" />
-                    <span className="text-label-md text-[18px]">Product Details</span>
-                  </div>
-                  <HiOutlineChevronDown className={`text-jds-on-surface-variant group-hover:text-jds-primary transition-all ${openSection === 'details' ? 'rotate-180' : ''}`} />
-                </div>
-                <AnimatePresence>
-                  {openSection === 'details' && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden mt-4"
-                    >
-                      <ul className="space-y-2 text-body-md text-jds-on-surface-variant">
-                        {product.product_details && typeof product.product_details === 'object' ? (
-                          Object.entries(product.product_details).map(([key, value]) => (
-                            <li key={key}>• {key}: {value}</li>
-                          ))
-                        ) : (
-                          <>
-                            <li>• Cell Type: {product.type}</li>
-                            <li>• Warranty: 25 years product, 25 years performance</li>
-                          </>
-                        )}
-                      </ul>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Measurements Dropdown */}
-              <div
-                className="border-b border-jds-outline-variant py-4 cursor-pointer group"
-                onClick={() => setOpenSection(openSection === 'measurements' ? null : 'measurements')}
-              >
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-jds-on-surface">
-                    <HiOutlineArrowsRightLeft className="text-jds-on-surface-variant text-xl" />
-                    <span className="text-label-md text-[18px]">Measurements</span>
-                  </div>
-                  <HiOutlineChevronDown className={`text-jds-on-surface-variant group-hover:text-jds-primary transition-all ${openSection === 'measurements' ? 'rotate-180' : ''}`} />
-                </div>
-                <AnimatePresence>
-                  {openSection === 'measurements' && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden mt-4"
-                    >
-                      <ul className="space-y-2 text-body-md text-jds-on-surface-variant">
-                        <li>• {product.measurements || '1,755 x 1,038 x 30 mm'}</li>
-                      </ul>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+              <h3 className="text-headline-md text-jds-on-surface mb-6 flex items-center gap-2">
+                <HiOutlineCog6Tooth className="text-jds-primary" />
+                Technical Specifications
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {specs.map((spec) => {
+                  const Icon = spec.icon
+                  return (
+                    <div key={spec.label} className="flex items-start gap-3 py-2">
+                      <Icon className="text-jds-secondary text-lg flex-shrink-0 mt-0.5" />
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="text-label-sm text-jds-on-surface-variant uppercase tracking-wider">{spec.label}</span>
+                        <span className="text-body-md text-jds-on-surface font-medium break-words">{spec.value}</span>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
@@ -309,38 +258,58 @@ export default function ProductInfoPage() {
         </div>
 
         {/* Related Products */}
-        <section className="mt-20">
-          <h2 className="text-headline-lg text-jds-on-surface mb-8">Similar Solutions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {relatedProducts.map((rp) => (
-              <div
-                key={rp.id}
-                className="bg-jds-surface-container-lowest border border-jds-outline-variant rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group"
-              >
-                <div className="aspect-square bg-white flex items-center justify-center p-4">
-                  <img
-                    alt={rp.name}
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-                    src={rp.image || rp.image_url}
-                  />
+        {relatedProducts.length > 0 && (
+          <section className="mt-20">
+            <h2 className="text-headline-lg text-jds-on-surface mb-8">Similar Solutions</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {relatedProducts.map((rp) => (
+                <div
+                  key={rp.id}
+                  className="bg-jds-surface-container-lowest border border-jds-outline-variant rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group"
+                >
+                  <div className="aspect-square bg-white flex items-center justify-center p-4">
+                    {rp.image_url ? (
+                      <img
+                        alt={rp.name}
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                        src={rp.image_url}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-jds-on-surface-variant/30">
+                        <HiOutlineBolt className="text-4xl" />
+                        <span className="text-label-sm">{rp.watt}W</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      {rp.waterproof_grade && (
+                        <span className="bg-jds-surface-container-high text-jds-on-surface-variant px-2 py-0.5 rounded-full text-[10px] uppercase w-fit tracking-tight font-semibold">
+                          {rp.waterproof_grade}
+                        </span>
+                      )}
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-tight font-semibold ${
+                        rp.in_stock !== false
+                          ? 'bg-jds-secondary-container/10 text-jds-secondary'
+                          : 'bg-jds-error-container/10 text-jds-error'
+                      }`}>
+                        {rp.in_stock !== false ? 'In Stock' : 'Out of Stock'}
+                      </span>
+                    </div>
+                    <h3 className="text-label-md font-bold text-jds-on-surface truncate">{rp.name}</h3>
+                    <p className="text-headline-md text-jds-secondary text-[18px]">{rp.watt}W</p>
+                    <Link
+                      to={`/product/${rp.id}`}
+                      className="mt-2 w-full py-2 border border-jds-secondary text-jds-secondary text-label-md rounded-lg hover:bg-jds-secondary-fixed/20 transition-colors text-center block"
+                    >
+                      View Details
+                    </Link>
+                  </div>
                 </div>
-                <div className="p-4 flex flex-col gap-2">
-                  <span className="bg-jds-surface-container-high text-jds-on-surface-variant px-2 py-0.5 rounded-full text-[10px] uppercase w-fit tracking-tight font-semibold">
-                    In Stock
-                  </span>
-                  <h3 className="text-label-md font-bold text-jds-on-surface truncate">{rp.name}</h3>
-                  <p className="text-headline-md text-jds-primary text-[18px]">₱{rp.price?.toLocaleString()}</p>
-                  <Link
-                    to={`/product/${rp.id}`}
-                    className="mt-2 w-full py-2 border border-jds-secondary text-jds-secondary text-label-md rounded-lg hover:bg-jds-secondary-fixed/20 transition-colors text-center block"
-                  >
-                    View Details
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   )

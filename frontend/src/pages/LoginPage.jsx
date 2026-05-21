@@ -126,20 +126,12 @@ export default function LoginPage() {
 
               {/* Password */}
               <div className="space-y-2">
-                <div className="flex justify-between items-center px-1">
-                  <label
-                    className="block text-label-sm text-jds-on-surface-variant"
-                    htmlFor="password"
-                  >
-                    Password
-                  </label>
-                  <a
-                    className="text-label-sm text-jds-secondary hover:underline"
-                    href="#"
-                  >
-                    Forgot Password?
-                  </a>
-                </div>
+                <label
+                  className="block text-label-sm text-jds-on-surface-variant ml-1"
+                  htmlFor="password"
+                >
+                  Password
+                </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-jds-on-surface-variant group-focus-within:text-jds-secondary transition-colors">
                     <HiOutlineLockClosed className="text-xl" />

@@ -12,69 +12,106 @@ supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
 
-def seed_database():
-    print("Starting database seeding with embeddings...")
-    
-    if not os.path.exists('mock_products.csv'):
-        print("Error: mock_products.csv not found!")
-        return
+CSV_PATH = os.path.join(os.path.dirname(__file__), '..', 'solar_database - Sheet1.csv')
 
-    with open('mock_products.csv', mode='r', encoding='utf-8') as file:
+def derive_type(name: str) -> str:
+    """Derive product type from the product name."""
+    name_lower = name.lower()
+    if 'integrated' in name_lower:
+        return 'Integrated Solar Street Light'
+    elif 'road light' in name_lower:
+        return 'Aviation Aluminum Solar Road Light'
+    elif 'street light' in name_lower and 'aviation aluminum' in name_lower:
+        return 'Aviation Aluminum Solar Street Light'
+    elif 'street light' in name_lower and 'aluminum' in name_lower:
+        return 'Aluminum Solar Street Light'
+    elif 'solar light' in name_lower and 'aviation' in name_lower:
+        return 'Aviation Aluminum Solar Light'
+    elif 'streetlight' in name_lower or 'street light' in name_lower:
+        return 'Solar Streetlight'
+    return 'Solar Light'
+
+def seed_database():
+    print("Starting Phase 1 database seeding with embeddings...")
+
+    csv_path = CSV_PATH
+    if not os.path.exists(csv_path):
+        # Fallback to local path
+        csv_path = os.path.join(os.path.dirname(__file__), 'solar_database - Sheet1.csv')
+        if not os.path.exists(csv_path):
+            print("Error: solar_database - Sheet1.csv not found!")
+            return
+
+    # Clear existing products
+    print("Clearing existing products...")
+    supabase.table("products").delete().neq("id", 0).execute()
+
+    with open(csv_path, mode='r', encoding='utf-8') as file:
         csv_reader = csv.DictReader(file)
-        
+
         for row in csv_reader:
-            name = row['name']
-            print(f"Processing: {name}")
-            
+            name = row.get('name', '').strip()
+            if not name:
+                continue
+
+            watts = row.get('watts', '').strip().replace('W', '')
+            product_name = f"{name} {row.get('watts', '').strip()}"
+            product_type = derive_type(name)
+
+            print(f"Processing: {product_name}")
+
             # Combine relevant info for the embedding text
-            # This is what the AI will use to "understand" the product
             embed_text = (
-                f"Product: {row['name']}\n"
-                f"Category: {row['type']}\n"
-                f"Specs: {row['watt']}W, {row['efficiency']}% efficiency\n"
-                f"Features: {'Includes battery' if row['battery'].lower() == 'true' else 'No battery'}\n"
-                f"Measurements: {row.get('measurements', 'Any')}\n"
-                f"Overview: {row.get('product_overview', '')}\n"
-                f"Description: {row['description']}"
+                f"Product: {product_name}\n"
+                f"Category: {product_type}\n"
+                f"Power: {watts}W\n"
+                f"Waterproof: {row.get('waterproof_grade', 'N/A')}\n"
+                f"Control: {row.get('method_control', 'N/A')}\n"
+                f"Material: {row.get('material', 'N/A')}\n"
+                f"Solar Panel: {row.get('solar_panel', 'N/A')}\n"
+                f"Battery: {row.get('battery', 'N/A')}\n"
+                f"Charging Time: {row.get('charging_time', 'N/A')}\n"
+                f"LED: {row.get('smd_lamp_beads', 'N/A')}\n"
+                f"Lighting Time: {row.get('lighting_time', 'N/A')}\n"
+                f"Size: {row.get('size', 'N/A')}"
             )
-            
+
             try:
-                # Generate embedding using our fixed embedder
+                # Generate embedding
                 try:
                     embedding = get_embedding(embed_text)
                     print(f"  ✓ Generated embedding ({len(embedding)} dims)")
                 except Exception as embed_error:
                     print(f"  × Embedding failed: {str(embed_error)}")
                     embedding = None
-                
-                # Format data for Supabase
-                is_battery = row['battery'].lower() == 'true'
-                
+
                 product_data = {
-                    "name": row['name'],
-                    "type": row['type'],
-                    "watt": int(row['watt']) if row['watt'] else None,
-                    "price": float(row['price']) if row['price'] else None,
-                    "efficiency": float(row['efficiency']) if row['efficiency'] else None,
-                    "battery": is_battery,
-                    "measurements": row.get('measurements', ''),
-                    "image_url": row['image_url'],
-                    "description": row['description'],
-                    "product_overview": row.get('product_overview', ''),
-                    "product_details": row.get('product_details', '{}'),
-                    "sales": int(row.get('sales', 0)) if row.get('sales') else 0,
-                    "embedding": embedding
+                    "name": product_name,
+                    "type": product_type,
+                    "watt": int(watts) if watts else None,
+                    "waterproof_grade": row.get('waterproof_grade', '').strip() or None,
+                    "method_control": row.get('method_control', '').strip() or None,
+                    "material": row.get('material', '').strip() or None,
+                    "solar_panel": row.get('solar_panel', '').strip() or None,
+                    "battery": row.get('battery', '').strip() or None,
+                    "charging_time": row.get('charging_time', '').strip() or None,
+                    "charging_type": row.get('charging_type', '').strip() or None,
+                    "smd_lamp_beads": row.get('smd_lamp_beads', '').strip() or None,
+                    "lighting_time": row.get('lighting_time', '').strip() or None,
+                    "size": row.get('size', '').strip() or None,
+                    "image_url": row.get('image_url', '').strip() or None,
+                    "in_stock": True,
+                    "sales": int(row.get('sales', 0)) if row.get('sales', '').strip() else 0,
+                    "embedding": embedding,
                 }
-                
-                # UPSERT based on name to avoid duplicates if re-running
-                # We'll use a simple insert here but you might want to clear first
+
                 supabase.table("products").insert(product_data).execute()
-                print(f"  ✓ Successfully inserted: {name}")
-                
+                print(f"  ✓ Successfully inserted: {product_name}")
+
             except Exception as e:
-                print(f"  × Error processing {name}: {str(e)}")
-                
-    print("\nSeeding complete!")
+                print(f"  × Error processing {product_name}: {str(e)}")
+
+    print("\nPhase 1 seeding complete!")
 
 if __name__ == "__main__":
     seed_database()

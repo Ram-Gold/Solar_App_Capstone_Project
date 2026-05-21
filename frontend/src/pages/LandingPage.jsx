@@ -90,7 +90,7 @@ export default function LandingPage() {
   return (
     <div className="jd-page-bg font-inter text-jd-on-surface selection:bg-jd-primary-fixed">
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-20 pb-32 md:pt-32 md:pb-48 px-0">
+      <section className="relative overflow-hidden pt-20 pb-32 md:pt-32 md:pb-48 px-4 sm:px-6 lg:px-8">
         <div className="max-w-screen-2xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
           {/* Hero Text */}
           <motion.div
@@ -161,7 +161,7 @@ export default function LandingPage() {
       </section>
 
       {/* Reviews Section */}
-      <section className="bg-jd-surface-container-low py-24 px-0 md:py-32">
+      <section className="bg-jd-surface-container-low py-24 px-4 sm:px-6 lg:px-8 md:py-32">
         <div className="max-w-screen-2xl mx-auto">
           <motion.div
             className="text-center mb-16"
@@ -218,7 +218,7 @@ export default function LandingPage() {
       </section>
 
       {/* Product Highlight Section */}
-      <section className="py-24 px-0 max-w-screen-2xl mx-auto md:py-40">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-screen-2xl mx-auto md:py-40">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           {/* Image Grid */}
           <motion.div
@@ -286,7 +286,7 @@ export default function LandingPage() {
       </section>
 
       {/* Bento Box Gallery Section */}
-      <section className="py-24 px-0 max-w-screen-2xl mx-auto md:py-32 overflow-hidden">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-screen-2xl mx-auto md:py-32 overflow-hidden">
         <div className="flex justify-between items-end mb-16 px-4 md:px-0">
           <motion.div
             initial="hidden"
@@ -350,7 +350,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-0">
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
         <motion.div
           className="max-w-screen-2xl mx-auto bg-jd-primary rounded-[2rem] p-12 md:p-20 text-center relative overflow-hidden"
           initial={{ opacity: 0, y: 40 }}

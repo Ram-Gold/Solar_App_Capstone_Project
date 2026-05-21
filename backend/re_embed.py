@@ -1,5 +1,5 @@
 """Re-generates embeddings for all products using the Nvidia Nemotron model via OpenRouter.
-Matches the implementation in embedder.py."""
+Updated for Phase 1 schema (solar lights/streetlights)."""
 
 import os
 from dotenv import load_dotenv
@@ -15,18 +15,22 @@ supabase = create_client(
 
 def re_embed_all():
     products = supabase.table("products").select("*").execute().data
-    print(f"Found {len(products)} products. Re-generating embeddings with Gemini...\n")
+    print(f"Found {len(products)} products. Re-generating embeddings...\n")
 
     for p in products:
         embed_text = (
             f"Product: {p['name']}\n"
             f"Category: {p['type']}\n"
-            f"Specs: {p['watt']}W, {p['efficiency']}% efficiency\n"
-            f"Features: {'Includes battery' if p.get('battery') else 'No battery'}\n"
-            f"Measurements: {p.get('measurements', 'Any')}\n"
-            f"Overview: {p.get('product_overview', '')}\n"
-            f"Price: {p['price']}\n"
-            f"Description: {p['description']}"
+            f"Power: {p['watt']}W\n"
+            f"Waterproof: {p.get('waterproof_grade', 'N/A')}\n"
+            f"Control: {p.get('method_control', 'N/A')}\n"
+            f"Material: {p.get('material', 'N/A')}\n"
+            f"Solar Panel: {p.get('solar_panel', 'N/A')}\n"
+            f"Battery: {p.get('battery', 'N/A')}\n"
+            f"Charging Time: {p.get('charging_time', 'N/A')}\n"
+            f"LED: {p.get('smd_lamp_beads', 'N/A')}\n"
+            f"Lighting Time: {p.get('lighting_time', 'N/A')}\n"
+            f"Size: {p.get('size', 'N/A')}"
         )
 
         try:
@@ -38,7 +42,7 @@ def re_embed_all():
         except Exception as e:
             print(f"  ✗ {p['name']}: {e}")
 
-    print("\nDone! All embeddings updated to Gemini text-embedding-004.")
+    print("\nDone! All embeddings updated.")
 
 if __name__ == "__main__":
     re_embed_all()

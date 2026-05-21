@@ -39,7 +39,11 @@ def get_products():
         raise HTTPException(status_code=500, detail="Database connection not configured")
         
     try:
-        response = supabase.table("products").select("id,name,type,watt,price,efficiency,battery,measurements,image_url,description,product_overview,product_details,sales,stock").execute()
+        response = supabase.table("products").select(
+            "id,name,type,watt,waterproof_grade,method_control,material,"
+            "solar_panel,battery,charging_time,charging_type,smd_lamp_beads,"
+            "lighting_time,size,image_url,in_stock,sales"
+        ).execute()
         return {"products": response.data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

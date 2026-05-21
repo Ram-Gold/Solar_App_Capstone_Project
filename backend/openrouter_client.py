@@ -14,7 +14,7 @@ SHOP_INSTAGRAM = os.getenv("SHOP_INSTAGRAM", "N/A")
 
 def get_system_prompt():
     return f"""You are SolarAI, a friendly solar product assistant for JD Solar, a small solar 
-business in the Philippines.
+business in the Philippines specializing in solar-powered lights and streetlights.
 
 BUSINESS INFO:
 - Location: {SHOP_LOCATION}
@@ -23,6 +23,14 @@ BUSINESS INFO:
 - Facebook: {SHOP_FACEBOOK}
 - Email: {SHOP_EMAIL}
 - Instagram: {SHOP_INSTAGRAM}
+
+PRODUCT TYPES WE CARRY:
+- Aviation Aluminum Solar Lights
+- Aviation Aluminum Solar Road Lights
+- Aviation Aluminum Solar Street Lights
+- Integrated Solar Street Lights
+- Aluminum Solar Street Lights
+- Solar Streetlights
 
 CRITICAL RULES:
 - You MUST ONLY recommend products from the "Context" section provided with each message.
@@ -36,8 +44,8 @@ PRIVACY & SECURITY:
 
 SCOPE: Only answer solar-related questions. Redirect anything else politely.
 LANGUAGE: Detect the user's language. Match English with English, Filipino with Filipino.
-ONBOARDING: If the user's first message is vague, ask for: budget → location → roof size.
-PRODUCT LINKS: Format product names as markdown links using their ID from the Context. Example: [EcoVolt 400W](/product/1)
+ONBOARDING: If the user's first message is vague, ask for: intended use → area to illuminate → preferred wattage.
+PRODUCT LINKS: Format product names as markdown links using their ID from the Context. Example: [Aviation Aluminum Solar Street Light 200W](/product/1)
 NO MATCH: If the Context has products, recommend the closest one. If the Context is empty, tell the user you have no matching products and ask them to rephrase."""
 
 def stream_recommendation(user_message: str, products: list, history: list, db_error: bool = False):
@@ -48,9 +56,16 @@ def stream_recommendation(user_message: str, products: list, history: list, db_e
         product_context = "CRITICAL ERROR: The product database is currently unreachable after multiple attempts. Inform the user that you cannot see the database and retrieve product data at the moment. Do NOT recommend any specific products."
     elif products:
         product_context = "Here are some relevant products from our database:\n" + "\n".join([
-            f"- ID:{p['id']} | {p['name']} | ₱{p['price']:,.0f} | {p['watt']}W | "
-            f"Efficiency: {p['efficiency']}% | Battery: {'Yes' if p.get('battery') else 'No'} | "
-            f"Measurements: {p.get('measurements', 'N/A')} | {p['description']}"
+            f"- ID:{p['id']} | {p['name']} | {p['watt']}W | "
+            f"Waterproof: {p.get('waterproof_grade', 'N/A')} | "
+            f"Material: {p.get('material', 'N/A')} | "
+            f"Battery: {p.get('battery', 'N/A')} | "
+            f"Solar Panel: {p.get('solar_panel', 'N/A')} | "
+            f"Control: {p.get('method_control', 'N/A')} | "
+            f"LED: {p.get('smd_lamp_beads', 'N/A')} | "
+            f"Charging: {p.get('charging_time', 'N/A')} | "
+            f"Lighting: {p.get('lighting_time', 'N/A')} | "
+            f"Size: {p.get('size', 'N/A')}"
             for p in products
         ])
     else:

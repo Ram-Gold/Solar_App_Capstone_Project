@@ -7,18 +7,12 @@ import {
   HiOutlineMagnifyingGlass,
   HiOutlineCheck,
   HiOutlineShieldCheck,
-  HiOutlineTruck,
   HiOutlineLifebuoy,
+  HiOutlineBolt,
+  HiOutlineFunnel,
 } from 'react-icons/hi2'
 
-const mockProducts = [
-  { id: 1, name: 'EcoPro 400W Panel', type: 'Monocrystalline', price: 12500, watt: 400, efficiency: 22.8, battery: true, image: 'https://images.unsplash.com/photo-1509391366360-120015d1df0a?w=800&auto=format&fit=crop&q=60', best_seller: true },
-  { id: 2, name: 'SmartGrid Inverter 5kW', type: 'Accessories', price: 45000, watt: 0, efficiency: 0, battery: false, image: 'https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=800&auto=format&fit=crop&q=60' },
-  { id: 3, name: 'Titan Rail Mount System', type: 'Accessories', price: 3200, watt: 0, efficiency: 0, battery: false, image: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=800&auto=format&fit=crop&q=60' },
-  { id: 4, name: 'Zenith Bifacial 450W', type: 'Monocrystalline', price: 18900, watt: 450, efficiency: 22.3, battery: false, image: 'https://images.unsplash.com/photo-1611365892117-00ac5ef43c90?w=800&auto=format&fit=crop&q=60' },
-]
-
-const categories = ['All Products', 'Residential', 'Commercial', 'Accessories']
+const categories = ['All Products', 'Aviation Aluminum Solar Light', 'Aviation Aluminum Solar Road Light', 'Aviation Aluminum Solar Street Light', 'Integrated Solar Street Light', 'Aluminum Solar Street Light', 'Solar Streetlight']
 
 export default function BrowsePage() {
   const navigate = useNavigate()
@@ -29,8 +23,9 @@ export default function BrowsePage() {
 
   const [search, setSearch] = useState(searchParams.get('search') || '')
   const [activeCategory, setActiveCategory] = useState('All Products')
-  const [maxPrice, setMaxPrice] = useState(100000)
   const [sortBy, setSortBy] = useState('newest')
+  const [showFilters, setShowFilters] = useState(false)
+  const [powerFilter, setPowerFilter] = useState('All Power')
 
   useEffect(() => {
     const query = searchParams.get('search')
@@ -45,12 +40,12 @@ export default function BrowsePage() {
       try {
         const { data, error } = await supabase.from('products').select('*')
         if (error || !data || data.length === 0) {
-          setProducts(mockProducts)
+          setProducts([])
         } else {
           setProducts(data)
         }
       } catch {
-        setProducts(mockProducts)
+        setProducts([])
       } finally {
         setTimeout(() => setLoading(false), 600)
       }
@@ -58,32 +53,56 @@ export default function BrowsePage() {
     fetchProducts()
   }, [])
 
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) &&
-    (activeCategory === 'All Products' || p.type === activeCategory) &&
-    p.price <= maxPrice
-  )
+  const filtered = products
+    .filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase())
+      const matchesCategory = activeCategory === 'All Products' || p.type === activeCategory
+      
+      let matchesPower = true
+      if (powerFilter !== 'All Power') {
+        if (powerFilter === 'Under 200W') matchesPower = (p.watt || 0) < 200
+        else if (powerFilter === '200W - 400W') matchesPower = (p.watt || 0) >= 200 && (p.watt || 0) <= 400
+        else if (powerFilter === 'Above 400W') matchesPower = (p.watt || 0) > 400
+      }
+
+      return matchesSearch && matchesCategory && matchesPower
+    })
+    .sort((a, b) => {
+      if (sortBy === 'watt-low') return (a.watt || 0) - (b.watt || 0)
+      if (sortBy === 'watt-high') return (b.watt || 0) - (a.watt || 0)
+      if (sortBy === 'name') return a.name.localeCompare(b.name)
+      return b.id - a.id // newest
+    })
 
   return (
     <div className="jds-page-bg font-inter text-jds-on-surface min-h-screen">
-      <main className="max-w-screen-2xl mx-auto px-0 py-12">
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Page Header */}
         <div className="flex flex-col gap-2 mb-12">
-          <h1 className="text-headline-xl text-jds-on-surface">Digital Product Guide</h1>
+          <h1 className="text-headline-lg-mobile md:text-headline-xl text-jds-on-surface">Digital Product Guide</h1>
           <p className="text-body-lg text-jds-on-surface-variant max-w-2xl">
-            Discover clean energy solutions tailored for Manila's rooftops. Simplified, transparent, and built for a sustainable future.
+            Discover our complete range of solar-powered lights and streetlights. Built for durability, designed for Manila's streets.
           </p>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-8 items-start">
+        <div className="flex flex-col md:flex-row gap-8 items-start w-full">
+          {/* Mobile Filter Toggle Button */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="md:hidden flex items-center justify-center gap-2 w-full py-3 px-4 bg-jds-surface-container-high rounded-xl text-label-md font-bold text-jds-on-surface border border-jds-outline-variant hover:bg-jds-surface-container-highest transition-colors"
+          >
+            <HiOutlineFunnel className="text-lg" />
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
+          </button>
+
           {/* Sidebar */}
-          <aside className="w-full md:w-80 flex-shrink-0 flex flex-col gap-8">
+          <aside className={`w-full md:w-80 flex-shrink-0 flex flex-col gap-8 ${showFilters ? 'block' : 'hidden md:flex'}`}>
             {/* Search */}
             <div className="relative">
               <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-jds-on-surface-variant text-xl" />
               <input
                 className="w-full pl-12 pr-4 py-4 bg-jds-surface-container-highest border-none rounded-xl focus:ring-2 focus:ring-jds-secondary focus:bg-jds-surface transition-all text-body-md outline-none"
-                placeholder="Search products..."
+                placeholder="Search solar lights..."
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -104,29 +123,22 @@ export default function BrowsePage() {
                         : 'text-jds-on-surface-variant hover:bg-jds-surface-container-high'
                     }`}
                   >
-                    {cat}
-                    {activeCategory === cat && <HiOutlineCheck className="text-sm" />}
+                    <span className="truncate">{cat === 'All Products' ? cat : cat.replace('Solar ', '').replace('Aviation Aluminum ', 'Avi. Alum. ')}</span>
+                    {activeCategory === cat && <HiOutlineCheck className="text-sm flex-shrink-0" />}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Price Range */}
+            {/* Waterproof Filter */}
             <div className="flex flex-col gap-4">
-              <h3 className="text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Price Range</h3>
-              <div className="flex flex-col gap-3 px-2">
-                <input
-                  className="w-full accent-jds-secondary"
-                  max={100000}
-                  min={0}
-                  type="range"
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(Number(e.target.value))}
-                />
-                <div className="flex justify-between text-label-sm text-jds-on-surface-variant">
-                  <span>₱0</span>
-                  <span>₱100,000+</span>
-                </div>
+              <h3 className="text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Waterproof Rating</h3>
+              <div className="flex flex-wrap gap-2">
+                {['IP65', 'IP67'].map((rating) => (
+                  <span key={rating} className="bg-jds-surface-container-high text-jds-on-surface-variant px-3 py-1 rounded-full text-label-sm">
+                    {rating}
+                  </span>
+                ))}
               </div>
             </div>
 
@@ -134,10 +146,29 @@ export default function BrowsePage() {
             <div className="flex flex-col gap-4">
               <h3 className="text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Power Output</h3>
               <div className="flex flex-col gap-2">
-                {['Under 400W', '400W - 500W', 'Above 500W'].map((label) => (
-                  <label key={label} className="flex items-center gap-3 cursor-pointer">
-                    <input className="rounded border-jds-outline-variant text-jds-secondary focus:ring-jds-secondary" type="checkbox" />
-                    <span className="text-body-md text-jds-on-surface-variant">{label}</span>
+                {[
+                  { label: 'All Power', value: 'All Power' },
+                  { label: 'Under 200W', value: 'Under 200W' },
+                  { label: '200W - 400W', value: '200W - 400W' },
+                  { label: 'Above 400W', value: 'Above 400W' }
+                ].map((opt) => (
+                  <label 
+                    key={opt.value} 
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-body-sm font-medium cursor-pointer transition-all ${
+                      powerFilter === opt.value 
+                        ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary' 
+                        : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="powerFilterBrowse"
+                      value={opt.value}
+                      checked={powerFilter === opt.value}
+                      onChange={() => setPowerFilter(opt.value)}
+                      className="h-4 w-4 text-jds-secondary accent-jds-secondary cursor-pointer border-jds-outline-variant focus:ring-jds-secondary"
+                    />
+                    <span className="text-body-md">{opt.label}</span>
                   </label>
                 ))}
               </div>
@@ -156,8 +187,9 @@ export default function BrowsePage() {
                 onChange={(e) => setSortBy(e.target.value)}
               >
                 <option value="newest">Sort by: Newest</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
+                <option value="watt-low">Wattage: Low to High</option>
+                <option value="watt-high">Wattage: High to Low</option>
+                <option value="name">Name: A-Z</option>
               </select>
             </div>
 
@@ -184,23 +216,40 @@ export default function BrowsePage() {
                     key={product.id}
                     className="bg-jds-surface-container-lowest flex flex-col border border-jds-outline-variant card-shadow rounded-lg p-4 group"
                   >
-                    <div className="aspect-square rounded-lg bg-jds-surface-variant mb-4 overflow-hidden relative">
-                      <img
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        src={product.image || product.image_url}
-                        alt={product.name}
-                      />
-                      {product.best_seller && (
-                        <span className="absolute top-2 left-2 bg-jds-primary-container text-jds-on-primary-container px-2 py-0.5 rounded text-[10px] font-bold uppercase">
-                          Best Seller
+                    <div className="aspect-square rounded-lg bg-jds-surface-variant mb-4 overflow-hidden relative flex items-center justify-center">
+                      {product.image_url ? (
+                        <img
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          src={product.image_url}
+                          alt={product.name}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 text-jds-on-surface-variant/40">
+                          <HiOutlineBolt className="text-4xl" />
+                          <span className="text-label-sm">{product.watt}W</span>
+                        </div>
+                      )}
+                      {product.waterproof_grade && (
+                        <span className="absolute top-2 left-2 bg-jds-secondary-container text-jds-on-secondary-container px-2 py-0.5 rounded text-[10px] font-bold uppercase">
+                          {product.waterproof_grade}
                         </span>
                       )}
                     </div>
                     <div className="flex-grow mb-4">
                       <h3 className="text-label-md text-jds-on-surface font-bold line-clamp-2">{product.name}</h3>
-                      <p className="text-jds-secondary font-bold text-label-md mt-1">
-                        ₱{product.price?.toLocaleString()}
-                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-jds-secondary font-bold text-label-md">
+                          {product.watt}W
+                        </span>
+                        <span className="text-jds-on-surface-variant text-label-sm">
+                          · {product.waterproof_grade || 'IP65'}
+                        </span>
+                      </div>
+                      {product.material && (
+                        <p className="text-label-sm text-jds-on-surface-variant mt-1 truncate">
+                          {product.material}
+                        </p>
+                      )}
                     </div>
                     <Link
                       to={`/product/${product.id}`}
@@ -219,7 +268,7 @@ export default function BrowsePage() {
                   onClick={() => {
                     setSearch('')
                     setActiveCategory('All Products')
-                    setMaxPrice(100000)
+                    setPowerFilter('All Power')
                   }}
                   className="border border-jds-secondary text-jds-secondary px-6 py-2 rounded-lg text-label-md hover:bg-jds-secondary hover:text-white transition-colors"
                 >
@@ -233,35 +282,25 @@ export default function BrowsePage() {
         {/* Technical Precision Banner */}
         <section className="mt-20 bg-jds-surface-container-high rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-12">
           <div className="max-w-xl">
-            <h2 className="text-headline-lg text-jds-on-surface mb-4">Unsure which panel fits your roof?</h2>
+            <h2 className="text-headline-lg text-jds-on-surface mb-4">Unsure which light fits your needs?</h2>
             <p className="text-body-md text-jds-on-surface-variant mb-8">
-              Our Quiapo-based engineering team provides a technical site assessment to determine the optimal configuration for your energy needs.
+              Our Quiapo-based team can help you choose the right solar light for your street, road, or property. Free consultation available.
             </p>
             <div className="flex flex-wrap gap-4">
               <Link
                 to="/chat"
                 className="bg-jds-primary text-jds-on-primary px-8 py-4 rounded-lg text-label-md font-bold hover:scale-105 transition-transform"
               >
-                Schedule Free Consult
+                Ask SolarAI
               </Link>
-              <button className="bg-transparent border-2 border-jds-primary text-jds-primary px-8 py-4 rounded-lg text-label-md font-bold hover:bg-jds-primary/5 transition-all">
-                Download Guide
-              </button>
             </div>
           </div>
           <div className="w-full md:w-1/3 aspect-video rounded-xl bg-white/50 backdrop-blur-md p-8 flex flex-col justify-center gap-6 card-shadow border border-white">
             <div className="flex items-center gap-4">
               <HiOutlineShieldCheck className="text-jds-secondary text-3xl flex-shrink-0" />
               <div>
-                <div className="text-label-md text-jds-on-surface">Standardized Quality</div>
-                <div className="text-xs text-jds-on-surface-variant">TUV & CE Certified</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <HiOutlineTruck className="text-jds-secondary text-3xl flex-shrink-0" />
-              <div>
-                <div className="text-label-md text-jds-on-surface">Metro Manila Delivery</div>
-                <div className="text-xs text-jds-on-surface-variant">Free within 20km of Quiapo</div>
+                <div className="text-label-md text-jds-on-surface">IP65/IP67 Rated</div>
+                <div className="text-xs text-jds-on-surface-variant">Weather & Dust Resistant</div>
               </div>
             </div>
             <div className="flex items-center gap-4">

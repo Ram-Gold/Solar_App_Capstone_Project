@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
-import { Package, BarChart3, DollarSign, AlertTriangle } from 'lucide-react'
+import { Package, BarChart3, Zap, AlertTriangle } from 'lucide-react'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 
 export default function DashboardScreen() {
@@ -14,25 +14,24 @@ export default function DashboardScreen() {
   const fetchProducts = async () => {
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, type, price, stock, watt, efficiency')
+      .select('id, name, type, watt, waterproof_grade, material, battery, in_stock, sales')
       .order('id')
     if (!error) setProducts(data || [])
     setLoading(false)
   }
 
   const totalProducts = products.length
-  const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0)
-  const prices = products.map(p => Number(p.price)).filter(Boolean)
-  const priceRange = prices.length > 0
-    ? `₱${Math.min(...prices).toLocaleString()} – ₱${Math.max(...prices).toLocaleString()}`
+  const totalSales = products.reduce((sum, p) => sum + (p.sales || 0), 0)
+  const wattRange = products.length > 0
+    ? `${Math.min(...products.map(p => p.watt || 0))}W – ${Math.max(...products.map(p => p.watt || 0))}W`
     : '—'
-  const lowStockProducts = products.filter(p => (p.stock || 0) < 10)
+  const outOfStockProducts = products.filter(p => !p.in_stock)
 
   const cards = [
     { label: 'Total Products', value: totalProducts, icon: Package, color: 'text-jds-secondary', bg: 'bg-jds-secondary-container/20' },
-    { label: 'Total Stock', value: totalStock, icon: BarChart3, color: 'text-jds-primary', bg: 'bg-jds-primary-container/20' },
-    { label: 'Price Range', value: priceRange, icon: DollarSign, color: 'text-jds-tertiary', bg: 'bg-jds-tertiary-container/20' },
-    { label: 'Low Stock Items', value: lowStockProducts.length, icon: AlertTriangle, color: 'text-jds-error', bg: 'bg-jds-error-container/20' },
+    { label: 'Total Sales', value: totalSales, icon: BarChart3, color: 'text-jds-primary', bg: 'bg-jds-primary-container/20' },
+    { label: 'Wattage Range', value: wattRange, icon: Zap, color: 'text-jds-tertiary', bg: 'bg-jds-tertiary-container/20' },
+    { label: 'Out of Stock', value: outOfStockProducts.length, icon: AlertTriangle, color: 'text-jds-error', bg: 'bg-jds-error-container/20' },
   ]
 
   if (loading) {
@@ -71,15 +70,15 @@ export default function DashboardScreen() {
         })}
       </div>
 
-      {/* Low Stock Alert Table */}
+      {/* Product Overview Table */}
       <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest overflow-hidden shadow-sm">
         <div className="border-b border-jds-outline-variant/30 px-6 py-5 bg-jds-surface-container-low/20">
-          <h2 className="text-body-lg font-bold text-jds-on-surface">Low Stock Alert</h2>
-          <p className="text-label-md text-jds-on-surface-variant">Products requiring immediate reordering attention.</p>
+          <h2 className="text-body-lg font-bold text-jds-on-surface">Product Overview</h2>
+          <p className="text-label-md text-jds-on-surface-variant">All solar lights in the current inventory.</p>
         </div>
-        {lowStockProducts.length === 0 ? (
+        {products.length === 0 ? (
           <div className="px-6 py-12 text-center text-body-md text-jds-on-surface-variant">
-            All products are currently sufficiently stocked.
+            No products in the catalog yet.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -88,21 +87,27 @@ export default function DashboardScreen() {
                 <TableRow>
                   <TableHead className="text-jds-on-surface-variant font-bold">Product</TableHead>
                   <TableHead className="text-jds-on-surface-variant font-bold">Type</TableHead>
-                  <TableHead className="text-jds-on-surface-variant font-bold">Price</TableHead>
-                  <TableHead className="text-jds-on-surface-variant font-bold">Stock</TableHead>
+                  <TableHead className="text-jds-on-surface-variant font-bold">Power</TableHead>
+                  <TableHead className="text-jds-on-surface-variant font-bold">Waterproof</TableHead>
+                  <TableHead className="text-jds-on-surface-variant font-bold">Sales</TableHead>
                   <TableHead className="text-jds-on-surface-variant font-bold">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lowStockProducts.map((p) => (
+                {products.slice(0, 10).map((p) => (
                   <TableRow key={p.id} className="hover:bg-jds-surface-container-low/5 transition-colors">
                     <TableCell className="font-bold text-jds-on-surface">{p.name}</TableCell>
-                    <TableCell className="text-jds-on-surface-variant">{p.type}</TableCell>
-                    <TableCell className="text-jds-on-surface font-medium">₱{Number(p.price).toLocaleString()}</TableCell>
-                    <TableCell className="text-jds-error font-bold">{p.stock}</TableCell>
+                    <TableCell className="text-jds-on-surface-variant text-label-sm">{p.type}</TableCell>
+                    <TableCell className="text-jds-on-surface font-medium">{p.watt}W</TableCell>
+                    <TableCell className="text-jds-on-surface-variant">{p.waterproof_grade || '—'}</TableCell>
+                    <TableCell className="text-jds-on-surface-variant">{p.sales || 0}</TableCell>
                     <TableCell>
-                      <span className="inline-flex items-center rounded-full bg-jds-error-container/20 px-3 py-1 text-label-sm font-bold text-jds-error uppercase">
-                        Low Stock
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-label-sm font-bold uppercase ${
+                        p.in_stock
+                          ? 'bg-jds-secondary-container/10 text-jds-secondary'
+                          : 'bg-jds-error-container/20 text-jds-error'
+                      }`}>
+                        {p.in_stock ? 'In Stock' : 'Out'}
                       </span>
                     </TableCell>
                   </TableRow>
