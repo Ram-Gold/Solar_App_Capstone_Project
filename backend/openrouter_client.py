@@ -10,6 +10,7 @@ SHOP_CONTACT = os.getenv("SHOP_CONTACT", "N/A")
 SHOP_OWNER = os.getenv("SHOP_OWNER", "JD Solar Team")
 SHOP_FACEBOOK = os.getenv("SHOP_FACEBOOK", "N/A")
 SHOP_EMAIL = os.getenv("SHOP_EMAIL", "N/A")
+SHOP_INSTAGRAM = os.getenv("SHOP_INSTAGRAM", "N/A")
 
 def get_system_prompt():
     return f"""You are SolarAI, a friendly solar product assistant for JD Solar, a small solar 
@@ -21,6 +22,7 @@ BUSINESS INFO:
 - Owner: {SHOP_OWNER}
 - Facebook: {SHOP_FACEBOOK}
 - Email: {SHOP_EMAIL}
+- Instagram: {SHOP_INSTAGRAM}
 
 CRITICAL RULES:
 - You MUST ONLY recommend products from the "Context" section provided with each message.
@@ -81,7 +83,7 @@ def stream_recommendation(user_message: str, products: list, history: list, db_e
             "Content-Type": "application/json",
         },
         json={
-            "model": "inclusionai/ring-2.6-1t:free",
+            "model": "openai/gpt-oss-120b:free",
             "messages": messages,
             "stream": True,
             "max_tokens": 800,

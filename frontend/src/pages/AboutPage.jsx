@@ -6,10 +6,16 @@ import {
   HiOutlineWrenchScrewdriver,
   HiOutlineCheckBadge,
   HiOutlineBolt,
+  HiOutlineMapPin,
+  HiOutlineClock,
+  HiOutlinePhone,
+  HiOutlineArrowTopRightOnSquare,
 } from 'react-icons/hi2'
 
 import pic2 from '../assets/pictures/pic2.jpg'
 import pic6 from '../assets/pictures/pic6.jpg'
+import quezonBlvd from '../assets/pictures/Quezon_Boulevard_southbound.jpg'
+import quiapoChurch from '../assets/pictures/Quiapo_Church_Facade.jpg'
 
 const features = [
   {
@@ -44,8 +50,17 @@ export default function AboutPage() {
   return (
     <div className="jds-page-bg font-inter text-jds-on-surface">
       {/* ── Hero Section ── */}
-      <section className="py-16 md:py-24 px-0 bg-jds-surface">
-        <div className="max-w-screen-2xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+      <section className="relative py-16 md:py-24 px-0 bg-jds-surface overflow-hidden">
+        {/* Background Image Layer */}
+        <div
+          className="absolute inset-0 z-0 opacity-10 grayscale brightness-75"
+          style={{
+            backgroundImage: `url(${quezonBlvd})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        />
+        <div className="max-w-screen-2xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 items-center relative z-10">
           <motion.div
             className="md:col-span-7"
             initial={{ opacity: 0, x: -20 }}
@@ -140,8 +155,17 @@ export default function AboutPage() {
       </section>
 
       {/* ── Our Heritage / Quiapo Roots ── */}
-      <section className="py-24 px-0 bg-jds-surface">
-        <div className="max-w-screen-2xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+      <section className="relative py-24 px-0 bg-jds-surface overflow-hidden">
+        {/* Background Image Layer */}
+        <div
+          className="absolute inset-0 z-0 opacity-[0.07] grayscale contrast-125"
+          style={{
+            backgroundImage: `url(${quiapoChurch})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        />
+        <div className="max-w-screen-2xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 items-center relative z-10">
           {/* Image */}
           <motion.div
             className="relative group order-2 md:order-1"
@@ -198,6 +222,74 @@ export default function AboutPage() {
                 boundaries of what solar energy can achieve in an urban
                 environment.
               </p>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── Visit Us Section ── */}
+      <section className="py-24 px-0 bg-jds-surface">
+        <div className="max-w-screen-2xl mx-auto px-4 md:px-0">
+          <motion.div
+            className="bg-white rounded-[2.5rem] overflow-hidden border border-jds-outline-variant shadow-xl grid grid-cols-1 md:grid-cols-2"
+            variants={sectionVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+          >
+            {/* Left side: Info */}
+            <div className="p-10 md:p-16 flex flex-col justify-center">
+              <h2 className="text-headline-lg text-jds-on-surface mb-6 font-bold">Visit Us in Quiapo</h2>
+              <p className="text-body-lg text-jds-on-surface-variant mb-10 leading-relaxed">
+                Experience our solar products first-hand at our showroom in the heart of Manila's electronics district.
+                Our consultants are ready to help you plan your solar journey.
+              </p>
+
+              <div className="space-y-6 mb-12">
+                <div className="flex items-start gap-4">
+                  <HiOutlineMapPin className="text-jds-primary text-2xl mt-1 shrink-0" />
+                  <span className="text-body-md text-jds-on-surface">
+                    1645 Soler St. Brgy. 309 Cor Calero, Manila, Philippines, 1001
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <HiOutlineClock className="text-jds-primary text-2xl shrink-0" />
+                  <span className="text-body-md text-jds-on-surface">
+                    Mon - Sun: 7:00 AM - 5:00 PM
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <HiOutlinePhone className="text-jds-primary text-2xl shrink-0" />
+                  <span className="text-body-md text-jds-on-surface">
+                    +63 966 843 1913
+                  </span>
+                </div>
+              </div>
+
+              <a
+                href="https://maps.app.goo.gl/2Vpcgp9BKsuEowwu7"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 bg-[#1e6091] text-white text-label-md px-8 py-4 rounded-xl hover:bg-[#184e77] transition-all duration-300 w-fit font-bold shadow-lg shadow-blue-900/10"
+              >
+                Get Directions
+                <HiOutlineArrowTopRightOnSquare className="text-xl" />
+              </a>
+            </div>
+
+            {/* Right side: Map */}
+            <div className="h-[400px] md:h-auto min-h-[400px] relative group">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d888.9919047772149!2d120.98214420151635!3d14.602384154511645!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397cb0855ecf2eb%3A0x5f3e5e739aff7ba6!2sJD-Foz%20Solar%20Products%20Trading!5e0!3m2!1sen!2sph!4v1778779026094!5m2!1sen!2sph"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen=""
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="JD-Foz Solar Store Location"
+                className="grayscale contrast-[1.1] group-hover:grayscale-0 transition-all duration-700 ease-in-out"
+              />
             </div>
           </motion.div>
         </div>

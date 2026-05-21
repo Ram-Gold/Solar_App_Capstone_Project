@@ -1,11 +1,97 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Bot, User, Loader2, Sparkles } from 'lucide-react'
+import { 
+  HiOutlinePaperAirplane, 
+  HiOutlineUser, 
+  HiOutlineSparkles,
+  HiOutlineCalculator,
+  HiOutlineSun,
+  HiOutlineMapPin,
+  HiOutlineUserGroup,
+  HiOutlineArrowPath,
+  HiOutlineChatBubbleLeftRight,
+  HiOutlineCurrencyDollar,
+  HiOutlineQuestionMarkCircle,
+  HiOutlineCube
+} from 'react-icons/hi2'
 import ReactMarkdown from 'react-markdown'
 import { useChat } from '../context/ChatContext'
 import { Link } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL
+
+const suggestionCards = [
+  { 
+    title: 'Pricing Plans', 
+    desc: 'Explore solar installation packages and financing options.',
+    icon: HiOutlineCurrencyDollar,
+    prompt: 'Show me pricing plans' 
+  },
+  { 
+    title: 'How it Works', 
+    desc: 'Learn how JD Solar can help you save on electricity.',
+    icon: HiOutlineQuestionMarkCircle,
+    prompt: 'How JD Solar can help me?' 
+  },
+  { 
+    title: 'Components', 
+    desc: 'Discover the high-quality solar components we use.',
+    icon: HiOutlineCube,
+    prompt: 'Tell me more about solar components?' 
+  }
+]
+
+const SunPulse = ({ isLoading }) => {
+  return (
+    <div className="relative flex items-center justify-center w-64 h-64">
+      {/* Outer Glows */}
+      {[...Array(3)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute inset-0 rounded-full bg-jds-primary-container/20 blur-3xl"
+          animate={{
+            scale: [1, 1.2 + i * 0.2, 1],
+            opacity: [0.3, 0.1, 0.3],
+          }}
+          transition={{
+            duration: 4 + i,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+      
+      {/* Sun Core */}
+      <motion.div
+        className="relative w-32 h-32 rounded-full bg-gradient-to-tr from-jds-primary-container via-jds-secondary-container to-jds-primary shadow-[0_0_50px_rgba(253,184,19,0.5)] flex items-center justify-center overflow-hidden"
+        animate={{
+          scale: isLoading ? [1, 1.1, 1] : [1, 1.05, 1],
+        }}
+        transition={{
+          duration: isLoading ? 0.8 : 4,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      >
+        <HiOutlineSparkles className="text-white size-12 drop-shadow-md" />
+        
+        {/* Flare effect */}
+        <motion.div
+          className="absolute inset-0 bg-white/20"
+          animate={{
+            rotate: 360,
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          style={{ clipPath: 'polygon(50% 50%, 0 0, 100% 0)' }}
+        />
+      </motion.div>
+    </div>
+  )
+}
 
 export default function ChatboxPage() {
   const { messages, setMessages, initialMessage, setInitialMessage } = useChat()
@@ -45,7 +131,7 @@ export default function ChatboxPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
-          history: messages.slice(-6) // Send last 6 messages for context
+          history: messages.slice(-6)
         })
       })
 
@@ -81,134 +167,144 @@ export default function ChatboxPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-slate-50 dark:bg-slate-950 pt-24 pb-12 px-4 flex flex-col items-center">
-      <div className="w-full max-w-4xl flex-grow flex flex-col bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-orange-500/5 border border-slate-200 dark:border-slate-800 overflow-hidden relative backdrop-blur-sm">
-        
-        {/* Chat Header */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-6 flex items-center justify-between z-10">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20">
-              <Bot className="text-white w-7 h-7" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-white">SolarAI</h1>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <p className="text-sm text-slate-500 dark:text-slate-400">Online & Ready to Help</p>
-              </div>
-            </div>
-          </div>
-          <Sparkles className="text-orange-500 w-6 h-6 animate-pulse" />
-        </div>
+    <div className="h-[calc(100vh-80px)] w-full flex flex-col font-inter overflow-hidden sunlight-bg grain-texture relative">
+      
+      {/* Background Glows for Immersive feel */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-jds-primary-container/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-jds-secondary-container/10 blur-[120px] rounded-full pointer-events-none" />
 
+      {/* Main Content Area */}
+      <div className="flex-grow flex flex-col items-center justify-start relative z-10 overflow-hidden">
+        
         {/* Messages Container */}
         <div 
           ref={scrollRef}
-          className="flex-grow overflow-y-auto p-6 space-y-8 scroll-smooth"
+          className="w-full flex-grow overflow-y-auto px-4 md:px-0 py-8 scroll-smooth chat-scroll"
         >
-          {messages.length === 0 && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center h-full text-center space-y-4 py-20"
-            >
-              <div className="w-20 h-20 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
-                <Bot className="text-orange-500 w-10 h-10" />
-              </div>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">How can I help you today?</h2>
-              <p className="text-slate-500 dark:text-slate-400 max-w-sm">
-                Ask me about solar panels, pricing, installation, or finding the right system for your home in the Philippines.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-8">
-                {["Best panel for small house?", "Average cost of solar?", "How does solar work?", "Recommend a budget panel"].map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => handleSend(suggestion)}
-                    className="p-3 bg-slate-50 dark:bg-slate-800 hover:bg-orange-50 dark:hover:bg-orange-900/20 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium transition-all text-slate-700 dark:text-slate-300 hover:border-orange-200"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          <AnimatePresence initial={false}>
-            {messages.map((msg, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20, y: 10 }}
-                animate={{ opacity: 1, x: 0, y: 0 }}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          <div className="max-w-4xl mx-auto w-full space-y-8 pb-32">
+            {messages.length === 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center justify-center min-h-[60vh] text-center"
               >
-                <div className={`flex gap-4 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
-                    msg.role === 'user' 
-                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' 
-                      : 'bg-orange-500 text-white'
-                  }`}>
-                    {msg.role === 'user' ? <User size={20} /> : <Bot size={20} />}
-                  </div>
-                  <div className={`p-4 rounded-2xl shadow-sm ${
-                    msg.role === 'user'
-                      ? 'bg-orange-500 text-white rounded-tr-none'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none'
-                  }`}>
-                    <div className="prose prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed prose-a:text-orange-200 dark:prose-a:text-orange-400 font-medium">
-                      <ReactMarkdown
-                        components={{
-                          a: ({ node, ...props }) => (
-                            <Link 
-                              to={props.href} 
-                              className="underline decoration-2 underline-offset-4 hover:opacity-80 transition-opacity font-bold"
-                            >
-                              {props.children}
-                            </Link>
-                          )
-                        }}
-                      >
-                        {msg.content}
-                      </ReactMarkdown>
-                      {msg.role === 'assistant' && msg.content === '' && (
-                        <div className="flex gap-1.5 py-2">
-                          <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                          <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                          <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                <SunPulse isLoading={isLoading} />
+                
+                <h2 className="text-headline-lg text-jds-on-surface font-bold tracking-tight mt-8 mb-4">
+                  Experience the power of <br /> <span className="text-jds-primary">Solar AI Assist</span>
+                </h2>
+                <p className="text-body-md text-jds-on-surface-variant/70 max-w-lg mb-12">
+                  Ask me anything about solar installation, maintenance, or specific JD Solar products.
+                </p>
+
+                {/* Bento Grid Suggestions */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl px-4">
+                  {suggestionCards.map((card, idx) => (
+                    <motion.button
+                      key={card.title}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 * idx }}
+                      onClick={() => handleSend(card.prompt)}
+                      className="p-6 bg-white/40 backdrop-blur-md border border-jds-outline-variant/30 rounded-3xl text-left hover:bg-white/60 transition-all group shadow-sm hover:shadow-md"
+                    >
+                      <div className="w-10 h-10 rounded-2xl bg-jds-primary-container/20 flex items-center justify-center text-jds-primary mb-4 group-hover:scale-110 transition-transform">
+                        <card.icon size={20} />
+                      </div>
+                      <div className="text-label-md font-bold text-jds-on-surface mb-1">{card.title}</div>
+                      <div className="text-[12px] text-jds-on-surface-variant/60 leading-relaxed">{card.desc}</div>
+                    </motion.button>
+                  ))}
                 </div>
               </motion.div>
-            ))}
-          </AnimatePresence>
+            )}
+
+            <AnimatePresence initial={false}>
+              {messages.map((msg, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`flex gap-4 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm border border-jds-outline-variant/20 ${
+                      msg.role === 'user' 
+                        ? 'bg-jds-primary text-white' 
+                        : 'bg-white text-jds-secondary'
+                    }`}>
+                      {msg.role === 'user' ? <HiOutlineUser size={20} /> : <HiOutlineSparkles size={20} />}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className={`p-6 shadow-sm backdrop-blur-sm ${
+                        msg.role === 'user'
+                          ? 'bg-jds-primary/90 text-white rounded-3xl rounded-tr-none'
+                          : 'bg-white/80 text-jds-on-surface border border-jds-outline-variant/30 rounded-3xl rounded-tl-none'
+                      }`}>
+                        <div className="prose prose-slate max-w-none prose-p:leading-relaxed prose-a:text-jds-secondary font-medium text-body-md">
+                          <ReactMarkdown
+                            components={{
+                              a: ({ node, ...props }) => (
+                                <Link 
+                                  to={props.href} 
+                                  className="underline decoration-2 underline-offset-4 hover:opacity-80 transition-opacity font-bold text-jds-secondary"
+                                >
+                                  {props.children}
+                                </Link>
+                              )
+                            }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                          {msg.role === 'assistant' && msg.content === '' && (
+                            <div className="flex gap-1.5 py-2">
+                              <span className="w-2 h-2 bg-jds-secondary/40 rounded-full animate-pulse" />
+                              <span className="w-2 h-2 bg-jds-secondary/40 rounded-full animate-pulse [animation-delay:0.2s]" />
+                              <span className="w-2 h-2 bg-jds-secondary/40 rounded-full animate-pulse [animation-delay:0.4s]" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`text-[10px] text-jds-on-surface-variant/50 font-bold uppercase tracking-widest ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+                        {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
         </div>
 
-        {/* Input Area */}
-        <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
-          <form 
-            onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-            className="flex gap-3 bg-slate-50 dark:bg-slate-800 p-2 rounded-2xl border border-slate-200 dark:border-slate-700 focus-within:border-orange-500 transition-all shadow-inner"
-          >
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask SolarAI about solar solutions..."
-              className="flex-grow bg-transparent px-4 py-3 outline-none text-slate-900 dark:text-white"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              className="bg-orange-500 hover:bg-orange-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white p-3 rounded-xl transition-all shadow-lg shadow-orange-500/20 active:scale-95"
+        {/* Input Area - Floating at bottom */}
+        <div className="absolute bottom-8 left-0 right-0 px-4 z-20">
+          <div className="max-w-3xl mx-auto">
+            <form 
+              onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+              className="flex items-center gap-3 bg-white/60 backdrop-blur-xl p-2 pl-6 pr-2 rounded-[2.5rem] border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] focus-within:ring-4 focus-within:ring-jds-primary/10 transition-all group"
             >
-              {isLoading ? <Loader2 size={24} className="animate-spin" /> : <Send size={24} />}
-            </button>
-          </form>
-          <p className="text-[10px] text-center text-slate-400 dark:text-slate-500 mt-4 uppercase tracking-widest font-bold">
-            SolarAI powered by OpenRouter & Supabase
-          </p>
+              <HiOutlineSparkles className="text-jds-primary size-6 opacity-50 group-focus-within:opacity-100 transition-opacity" />
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask me anything..."
+                className="flex-grow bg-transparent py-4 outline-none text-jds-on-surface text-body-md placeholder:text-jds-on-surface-variant/40"
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
+                disabled={isLoading || !input.trim()}
+                className="bg-jds-primary text-white p-4 rounded-full transition-all disabled:opacity-30 active:scale-95 shadow-lg shadow-jds-primary/20 hover:bg-jds-primary/90"
+              >
+                {isLoading ? (
+                  <HiOutlineArrowPath size={20} className="animate-spin" />
+                ) : (
+                  <HiOutlinePaperAirplane size={20} className="rotate-[-20deg] translate-x-0.5 -translate-y-0.5" />
+                )}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>

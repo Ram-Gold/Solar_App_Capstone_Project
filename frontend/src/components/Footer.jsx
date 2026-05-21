@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
+import { FaFacebook, FaInstagram, FaMailBulk } from 'react-icons/fa'
 
 export default function Footer() {
   return (
-    <footer className="bg-jds-surface-container-low mt-20 border-t border-jds-outline-variant">
+    <footer className="bg-jds-surface-container-low border-t border-jds-outline-variant">
       <div className="flex flex-col md:flex-row gap-10 w-full px-4 md:px-10 py-12 max-w-[1400px] mx-auto">
         {/* Left Side: Interactive Map */}
         <div className="w-full md:w-[450px] h-[300px] rounded-2xl overflow-hidden border border-jds-outline-variant shadow-sm group relative">
@@ -52,19 +53,19 @@ export default function Footer() {
                 © {new Date().getFullYear()} JD Solar Manila. All rights reserved.
               </span>
               <span className="font-inter text-[10px] text-jds-on-surface-variant/50 uppercase tracking-tighter">
-                JD-FOZ SOLAR PRODUCTS TRADING • QUIAPO, MANILA
+                1645 Soler St. Brgy. 309 Cor Calero, Manila, Philippines, 1001
               </span>
             </div>
 
             <div className="flex items-center gap-5">
-              <a href="#" className="w-10 h-10 rounded-full border border-jds-outline-variant flex items-center justify-center text-jds-on-surface-variant hover:bg-jds-primary hover:text-white hover:border-jds-primary transition-all duration-300">
-                <i className="fa-brands fa-facebook-f"></i>
+              <a href="https://www.facebook.com/profile.php?id=100067598921170" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full border border-jds-outline-variant flex items-center justify-center text-jds-on-surface-variant hover:bg-jds-primary hover:text-white hover:border-jds-primary transition-all duration-300">
+                <FaFacebook />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full border border-jds-outline-variant flex items-center justify-center text-jds-on-surface-variant hover:bg-jds-primary hover:text-white hover:border-jds-primary transition-all duration-300">
-                <i className="fa-brands fa-instagram"></i>
+              <a href="https://www.instagram.com/jdfozsolarproductstrading/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full border border-jds-outline-variant flex items-center justify-center text-jds-on-surface-variant hover:bg-jds-primary hover:text-white hover:border-jds-primary transition-all duration-300">
+                <FaInstagram />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full border border-jds-outline-variant flex items-center justify-center text-jds-on-surface-variant hover:bg-jds-primary hover:text-white hover:border-jds-primary transition-all duration-300">
-                <i className="fa-brands fa-x-twitter"></i>
+              <a href="mailto:fozjeremy@gmail.com" className="w-10 h-10 rounded-full border border-jds-outline-variant flex items-center justify-center text-jds-on-surface-variant hover:bg-jds-primary hover:text-white hover:border-jds-primary transition-all duration-300">
+                <FaMailBulk />
               </a>
             </div>
           </div>

@@ -51,7 +51,7 @@ function AppLayout() {
         </Routes>
       </main>
       {showShell && <Footer />}
-      {showShell && <ChatWidget />}
+      {showShell && pathname !== '/chat' && <ChatWidget />}
     </div>
   )
 }

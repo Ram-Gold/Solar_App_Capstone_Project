@@ -1,13 +1,10 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
-  HiOutlinePencilSquare,
-  HiOutlineChartBar,
-  HiOutlineWrenchScrewdriver,
   HiOutlineCheckCircle,
   HiOutlineArrowRight,
   HiOutlineSun,
-  HiOutlineCpuChip,
+  HiStar,
 } from 'react-icons/hi2'
 
 import pic1 from '../assets/pictures/pic1.jpg'
@@ -18,6 +15,13 @@ import pic7 from '../assets/pictures/pic7.jpg'
 import pic8 from '../assets/pictures/pic8.jpg'
 import pic9 from '../assets/pictures/pic9.jpg'
 import pic10 from '../assets/pictures/pic10.jpg'
+import pic11 from '../assets/pictures/pic11.jpg'
+import pic12 from '../assets/pictures/pic12.jpg'
+import pic13 from '../assets/pictures/pic13.jpg'
+import pic14 from '../assets/pictures/pic14.jpg'
+import pic15 from '../assets/pictures/pic15.jpg'
+import { HiOutlineChevronLeft, HiOutlineChevronRight } from 'react-icons/hi2'
+import { useRef } from 'react'
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -32,27 +36,24 @@ const staggerContainer = {
   },
 }
 
-const steps = [
+const reviews = [
   {
-    icon: HiOutlinePencilSquare,
-    title: '1. Input Needs',
-    desc: 'Share your average energy consumption and roof dimensions through our intuitive digital portal.',
-    iconBg: 'bg-jd-primary-container',
-    iconColor: 'text-jd-on-primary-container',
+    name: 'Erwin ALubid',
+    review: 'Verry accommodating and nothing to worry after buying. Verry good in after sales.',
+    date: 'August 2025',
+    source: 'Facebook Review',
   },
   {
-    icon: HiOutlineChartBar,
-    title: '2. Get Recommendations',
-    desc: 'Our automated system analyzes your data to recommend the most efficient panel and inverter configuration.',
-    iconBg: 'bg-jd-secondary-container',
-    iconColor: 'text-jd-on-secondary-container',
+    name: 'Jano Velasco',
+    review: 'highly recommended supplier of solar light. Trustworthy people, professional, madali kausap, very responsive. They can do supply and install option. Just coordinate with them thru Facebook. gagawaan pa nila ng group chat to give instruction while people onsite are doing the installation.',
+    date: 'May 2024',
+    source: 'Google Map Review',
   },
   {
-    icon: HiOutlineWrenchScrewdriver,
-    title: '3. Installation',
-    desc: 'Our certified Quiapo-based team handles the logistics and installation, bringing your solar system online.',
-    iconBg: 'bg-jd-primary',
-    iconColor: 'text-jd-on-primary',
+    name: 'Bhert Agno',
+    review: 'Good quality products and the transaction is fast ',
+    date: 'July 2025',
+    source: 'Facebook Review',
   },
 ]
 
@@ -62,7 +63,30 @@ const features = [
   'Seamless Grid-Tied Integration',
 ]
 
+const galleryItems = [
+  { src: pic8, title: 'Industrial Scale Solar', rowSpan: 2, width: 'w-[450px] md:w-[600px]' },
+  { src: pic5, title: 'Precision Cells', rowSpan: 1, width: 'w-[300px] md:w-[400px]' },
+  { src: pic9, title: 'Expert Installation', rowSpan: 1, width: 'w-[300px] md:w-[400px]' },
+  { src: pic7, title: 'Residential Excellence', rowSpan: 2, width: 'w-[350px] md:w-[500px]' },
+  { src: pic10, title: 'Future Ready', rowSpan: 1, width: 'w-[400px] md:w-[550px]' },
+  { src: pic12, title: 'Maximum Efficiency', rowSpan: 1, width: 'w-[400px] md:w-[550px]' },
+  { src: pic11, title: 'Urban Integration', rowSpan: 2, width: 'w-[500px] md:w-[700px]' },
+  { src: pic13, title: 'Quality Assurance', rowSpan: 1, width: 'w-[350px] md:w-[450px]' },
+  { src: pic15, title: 'Sustainable Future', rowSpan: 1, width: 'w-[350px] md:w-[450px]' },
+  { src: pic14, title: 'Clean Power', rowSpan: 2, width: 'w-[300px] md:w-[400px]' },
+]
+
 export default function LandingPage() {
+  const scrollRef = useRef(null)
+
+  const scroll = (direction) => {
+    if (scrollRef.current) {
+      const { scrollLeft, clientWidth } = scrollRef.current
+      const scrollTo = direction === 'left' ? scrollLeft - clientWidth / 2 : scrollLeft + clientWidth / 2
+      scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' })
+    }
+  }
+
   return (
     <div className="jd-page-bg font-inter text-jd-on-surface selection:bg-jd-primary-fixed">
       {/* Hero Section */}
@@ -136,7 +160,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How it Works Section */}
+      {/* Reviews Section */}
       <section className="bg-jd-surface-container-low py-24 px-0 md:py-32">
         <div className="max-w-screen-2xl mx-auto">
           <motion.div
@@ -147,10 +171,10 @@ export default function LandingPage() {
             variants={fadeInUp}
           >
             <h2 className="text-headline-lg text-jd-on-surface mb-4 tracking-tight font-bold">
-              How it Works
+              What Our Customers Say
             </h2>
             <p className="text-jd-on-surface-variant max-w-lg mx-auto">
-              Transitioning to solar power has never been more straightforward. Follow our three-step digital guide.
+              We take pride in our service and product quality. Here's what our satisfied clients have to say about their experience.
             </p>
           </motion.div>
 
@@ -161,21 +185,32 @@ export default function LandingPage() {
             viewport={{ once: true }}
             variants={staggerContainer}
           >
-            {steps.map((step) => (
+            {reviews.map((review, idx) => (
               <motion.div
-                key={step.title}
+                key={idx}
                 variants={fadeInUp}
-                className="bg-jd-surface p-8 rounded-xl shadow-[0px_4px_12px_rgba(0,0,0,0.05)] border border-jd-outline-variant hover:border-jd-secondary transition-colors group"
+                className="bg-jd-surface p-8 rounded-xl shadow-[0px_4px_12px_rgba(0,0,0,0.05)] border border-jd-outline-variant hover:border-jd-secondary transition-all hover:shadow-lg group flex flex-col h-full"
               >
-                <div
-                  className={`w-14 h-14 ${step.iconBg} flex items-center justify-center rounded-lg mb-6 group-hover:scale-110 transition-transform`}
-                >
-                  <step.icon className={`text-[28px] ${step.iconColor}`} />
+                <div className="flex gap-1 mb-4">
+                  {[...Array(5)].map((_, i) => (
+                    <HiStar key={i} className="text-[#ffb700] text-xl" />
+                  ))}
                 </div>
-                <h3 className="text-headline-md mb-4 text-jd-on-surface tracking-tight">
-                  {step.title}
-                </h3>
-                <p className="text-jd-on-surface-variant text-body-md">{step.desc}</p>
+                
+                <p className="text-jd-on-surface text-body-md italic mb-8 flex-grow leading-relaxed">
+                  "{review.review}"
+                </p>
+                
+                <div className="mt-auto">
+                  <h3 className="text-label-lg font-bold text-jd-on-surface mb-1">
+                    {review.name}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2 text-label-sm text-jd-on-surface-variant">
+                    <span>{review.date}</span>
+                    <span className="w-1 h-1 rounded-full bg-jd-outline-variant" />
+                    <span className="text-jd-secondary font-medium">{review.source}</span>
+                  </div>
+                </div>
               </motion.div>
             ))}
           </motion.div>
@@ -251,91 +286,66 @@ export default function LandingPage() {
       </section>
 
       {/* Bento Box Gallery Section */}
-      <section className="py-24 px-0 max-w-screen-2xl mx-auto md:py-32">
-        <motion.div
-          className="text-center mb-16"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeInUp}
-        >
-          <h2 className="text-headline-lg text-jd-on-surface mb-4 tracking-tight font-bold">
-            Project Gallery
-          </h2>
-          <p className="text-jd-on-surface-variant max-w-lg mx-auto">
-            Experience our commitment to excellence through these captured moments of our solar installations across Manila.
-          </p>
-        </motion.div>
+      <section className="py-24 px-0 max-w-screen-2xl mx-auto md:py-32 overflow-hidden">
+        <div className="flex justify-between items-end mb-16 px-4 md:px-0">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeInUp}
+          >
+            <h2 className="text-headline-lg text-jd-on-surface mb-4 tracking-tight font-bold">
+              Project Gallery
+            </h2>
+            <p className="text-jd-on-surface-variant max-w-lg">
+              Experience our commitment to excellence through these captured moments of our solar installations across Manila.
+            </p>
+          </motion.div>
 
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-4 h-auto md:h-[700px]"
+          <div className="flex gap-4">
+            <button
+              onClick={() => scroll('left')}
+              className="w-12 h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface hover:bg-jd-primary hover:text-jd-on-primary hover:border-jd-primary transition-all shadow-sm"
+              aria-label="Scroll left"
+            >
+              <HiOutlineChevronLeft size={24} />
+            </button>
+            <button
+              onClick={() => scroll('right')}
+              className="w-12 h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface hover:bg-jd-primary hover:text-jd-on-primary hover:border-jd-primary transition-all shadow-sm"
+              aria-label="Scroll right"
+            >
+              <HiOutlineChevronRight size={24} />
+            </button>
+          </div>
+        </div>
+
+        <motion.div
+          ref={scrollRef}
+          className="grid grid-rows-2 grid-flow-col gap-4 overflow-x-auto pb-12 scrollbar-hide snap-x snap-mandatory h-[500px] md:h-[700px]"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
           variants={staggerContainer}
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {/* Main Feature Image */}
-          <motion.div 
-            variants={fadeInUp}
-            className="md:col-span-2 md:row-span-2 relative overflow-hidden rounded-3xl group shadow-lg"
-          >
-            <img 
-              src={pic8} 
-              alt="Major solar installation" 
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-8">
-              <span className="text-white font-bold text-headline-md">Industrial Scale Solar</span>
-            </div>
-          </motion.div>
-
-          {/* Top Center */}
-          <motion.div 
-            variants={fadeInUp}
-            className="md:col-span-1 md:row-span-1 relative overflow-hidden rounded-3xl group shadow-md"
-          >
-            <img 
-              src={pic5} 
-              alt="Solar panel detail" 
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-            />
-          </motion.div>
-
-          {/* Right Column (Tall) */}
-          <motion.div 
-            variants={fadeInUp}
-            className="md:col-span-1 md:row-span-2 relative overflow-hidden rounded-3xl group shadow-lg"
-          >
-            <img 
-              src={pic7} 
-              alt="Rooftop installation" 
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-            />
-          </motion.div>
-
-          {/* Bottom Center Left */}
-          <motion.div 
-            variants={fadeInUp}
-            className="md:col-span-1 md:row-span-1 relative overflow-hidden rounded-3xl group shadow-md"
-          >
-            <img 
-              src={pic9} 
-              alt="Solar technician at work" 
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-            />
-          </motion.div>
-
-          {/* Bottom Center Right */}
-          <motion.div 
-            variants={fadeInUp}
-            className="md:col-span-1 md:row-span-1 relative overflow-hidden rounded-3xl group shadow-md"
-          >
-            <img 
-              src={pic10} 
-              alt="Renewable energy concept" 
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-            />
-          </motion.div>
+          {galleryItems.map((item, index) => (
+            <motion.div
+              key={index}
+              variants={fadeInUp}
+              className={`flex-shrink-0 snap-start relative overflow-hidden rounded-[2rem] shadow-xl
+                ${item.rowSpan === 2 ? 'row-span-2' : 'row-span-1'}
+                ${item.width}`}
+            >
+              <img
+                src={item.src}
+                alt={item.title}
+                className="w-full h-full object-cover"
+              />
+            </motion.div>
+          ))}
+          {/* Invisible padding to maintain cut-off look */}
+          <div className="w-16 md:w-32" />
         </motion.div>
       </section>
 
