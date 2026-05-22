@@ -1,10 +1,11 @@
-import { Sun, LayoutDashboard, Package, LogOut } from 'lucide-react'
+import { Sun, LayoutDashboard, Package, ShoppingCart, LogOut } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
 const mainLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'products', label: 'Products', icon: Package },
+  { id: 'orders', label: 'Orders', icon: ShoppingCart },
 ]
 
 export default function StaffSidebar({ activeScreen, onNavigate, isOpen, onClose }) {

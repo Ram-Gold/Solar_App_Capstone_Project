@@ -45,7 +45,7 @@ const reviews = [
   },
   {
     name: 'Jano Velasco',
-    review: 'highly recommended supplier of solar light. Trustworthy people, professional, madali kausap, very responsive. They can do supply and install option. Just coordinate with them thru Facebook. gagawaan pa nila ng group chat to give instruction while people onsite are doing the installation.',
+    review: 'highly recommended provider of solar light. Trustworthy people, professional, madali kausap, very responsive. They can do supply and install option. Just coordinate with them thru Facebook. gagawaan pa nila ng group chat to give instruction while people onsite are doing the installation.',
     date: 'May 2024',
     source: 'Google Map Review',
   },

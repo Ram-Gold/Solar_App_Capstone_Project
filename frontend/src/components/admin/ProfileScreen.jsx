@@ -4,20 +4,22 @@ import { useAuth } from '../../context/AuthContext'
 import { Button } from '../ui/button'
 
 export default function ProfileScreen() {
-  const { user } = useAuth()
-  const [form, setForm] = useState({ full_name: '', phone: '', role: 'staff' })
+  const { user, role } = useAuth()
+  const [form, setForm] = useState({ full_name: '', phone: '', position: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
 
+  const tableName = role === 'admin' ? 'admins' : 'staff'
+
   useEffect(() => {
     if (user) fetchProfile()
-  }, [user])
+  }, [user, role])
 
   const fetchProfile = async () => {
     const { data, error } = await supabase
-      .from('profiles')
+      .from(tableName)
       .select('*')
       .eq('id', user.id)
       .single()
@@ -26,7 +28,7 @@ export default function ProfileScreen() {
       setForm({
         full_name: data.full_name || '',
         phone: data.phone || '',
-        role: data.role || 'staff',
+        position: data.position || '',
       })
     }
     setLoading(false)
@@ -39,13 +41,13 @@ export default function ProfileScreen() {
     setSaving(true)
 
     const { error: updateError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: user.id,
+      .from(tableName)
+      .update({
         full_name: form.full_name,
         phone: form.phone,
-        role: form.role,
+        position: form.position,
       })
+      .eq('id', user.id)
 
     if (updateError) {
       setError(updateError.message)
@@ -73,8 +75,8 @@ export default function ProfileScreen() {
               <span className="text-headline-sm font-bold">{form.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}</span>
             </div>
             <div>
-              <h3 className="text-body-lg font-bold text-jds-on-surface">{form.full_name || 'Administrator'}</h3>
-              <p className="text-label-md font-bold text-jds-secondary uppercase tracking-wider">{form.role}</p>
+              <h3 className="text-body-lg font-bold text-jds-on-surface">{form.full_name || 'User'}</h3>
+              <p className="text-label-md font-bold text-jds-secondary uppercase tracking-wider">{role === 'admin' ? 'Administrator' : 'Staff Member'}</p>
             </div>
           </div>
 
@@ -100,7 +102,7 @@ export default function ProfileScreen() {
                 <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Access Level</label>
                 <input
                   disabled
-                  value={form.role}
+                  value={role === 'admin' ? 'Administrator' : 'Staff Member'}
                   className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/50 px-4 text-body-md text-jds-on-surface-variant/60 cursor-not-allowed capitalize"
                 />
               </div>
@@ -122,6 +124,16 @@ export default function ProfileScreen() {
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
                   placeholder="+63 9XX XXX XXXX"
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Position / Title</label>
+                <input
+                  value={form.position}
+                  onChange={(e) => setForm({ ...form, position: e.target.value })}
+                  className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                  placeholder="e.g. Solar Technician"
                 />
               </div>
             </div>

@@ -8,17 +8,36 @@ export const AuthProvider = ({ children }) => {
   const [role, setRole] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchProfile = async (userId) => {
+  const fetchRole = async (userId) => {
     try {
-      console.log('Fetching profile for:', userId)
-      const { data, error } = await supabase.from('profiles').select('role').eq('id', userId).single()
-      if (error) {
-        console.error('Error fetching role:', error)
+      console.log('Fetching role for:', userId)
+
+      // Check admins table first
+      const { data: adminData, error: adminError } = await supabase
+        .from('admins')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (!adminError && adminData) {
+        return 'admin'
+      }
+
+      // Check staff table
+      const { data: staffData, error: staffError } = await supabase
+        .from('staff')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (!staffError && staffData) {
         return 'staff'
       }
-      return data?.role || 'staff'
+
+      console.warn('User not found in admins or staff tables')
+      return 'staff' // Default fallback
     } catch (err) {
-      console.error('Profile fetch error:', err)
+      console.error('Role fetch error:', err)
       return 'staff'
     }
   }
@@ -35,7 +54,7 @@ export const AuthProvider = ({ children }) => {
       
       if (currentUser) {
         setLoading(true)
-        const userRole = await fetchProfile(currentUser.id)
+        const userRole = await fetchRole(currentUser.id)
         if (mounted) {
           setRole(userRole)
           setLoading(false)

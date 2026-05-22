@@ -32,11 +32,12 @@ export default function LoginPage() {
       } else {
         const userId = data?.user?.id
         if (userId) {
-          const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single()
-          if (profile?.role === 'staff') {
-            navigate('/staff')
-          } else {
+          // Check admins table first
+          const { data: adminRow } = await supabase.from('admins').select('id').eq('id', userId).maybeSingle()
+          if (adminRow) {
             navigate('/admin')
+          } else {
+            navigate('/staff')
           }
         } else {
           navigate('/admin')

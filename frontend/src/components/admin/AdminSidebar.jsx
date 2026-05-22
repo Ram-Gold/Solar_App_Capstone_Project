@@ -1,4 +1,4 @@
-import { Sun, LayoutDashboard, Package, ShoppingCart, Truck, Users, UserCircle, LogOut } from 'lucide-react'
+import { Sun, LayoutDashboard, Package, ShoppingCart, Users, UserCircle, LogOut } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
@@ -9,7 +9,6 @@ const mainLinks = [
 ]
 
 const managementLinks = [
-  { id: 'suppliers', label: 'Suppliers', icon: Truck },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'profile', label: 'Profile', icon: UserCircle },
 ]

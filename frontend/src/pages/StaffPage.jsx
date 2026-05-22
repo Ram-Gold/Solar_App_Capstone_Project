@@ -4,11 +4,13 @@ import StaffSidebar from '../components/staff/StaffSidebar'
 import DashboardScreen from '../components/admin/DashboardScreen'
 import ProductsScreen from '../components/admin/ProductsScreen'
 import AddProductScreen from '../components/admin/AddProductScreen'
+import OrdersScreen from '../components/admin/OrdersScreen'
 
 const screens = {
   dashboard: DashboardScreen,
   products: ProductsScreen,
   'add-product': AddProductScreen,
+  orders: OrdersScreen,
 }
 
 export default function StaffPage() {

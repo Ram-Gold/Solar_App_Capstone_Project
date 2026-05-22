@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 import { Plus, Pencil, Trash2, X } from 'lucide-react'
-
+import { useAuth } from '../../context/AuthContext'
 const emptyOrder = { customer_name: '', address: '', product_name: '', quantity: 1, price: '', status: 'Pending' }
 
 export default function OrdersScreen() {
@@ -12,6 +12,7 @@ export default function OrdersScreen() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyOrder)
   const [editingId, setEditingId] = useState(null)
+  const { role } = useAuth()
 
   useEffect(() => {
     fetchOrders()
@@ -81,9 +82,11 @@ export default function OrdersScreen() {
           <h1 className="text-headline-md font-bold text-jds-on-surface">Order Management</h1>
           <p className="text-body-md text-jds-on-surface-variant">Track and fulfill customer solar installation orders.</p>
         </div>
-        <Button onClick={() => { resetForm(); setShowForm(true) }} className="bg-jds-primary text-jds-on-primary hover:opacity-90 rounded-lg px-6 gap-2">
-          <Plus className="h-4 w-4" /> Add Order
-        </Button>
+        {role === 'admin' && (
+          <Button onClick={() => { resetForm(); setShowForm(true) }} className="bg-jds-primary text-jds-on-primary hover:opacity-90 rounded-lg px-6 gap-2">
+            <Plus className="h-4 w-4" /> Add Order
+          </Button>
+        )}
       </div>
 
       {/* Add / Edit Form */}
@@ -151,7 +154,9 @@ export default function OrdersScreen() {
                 <TableHead className="text-jds-on-surface-variant font-bold">Qty</TableHead>
                 <TableHead className="text-jds-on-surface-variant font-bold">Total Price</TableHead>
                 <TableHead className="text-jds-on-surface-variant font-bold">Status</TableHead>
-                <TableHead className="text-right text-jds-on-surface-variant font-bold">Actions</TableHead>
+                {role === 'admin' && (
+                  <TableHead className="text-right text-jds-on-surface-variant font-bold">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -168,34 +173,35 @@ export default function OrdersScreen() {
                     <TableCell className="text-jds-on-surface font-medium">{o.quantity}</TableCell>
                     <TableCell className="text-jds-on-surface font-bold">₱{Number(o.price * o.quantity).toLocaleString()}</TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-label-sm font-bold uppercase ${
-                        o.status === 'Delivered' ? 'bg-jds-secondary-container/10 text-jds-secondary'
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-label-sm font-bold uppercase ${o.status === 'Delivered' ? 'bg-jds-secondary-container/10 text-jds-secondary'
                           : o.status === 'Cancelled' ? 'bg-jds-error-container/10 text-jds-error'
-                          : 'bg-jds-primary-container/10 text-jds-primary'
-                      }`}>
+                            : 'bg-jds-primary-container/10 text-jds-primary'
+                        }`}>
                         {o.status}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleEdit(o)}
-                          className="h-9 w-9 text-jds-secondary hover:bg-jds-secondary-container/10"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleDelete(o.id)} 
-                          className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {role === 'admin' && (
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(o)}
+                            className="h-9 w-9 text-jds-secondary hover:bg-jds-secondary-container/10"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(o.id)}
+                            className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
