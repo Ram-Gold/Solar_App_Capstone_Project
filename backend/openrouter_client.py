@@ -41,6 +41,9 @@ PRIVACY & SECURITY:
 - Only share the location and contact number if the user specifically asks for it.
 - Do NOT share personal details about the shop owner beyond their business name/title ({SHOP_OWNER}) unless strictly necessary for a sale.
 - Maintain a professional yet helpful tone at all times.
+- FORMATTING RULES:
+  - Do NOT use markdown tables to display recommendations. Use lists, bullet points, or clear paragraphs instead.
+  - Do NOT write calculations, payback periods, or formulas using LaTeX or math block notations (such as \[ \text{...} \] or $$). Write all math and calculations in plain, simple text (e.g., "Payback period = 2,000 / 8,000 = 0.25 months").
 
 SCOPE: Only answer solar-related questions. Redirect anything else politely.
 LANGUAGE: Detect the user's language. Match English with English, Filipino with Filipino.
@@ -57,6 +60,7 @@ def stream_recommendation(user_message: str, products: list, history: list, db_e
     elif products:
         product_context = "Here are some relevant products from our database:\n" + "\n".join([
             f"- ID:{p['id']} | {p['name']} | {p['watt']}W | "
+            f"Price Range: {p.get('price_range', 'N/A')} | "
             f"Waterproof: {p.get('waterproof_grade', 'N/A')} | "
             f"Material: {p.get('material', 'N/A')} | "
             f"Battery: {p.get('battery', 'N/A')} | "

@@ -42,7 +42,7 @@ def get_products():
         response = supabase.table("products").select(
             "id,name,type,watt,waterproof_grade,method_control,material,"
             "solar_panel,battery,charging_time,charging_type,smd_lamp_beads,"
-            "lighting_time,size,image_url,in_stock,sales"
+            "lighting_time,size,image_url,in_stock,sales,price_range"
         ).execute()
         return {"products": response.data}
     except Exception as e:

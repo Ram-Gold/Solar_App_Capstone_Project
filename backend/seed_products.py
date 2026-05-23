@@ -65,6 +65,7 @@ def seed_database():
                 f"Product: {product_name}\n"
                 f"Category: {product_type}\n"
                 f"Power: {watts}W\n"
+                f"Price Range: {row.get('price_range', '1500-2500')}\n"
                 f"Waterproof: {row.get('waterproof_grade', 'N/A')}\n"
                 f"Control: {row.get('method_control', 'N/A')}\n"
                 f"Material: {row.get('material', 'N/A')}\n"
@@ -100,6 +101,7 @@ def seed_database():
                     "lighting_time": row.get('lighting_time', '').strip() or None,
                     "size": row.get('size', '').strip() or None,
                     "image_url": row.get('image_url', '').strip() or None,
+                    "price_range": row.get('price_range', '1500-2500').strip() or None,
                     "in_stock": True,
                     "sales": int(row.get('sales', 0)) if row.get('sales', '').strip() else 0,
                     "embedding": embedding,

@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext'
 
 const EDIT_FIELDS = [
   { key: 'name', label: 'Product Name', type: 'text' },
+  { key: 'price_range', label: 'Price Range', type: 'text' },
   { key: 'type', label: 'Category Type', type: 'text' },
   { key: 'watt', label: 'Power (Watts)', type: 'number' },
   { key: 'waterproof_grade', label: 'Waterproof Grade', type: 'text' },
@@ -23,7 +24,7 @@ const EDIT_FIELDS = [
   { key: 'image_url', label: 'Product Image Link', type: 'text' },
 ]
 
-const SELECT_COLS = 'id,name,type,watt,waterproof_grade,method_control,material,solar_panel,battery,charging_time,charging_type,smd_lamp_beads,lighting_time,size,image_url,in_stock,sales'
+const SELECT_COLS = 'id,name,type,watt,waterproof_grade,method_control,material,solar_panel,battery,charging_time,charging_type,smd_lamp_beads,lighting_time,size,image_url,in_stock,sales,price_range'
 
 export default function ProductsScreen({ onNavigate }) {
   const [products, setProducts] = useState([])

@@ -15,6 +15,7 @@ import {
   HiOutlineSignal,
   HiOutlineCpuChip,
   HiOutlineBattery100,
+  HiOutlineBanknotes,
 } from 'react-icons/hi2'
 
 export default function ProductInfoPage() {
@@ -46,7 +47,7 @@ export default function ProductInfoPage() {
           // Fetch related products of same type
           const { data: related } = await supabase
             .from('products')
-            .select('id, name, type, watt, waterproof_grade, material, image_url, in_stock')
+            .select('id, name, type, watt, waterproof_grade, material, image_url, in_stock, price_range')
             .eq('type', data.type)
             .neq('id', data.id)
             .limit(4)
@@ -74,6 +75,7 @@ export default function ProductInfoPage() {
   const getSpecsList = (p) => {
     if (!p) return []
     return [
+      { label: 'Price Range', value: p.price_range ? `₱${p.price_range}` : null, icon: HiOutlineBanknotes },
       { label: 'Power Output', value: p.watt ? `${p.watt}W` : null, icon: HiOutlineBolt },
       { label: 'Waterproof Grade', value: p.waterproof_grade, icon: HiOutlineShieldCheck },
       { label: 'Control Method', value: p.method_control, icon: HiOutlineSignal },
@@ -214,6 +216,11 @@ export default function ProductInfoPage() {
                 </span>
               </div>
               <h1 className="text-headline-lg-mobile md:text-headline-xl text-jds-on-surface">{product.name}</h1>
+              {product.price_range && (
+                <div className="text-display-sm text-jds-primary font-bold my-1">
+                  ₱{product.price_range}
+                </div>
+              )}
               <p className="text-body-lg text-jds-on-surface-variant italic">
                 {product.watt}W solar-powered light — built for durability and performance.
               </p>
@@ -298,6 +305,9 @@ export default function ProductInfoPage() {
                     </div>
                     <h3 className="text-label-md font-bold text-jds-on-surface truncate">{rp.name}</h3>
                     <p className="text-headline-md text-jds-secondary text-[18px]">{rp.watt}W</p>
+                    {rp.price_range && (
+                      <p className="text-label-md text-jds-primary font-bold">₱{rp.price_range}</p>
+                    )}
                     <Link
                       to={`/product/${rp.id}`}
                       className="mt-2 w-full py-2 border border-jds-secondary text-jds-secondary text-label-md rounded-lg hover:bg-jds-secondary-fixed/20 transition-colors text-center block"

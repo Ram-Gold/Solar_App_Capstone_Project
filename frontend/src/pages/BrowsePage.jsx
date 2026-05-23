@@ -26,6 +26,7 @@ export default function BrowsePage() {
   const [sortBy, setSortBy] = useState('newest')
   const [showFilters, setShowFilters] = useState(false)
   const [powerFilter, setPowerFilter] = useState('All Power')
+  const [waterproofFilter, setWaterproofFilter] = useState('All Ratings')
 
   useEffect(() => {
     const query = searchParams.get('search')
@@ -65,7 +66,12 @@ export default function BrowsePage() {
         else if (powerFilter === 'Above 400W') matchesPower = (p.watt || 0) > 400
       }
 
-      return matchesSearch && matchesCategory && matchesPower
+      let matchesWaterproof = true
+      if (waterproofFilter !== 'All Ratings') {
+        matchesWaterproof = p.waterproof_grade === waterproofFilter
+      }
+
+      return matchesSearch && matchesCategory && matchesPower && matchesWaterproof
     })
     .sort((a, b) => {
       if (sortBy === 'watt-low') return (a.watt || 0) - (b.watt || 0)
@@ -133,11 +139,30 @@ export default function BrowsePage() {
             {/* Waterproof Filter */}
             <div className="flex flex-col gap-4">
               <h3 className="text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Waterproof Rating</h3>
-              <div className="flex flex-wrap gap-2">
-                {['IP65', 'IP67'].map((rating) => (
-                  <span key={rating} className="bg-jds-surface-container-high text-jds-on-surface-variant px-3 py-1 rounded-full text-label-sm">
-                    {rating}
-                  </span>
+              <div className="flex flex-col gap-2">
+                {[
+                  { label: 'All Ratings', value: 'All Ratings' },
+                  { label: 'IP65', value: 'IP65' },
+                  { label: 'IP67', value: 'IP67' }
+                ].map((opt) => (
+                  <label 
+                    key={opt.value} 
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-body-sm font-medium cursor-pointer transition-all ${
+                      waterproofFilter === opt.value 
+                        ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary' 
+                        : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="waterproofFilterBrowse"
+                      value={opt.value}
+                      checked={waterproofFilter === opt.value}
+                      onChange={() => setWaterproofFilter(opt.value)}
+                      className="h-4 w-4 text-jds-secondary accent-jds-secondary cursor-pointer border-jds-outline-variant focus:ring-jds-secondary"
+                    />
+                    <span className="text-body-md">{opt.label}</span>
+                  </label>
                 ))}
               </div>
             </div>
@@ -245,6 +270,11 @@ export default function BrowsePage() {
                           · {product.waterproof_grade || 'IP65'}
                         </span>
                       </div>
+                      {product.price_range && (
+                        <div className="text-jds-primary font-bold text-body-lg mt-1">
+                          ₱{product.price_range}
+                        </div>
+                      )}
                       {product.material && (
                         <p className="text-label-sm text-jds-on-surface-variant mt-1 truncate">
                           {product.material}
@@ -269,6 +299,7 @@ export default function BrowsePage() {
                     setSearch('')
                     setActiveCategory('All Products')
                     setPowerFilter('All Power')
+                    setWaterproofFilter('All Ratings')
                   }}
                   className="border border-jds-secondary text-jds-secondary px-6 py-2 rounded-lg text-label-md hover:bg-jds-secondary hover:text-white transition-colors"
                 >

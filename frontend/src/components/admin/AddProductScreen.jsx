@@ -26,6 +26,7 @@ export default function AddProductScreen({ onNavigate }) {
     charging_type: 'Solar Charging',
     smd_lamp_beads: '',
     lighting_time: '',
+    price_range: '',
     size: '',
     in_stock: true,
     sales: 0,
@@ -56,6 +57,7 @@ export default function AddProductScreen({ onNavigate }) {
       charging_type: form.charging_type || null,
       smd_lamp_beads: form.smd_lamp_beads || null,
       lighting_time: form.lighting_time || null,
+      price_range: form.price_range || null,
       size: form.size || null,
       in_stock: form.in_stock,
       sales: Number(form.sales) || 0,
@@ -147,6 +149,10 @@ export default function AddProductScreen({ onNavigate }) {
             <input value={form.lighting_time} onChange={(e) => handleChange('lighting_time', e.target.value)} className={inputClass} placeholder="12~16 hours" />
           </div>
           <div className="space-y-2">
+            <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Price Range</label>
+            <input value={form.price_range} onChange={(e) => handleChange('price_range', e.target.value)} className={inputClass} placeholder="e.g. 5,000 - 8,000" />
+          </div>
+          <div className="space-y-2">
             <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Size / Dimensions</label>
             <input value={form.size} onChange={(e) => handleChange('size', e.target.value)} className={inputClass} placeholder="750mm x 237mm x 82mm (L/W/H)" />
           </div>
@@ -154,15 +160,16 @@ export default function AddProductScreen({ onNavigate }) {
             <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Initial Sales</label>
             <input type="number" value={form.sales} onChange={(e) => handleChange('sales', e.target.value)} className={inputClass} placeholder="0" />
           </div>
-          <div className="flex items-center gap-3 pt-8">
-            <input type="checkbox" id="in-stock" checked={form.in_stock} onChange={(e) => handleChange('in_stock', e.target.checked)} className="h-5 w-5 rounded border-jds-outline-variant/30 accent-jds-primary cursor-pointer" />
-            <label htmlFor="in-stock" className="text-body-md font-medium text-jds-on-surface cursor-pointer">In Stock</label>
-          </div>
         </div>
 
         <div className="space-y-2">
           <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Image URL</label>
           <input value={form.image_url} onChange={(e) => handleChange('image_url', e.target.value)} className={inputClass} placeholder="https://images.unsplash.com/..." />
+        </div>
+
+        <div className="flex items-center gap-3 pt-2">
+          <input type="checkbox" id="in-stock" checked={form.in_stock} onChange={(e) => handleChange('in_stock', e.target.checked)} className="h-5 w-5 rounded border-jds-outline-variant/30 accent-jds-primary cursor-pointer" />
+          <label htmlFor="in-stock" className="text-body-md font-medium text-jds-on-surface cursor-pointer">In Stock</label>
         </div>
 
         <div className="flex gap-4 pt-6 border-t border-jds-outline-variant/20">
