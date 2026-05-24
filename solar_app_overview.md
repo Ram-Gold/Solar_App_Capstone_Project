@@ -138,3 +138,57 @@ The system is built as a highly synchronized "Digital Guide" paired with an admi
 The risk of AI hallucination or giving dangerous out-of-scope advice is aggressively mitigated through strict **System Prompt Engineering** combined with the RAG architecture.
 - **Strict Scoping:** The backend explicitly instructs the AI with rigid rules: *"SCOPE: Only answer solar-related questions. Redirect anything else politely."* and *"CRITICAL RULES: You MUST ONLY recommend products from the 'Context' section."*
 - **Anchoring to Context:** Because the AI is forced to pull its answers directly from the retrieved database context (RAG) rather than "guessing" based on its open-ended training data, its "creativity" is severely restricted. It acts as a catalog assistant, not an electrician. Its purpose is to guide users to the right product based on wattage and use-case, not to provide complex, unverified electrical wiring tutorials.
+
+---
+
+## 8. Frontend React Deep-Dive
+
+This section details the architectural implementation of the React client, explaining how components, routing, security, state management, and real-time AI streams operate.
+
+### 8.1 Setup & Build Configuration
+- **Framework & Core:** Built using **React 19** paired with **Vite** for rapid hot module replacement (HMR) and optimized build bundles.
+- **Routing Engine:** Configured using [App.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/App.jsx) and `react-router-dom` to support deep linking and dynamic parameter matching:
+  - `/product/:id` maps to [ProductInfoPage.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/pages/ProductInfoPage.jsx), fetching the specified product ID directly from the database.
+  - Page shell layout logic dynamically toggles the visibility of the [Navbar.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/components/Navbar.jsx) and [Footer.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/components/Footer.jsx) based on matching routes (e.g., hiding them on [LoginPage.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/pages/LoginPage.jsx) and suppressing the footer in admin/staff dashboards).
+  - The [ChatWidget.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/components/ChatWidget.jsx) floating bubble is hidden when navigating to the full-screen [ChatboxPage.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/pages/ChatboxPage.jsx) to prevent UI duplication.
+
+### 8.2 Global State & Context Providers
+Global states are maintained in React Contexts located in `/src/context` and wrapped inside `App.jsx`:
+
+1. **Authentication Context ([AuthContext.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/context/AuthContext.jsx)):**
+   - **Real-Time State Listening:** Connects directly to the Supabase client state change listener via `supabase.auth.onAuthStateChange`.
+   - **Role Fetching:** On login, `fetchRole` queries the `admins` table. If the user's ID exists, the role is set to `'admin'`. If not found, it checks the `staff` table, setting the role to `'staff'`.
+   - **Performance Optimization:** Value exposure is memoized with `useMemo` to minimize unnecessary re-renders of nested routing branches.
+2. **Chat Communication Context ([ChatContext.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/context/ChatContext.jsx)):**
+   - Stores global message history and coordinates query states.
+   - Provides a `sendMessage(content)` method that updates `initialMessage`. This enables seamless redirection logic: when a user clicks *"Ask SolarAI About This"* on a product description page, the app updates the context, navigates to `/chat`, and automatically submits the query.
+
+### 8.3 Route Guarding & Access Control
+- **Security Guard Component:** Guarding is handled via [ProtectedRoute.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/components/ProtectedRoute.jsx).
+- **Control Rules:**
+  - Evaluates authorization status based on context loading state. If verification is pending, it displays a loading screen.
+  - Unauthenticated users are redirected to `/login`.
+  - Authenticated users attempting to view unauthorized routes (e.g., staff attempting to access `/admin`) are redirected to their appropriate landing dashboards.
+
+### 8.4 Database Client Integration & CRUD Operations
+- The client directly imports the Supabase JS SDK client initialized in [supabaseClient.js](file:///home/ram/Desktop/School/Solar_App/frontend/src/lib/supabaseClient.js).
+- **Client-Side Fetching:** Product listings in [BrowsePage.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/pages/BrowsePage.jsx) and individual specifications in [ProductInfoPage.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/pages/ProductInfoPage.jsx) are retrieved directly from the database using standard Supabase builder syntax: `supabase.from('products').select('*')`.
+- **Administrative Portal Screen Swapping:** Both [AdminPage.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/pages/AdminPage.jsx) and [StaffPage.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/pages/StaffPage.jsx) use local state toggles to dynamically mount different sub-screens in a sidebar layout:
+  - **Dashboard Metrics:** Renders [DashboardScreen.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/components/admin/DashboardScreen.jsx) to display stock statistics and order volume.
+  - **Inventory List:** [ProductsScreen.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/components/admin/ProductsScreen.jsx) renders a dense table that supports inline editing, stock toggle switches, filtering by wattage/categories, and delete actions.
+  - **Inventory Ingestion:** [AddProductScreen.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/components/admin/AddProductScreen.jsx) provides structured validation forms to insert new rows.
+  - **Order Log Tracking:** [OrdersScreen.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/components/admin/OrdersScreen.jsx) manages customer requests.
+  - **User & Role Administration:** Exclusive to admins, [UsersScreen.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/components/admin/UsersScreen.jsx) manages staff logins and credentials.
+
+### 8.5 Streaming AI Integration & UI Typewriter Effect
+The AI interfaces ([ChatWidget.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/components/ChatWidget.jsx) and [ChatboxPage.jsx](file:///home/ram/Desktop/School/Solar_App/frontend/src/pages/ChatboxPage.jsx)) leverage real-time streaming endpoints from the Python backend `/api/chat`:
+1. **Readable Streams API:** The client sends queries to the FastAPI endpoint and retrieves a stream reader via `response.body.getReader()`.
+2. **Asynchronous Processing Loop:** An async `while(!done)` loop reads binary packets, translates them into text strings via `TextDecoder`, and appends them chunk-by-chunk to the message list state. This produces a smooth typewriter UX.
+3. **Rich Rendering Override:** Messages are processed using `ReactMarkdown`. To ensure that AI-recommended products do not cause full browser reloads, standard HTML anchors (`a`) are intercepted and converted into client-side dynamic React Router `Link` components.
+
+### 8.6 Designing Systems & Tailwind Customizations
+- **Styling Architecture:** Extends the Tailwind layout system via [tailwind.config.js](file:///home/ram/Desktop/School/Solar_App/frontend/tailwind.config.js) to specify Material Design 3-inspired **JD Solar Design System (JDS)** tokens:
+  - Custom color palettes prefixed with `jds-` (e.g., `jds-surface`, `jds-primary`, and surface container variations).
+  - Explicit typographic sizing presets (`headline-xl`, `headline-lg`, `label-md`, `label-sm`) matching the design standards.
+- **Custom Global Styles:** Extended in [index.css](file:///home/ram/Desktop/School/Solar_App/frontend/src/index.css) to support rich visual enhancements, including a radial sunburst background (`.sunlight-bg`), card elevation levels (`.card-shadow`), glass badges (`.glass-badge`), and noise-enhanced SVG grain overlays (`.grain-texture`).
+- **Smooth Animations:** Integrated with `framer-motion` inside pages and interactive widgets to provide spring animations on bento grids, menu items, and chat popup toggles (`AnimatePresence` elements).

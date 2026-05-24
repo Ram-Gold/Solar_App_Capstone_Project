@@ -27,6 +27,8 @@ export default function BrowsePage() {
   const [showFilters, setShowFilters] = useState(false)
   const [powerFilter, setPowerFilter] = useState('All Power')
   const [waterproofFilter, setWaterproofFilter] = useState('All Ratings')
+  const [maxPriceFilter, setMaxPriceFilter] = useState(50000)
+  const [batteryFilter, setBatteryFilter] = useState('All')
 
   useEffect(() => {
     const query = searchParams.get('search')
@@ -71,7 +73,24 @@ export default function BrowsePage() {
         matchesWaterproof = p.waterproof_grade === waterproofFilter
       }
 
-      return matchesSearch && matchesCategory && matchesPower && matchesWaterproof
+      let matchesMaxPrice = true
+      if (maxPriceFilter < 50000) {
+        let pPrice = 0
+        if (p.price_range) {
+          const numbers = p.price_range.split('-').map(s => parseInt(s.replace(/[^0-9]/g, ''))).filter(n => !isNaN(n))
+          if (numbers.length > 0) pPrice = Math.max(...numbers)
+        }
+        matchesMaxPrice = pPrice > 0 && pPrice <= maxPriceFilter
+      }
+
+      let matchesBattery = true
+      if (batteryFilter === 'Included') {
+        matchesBattery = p.battery && p.battery.trim() !== '' && p.battery.toLowerCase() !== 'none'
+      } else if (batteryFilter === 'Not Included') {
+        matchesBattery = !p.battery || p.battery.trim() === '' || p.battery.toLowerCase() === 'none'
+      }
+
+      return matchesSearch && matchesCategory && matchesPower && matchesWaterproof && matchesMaxPrice && matchesBattery
     })
     .sort((a, b) => {
       if (sortBy === 'watt-low') return (a.watt || 0) - (b.watt || 0)
@@ -198,6 +217,56 @@ export default function BrowsePage() {
                 ))}
               </div>
             </div>
+
+            {/* Max Price Filter */}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Max Price</h3>
+                <span className="text-body-sm font-medium text-jds-secondary">
+                  {maxPriceFilter >= 50000 ? 'Any Price' : `₱${maxPriceFilter}`}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="500"
+                max="50000"
+                step="500"
+                value={maxPriceFilter}
+                onChange={(e) => setMaxPriceFilter(Number(e.target.value))}
+                className="w-full h-2 bg-jds-surface-variant rounded-lg appearance-none cursor-pointer accent-jds-secondary"
+              />
+            </div>
+
+            {/* Battery Filter */}
+            <div className="flex flex-col gap-4">
+              <h3 className="text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Battery</h3>
+              <div className="flex flex-col gap-2">
+                {[
+                  { label: 'All', value: 'All' },
+                  { label: 'Included', value: 'Included' },
+                  { label: 'Not Included', value: 'Not Included' }
+                ].map((opt) => (
+                  <label 
+                    key={opt.value} 
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-body-sm font-medium cursor-pointer transition-all ${
+                      batteryFilter === opt.value 
+                        ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary' 
+                        : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="batteryFilterBrowse"
+                      value={opt.value}
+                      checked={batteryFilter === opt.value}
+                      onChange={() => setBatteryFilter(opt.value)}
+                      className="h-4 w-4 text-jds-secondary accent-jds-secondary cursor-pointer border-jds-outline-variant focus:ring-jds-secondary"
+                    />
+                    <span className="text-body-md">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </aside>
 
           {/* Main Content Grid */}
@@ -300,6 +369,8 @@ export default function BrowsePage() {
                     setActiveCategory('All Products')
                     setPowerFilter('All Power')
                     setWaterproofFilter('All Ratings')
+                    setMaxPriceFilter(50000)
+                    setBatteryFilter('All')
                   }}
                   className="border border-jds-secondary text-jds-secondary px-6 py-2 rounded-lg text-label-md hover:bg-jds-secondary hover:text-white transition-colors"
                 >
