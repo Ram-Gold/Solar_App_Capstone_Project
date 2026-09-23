@@ -255,7 +255,7 @@ export default function ProductInfoPage() {
                 className="w-full py-4 bg-gradient-to-r from-[#fdb813] to-[#ffdea7] text-jds-on-primary-fixed font-bold rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
               >
                 <HiOutlineChatBubbleLeftRight className="text-xl" />
-                Ask SolarAI About This
+                Ask Solar Assistant About This
               </button>
               <button className="w-full py-4 border-2 border-jds-secondary text-jds-secondary font-bold rounded-lg hover:bg-jds-secondary-fixed/20 transition-all">
                 Add to Quote

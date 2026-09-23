@@ -6,96 +6,35 @@ import { Link } from 'react-router-dom'
 import {
   HiOutlineCpuChip,
   HiOutlineXMark,
-  HiOutlineCalculator,
-  HiOutlineSun,
-  HiOutlineMapPin,
-  HiOutlineUserGroup,
+  HiOutlineArrowPath,
+  HiOutlinePaperAirplane,
+  HiOutlineSparkles,
 } from 'react-icons/hi2'
-import { HiOutlinePaperAirplane } from 'react-icons/hi2'
-
-const API_URL = import.meta.env.VITE_API_URL
-
-const quickActions = [
-  { icon: HiOutlineCalculator, label: 'Estimate Savings' },
-  { icon: HiOutlineSun, label: 'Panel Types' },
-  { icon: HiOutlineMapPin, label: 'Quiapo Office' },
-  { icon: HiOutlineUserGroup, label: 'Speak to Expert' },
-]
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false)
-  const { messages, setMessages, initialMessage, setInitialMessage } = useChat()
+  const { messages, sendMessage, selectOption, resetChat, isLoading, initialMessage } = useChat()
   const [input, setInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const scrollRef = useRef(null)
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages])
+  }, [messages, isLoading])
 
+  // Automatically open widget if an initial message was triggered from product page
   useEffect(() => {
     if (initialMessage) {
       setIsOpen(true)
-      handleSend(initialMessage)
-      setInitialMessage(null)
     }
   }, [initialMessage])
 
-  const handleSend = async (text = input) => {
-    if (!text.trim() || isLoading) return
-
-    const userMessage = { role: 'user', content: text }
-    setMessages((prev) => [...prev, userMessage])
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!input.trim() || isLoading) return
+    sendMessage(input)
     setInput('')
-    setIsLoading(true)
-
-    setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
-
-    try {
-      const response = await fetch(`${API_URL}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          history: messages.slice(-6),
-        }),
-      })
-
-      if (!response.ok) throw new Error('Failed to connect')
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let done = false
-      let fullContent = ''
-
-      while (!done) {
-        const { value, done: readerDone } = await reader.read()
-        done = readerDone
-        const chunk = decoder.decode(value, { stream: true })
-        fullContent += chunk
-
-        setMessages((prev) => {
-          const newMessages = [...prev]
-          newMessages[newMessages.length - 1].content = fullContent
-          return newMessages
-        })
-      }
-    } catch {
-      setMessages((prev) => {
-        const newMessages = [...prev]
-        newMessages[newMessages.length - 1].content =
-          "Sorry, I'm having trouble connecting. Please try again!"
-        return newMessages
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleQuickAction = (label) => {
-    handleSend(label)
   }
 
   return (
@@ -104,16 +43,16 @@ export default function ChatWidget() {
       <AnimatePresence>
         {!isOpen && (
           <motion.button
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0 }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-8 right-8 w-16 h-16 bg-jds-primary-container text-jds-on-primary-container rounded-full shadow-2xl flex items-center justify-center z-[100] hover:scale-110 transition-transform active:scale-95 group"
-            aria-label="Open AI Assistant"
+            className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-tr from-jds-primary to-jds-primary-container text-jds-on-primary rounded-full shadow-2xl flex items-center justify-center z-[100] hover:scale-105 active:scale-95 transition-transform group"
+            aria-label="Open JD Solar Assistant"
           >
-            <HiOutlineCpuChip className="text-[32px]" />
-            <span className="absolute -top-12 right-0 bg-jds-surface-container-highest text-jds-on-surface text-label-sm px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md pointer-events-none">
-              Chat with JD Assistant
+            <HiOutlineSparkles className="text-2xl animate-pulse" />
+            <span className="absolute -top-10 right-0 bg-jds-surface-container-highest text-jds-on-surface text-[12px] font-semibold px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md pointer-events-none">
+              Need Solar Help? Chat with us!
             </span>
           </motion.button>
         )}
@@ -123,153 +62,162 @@ export default function ChatWidget() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 40, scale: 0.95 }}
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 40, scale: 0.95 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-6 right-6 w-[400px] max-w-[calc(100vw-3rem)] h-[600px] max-h-[calc(100vh-6rem)] bg-jds-surface-container-lowest rounded-xl shadow-2xl flex flex-col border border-jds-outline-variant overflow-hidden z-[100]"
+            exit={{ opacity: 0, y: 30, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 320 }}
+            className="fixed bottom-6 right-6 w-[410px] max-w-[calc(100vw-2rem)] h-[620px] max-h-[calc(100vh-5rem)] bg-jds-surface rounded-2xl shadow-2xl flex flex-col border border-jds-outline-variant/60 overflow-hidden z-[100]"
           >
             {/* Header */}
-            <header className="bg-jds-surface-container-low px-6 py-4 flex items-center justify-between border-b border-jds-outline-variant">
+            <header className="bg-jds-surface-container-low px-5 py-3.5 flex items-center justify-between border-b border-jds-outline-variant/40">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-jds-primary-container flex items-center justify-center shadow-sm">
-                  <HiOutlineCpuChip className="text-jds-on-primary-container text-xl" />
+                <div className="w-9 h-9 rounded-xl bg-jds-primary-container flex items-center justify-center text-jds-on-primary-container shadow-sm">
+                  <HiOutlineCpuChip className="text-xl text-jds-primary" />
                 </div>
                 <div>
-                  <h2 className="text-label-md text-jds-on-surface font-semibold">SolarAI Assistant</h2>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-jds-secondary" />
-                    <span className="text-label-sm text-jds-on-surface-variant">Online</span>
+                  <h2 className="text-label-md text-jds-on-surface font-bold leading-tight">
+                    JD Solar Assistant
+                  </h2>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[11px] text-jds-on-surface-variant font-medium">
+                      Decision-Tree Guide
+                    </span>
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-jds-on-surface-variant hover:bg-jds-surface-container-high p-1.5 rounded-lg transition-colors"
-              >
-                <HiOutlineXMark className="text-xl" />
-              </button>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={resetChat}
+                  title="Restart Conversation"
+                  className="text-jds-on-surface-variant hover:text-jds-primary hover:bg-jds-surface-container-high p-2 rounded-lg transition-colors"
+                >
+                  <HiOutlineArrowPath className="text-lg" />
+                </button>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  title="Close Assistant"
+                  className="text-jds-on-surface-variant hover:text-red-500 hover:bg-jds-surface-container-high p-2 rounded-lg transition-colors"
+                >
+                  <HiOutlineXMark className="text-xl" />
+                </button>
+              </div>
             </header>
 
-            {/* Chat Messages */}
-            <main ref={scrollRef} className="flex-1 overflow-y-auto p-6 chat-scroll bg-jds-surface">
-              <div className="space-y-6">
-                {/* Default welcome message */}
-                {messages.length === 0 && (
-                  <>
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full bg-jds-primary-container flex-shrink-0 flex items-center justify-center">
-                        <HiOutlineCpuChip className="text-sm text-jds-on-primary-container" />
-                      </div>
-                      <div className="flex flex-col gap-1 max-w-[85%]">
-                        <div className="bg-jds-surface-container-high px-4 py-3 rounded-tr-xl rounded-br-xl rounded-bl-xl border border-jds-outline-variant">
-                          <p className="text-body-md text-jds-on-surface">
-                            Hi! I'm your JD Solar assistant. How can I help you find the perfect solar solution today?
-                          </p>
-                        </div>
-                        <span className="text-[10px] text-jds-on-surface-variant ml-1">
-                          {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    </div>
+            {/* Message Area */}
+            <main ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 chat-scroll bg-jds-surface">
+              {messages.map((msg, idx) => {
+                const isAssistant = msg.role === 'assistant'
+                const isLatestAssistant = isAssistant && idx === messages.length - 1
 
-                    {/* Quick Actions */}
-                    <div className="grid grid-cols-2 gap-2 mt-4">
-                      {quickActions.map((action) => (
-                        <button
-                          key={action.label}
-                          onClick={() => handleQuickAction(action.label)}
-                          className="bg-jds-surface-container-low border border-jds-outline-variant hover:border-jds-primary px-3 py-2 rounded-lg text-left transition-all group"
+                return (
+                  <div key={msg.id || idx} className={`flex flex-col ${isAssistant ? 'items-start' : 'items-end'}`}>
+                    <div
+                      className={`max-w-[88%] rounded-2xl px-4 py-3 text-body-md ${
+                        isAssistant
+                          ? 'bg-jds-surface-container-low text-jds-on-surface border border-jds-outline-variant/40 rounded-tl-sm'
+                          : 'bg-jds-primary text-white rounded-tr-sm shadow-sm'
+                      }`}
+                    >
+                      {/* Markdown rendering */}
+                      <div className="prose prose-sm max-w-none text-body-md leading-relaxed prose-headings:font-bold prose-headings:text-jds-on-surface prose-headings:my-1.5 prose-p:my-1 prose-ul:my-1 prose-li:my-0.5">
+                        <ReactMarkdown
+                          components={{
+                            a: ({ ...props }) => (
+                              <Link
+                                to={props.href}
+                                onClick={() => setIsOpen(false)}
+                                className={`font-bold underline decoration-2 underline-offset-2 ${
+                                  isAssistant ? 'text-jds-primary hover:text-jds-primary/80' : 'text-white'
+                                }`}
+                              >
+                                {props.children}
+                              </Link>
+                            ),
+                          }}
                         >
-                          <action.icon className="text-jds-primary block mb-1 text-xl" />
-                          <span className="text-label-sm text-jds-on-surface group-hover:text-jds-primary">
-                            {action.label}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
 
-                {/* Message history */}
-                {messages.map((msg, idx) => (
-                  <div
-                    key={idx}
-                    className={`flex items-start ${msg.role === 'user' ? 'justify-end' : ''} gap-3`}
-                  >
-                    {msg.role === 'assistant' && (
-                      <div className="w-8 h-8 rounded-full bg-jds-primary-container flex-shrink-0 flex items-center justify-center">
-                        <HiOutlineCpuChip className="text-sm text-jds-on-primary-container" />
-                      </div>
-                    )}
-                    <div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : ''} gap-1 max-w-[85%]`}>
-                      <div
-                        className={
-                          msg.role === 'user'
-                            ? 'bg-jds-primary-container px-4 py-3 rounded-tl-xl rounded-bl-xl rounded-br-xl shadow-sm'
-                            : 'bg-jds-surface-container-high px-4 py-3 rounded-tr-xl rounded-br-xl rounded-bl-xl border border-jds-outline-variant'
-                        }
-                      >
-                        {msg.content ? (
-                          <div className="text-body-md prose prose-sm max-w-none">
-                            <ReactMarkdown
-                              components={{
-                                a: ({ node, ...props }) => (
-                                  <Link
-                                    to={props.href}
-                                    className="underline text-jds-secondary font-bold"
-                                  >
-                                    {props.children}
-                                  </Link>
-                                ),
-                              }}
-                            >
-                              {msg.content}
-                            </ReactMarkdown>
-                          </div>
-                        ) : (
-                          <div className="flex gap-1 items-center h-5">
-                            <div className="w-1.5 h-1.5 bg-jds-outline rounded-full animate-bounce [animation-delay:-0.3s]" />
-                            <div className="w-1.5 h-1.5 bg-jds-outline rounded-full animate-bounce [animation-delay:-0.15s]" />
-                            <div className="w-1.5 h-1.5 bg-jds-outline rounded-full animate-bounce" />
-                          </div>
-                        )}
-                      </div>
+                      {/* Interactive Options Buttons */}
+                      {isAssistant && msg.options && msg.options.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-jds-outline-variant/30">
+                          {msg.options.map((opt, optIdx) => {
+                            if (opt.url) {
+                              return (
+                                <Link
+                                  key={optIdx}
+                                  to={opt.url}
+                                  onClick={() => setIsOpen(false)}
+                                  className="inline-flex items-center text-label-sm font-semibold bg-jds-primary-container text-jds-on-primary-container px-3 py-1.5 rounded-lg border border-jds-primary/20 hover:opacity-90 transition-all active:scale-95"
+                                >
+                                  {opt.label}
+                                </Link>
+                              )
+                            }
+                            return (
+                              <button
+                                key={optIdx}
+                                onClick={() => selectOption(opt)}
+                                disabled={isLoading || !isLatestAssistant}
+                                className={`inline-flex items-center text-label-sm font-medium px-3 py-1.5 rounded-lg border transition-all text-left ${
+                                  isLatestAssistant
+                                    ? 'bg-white text-jds-on-surface border-jds-outline-variant hover:border-jds-primary hover:bg-jds-primary/5 active:scale-95 cursor-pointer shadow-sm'
+                                    : 'bg-jds-surface-container text-jds-on-surface-variant/70 border-transparent cursor-default'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
+
+                    <span className="text-[10px] text-jds-on-surface-variant/60 mt-1 px-1">
+                      {msg.timestamp}
+                    </span>
                   </div>
-                ))}
-              </div>
+                )
+              })}
+
+              {/* Typing indicator */}
+              {isLoading && (
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-jds-surface-container-low rounded-xl w-fit border border-jds-outline-variant/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-jds-primary animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-jds-primary animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-jds-primary animate-bounce" />
+                </div>
+              )}
             </main>
 
-            {/* Input */}
-            <footer className="bg-jds-surface-container-lowest p-4 border-t border-jds-outline-variant">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  handleSend()
-                }}
-                className="relative flex items-center"
-              >
+            {/* Input Footer */}
+            <footer className="bg-jds-surface-container-low p-3 border-t border-jds-outline-variant/40">
+              <form onSubmit={handleSubmit} className="flex items-center gap-2">
                 <input
-                  className="w-full bg-jds-surface-variant border-none rounded-lg pl-4 pr-12 py-3 text-body-md text-jds-on-surface focus:ring-2 focus:ring-jds-secondary-container transition-all placeholder:text-jds-on-surface-variant/50 outline-none"
-                  placeholder="Type your message..."
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
+                  placeholder="Type a question or select an option..."
                   disabled={isLoading}
+                  className="flex-1 bg-jds-surface rounded-xl px-3.5 py-2.5 text-body-md text-jds-on-surface border border-jds-outline-variant/50 focus:border-jds-primary focus:outline-none placeholder:text-jds-on-surface-variant/50 transition-colors"
                 />
                 <button
                   type="submit"
                   disabled={isLoading || !input.trim()}
-                  className="absolute right-2 p-2 bg-jds-primary-container hover:bg-jds-primary-fixed-dim text-jds-on-primary-container rounded-lg transition-all shadow-sm flex items-center justify-center disabled:opacity-50"
+                  className="p-2.5 bg-jds-primary text-white rounded-xl disabled:opacity-40 hover:bg-jds-primary/90 transition-colors shadow-sm"
+                  aria-label="Send message"
                 >
-                  <HiOutlinePaperAirplane className="text-xl" />
+                  <HiOutlinePaperAirplane className="text-lg rotate-[-20deg] translate-x-0.5" />
                 </button>
               </form>
-              <div className="flex justify-center mt-3">
-                <p className="text-[10px] text-jds-on-surface-variant/70 flex items-center gap-1">
-                  ⚡ Powered by JD Solar Intelligence
-                </p>
+              <div className="flex justify-between items-center px-1 mt-2 text-[10px] text-jds-on-surface-variant/60">
+                <span>Guided Decision Tree</span>
+                <Link to="/chat" onClick={() => setIsOpen(false)} className="hover:underline text-jds-primary font-semibold">
+                  Open Full Screen ↗
+                </Link>
               </div>
             </footer>
           </motion.div>

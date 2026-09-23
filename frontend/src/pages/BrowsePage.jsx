@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
-import { useChat } from '../context/ChatContext'
 import {
   HiOutlineMagnifyingGlass,
   HiOutlineCheck,
@@ -15,9 +14,7 @@ import {
 const categories = ['All Products', 'Aviation Aluminum Solar Light', 'Aviation Aluminum Solar Road Light', 'Aviation Aluminum Solar Street Light', 'Integrated Solar Street Light', 'Aluminum Solar Street Light', 'Solar Streetlight']
 
 export default function BrowsePage() {
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { sendMessage } = useChat()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -393,7 +390,7 @@ export default function BrowsePage() {
                 to="/chat"
                 className="bg-jds-primary text-jds-on-primary px-8 py-4 rounded-lg text-label-md font-bold hover:scale-105 transition-transform"
               >
-                Ask SolarAI
+                Ask Solar Assistant
               </Link>
             </div>
           </div>

@@ -1,9 +1,0 @@
-name,type,watt,price,efficiency,battery,measurements,image_url,description,product_overview,product_details,sales
-SunPower Maxeon 6,Monocrystalline,440,350,22.8,False,Medium,https://via.placeholder.com/150,Premium solar panel with industry-leading efficiency and durability. Ideal for residential roofs with limited space.
-REC Alpha Pure-R,Heterojunction,430,320,22.3,False,Medium,https://via.placeholder.com/150,Lead-free solar panel with excellent temperature coefficient for high performance in hot climates.
-Qcells Q.Tron BLK M-G2+,Monocrystalline,425,290,21.5,False,Small,https://via.placeholder.com/150,All-black aesthetic panel offering a great balance of price and performance for homeowners.
-Panasonic EverVolt HK Black Series,Monocrystalline,410,310,21.6,False,Small,https://via.placeholder.com/150,High-performance panels backed by a trusted brand known for minimal degradation over time.
-Tesla Solar Roof,BIPV,72,2.11,18.0,False,Large,https://via.placeholder.com/150,Building-integrated photovoltaics that replace traditional roofing materials while generating electricity.
-Canadian Solar HiKu6,Polycrystalline,460,250,21.3,False,Large,https://via.placeholder.com/150,Cost-effective high-wattage panel suitable for large residential or commercial installations.
-Enphase IQ Battery 5P,AC Battery,3840,4000,96.0,True,N/A,https://via.placeholder.com/150,Powerful home battery storage solution for backup power and energy independence.
-Tesla Powerwall 3,AC/DC Battery,13500,8500,90.0,True,N/A,https://via.placeholder.com/150,High-capacity home battery that integrates seamlessly with solar systems for whole-home backup.
