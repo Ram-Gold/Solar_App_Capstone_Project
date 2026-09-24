@@ -5,12 +5,14 @@ import DashboardScreen from '../components/admin/DashboardScreen'
 import ProductsScreen from '../components/admin/ProductsScreen'
 import AddProductScreen from '../components/admin/AddProductScreen'
 import OrdersScreen from '../components/admin/OrdersScreen'
+import ImagesScreen from '../components/admin/ImagesScreen'
 
 const screens = {
   dashboard: DashboardScreen,
   products: ProductsScreen,
   'add-product': AddProductScreen,
   orders: OrdersScreen,
+  images: ImagesScreen,
 }
 
 export default function StaffPage() {

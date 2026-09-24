@@ -5,6 +5,7 @@ import DashboardScreen from '../components/admin/DashboardScreen'
 import ProductsScreen from '../components/admin/ProductsScreen'
 import AddProductScreen from '../components/admin/AddProductScreen'
 import OrdersScreen from '../components/admin/OrdersScreen'
+import ImagesScreen from '../components/admin/ImagesScreen'
 import UsersScreen from '../components/admin/UsersScreen'
 import ProfileScreen from '../components/admin/ProfileScreen'
 
@@ -13,6 +14,7 @@ const screens = {
   products: ProductsScreen,
   'add-product': AddProductScreen,
   orders: OrdersScreen,
+  images: ImagesScreen,
   users: UsersScreen,
   profile: ProfileScreen,
 }

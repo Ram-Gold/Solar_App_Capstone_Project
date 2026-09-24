@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { Button } from '../ui/button'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Upload, Image as ImageIcon, X, Link2, Check } from 'lucide-react'
 
 const PRODUCT_TYPES = [
   'Aviation Aluminum Solar Light',
@@ -34,6 +34,50 @@ export default function AddProductScreen({ onNavigate }) {
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [imageUploading, setImageUploading] = useState(false)
+  const [imageUploadError, setImageUploadError] = useState('')
+  const fileInputRef = useRef(null)
+
+  const handleImageFileChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setImageUploadError('Please select a valid image file.')
+      return
+    }
+
+    setImageUploading(true)
+    setImageUploadError('')
+
+    try {
+      const sanitizedName = file.name.toLowerCase().replace(/[^a-z0-9._-]/g, '_')
+      const fileExt = sanitizedName.substring(sanitizedName.lastIndexOf('.'))
+      const baseName = sanitizedName.substring(0, sanitizedName.lastIndexOf('.'))
+      const uniqueFileName = `${baseName}_${Date.now()}${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(uniqueFileName, file, { cacheControl: '3600', upsert: false })
+
+      if (uploadError) {
+        throw uploadError
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(uniqueFileName)
+
+      if (publicUrlData?.publicUrl) {
+        handleChange('image_url', publicUrlData.publicUrl)
+      }
+    } catch (err) {
+      console.error('Image upload failed:', err)
+      setImageUploadError(err.message || 'Image upload failed')
+    } finally {
+      setImageUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   const handleChange = (key, value) => {
     setForm(prev => ({ ...prev, [key]: value }))
@@ -162,9 +206,116 @@ export default function AddProductScreen({ onNavigate }) {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Image URL</label>
-          <input value={form.image_url} onChange={(e) => handleChange('image_url', e.target.value)} className={inputClass} placeholder="https://images.unsplash.com/..." />
+        {/* Product Image Section */}
+        <div className="space-y-3 pt-2">
+          <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider block">
+            Product Image
+          </label>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+            onChange={handleImageFileChange}
+            className="hidden"
+          />
+
+          {imageUploadError && (
+            <div className="p-3 rounded-lg bg-jds-error-container/20 border border-jds-error/30 text-jds-error text-xs">
+              {imageUploadError}
+            </div>
+          )}
+
+          {form.image_url ? (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/40">
+              <img
+                src={form.image_url}
+                alt="Product Preview"
+                className="h-20 w-20 rounded-lg object-contain bg-black/5 border border-jds-outline-variant/30 shrink-0"
+                onError={(e) => {
+                  e.target.onerror = null
+                  e.target.src = 'https://placehold.co/100x100?text=Preview'
+                }}
+              />
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <Check className="h-3.5 w-3.5" />
+                    Image Attached
+                  </span>
+                </div>
+                <p className="text-xs text-jds-on-surface-variant font-mono truncate max-w-md">
+                  {form.image_url}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={imageUploading}
+                  className="text-xs gap-1.5 border-jds-outline-variant"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Replace File
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleChange('image_url', '')}
+                  className="text-xs text-jds-on-surface-variant hover:text-jds-error"
+                >
+                  <X className="h-4 w-4" />
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row items-center gap-4 p-6 rounded-xl border-2 border-dashed border-jds-outline-variant/50 bg-jds-surface-container-lowest text-center sm:text-left">
+                <div className="h-12 w-12 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center shrink-0">
+                  <ImageIcon className="h-6 w-6" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-body-sm font-bold text-jds-on-surface">Upload photo directly to Supabase Storage</p>
+                  <p className="text-xs text-jds-on-surface-variant">PNG, JPG, JPEG, WEBP or SVG up to 10MB</p>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={imageUploading}
+                  className="bg-jds-primary text-jds-on-primary hover:opacity-90 gap-2 shrink-0 font-semibold text-xs h-10 px-5 shadow-sm"
+                >
+                  {imageUploading ? (
+                    <>
+                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-3.5 w-3.5" />
+                      Select & Upload
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Alternative Paste URL */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Link2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-jds-on-surface-variant/50" />
+                  <input
+                    value={form.image_url}
+                    onChange={(e) => handleChange('image_url', e.target.value)}
+                    className={`${inputClass} pl-10 text-xs font-mono`}
+                    placeholder="Or paste an existing image link (e.g. from Storage library or external URL)..."
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3 pt-2">

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
-import { Search, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, Upload, Image as ImageIcon } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 const EDIT_FIELDS = [
@@ -21,7 +21,6 @@ const EDIT_FIELDS = [
   { key: 'lighting_time', label: 'Lighting Time', type: 'text' },
   { key: 'size', label: 'Size / Dimensions', type: 'text' },
   { key: 'sales', label: 'Total Sales', type: 'number' },
-  { key: 'image_url', label: 'Product Image Link', type: 'text' },
 ]
 
 const SELECT_COLS = 'id,name,type,watt,waterproof_grade,method_control,material,solar_panel,battery,charging_time,charging_type,smd_lamp_beads,lighting_time,size,image_url,in_stock,sales,price_range'
@@ -34,7 +33,41 @@ export default function ProductsScreen({ onNavigate }) {
   const [powerFilter, setPowerFilter] = useState('All Power')
   const [editingProduct, setEditingProduct] = useState(null)
   const [validationErrors, setValidationErrors] = useState({})
+  const [editingImageUploading, setEditingImageUploading] = useState(false)
+  const editFileInputRef = useRef(null)
   const { role } = useAuth()
+
+  const handleEditImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setEditingImageUploading(true)
+    try {
+      const sanitizedName = file.name.toLowerCase().replace(/[^a-z0-9._-]/g, '_')
+      const fileExt = sanitizedName.substring(sanitizedName.lastIndexOf('.'))
+      const baseName = sanitizedName.substring(0, sanitizedName.lastIndexOf('.'))
+      const uniqueFileName = `${baseName}_${Date.now()}${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(uniqueFileName, file, { cacheControl: '3600', upsert: false })
+
+      if (uploadError) throw uploadError
+
+      const { data: publicUrlData } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(uniqueFileName)
+
+      if (publicUrlData?.publicUrl) {
+        setEditingProduct(prev => ({ ...prev, image_url: publicUrlData.publicUrl }))
+      }
+    } catch (err) {
+      console.error('Failed to upload image:', err)
+      alert(`Image upload failed: ${err.message}`)
+    } finally {
+      setEditingImageUploading(false)
+      if (editFileInputRef.current) editFileInputRef.current.value = ''
+    }
+  }
 
   useEffect(() => { fetchProducts() }, [])
 
@@ -192,6 +225,56 @@ export default function ProductsScreen({ onNavigate }) {
                 )}
               </div>
             ))}
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-label-sm font-bold text-jds-on-surface-variant/80">Product Image</label>
+              <div className="flex items-center gap-3">
+                {editingProduct.image_url ? (
+                  <img
+                    src={editingProduct.image_url}
+                    alt="Product preview"
+                    className="h-11 w-11 rounded-lg object-contain bg-black/5 border border-jds-outline-variant/30 shrink-0"
+                    onError={(e) => {
+                      e.target.onerror = null
+                      e.target.src = 'https://placehold.co/100x100?text=None'
+                    }}
+                  />
+                ) : (
+                  <div className="h-11 w-11 rounded-lg bg-jds-surface-container-low/50 border border-jds-outline-variant/30 flex items-center justify-center text-jds-on-surface-variant/40 shrink-0">
+                    <ImageIcon className="h-5 w-5" />
+                  </div>
+                )}
+                <input
+                  type="text"
+                  value={editingProduct.image_url ?? ''}
+                  onChange={(e) => handleFieldChange('image_url', e.target.value, 'text')}
+                  placeholder="Paste image link or upload new..."
+                  className="h-11 flex-1 rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-xs font-mono outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                />
+                <input
+                  ref={editFileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                  onChange={handleEditImageUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={editingImageUploading}
+                  onClick={() => editFileInputRef.current?.click()}
+                  className="h-11 px-3 text-xs gap-1.5 shrink-0 border-jds-outline-variant"
+                >
+                  {editingImageUploading ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5" />
+                  )}
+                  Upload
+                </Button>
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-label-sm font-bold text-jds-on-surface-variant/80">In Stock?</label>
               <select value={editingProduct.in_stock ? 'true' : 'false'} onChange={(e) => setEditingProduct({ ...editingProduct, in_stock: e.target.value === 'true' })} className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all">
@@ -212,6 +295,7 @@ export default function ProductsScreen({ onNavigate }) {
           <Table>
             <TableHeader className="bg-jds-surface-container-low/10">
               <TableRow>
+                <TableHead className="w-14 text-jds-on-surface-variant font-bold">Image</TableHead>
                 <TableHead className="text-jds-on-surface-variant font-bold">Product</TableHead>
                 <TableHead className="text-jds-on-surface-variant font-bold">Category</TableHead>
                 <TableHead className="text-jds-on-surface-variant font-bold">Power</TableHead>
@@ -224,9 +308,20 @@ export default function ProductsScreen({ onNavigate }) {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-16 text-body-md text-jds-on-surface-variant/50">No matching products found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-16 text-body-md text-jds-on-surface-variant/50">No matching products found.</TableCell></TableRow>
               ) : filtered.map((p) => (
                 <TableRow key={p.id} className="hover:bg-jds-surface-container-low/5 transition-colors">
+                  <TableCell className="w-14 py-2">
+                    <img
+                      src={p.image_url || 'https://placehold.co/80x80?text=None'}
+                      alt={p.name}
+                      className="h-10 w-10 rounded-lg object-contain bg-black/5 border border-jds-outline-variant/20 p-0.5"
+                      onError={(e) => {
+                        e.target.onerror = null
+                        e.target.src = 'https://placehold.co/80x80?text=None'
+                      }}
+                    />
+                  </TableCell>
                   <TableCell className="font-bold text-jds-on-surface max-w-[200px] truncate">{p.name}</TableCell>
                   <TableCell className="text-jds-on-surface-variant text-label-sm">{p.type}</TableCell>
                   <TableCell className="text-jds-on-surface font-medium">{p.watt}W</TableCell>
