@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 import { useChat } from '../context/ChatContext'
+import QuoteModal from '../components/QuoteModal'
 import {
   HiOutlineArrowLeft,
   HiOutlineBolt,
@@ -16,6 +17,9 @@ import {
   HiOutlineCpuChip,
   HiOutlineBattery100,
   HiOutlineBanknotes,
+  HiOutlineBuildingStorefront,
+  HiOutlineDocumentText,
+  HiOutlineLockClosed,
 } from 'react-icons/hi2'
 
 export default function ProductInfoPage() {
@@ -28,6 +32,8 @@ export default function ProductInfoPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedThumb, setSelectedThumb] = useState(0)
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState('reserve')
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -248,18 +254,62 @@ export default function ProductInfoPage() {
               </div>
             </div>
 
-            {/* CTA */}
-            <div className="flex flex-col gap-4 mt-4">
-              <button
-                onClick={handleAskAI}
-                className="w-full py-4 bg-gradient-to-r from-[#fdb813] to-[#ffdea7] text-jds-on-primary-fixed font-bold rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
-              >
-                <HiOutlineChatBubbleLeftRight className="text-xl" />
-                Ask Solar Assistant About This
-              </button>
-              <button className="w-full py-4 border-2 border-jds-secondary text-jds-secondary font-bold rounded-lg hover:bg-jds-secondary-fixed/20 transition-all">
-                Add to Quote
-              </button>
+            {/* Dual CTA Actions */}
+            <div className="flex flex-col gap-3 mt-4">
+              {/* Primary Action: Reserve for Store Pickup */}
+              {product.in_stock ? (
+                <button
+                  onClick={() => {
+                    setModalMode('reserve')
+                    setIsQuoteModalOpen(true)
+                  }}
+                  className="w-full py-4 bg-gradient-to-r from-[#fdb813] via-[#f7ad0c] to-[#e69f05] text-stone-950 font-black rounded-xl shadow-md hover:shadow-xl hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 text-base border border-[#f5b311]"
+                >
+                  <HiOutlineBuildingStorefront className="text-2xl" />
+                  <span>Reserve for Store Pickup</span>
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="w-full py-4 bg-stone-200 text-stone-500 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 text-base border border-stone-300"
+                >
+                  <HiOutlineLockClosed className="text-xl" />
+                  <span>Out of Stock — Pickup Unavailable</span>
+                </button>
+              )}
+
+              {/* Secondary 2-Column Row: Inquire / Request Quote & Ask Solar Assistant */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => {
+                    setModalMode('inquire')
+                    setIsQuoteModalOpen(true)
+                  }}
+                  className="w-full py-3.5 border-2 border-jds-secondary text-jds-secondary font-bold rounded-xl hover:bg-jds-secondary-fixed/20 transition-all flex items-center justify-center gap-2 text-sm shadow-sm"
+                >
+                  <HiOutlineDocumentText className="text-lg" />
+                  <span>Inquire / Request Quote</span>
+                </button>
+
+                <button
+                  onClick={handleAskAI}
+                  className="w-full py-3.5 bg-jds-surface-container-high border border-jds-outline-variant/60 text-jds-on-surface font-semibold rounded-xl hover:bg-jds-surface-container-highest transition-all flex items-center justify-center gap-2 text-sm shadow-sm"
+                >
+                  <HiOutlineChatBubbleLeftRight className="text-lg text-amber-500" />
+                  <span>Ask Solar Assistant</span>
+                </button>
+              </div>
+
+              {/* Trust & Guarantee Microcopy */}
+              <div className="flex items-center justify-center gap-3 pt-1 text-[11px] font-medium text-jds-on-surface-variant flex-wrap">
+                <span className="flex items-center gap-1">
+                  <span className="text-emerald-600 font-bold">✓</span> 48-Hour Stock Hold Guarantee
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <span className="text-emerald-600 font-bold">✓</span> Free Showroom Illumination Demo
+                </span>
+              </div>
             </div>
           </motion.div>
         </div>
@@ -321,6 +371,14 @@ export default function ProductInfoPage() {
           </section>
         )}
       </main>
+
+      {/* Quote & Store Visit Modal */}
+      <QuoteModal
+        isOpen={isQuoteModalOpen}
+        onClose={() => setIsQuoteModalOpen(false)}
+        product={product}
+        initialMode={modalMode}
+      />
     </div>
   )
 }

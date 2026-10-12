@@ -365,3 +365,50 @@ Please pick an option below to proceed:`,
     ],
   }
 }
+
+/**
+ * Splits markdown and prose text into natural sentence, header, and list segments
+ * for simulating an LLM streaming response.
+ */
+export function splitIntoSentenceSegments(text) {
+  if (!text) return []
+
+  const paragraphs = text.split(/\n{2,}/)
+  const segments = []
+
+  for (let pIdx = 0; pIdx < paragraphs.length; pIdx++) {
+    const para = paragraphs[pIdx]
+    const isLastPara = pIdx === paragraphs.length - 1
+    const paraSuffix = isLastPara ? '' : '\n\n'
+
+    const lines = para.split('\n')
+    for (let lIdx = 0; lIdx < lines.length; lIdx++) {
+      const line = lines[lIdx]
+      const isLastLineInPara = lIdx === lines.length - 1
+      const lineSuffix = isLastLineInPara ? paraSuffix : '\n'
+
+      const trimmed = line.trim()
+      // If line is a markdown heading, bullet list item, or numbered list item, keep whole line intact
+      if (
+        trimmed.startsWith('#') ||
+        trimmed.startsWith('*') ||
+        trimmed.startsWith('-') ||
+        /^\d+\./.test(trimmed)
+      ) {
+        segments.push(line + lineSuffix)
+        continue
+      }
+
+      // Match sentence endings (.?! followed by whitespace or line end), avoiding split on decimal numbers like 6.5m or ₱2.5k
+      const sentenceRegex = /.*?(?:[.?!](?=\s|$)|$)/g
+      const matches = line.match(sentenceRegex)?.filter(Boolean) || [line]
+      for (let sIdx = 0; sIdx < matches.length; sIdx++) {
+        const sentence = matches[sIdx]
+        const isLastSentenceInLine = sIdx === matches.length - 1
+        segments.push(sentence + (isLastSentenceInLine ? lineSuffix : ''))
+      }
+    }
+  }
+
+  return segments.filter((s) => s.length > 0)
+}

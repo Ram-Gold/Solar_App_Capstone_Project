@@ -1,0 +1,630 @@
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { supabase } from '../lib/supabaseClient'
+import {
+  X,
+  Plus,
+  Minus,
+  Sparkles,
+  ArrowRight,
+  Copy,
+  ShieldCheck,
+  Building2,
+} from 'lucide-react'
+import { FaFacebook, FaInstagram } from 'react-icons/fa'
+
+const BRANCHES = [
+  {
+    id: 'quiapo',
+    name: 'Quiapo Showroom (Manila)',
+    badge: 'Main Retail Hub',
+  },
+  {
+    id: 'cavite',
+    name: 'Cavite Distribution Hub',
+    badge: 'Logistics & Freight',
+  },
+]
+
+const INQUIRY_TOPICS = [
+  'Pole Height & Illumination Sizing Advice',
+  'Bulk Procurement / LGU Illumination Project Quote',
+  'Physical Product Demo & Technical Inspection',
+  'Pricing, Discounts & Package Deals',
+  'Warranty Coverage & Replacement Protocols',
+  'General Inquiries & Specifications',
+]
+
+// Helper to format HTML5 24hr time (e.g. "14:30") into 12hr display (e.g. "2:30 PM")
+const formatDisplayTime = (timeStr) => {
+  if (!timeStr) return ''
+  const [h, m] = timeStr.split(':')
+  const hour = parseInt(h, 10)
+  if (isNaN(hour)) return timeStr
+  const ampm = hour >= 12 ? 'PM' : 'AM'
+  const displayH = hour % 12 || 12
+  return `${displayH}:${m || '00'} ${ampm}`
+}
+
+export default function QuoteModal({ isOpen, onClose, product, initialMode = 'reserve' }) {
+  const [mode, setMode] = useState(initialMode) // 'reserve' | 'inquire'
+  const [step, setStep] = useState(1) // 1: Contact, 2: Visit & Time, 3: Ticket Pass
+  const [loading, setLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  // Form State
+  const [quantity, setQuantity] = useState(1)
+  const [customerName, setCustomerName] = useState('')
+  const [mobileContact, setMobileContact] = useState('')
+  const [email, setEmail] = useState('')
+  const [city, setCity] = useState('')
+  const [inquiryTopic, setInquiryTopic] = useState(INQUIRY_TOPICS[0])
+  const [facebook, setFacebook] = useState('')
+  const [instagram, setInstagram] = useState('')
+
+  // Step 2 State (Showroom Visit)
+  const [selectedBranch, setSelectedBranch] = useState(BRANCHES[0].name)
+  const [visitDate, setVisitDate] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 1)
+    return d.toISOString().split('T')[0]
+  })
+  const [visitTime, setVisitTime] = useState('10:00')
+
+  // Generated Ticket State
+  const [generatedTicket, setGeneratedTicket] = useState(null)
+  const [errors, setErrors] = useState({})
+
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode || 'reserve')
+      setStep(1)
+      setErrors({})
+      setCopied(false)
+      setLoading(false)
+    }
+  }, [isOpen, initialMode])
+
+  if (!isOpen) return null
+
+  const isReserve = mode === 'reserve'
+
+  const handlePhoneChange = (e) => {
+    const val = e.target.value.replace(/[^0-9+-\s]/g, '')
+    setMobileContact(val)
+  }
+
+  const validateStep1 = () => {
+    const errs = {}
+    if (!customerName.trim()) errs.customerName = 'Please enter your full name.'
+    if (!mobileContact.trim()) {
+      errs.mobileContact = 'Contact number is required.'
+    } else if (mobileContact.replace(/[^0-9]/g, '').length < 10) {
+      errs.mobileContact = 'Please provide a valid Philippine contact number (e.g. 0917-123-4567).'
+    }
+    if (!city.trim()) errs.city = 'Please enter your city or municipality.'
+    if (!facebook.trim()) {
+      errs.facebook = 'Facebook profile name or link is required for verification.'
+    }
+    setErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
+  const validateStep2 = () => {
+    const errs = {}
+    if (!visitDate) {
+      errs.visitDate = 'Please select a visit date.'
+    } else {
+      const selected = new Date(visitDate)
+      if (selected.getDay() === 0) {
+        errs.visitDate = 'Our showrooms are closed on Sundays. Please choose Monday through Saturday.'
+      }
+    }
+    if (!visitTime) {
+      errs.visitTime = 'Please select a visit time.'
+    }
+    setErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
+  const handleNextToStep2 = (e) => {
+    e.preventDefault()
+    if (validateStep1()) {
+      setStep(2)
+      setErrors({})
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!validateStep2()) return
+
+    setLoading(true)
+    const randomHex = Math.floor(100000 + Math.random() * 900000)
+    const ticketCode = `JDS-${isReserve ? 'RES' : 'INQ'}-${new Date().getFullYear()}-${randomHex}`
+    const formattedTime = formatDisplayTime(visitTime)
+    const effectivePurpose = isReserve ? 'Store Pickup & Reservation' : inquiryTopic
+
+    const payload = {
+      ticket_code: ticketCode,
+      product_id: product?.id || null,
+      product_name: product?.name || 'Solar Street Light',
+      product_watt: product?.watt || null,
+      product_price_range: product?.price_range || null,
+      product_image_url: product?.image_url || null,
+      quantity: Number(quantity) || 1,
+      customer_name: customerName.trim(),
+      mobile_contact: mobileContact.trim(),
+      email: email.trim() || null,
+      city: city.trim(),
+      facebook: facebook.trim() || null,
+      instagram: instagram.trim() || null,
+      purpose_of_visitation: effectivePurpose,
+      will_visit: true,
+      store_branch: selectedBranch,
+      visit_date: visitDate,
+      visit_time_slot: formattedTime,
+      preferred_channel: null,
+      delivery_address: null,
+      project_notes: null,
+      status: 'Pending',
+      created_at: new Date().toISOString(),
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('quote_tickets')
+        .insert([payload])
+        .select()
+
+      if (error) {
+        console.warn('Supabase insert note:', error.message)
+      }
+
+      try {
+        const stored = JSON.parse(localStorage.getItem('jds_local_quotes') || '[]')
+        const finalTicket = data && data[0] ? data[0] : payload
+        localStorage.setItem('jds_local_quotes', JSON.stringify([finalTicket, ...stored]))
+      } catch (storageErr) {
+        console.error('LocalStorage write error:', storageErr)
+      }
+
+      setGeneratedTicket(data && data[0] ? data[0] : payload)
+      setStep(3)
+    } catch (err) {
+      console.error('Submission error:', err)
+      setGeneratedTicket(payload)
+      setStep(3)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCopyCode = () => {
+    if (!generatedTicket) return
+    navigator.clipboard.writeText(generatedTicket.ticket_code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const tomorrowStr = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 1)
+    return d.toISOString().split('T')[0]
+  })()
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.98, y: 10 }}
+        transition={{ duration: 0.2 }}
+        className="relative w-full max-w-lg bg-white rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] p-6 sm:p-8 overflow-hidden my-auto max-h-[92vh] overflow-y-auto no-scrollbar font-inter"
+      >
+        {/* Floating Minimalist Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-5 p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors z-20"
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        {/* Step Indicator & Title */}
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className={`text-[11px] font-bold uppercase tracking-wider ${isReserve ? 'text-amber-600' : 'text-blue-600'}`}>
+              {step === 1 && (isReserve ? 'Step 01 · Stock Reservation' : 'Step 01 · Inquiry & Contact')}
+              {step === 2 && 'Step 02 · Store Branch & Time'}
+              {step === 3 && (isReserve ? 'Reservation Pass Ready' : 'Consultation Pass Ready')}
+            </span>
+            <span className="h-1 w-1 rounded-full bg-stone-300" />
+            <span className="text-[11px] font-medium text-stone-400">JD Force Solar</span>
+          </div>
+          <h2 className="text-xl font-black tracking-tight text-stone-900">
+            {step === 1 && (isReserve ? 'Reserve Unit for Store Pickup' : 'Product Inquiry & Consultation')}
+            {step === 2 && (isReserve ? 'Schedule Showroom Pickup' : 'Schedule Showroom Consultation')}
+            {step === 3 && (isReserve ? '48-Hour Stock Hold Pass' : 'Showroom Consultation Pass')}
+          </h2>
+        </div>
+
+
+        {/* Minimal Product Pill */}
+        {step < 3 && product && (
+          <div className="mb-5 flex items-center justify-between p-3 rounded-2xl bg-stone-50 border border-stone-200/60">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-12 w-12 rounded-xl bg-white p-1 border border-stone-200/50 shrink-0 flex items-center justify-center">
+                {product.image_url ? (
+                  <img src={product.image_url} alt={product.name} className="h-full w-full object-contain" />
+                ) : (
+                  <Sparkles className="h-5 w-5 text-amber-500" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-stone-900 truncate">{product.name}</p>
+                <p className="text-[11px] text-stone-500 font-medium">
+                  {product.watt ? `${product.watt}W` : 'Solar Lighting'} {product.price_range ? `· ₱${product.price_range}` : ''}
+                </p>
+              </div>
+            </div>
+
+            {/* Subtle Quantity Stepper */}
+            <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-xl border border-stone-200/80 shrink-0">
+              <button
+                type="button"
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                className="text-stone-400 hover:text-stone-900 p-0.5"
+                title="Decrease quantity"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <span className="text-xs font-bold text-stone-800 w-4 text-center">{quantity}</span>
+              <button
+                type="button"
+                onClick={() => setQuantity(quantity + 1)}
+                className="text-stone-400 hover:text-stone-900 p-0.5"
+                title="Increase quantity"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ================= STEP 1: CONTACT & INTENT FORM ================= */}
+        {step === 1 && (
+          <form onSubmit={handleNextToStep2} className="space-y-4">
+            {/* Inquiry Topic Dropdown (Only for Inquiry Mode) */}
+            {!isReserve && (
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  Consultation Topic / Inquiry Need <span className="text-blue-600">*</span>
+                </label>
+                <select
+                  value={inquiryTopic}
+                  onChange={(e) => setInquiryTopic(e.target.value)}
+                  className="w-full rounded-xl border border-stone-200 bg-stone-50/40 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white text-stone-800"
+                >
+                  {INQUIRY_TOPICS.map((topic) => (
+                    <option key={topic} value={topic}>{topic}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Full Name <span className="text-amber-600">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Engr. Juan Dela Cruz"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all ${
+                  errors.customerName ? 'border-red-400 bg-red-50/20' : 'border-stone-200 focus:border-amber-500 bg-stone-50/40 focus:bg-white'
+                }`}
+              />
+              {errors.customerName && <p className="text-[11px] text-red-500 mt-1">{errors.customerName}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Mobile Contact <span className="text-amber-600">*</span>
+              </label>
+              <input
+                type="tel"
+                required
+                placeholder="0917-123-4567"
+                value={mobileContact}
+                onChange={handlePhoneChange}
+                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all ${
+                  errors.mobileContact ? 'border-red-400 bg-red-50/20' : 'border-stone-200 focus:border-amber-500 bg-stone-50/40 focus:bg-white'
+                }`}
+              />
+              {errors.mobileContact && <p className="text-[11px] text-red-500 mt-1">{errors.mobileContact}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                City / Municipality <span className="text-amber-600">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Manila, Imus Cavite, Quezon City"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all ${
+                  errors.city ? 'border-red-400 bg-red-50/20' : 'border-stone-200 focus:border-amber-500 bg-stone-50/40 focus:bg-white'
+                }`}
+              />
+              {errors.city && <p className="text-[11px] text-red-500 mt-1">{errors.city}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Facebook Profile / Link <span className="text-amber-600">*</span>
+              </label>
+              <div className="relative">
+                <FaFacebook className="absolute left-3.5 top-3 h-4 w-4 text-[#1877F2]" />
+                <input
+                  type="text"
+                  required
+                  placeholder="facebook.com/profile or profile name"
+                  value={facebook}
+                  onChange={(e) => setFacebook(e.target.value)}
+                  className={`w-full rounded-xl border pl-10 pr-3.5 py-2.5 text-sm outline-none transition-all ${
+                    errors.facebook ? 'border-red-400 bg-red-50/20' : 'border-stone-200 focus:border-amber-500 bg-stone-50/40 focus:bg-white'
+                  }`}
+                />
+              </div>
+              {errors.facebook && <p className="text-[11px] text-red-500 mt-1">{errors.facebook}</p>}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  Email Address <span className="text-stone-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="email"
+                  placeholder="juan@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-xl border border-stone-200 bg-stone-50/40 px-3.5 py-2.5 text-sm outline-none focus:border-amber-500 focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  Instagram <span className="text-stone-400 font-normal">(Optional)</span>
+                </label>
+                <div className="relative">
+                  <FaInstagram className="absolute left-3.5 top-3 h-4 w-4 text-[#E4405F]" />
+                  <input
+                    type="text"
+                    placeholder="@username"
+                    value={instagram}
+                    onChange={(e) => setInstagram(e.target.value)}
+                    className="w-full rounded-xl border border-stone-200 bg-stone-50/40 pl-10 pr-3.5 py-2.5 text-sm outline-none focus:border-amber-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <div className="pt-2">
+              <button
+                type="submit"
+                className={`w-full py-3.5 rounded-xl text-white font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2 ${
+                  isReserve 
+                    ? 'bg-stone-900 hover:bg-stone-800' 
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                <span>Continue to Schedule Visit</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ================= STEP 2: STORE VISIT & TIME ================= */}
+        {step === 2 && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Branch Selector Cards */}
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-2">
+                Select Showroom Branch
+              </label>
+              <div className="space-y-2">
+                {BRANCHES.map((b) => {
+                  const isSelected = selectedBranch === b.name
+                  return (
+                    <div
+                      key={b.id}
+                      onClick={() => setSelectedBranch(b.name)}
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                        isSelected
+                          ? isReserve
+                            ? 'border-amber-500 bg-amber-50/30 ring-1 ring-amber-500'
+                            : 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
+                          : 'border-stone-200 bg-stone-50/50 hover:border-stone-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Building2 className={`h-4 w-4 ${isSelected ? (isReserve ? 'text-amber-600' : 'text-blue-600') : 'text-stone-400'}`} />
+                          <p className="text-xs font-bold text-stone-900">{b.name}</p>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-stone-600 border border-stone-200">
+                          {b.badge}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Date Input */}
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Target Visit Date <span className="text-amber-600">*</span>
+              </label>
+              <input
+                type="date"
+                min={tomorrowStr}
+                required
+                value={visitDate}
+                onChange={(e) => setVisitDate(e.target.value)}
+                className="w-full rounded-xl border border-stone-200 bg-stone-50/40 px-3.5 py-2.5 text-sm outline-none focus:border-amber-500 focus:bg-white"
+              />
+              {errors.visitDate && <p className="text-[11px] text-red-500 mt-1">{errors.visitDate}</p>}
+            </div>
+
+            {/* Time Input */}
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Preferred Time Slot <span className="text-amber-600">*</span>
+              </label>
+              <input
+                type="time"
+                required
+                value={visitTime}
+                onChange={(e) => setVisitTime(e.target.value)}
+                className="w-full rounded-xl border border-stone-200 bg-stone-50/40 px-3.5 py-2.5 text-sm outline-none focus:border-amber-500 focus:bg-white"
+              />
+              {errors.visitTime && <p className="text-[11px] text-red-500 mt-1">{errors.visitTime}</p>}
+            </div>
+
+            {/* Inline Navigation Buttons */}
+            <div className="pt-2 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="w-1/3 py-3 rounded-xl border border-stone-200 text-stone-700 font-bold text-xs hover:bg-stone-50 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-2/3 py-3 rounded-xl text-white font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2 ${
+                  isReserve 
+                    ? 'bg-amber-500 hover:bg-amber-600' 
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                {loading ? 'Generating...' : (isReserve ? 'Confirm Reservation Pass' : 'Confirm Consultation Pass')}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ================= STEP 3: TICKET PASS ================= */}
+        {step === 3 && generatedTicket && (
+          <div className="space-y-5">
+            <div className={`rounded-2xl border p-5 space-y-4 ${
+              isReserve 
+                ? 'border-emerald-300 bg-emerald-50/40' 
+                : 'border-blue-300 bg-blue-50/40'
+            }`}>
+              {/* Ticket Reference Code */}
+              <div className="border-b border-stone-200/80 pb-3 flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className={`h-2 w-2 rounded-full animate-ping ${isReserve ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isReserve ? 'text-emerald-700' : 'text-blue-700'}`}>
+                      {isReserve ? '48h Stock Hold Pass' : 'Verified Consultation Pass'}
+                    </span>
+                  </div>
+                  <span className="text-xl font-black text-stone-900 font-mono tracking-wider">{generatedTicket.ticket_code}</span>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  isReserve 
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                    : 'bg-blue-100 text-blue-800 border-blue-300'
+                }`}>
+                  {isReserve ? 'Hold Active' : 'Consultation Scheduled'}
+                </span>
+              </div>
+
+              {/* Ticket Breakdown */}
+              <div className="space-y-2 text-xs text-stone-700">
+                <div className="flex justify-between">
+                  <span className="text-stone-500">Customer</span>
+                  <span className="font-bold text-stone-900">{generatedTicket.customer_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-500">Contact</span>
+                  <span className="font-semibold">{generatedTicket.mobile_contact}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-500">{isReserve ? 'Reserved Unit' : 'Product & Qty'}</span>
+                  <span className="font-semibold text-right truncate max-w-[200px]">
+                    {generatedTicket.product_name} × {generatedTicket.quantity}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-500">Selected Branch</span>
+                  <span className={`font-bold ${isReserve ? 'text-emerald-700' : 'text-blue-700'}`}>
+                    {generatedTicket.store_branch}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-500">Scheduled Visit</span>
+                  <span className="font-semibold">
+                    {generatedTicket.visit_date} at {generatedTicket.visit_time_slot}
+                  </span>
+                </div>
+                {!isReserve && generatedTicket.purpose_of_visitation && (
+                  <div className="flex justify-between pt-1 border-t border-stone-200/50">
+                    <span className="text-stone-500">Inquiry Topic</span>
+                    <span className="font-medium text-blue-800 text-right max-w-[200px] truncate">
+                      {generatedTicket.purpose_of_visitation}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Guidance Instructions */}
+              <div className="pt-2 border-t border-stone-200/60 text-[11px] text-stone-600 leading-relaxed flex items-start gap-2">
+                <ShieldCheck className={`h-4 w-4 shrink-0 mt-0.5 ${isReserve ? 'text-emerald-600' : 'text-blue-600'}`} />
+                <div>
+                  {isReserve ? (
+                    <span>Present this pass at our <strong>{generatedTicket.store_branch}</strong> counter. Staff will retrieve your held stock for live physical illumination testing before payment.</span>
+                  ) : (
+                    <span>Present this pass to our showroom floor staff. A technical specialist will guide you through live demo fixtures and project sizing.</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={handleCopyCode}
+                className="w-full py-3 rounded-xl border border-stone-200 text-stone-800 font-bold text-xs hover:bg-stone-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                <span>{copied ? 'Copied Ticket ID!' : 'Copy Ticket Reference'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full py-3 rounded-xl bg-stone-900 text-white font-bold text-xs hover:bg-stone-800 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  )
+}

@@ -1,11 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import {
   DECISION_TREE,
   FALLBACK_PRODUCTS,
   generateRecommendations,
   matchUserQuery,
+  splitIntoSentenceSegments,
 } from '../lib/solarBotEngine'
 
 const ChatContext = createContext()
@@ -15,6 +16,16 @@ export function ChatProvider({ children }) {
   const [criteria, setCriteria] = useState({})
   const [isLoading, setIsLoading] = useState(false)
   const [initialMessage, setInitialMessage] = useState(null)
+  const timersRef = useRef([])
+
+  const clearAllTimers = () => {
+    timersRef.current.forEach((t) => clearTimeout(t))
+    timersRef.current = []
+  }
+
+  useEffect(() => {
+    return () => clearAllTimers()
+  }, [])
 
   // Initialize with welcoming ROOT bot message
   const [messages, setMessages] = useState(() => [
@@ -23,6 +34,7 @@ export function ChatProvider({ children }) {
       role: 'assistant',
       content: DECISION_TREE.ROOT.message,
       options: DECISION_TREE.ROOT.options,
+      isStreaming: false,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ])
@@ -48,16 +60,124 @@ export function ChatProvider({ children }) {
 
   // Reset chat back to starting state
   const resetChat = () => {
+    clearAllTimers()
     setCriteria({})
+    setIsLoading(false)
     setMessages([
       {
         id: `welcome-${Date.now()}`,
         role: 'assistant',
         content: DECISION_TREE.ROOT.message,
         options: DECISION_TREE.ROOT.options,
+        isStreaming: false,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       },
     ])
+  }
+
+  // Stream bot response sentence-by-sentence with dynamic AI thinking delay
+  const streamBotResponse = (targetContent, targetOptions) => {
+    // Dynamic thinking delay: 1200ms - 1900ms simulating LLM processing
+    const thinkingDelay = Math.floor(Math.random() * 700) + 1200
+
+    const thinkTimer = setTimeout(() => {
+      const segments = splitIntoSentenceSegments(targetContent)
+      const botId = `bot-${Date.now()}`
+      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+      if (!segments || segments.length === 0) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: botId,
+            role: 'assistant',
+            content: targetContent,
+            options: targetOptions,
+            isStreaming: false,
+            timestamp,
+          },
+        ])
+        setIsLoading(false)
+        return
+      }
+
+      let currentIdx = 0
+      let currentContent = segments[0]
+
+      // Mount bot message with the first sentence segment
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: botId,
+          role: 'assistant',
+          content: currentContent,
+          options: [],
+          isStreaming: true,
+          timestamp,
+        },
+      ])
+
+      // If only 1 segment exists, complete after a short delay
+      if (segments.length === 1) {
+        const finishTimer = setTimeout(() => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === botId
+                ? {
+                    ...msg,
+                    content: targetContent,
+                    options: targetOptions,
+                    isStreaming: false,
+                  }
+                : msg
+            )
+          )
+          setIsLoading(false)
+        }, 320)
+        timersRef.current.push(finishTimer)
+        return
+      }
+
+      // Stream subsequent segments sentence by sentence
+      const streamNext = () => {
+        currentIdx++
+        if (currentIdx < segments.length) {
+          currentContent += segments[currentIdx]
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === botId
+                ? { ...msg, content: currentContent }
+                : msg
+            )
+          )
+
+          // Pacing per sentence: 320ms - 460ms
+          const sentenceDelay = Math.floor(Math.random() * 140) + 320
+          const nextTimer = setTimeout(streamNext, sentenceDelay)
+          timersRef.current.push(nextTimer)
+        } else {
+          // Finished all segments! Reveal options and re-enable input
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === botId
+                ? {
+                    ...msg,
+                    content: targetContent,
+                    options: targetOptions,
+                    isStreaming: false,
+                  }
+                : msg
+            )
+          )
+          setIsLoading(false)
+        }
+      }
+
+      const firstNextTimer = setTimeout(streamNext, 340)
+      timersRef.current.push(firstNextTimer)
+    }, thinkingDelay)
+
+    timersRef.current.push(thinkTimer)
   }
 
   // Handle clicking an interactive decision-tree option
@@ -83,44 +203,27 @@ export function ChatProvider({ children }) {
     setMessages((prev) => [...prev, userMsg])
     setIsLoading(true)
 
-    setTimeout(() => {
-      let botResponse = null
+    let targetContent = ''
+    let targetOptions = []
 
-      if (option.next === 'GENERATE_RESULTS') {
-        const result = generateRecommendations(products, newCriteria)
-        botResponse = {
-          id: `bot-${Date.now()}`,
-          role: 'assistant',
-          content: result.message,
-          options: result.options,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        }
-      } else if (option.next && DECISION_TREE[option.next]) {
-        const node = DECISION_TREE[option.next]
-        if (option.next === 'ROOT') {
-          setCriteria({})
-        }
-        botResponse = {
-          id: `bot-${Date.now()}`,
-          role: 'assistant',
-          content: node.message,
-          options: node.options,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        }
-      } else {
-        // Fallback to ROOT
-        botResponse = {
-          id: `bot-${Date.now()}`,
-          role: 'assistant',
-          content: DECISION_TREE.ROOT.message,
-          options: DECISION_TREE.ROOT.options,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        }
+    if (option.next === 'GENERATE_RESULTS') {
+      const result = generateRecommendations(products, newCriteria)
+      targetContent = result.message
+      targetOptions = result.options
+    } else if (option.next && DECISION_TREE[option.next]) {
+      const node = DECISION_TREE[option.next]
+      if (option.next === 'ROOT') {
+        setCriteria({})
       }
+      targetContent = node.message
+      targetOptions = node.options
+    } else {
+      // Fallback to ROOT
+      targetContent = DECISION_TREE.ROOT.message
+      targetOptions = DECISION_TREE.ROOT.options
+    }
 
-      setMessages((prev) => [...prev, botResponse])
-      setIsLoading(false)
-    }, 280)
+    streamBotResponse(targetContent, targetOptions)
   }
 
   // Handle user-typed free-text query
@@ -138,18 +241,8 @@ export function ChatProvider({ children }) {
     setMessages((prev) => [...prev, userMsg])
     setIsLoading(true)
 
-    setTimeout(() => {
-      const match = matchUserQuery(trimmed, products)
-      const botResponse = {
-        id: `bot-${Date.now()}`,
-        role: 'assistant',
-        content: match.message,
-        options: match.options,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }
-      setMessages((prev) => [...prev, botResponse])
-      setIsLoading(false)
-    }, 280)
+    const match = matchUserQuery(trimmed, products)
+    streamBotResponse(match.message, match.options)
   }
 
   // Handle incoming initialMessage from other pages (e.g., ProductInfoPage)

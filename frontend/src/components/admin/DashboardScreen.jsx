@@ -1,23 +1,51 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
-import { Package, BarChart3, Zap, AlertTriangle } from 'lucide-react'
+import { Package, BarChart3, Zap, AlertTriangle, Ticket, ArrowRight, Building2 } from 'lucide-react'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 
-export default function DashboardScreen() {
+export default function DashboardScreen({ onNavigate }) {
   const [products, setProducts] = useState([])
+  const [quoteStats, setQuoteStats] = useState({ total: 0, visits: 0, pending: 0 })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchProducts()
+    fetchDashboardData()
   }, [])
 
-  const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from('products')
-      .select('id, name, type, watt, waterproof_grade, material, battery, in_stock, sales')
-      .order('id')
-    if (!error) setProducts(data || [])
-    setLoading(false)
+  const fetchDashboardData = async () => {
+    setLoading(true)
+    try {
+      const { data: prodData } = await supabase
+        .from('products')
+        .select('id, name, type, watt, waterproof_grade, material, battery, in_stock, sales')
+        .order('id')
+      if (prodData) setProducts(prodData)
+
+      // Fetch quote tickets count
+      let qList = []
+      const { data: qData } = await supabase.from('quote_tickets').select('id, will_visit, status')
+      if (qData) qList = qData
+
+      // Also merge local quotes
+      try {
+        const local = JSON.parse(localStorage.getItem('jds_local_quotes') || '[]')
+        const setIds = new Set(qList.map((q) => q.id || q.ticket_code))
+        const extras = local.filter((l) => !setIds.has(l.id || l.ticket_code))
+        qList = [...extras, ...qList]
+      } catch (e) {
+        console.error(e)
+      }
+
+      setQuoteStats({
+        total: qList.length,
+        visits: qList.filter((q) => q.will_visit).length,
+        pending: qList.filter((q) => q.status === 'Pending').length,
+      })
+    } catch (err) {
+      console.warn('Dashboard fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const totalProducts = products.length
@@ -29,7 +57,7 @@ export default function DashboardScreen() {
 
   const cards = [
     { label: 'Total Products', value: totalProducts, icon: Package, color: 'text-jds-secondary', bg: 'bg-jds-secondary-container/20' },
-    { label: 'Total Sales', value: totalSales, icon: BarChart3, color: 'text-jds-primary', bg: 'bg-jds-primary-container/20' },
+    { label: 'Quote & Visit Tickets', value: quoteStats.total, icon: Ticket, color: 'text-jds-primary', bg: 'bg-jds-primary-container/20', action: () => onNavigate && onNavigate('quotes'), sub: `${quoteStats.visits} Visits (${quoteStats.pending} Pending)` },
     { label: 'Wattage Range', value: wattRange, icon: Zap, color: 'text-jds-tertiary', bg: 'bg-jds-tertiary-container/20' },
     { label: 'Out of Stock', value: outOfStockProducts.length, icon: AlertTriangle, color: 'text-jds-error', bg: 'bg-jds-error-container/20' },
   ]
@@ -57,7 +85,13 @@ export default function DashboardScreen() {
         {cards.map((card) => {
           const Icon = card.icon
           return (
-            <div key={card.label} className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div
+              key={card.label}
+              onClick={card.action}
+              className={`rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest p-6 shadow-sm hover:shadow-md transition-all ${
+                card.action ? 'cursor-pointer hover:border-jds-primary/60 hover:scale-[1.01]' : ''
+              }`}
+            >
               <div className="flex items-center justify-between mb-4">
                 <p className="text-label-sm font-bold uppercase tracking-wider text-jds-on-surface-variant/70">{card.label}</p>
                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${card.bg}`}>
@@ -65,6 +99,12 @@ export default function DashboardScreen() {
                 </div>
               </div>
               <p className="text-headline-md font-bold text-jds-on-surface">{card.value}</p>
+              {card.sub && (
+                <div className="mt-2 flex items-center justify-between text-xs text-jds-primary font-semibold">
+                  <span>{card.sub}</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </div>
+              )}
             </div>
           )
         })}

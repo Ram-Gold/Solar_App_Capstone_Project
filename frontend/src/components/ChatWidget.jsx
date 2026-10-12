@@ -81,7 +81,7 @@ export default function ChatWidget() {
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-[11px] text-jds-on-surface-variant font-medium">
-                      Decision-Tree Guide
+                      AI Solar Consultant
                     </span>
                   </div>
                 </div>
@@ -141,9 +141,14 @@ export default function ChatWidget() {
                         </ReactMarkdown>
                       </div>
 
-                      {/* Interactive Options Buttons */}
-                      {isAssistant && msg.options && msg.options.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-jds-outline-variant/30">
+                      {/* Interactive Options Buttons - Fade in once finished streaming */}
+                      {isAssistant && msg.options && msg.options.length > 0 && !msg.isStreaming && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.25 }}
+                          className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-jds-outline-variant/30"
+                        >
                           {msg.options.map((opt, optIdx) => {
                             if (opt.url) {
                               return (
@@ -172,7 +177,7 @@ export default function ChatWidget() {
                               </button>
                             )
                           })}
-                        </div>
+                        </motion.div>
                       )}
                     </div>
 
@@ -183,8 +188,8 @@ export default function ChatWidget() {
                 )
               })}
 
-              {/* Typing indicator */}
-              {isLoading && (
+              {/* Typing indicator - Only shown during initial thinking pause */}
+              {isLoading && !messages.some((m) => m.isStreaming) && (
                 <div className="flex items-center gap-1.5 px-3 py-2 bg-jds-surface-container-low rounded-xl w-fit border border-jds-outline-variant/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-jds-primary animate-bounce [animation-delay:-0.3s]" />
                   <span className="w-1.5 h-1.5 rounded-full bg-jds-primary animate-bounce [animation-delay:-0.15s]" />
@@ -214,7 +219,7 @@ export default function ChatWidget() {
                 </button>
               </form>
               <div className="flex justify-between items-center px-1 mt-2 text-[10px] text-jds-on-surface-variant/60">
-                <span>Guided Decision Tree</span>
+                <span>AI Solar Consultant</span>
                 <Link to="/chat" onClick={() => setIsOpen(false)} className="hover:underline text-jds-primary font-semibold">
                   Open Full Screen ↗
                 </Link>

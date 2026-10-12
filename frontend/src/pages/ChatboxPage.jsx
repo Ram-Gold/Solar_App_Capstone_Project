@@ -128,7 +128,7 @@ export default function ChatboxPage() {
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-label-md font-bold text-jds-on-surface">JD Solar Smart Assistant</span>
             <span className="hidden sm:inline-block text-[11px] bg-jds-primary-container text-jds-on-primary-container font-semibold px-2 py-0.5 rounded-full">
-              Decision-Tree Engine
+              AI Solar Consultant
             </span>
           </div>
           <button
@@ -236,9 +236,14 @@ export default function ChatboxPage() {
                             </ReactMarkdown>
                           </div>
 
-                          {/* Decision Tree Options */}
-                          {isAssistant && msg.options && msg.options.length > 0 && (
-                            <div className="mt-4 pt-3 border-t border-jds-outline-variant/30 flex flex-wrap gap-2">
+                          {/* Decision Tree Options - Fade in once finished streaming */}
+                          {isAssistant && msg.options && msg.options.length > 0 && !msg.isStreaming && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.25 }}
+                              className="mt-4 pt-3 border-t border-jds-outline-variant/30 flex flex-wrap gap-2"
+                            >
                               {msg.options.map((opt, optIdx) => {
                                 if (opt.url) {
                                   return (
@@ -266,7 +271,7 @@ export default function ChatboxPage() {
                                   </button>
                                 )
                               })}
-                            </div>
+                            </motion.div>
                           )}
                         </div>
 
@@ -284,8 +289,8 @@ export default function ChatboxPage() {
               })}
             </AnimatePresence>
 
-            {/* Typing Loader */}
-            {isLoading && (
+            {/* Typing Loader - Only shown during initial thinking pause */}
+            {isLoading && !messages.some((m) => m.isStreaming) && (
               <div className="flex items-center gap-2 pl-14">
                 <div className="bg-white/80 border border-jds-outline-variant/30 px-4 py-2.5 rounded-2xl flex items-center gap-1.5 shadow-sm">
                   <span className="w-2 h-2 rounded-full bg-jds-primary animate-bounce [animation-delay:-0.3s]" />

@@ -10,6 +10,7 @@ import ProductInfoPage from './pages/ProductInfoPage'
 import AdminPage from './pages/AdminPage'
 import StaffPage from './pages/StaffPage'
 import LoginPage from './pages/LoginPage'
+import CustomerPortalPage from './pages/CustomerPortalPage'
 import { ChatProvider } from './context/ChatContext'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -19,6 +20,7 @@ function AppLayout() {
   const { pathname } = useLocation()
   const isDashboardRoute = pathname.startsWith('/admin') || pathname.startsWith('/staff')
   const isLoginRoute = pathname === '/login'
+  const isPortalRoute = pathname.startsWith('/portal')
   const showShell = !isLoginRoute
 
   return (
@@ -31,6 +33,7 @@ function AppLayout() {
           <Route path="/browse" element={<BrowsePage />} />
           <Route path="/product/:id" element={<ProductInfoPage />} />
           <Route path="/chat" element={<ChatboxPage />} />
+          <Route path="/portal" element={<CustomerPortalPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route 
             path="/admin" 
@@ -50,8 +53,8 @@ function AppLayout() {
           />
         </Routes>
       </main>
-      {showShell && !isDashboardRoute && <Footer />}
-      {showShell && pathname !== '/chat' && <ChatWidget />}
+      {showShell && !isDashboardRoute && !isPortalRoute && <Footer />}
+      {showShell && pathname !== '/chat' && !isPortalRoute && <ChatWidget />}
     </div>
   )
 }
