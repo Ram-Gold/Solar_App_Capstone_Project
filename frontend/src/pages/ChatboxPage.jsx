@@ -9,36 +9,45 @@ import {
   HiOutlineCube,
   HiOutlineMapPin,
   HiOutlineBolt,
+  HiOutlineArrowTopRightOnSquare,
 } from 'react-icons/hi2'
 import ReactMarkdown from 'react-markdown'
 import { useChat } from '../context/ChatContext'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import MultiCriteriaMatchModal from '../components/MultiCriteriaMatchModal'
 
 const suggestionCards = [
   {
-    title: 'Find Your Solar Light',
-    desc: 'Step-by-step decision guide to pick the best model for roads, streets, or gardens.',
+    title: 'Product Matcher Wizard',
+    desc: 'Step-by-step sizing algorithm considering budget, location, and wattage needs.',
     icon: HiOutlineCube,
-    action: { label: '🔍 Find the Right Solar Light', next: 'FIND_LOCATION' },
+    to: '/match',
   },
   {
     title: 'Pricing & Wattage Guide',
     desc: 'Compare price tiers from 50W residential to 800W highway lighting.',
     icon: HiOutlineCurrencyDollar,
-    action: { label: '💰 Pricing & Packages', next: 'PRICING_INFO' },
+    action: { label: 'Pricing & Packages', next: 'PRICING_INFO' },
   },
   {
     title: 'Calculate Savings',
     desc: 'See how much you eliminate from Meralco electricity bills with zero-grid solar.',
     icon: HiOutlineBolt,
-    action: { label: '⚡ Calculate Electricity Savings', next: 'SAVINGS_INFO' },
+    action: { label: 'Calculate Electricity Savings', next: 'SAVINGS_INFO' },
   },
   {
     title: 'Quiapo & Cavite Branches',
     desc: 'Store locations, pickup hours, and direct wholesale inquiries.',
     icon: HiOutlineMapPin,
-    action: { label: '📍 Quiapo & Cavite Branches', next: 'BRANCHES_INFO' },
+    action: { label: 'Quiapo & Cavite Branches', next: 'BRANCHES_INFO' },
   },
+]
+
+const quickFaqPills = [
+  'What is your warranty policy?',
+  'Where are your store branches in Quiapo and Cavite?',
+  'How much can I save on electricity bills?',
+  'What are your pricing packages?',
 ]
 
 const SunPulse = ({ isLoading }) => {
@@ -94,8 +103,10 @@ const SunPulse = ({ isLoading }) => {
 }
 
 export default function ChatboxPage() {
-  const { messages, sendMessage, selectOption, resetChat, isLoading } = useChat()
+  const navigate = useNavigate()
+  const { messages, sendMessage, selectOption, resetChat, isLoading, products } = useChat()
   const [input, setInput] = useState('')
+  const [showMatcher, setShowMatcher] = useState(false)
   const scrollRef = useRef(null)
 
   // Auto-scroll to bottom
@@ -128,16 +139,26 @@ export default function ChatboxPage() {
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-label-md font-bold text-jds-on-surface">JD Solar Smart Assistant</span>
             <span className="hidden sm:inline-block text-[11px] bg-jds-primary-container text-jds-on-primary-container font-semibold px-2 py-0.5 rounded-full">
-              AI Solar Consultant
+              FAQ & Consultation
             </span>
           </div>
-          <button
-            onClick={resetChat}
-            className="flex items-center gap-1.5 text-label-sm font-semibold text-jds-on-surface-variant hover:text-jds-primary bg-white/70 hover:bg-white px-3 py-1.5 rounded-xl border border-jds-outline-variant/30 shadow-sm transition-all active:scale-95"
-          >
-            <HiOutlineArrowPath className="text-base" />
-            <span>Reset Assistant</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/match"
+              className="flex items-center gap-1.5 text-label-sm font-semibold text-jds-primary hover:text-jds-on-primary-container bg-jds-primary-container/40 hover:bg-jds-primary-container px-3 py-1.5 rounded-xl border border-jds-primary/20 shadow-xs transition-all active:scale-95"
+            >
+              <HiOutlineSparkles className="text-base" />
+              <span>Product Matcher</span>
+              <HiOutlineArrowTopRightOnSquare size={13} className="opacity-70" />
+            </Link>
+            <button
+              onClick={resetChat}
+              className="flex items-center gap-1.5 text-label-sm font-semibold text-jds-on-surface-variant hover:text-jds-primary bg-white/70 hover:bg-white px-3 py-1.5 rounded-xl border border-jds-outline-variant/30 shadow-sm transition-all active:scale-95 cursor-pointer"
+            >
+              <HiOutlineArrowPath className="text-base" />
+              <span>Reset Chat</span>
+            </button>
+          </div>
         </div>
 
         {/* Messages Container */}
@@ -151,34 +172,75 @@ export default function ChatboxPage() {
               >
                 <SunPulse isLoading={isLoading} />
                 <h1 className="text-headline-md sm:text-headline-lg text-jds-on-surface font-extrabold tracking-tight mt-6 mb-2">
-                  Find the Perfect Solar Solution with <span className="text-jds-primary">Solar Assistant</span>
+                  Solar Assistant & <span className="text-jds-primary">FAQ Consultation</span>
                 </h1>
                 <p className="text-body-md text-jds-on-surface-variant/80 max-w-lg mb-8">
-                  Get guided recommendations, calculate your electricity savings, or explore branch locations in Quiapo and Cavite.
+                  Get instant answers regarding product specifications, branch pickup, warranty, or jump into our step-by-step matcher.
                 </p>
 
                 {/* Quick Starting Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 w-full px-2">
-                  {suggestionCards.map((card, idx) => (
-                    <motion.button
-                      key={card.title}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.08 * idx }}
-                      onClick={() => selectOption(card.action)}
-                      className="p-4 bg-white/80 backdrop-blur-md border border-jds-outline-variant/30 rounded-2xl text-left hover:border-jds-primary hover:shadow-md transition-all group"
-                    >
-                      <div className="w-9 h-9 rounded-xl bg-jds-primary-container/30 flex items-center justify-center text-jds-primary mb-3 group-hover:scale-105 transition-transform">
-                        <card.icon size={18} />
-                      </div>
-                      <div className="text-label-md font-bold text-jds-on-surface mb-1 group-hover:text-jds-primary transition-colors">
-                        {card.title}
-                      </div>
-                      <div className="text-[12px] text-jds-on-surface-variant/70 leading-snug">
-                        {card.desc}
-                      </div>
-                    </motion.button>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 w-full px-2 mb-6">
+                  {suggestionCards.map((card, idx) => {
+                    if (card.to) {
+                      return (
+                        <Link
+                          key={card.title}
+                          to={card.to}
+                          className="p-4 bg-white/80 backdrop-blur-md border border-jds-outline-variant/30 rounded-2xl text-left hover:border-jds-primary hover:shadow-md transition-all group block"
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-jds-primary-container/30 flex items-center justify-center text-jds-primary mb-3 group-hover:scale-105 transition-transform">
+                            <card.icon size={18} />
+                          </div>
+                          <div className="text-label-md font-bold text-jds-on-surface mb-1 group-hover:text-jds-primary transition-colors flex items-center justify-between">
+                            <span>{card.title}</span>
+                            <HiOutlineArrowTopRightOnSquare size={13} className="text-jds-primary opacity-60" />
+                          </div>
+                          <div className="text-[12px] text-jds-on-surface-variant/70 leading-snug">
+                            {card.desc}
+                          </div>
+                        </Link>
+                      )
+                    }
+
+                    return (
+                      <motion.button
+                        key={card.title}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.08 * idx }}
+                        onClick={() => selectOption(card.action)}
+                        className="p-4 bg-white/80 backdrop-blur-md border border-jds-outline-variant/30 rounded-2xl text-left hover:border-jds-primary hover:shadow-md transition-all group cursor-pointer"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-jds-primary-container/30 flex items-center justify-center text-jds-primary mb-3 group-hover:scale-105 transition-transform">
+                          <card.icon size={18} />
+                        </div>
+                        <div className="text-label-md font-bold text-jds-on-surface mb-1 group-hover:text-jds-primary transition-colors">
+                          {card.title}
+                        </div>
+                        <div className="text-[12px] text-jds-on-surface-variant/70 leading-snug">
+                          {card.desc}
+                        </div>
+                      </motion.button>
+                    )
+                  })}
+                </div>
+
+                {/* FAQ Quick Chips */}
+                <div className="w-full px-2 max-w-2xl">
+                  <div className="text-label-xs uppercase font-extrabold text-jds-on-surface-variant/60 tracking-wider mb-2.5">
+                    Common Questions
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {quickFaqPills.map((pill) => (
+                      <button
+                        key={pill}
+                        onClick={() => handleSend(pill)}
+                        className="text-xs bg-white/85 hover:bg-white text-jds-on-surface font-semibold px-3 py-1.5 rounded-full border border-jds-outline-variant/40 hover:border-jds-primary hover:text-jds-primary shadow-2xs transition-all cursor-pointer"
+                      >
+                        {pill}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -196,7 +258,11 @@ export default function ChatboxPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className={`flex ${isAssistant ? 'justify-start' : 'justify-end'}`}
                   >
-                    <div className={`flex gap-3 max-w-[92%] sm:max-w-[85%] ${isAssistant ? 'flex-row' : 'flex-row-reverse'}`}>
+                    <div
+                      className={`flex gap-3 max-w-[92%] sm:max-w-[85%] ${
+                        isAssistant ? 'w-full flex-row' : 'flex-row-reverse'
+                      }`}
+                    >
                       {/* Avatar */}
                       <div
                         className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm border ${
@@ -209,11 +275,11 @@ export default function ChatboxPage() {
                       </div>
 
                       {/* Content Card */}
-                      <div className="flex flex-col gap-1.5">
+                      <div className={`flex flex-col gap-1.5 ${isAssistant ? 'w-full flex-1 min-w-0' : ''}`}>
                         <div
                           className={`p-5 sm:p-6 shadow-sm backdrop-blur-sm ${
                             isAssistant
-                              ? 'bg-white/90 text-jds-on-surface border border-jds-outline-variant/30 rounded-3xl rounded-tl-sm'
+                              ? 'w-full bg-white/90 text-jds-on-surface border border-jds-outline-variant/30 rounded-3xl rounded-tl-sm'
                               : 'bg-jds-primary text-white rounded-3xl rounded-tr-sm'
                           }`}
                         >
@@ -333,6 +399,13 @@ export default function ChatboxPage() {
           </div>
         </div>
       </div>
+
+      {/* Multi-Criteria Matching Modal */}
+      <MultiCriteriaMatchModal
+        isOpen={showMatcher}
+        onClose={() => setShowMatcher(false)}
+        products={products}
+      />
     </div>
   )
 }

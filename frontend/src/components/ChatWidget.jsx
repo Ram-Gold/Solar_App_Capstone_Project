@@ -221,7 +221,7 @@ export default function ChatWidget() {
               <div className="flex justify-between items-center px-1 mt-2 text-[10px] text-jds-on-surface-variant/60">
                 <span>AI Solar Consultant</span>
                 <Link to="/chat" onClick={() => setIsOpen(false)} className="hover:underline text-jds-primary font-semibold">
-                  Open Full Screen ↗
+                  Open Full Screen
                 </Link>
               </div>
             </footer>

@@ -7,7 +7,11 @@ import {
   generateRecommendations,
   matchUserQuery,
   splitIntoSentenceSegments,
+  stripEmojis,
 } from '../lib/solarBotEngine'
+
+const sanitizeOption = (opt) => (opt ? { ...opt, label: stripEmojis(opt.label) } : opt)
+const sanitizeOptions = (opts) => (Array.isArray(opts) ? opts.map(sanitizeOption) : [])
 
 const ChatContext = createContext()
 
@@ -32,8 +36,8 @@ export function ChatProvider({ children }) {
     {
       id: 'welcome',
       role: 'assistant',
-      content: DECISION_TREE.ROOT.message,
-      options: DECISION_TREE.ROOT.options,
+      content: stripEmojis(DECISION_TREE.ROOT.message),
+      options: sanitizeOptions(DECISION_TREE.ROOT.options),
       isStreaming: false,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
@@ -67,8 +71,8 @@ export function ChatProvider({ children }) {
       {
         id: `welcome-${Date.now()}`,
         role: 'assistant',
-        content: DECISION_TREE.ROOT.message,
-        options: DECISION_TREE.ROOT.options,
+        content: stripEmojis(DECISION_TREE.ROOT.message),
+        options: sanitizeOptions(DECISION_TREE.ROOT.options),
         isStreaming: false,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       },
@@ -77,11 +81,14 @@ export function ChatProvider({ children }) {
 
   // Stream bot response sentence-by-sentence with dynamic AI thinking delay
   const streamBotResponse = (targetContent, targetOptions) => {
+    const cleanContent = stripEmojis(targetContent)
+    const cleanOptions = sanitizeOptions(targetOptions)
+
     // Dynamic thinking delay: 1200ms - 1900ms simulating LLM processing
     const thinkingDelay = Math.floor(Math.random() * 700) + 1200
 
     const thinkTimer = setTimeout(() => {
-      const segments = splitIntoSentenceSegments(targetContent)
+      const segments = splitIntoSentenceSegments(cleanContent)
       const botId = `bot-${Date.now()}`
       const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
@@ -91,8 +98,8 @@ export function ChatProvider({ children }) {
           {
             id: botId,
             role: 'assistant',
-            content: targetContent,
-            options: targetOptions,
+            content: cleanContent,
+            options: cleanOptions,
             isStreaming: false,
             timestamp,
           },
@@ -125,8 +132,8 @@ export function ChatProvider({ children }) {
               msg.id === botId
                 ? {
                     ...msg,
-                    content: targetContent,
-                    options: targetOptions,
+                    content: cleanContent,
+                    options: cleanOptions,
                     isStreaming: false,
                   }
                 : msg
@@ -162,8 +169,8 @@ export function ChatProvider({ children }) {
               msg.id === botId
                 ? {
                     ...msg,
-                    content: targetContent,
-                    options: targetOptions,
+                    content: cleanContent,
+                    options: cleanOptions,
                     isStreaming: false,
                   }
                 : msg
@@ -187,7 +194,7 @@ export function ChatProvider({ children }) {
     // If it's a link, routing is handled by Link component
     if (option.url) return
 
-    const userText = option.label
+    const userText = stripEmojis(option.label)
     const newCriteria = option.filter ? { ...criteria, ...option.filter } : criteria
     if (option.filter) {
       setCriteria(newCriteria)
@@ -230,7 +237,9 @@ export function ChatProvider({ children }) {
   const sendMessage = (text) => {
     if (!text || !text.trim() || isLoading) return
 
-    const trimmed = text.trim()
+    const trimmed = stripEmojis(text.trim())
+    if (!trimmed) return
+
     const userMsg = {
       id: `user-${Date.now()}`,
       role: 'user',

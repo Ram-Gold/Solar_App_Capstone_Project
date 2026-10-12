@@ -5,6 +5,7 @@ import ChatWidget from './components/ChatWidget'
 import LandingPage from './pages/LandingPage'
 import BrowsePage from './pages/BrowsePage'
 import ChatboxPage from './pages/ChatboxPage'
+import MatchWizardPage from './pages/MatchWizardPage'
 import AboutPage from './pages/AboutPage'
 import ProductInfoPage from './pages/ProductInfoPage'
 import AdminPage from './pages/AdminPage'
@@ -31,6 +32,7 @@ function AppLayout() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/browse" element={<BrowsePage />} />
+          <Route path="/match" element={<MatchWizardPage />} />
           <Route path="/product/:id" element={<ProductInfoPage />} />
           <Route path="/chat" element={<ChatboxPage />} />
           <Route path="/portal" element={<CustomerPortalPage />} />

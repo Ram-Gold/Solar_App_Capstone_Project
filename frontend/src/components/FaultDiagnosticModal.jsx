@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { uploadEvidenceFile, submitWarrantyClaim } from '../lib/customerService'
 import { DIAGNOSTIC_TREE, matchDiagnosticFreeText } from '../lib/solarDiagnosticEngine'
+import { stripEmojis } from '../lib/solarBotEngine'
 
 const ISSUE_CATEGORIES = [
   { id: 'No Power / Won\'t Turn On', label: 'No Power / Won\'t Turn On', icon: Zap },
@@ -80,8 +81,8 @@ export default function FaultDiagnosticModal({
       id: 'msg-init',
       role: 'bot',
       nodeKey: startNodeKey,
-      content: typeof startNode.message === 'function' ? startNode.message(purchase) : startNode.message,
-      options: startNode.options || [],
+      content: stripEmojis(typeof startNode.message === 'function' ? startNode.message(purchase) : startNode.message),
+      options: (startNode.options || []).map(o => ({ ...o, label: stripEmojis(o.label) })),
       diagnosis: startNode.faultCode ? startNode : null,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
@@ -118,8 +119,8 @@ export default function FaultDiagnosticModal({
           id: `msg-${Date.now()}`,
           role: 'bot',
           nodeKey: 'TELEMETRY_RESULT',
-          content: typeof nextNode.message === 'function' ? nextNode.message(purchase) : nextNode.message,
-          options: nextNode.options || [],
+          content: stripEmojis(typeof nextNode.message === 'function' ? nextNode.message(purchase) : nextNode.message),
+          options: (nextNode.options || []).map(o => ({ ...o, label: stripEmojis(o.label) })),
           diagnosis: nextNode,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
@@ -138,7 +139,7 @@ export default function FaultDiagnosticModal({
     const userMsg = {
       id: `usr-${Date.now()}`,
       role: 'user',
-      content: opt.label,
+      content: stripEmojis(opt.label),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
 
@@ -166,8 +167,8 @@ export default function FaultDiagnosticModal({
       id: `bot-${Date.now()}`,
       role: 'bot',
       nodeKey: opt.next,
-      content: typeof nextNode.message === 'function' ? nextNode.message(purchase) : nextNode.message,
-      options: nextNode.options || [],
+      content: stripEmojis(typeof nextNode.message === 'function' ? nextNode.message(purchase) : nextNode.message),
+      options: (nextNode.options || []).map(o => ({ ...o, label: stripEmojis(o.label) })),
       diagnosis: nextNode.faultCode ? nextNode : null,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
@@ -178,7 +179,7 @@ export default function FaultDiagnosticModal({
   // Handle free-text submit in assistant
   const handleSendMessage = (e) => {
     e.preventDefault()
-    const text = userInput.trim()
+    const text = stripEmojis(userInput.trim())
     if (!text || isScanning) return
 
     const userMsg = {
@@ -197,8 +198,8 @@ export default function FaultDiagnosticModal({
       const botMsg = {
         id: `bot-${Date.now()}`,
         role: 'bot',
-        content: typeof matchedNode.message === 'function' ? matchedNode.message(purchase) : matchedNode.message,
-        options: matchedNode.options || [],
+        content: stripEmojis(typeof matchedNode.message === 'function' ? matchedNode.message(purchase) : matchedNode.message),
+        options: (matchedNode.options || []).map(o => ({ ...o, label: stripEmojis(o.label) })),
         diagnosis: matchedNode.faultCode ? matchedNode : null,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
@@ -255,8 +256,8 @@ Customer completed auto-diagnostic triage and requested technician review.`
         id: `msg-${Date.now()}`,
         role: 'bot',
         nodeKey: 'ROOT',
-        content: typeof root.message === 'function' ? root.message(purchase) : root.message,
-        options: root.options || [],
+        content: stripEmojis(typeof root.message === 'function' ? root.message(purchase) : root.message),
+        options: (root.options || []).map(o => ({ ...o, label: stripEmojis(o.label) })),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ])

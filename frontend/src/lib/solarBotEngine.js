@@ -1,5 +1,6 @@
 // frontend/src/lib/solarBotEngine.js
 // Client-side decision-tree engine for JD Solar Assistant
+import { matchSolarProducts } from './multiCriteriaMatcher'
 
 export const FALLBACK_PRODUCTS = [
   { id: 1, name: "Aviation Aluminum Solar Light 200W", type: "Aviation Aluminum Solar Light", watt: 349, price_range: "1500-2500", waterproof_grade: "IP65", battery: "91000mAh Lithium Iron Phosphate", material: "Aviation Aluminum + Optical Lens" },
@@ -29,89 +30,90 @@ export const FALLBACK_PRODUCTS = [
 
 export const DECISION_TREE = {
   ROOT: {
-    message: `👋 **Welcome to JD Solar Assistant!**
+    message: `**Welcome to JD Solar Assistant!**
 
 How can I help power your lighting project today? Please select an option below:`,
     options: [
-      { label: '🔍 Find the Right Solar Light', next: 'FIND_LOCATION' },
-      { label: '💰 Pricing & Packages', next: 'PRICING_INFO' },
-      { label: '⚡ Calculate Electricity Savings', next: 'SAVINGS_INFO' },
-      { label: '📍 Quiapo & Cavite Branches', next: 'BRANCHES_INFO' },
-      { label: '🛡️ 1-Year Warranty & Service', next: 'WARRANTY_INFO' },
-      { label: '📦 Browse Full Catalog', url: '/browse' },
+      { label: 'Open Multi-Criteria Matcher', url: '/match' },
+      { label: 'Find the Right Solar Light', next: 'FIND_LOCATION' },
+      { label: 'Pricing & Packages', next: 'PRICING_INFO' },
+      { label: 'Calculate Electricity Savings', next: 'SAVINGS_INFO' },
+      { label: 'Quiapo & Cavite Branches', next: 'BRANCHES_INFO' },
+      { label: '1-Year Warranty & Service', next: 'WARRANTY_INFO' },
+      { label: 'Browse Full Catalog', url: '/browse' },
     ],
   },
 
   FIND_LOCATION: {
-    message: `### 🧭 Step 1 of 3: Installation Area
+    message: `### Step 1 of 3: Installation Area
 Where do you plan to install the solar lighting?`,
     options: [
-      { label: '🛣️ Main Roads & Thoroughfares', next: 'FIND_POWER_ROAD', filter: { location: 'road' } },
-      { label: '🏘️ Subdivisions, Alleys & Compounds', next: 'FIND_POWER_STREET', filter: { location: 'street' } },
-      { label: '🏡 Home, Gate, Garden & Perimeter', next: 'FIND_POWER_HOME', filter: { location: 'home' } },
-      { label: '🏢 Commercial Lot, Warehouse & Parking', next: 'FIND_POWER_COMMERCIAL', filter: { location: 'commercial' } },
-      { label: '🔙 Back to Main Menu', next: 'ROOT' },
+      { label: 'Main Roads & Thoroughfares', next: 'FIND_POWER_ROAD', filter: { location: 'road' } },
+      { label: 'Subdivisions, Alleys & Compounds', next: 'FIND_POWER_STREET', filter: { location: 'street' } },
+      { label: 'Home, Gate, Garden & Perimeter', next: 'FIND_POWER_HOME', filter: { location: 'home' } },
+      { label: 'Commercial Lot, Warehouse & Parking', next: 'FIND_POWER_COMMERCIAL', filter: { location: 'commercial' } },
+      { label: 'Back to Main Menu', next: 'ROOT' },
     ],
   },
 
   FIND_POWER_ROAD: {
-    message: `### 💡 Step 2 of 3: Light Output for Road
+    message: `### Step 2 of 3: Light Output for Road
 Roadways typically require high lumen output and wide beam angles (pole heights 6m–9m). What power level do you prefer?`,
     options: [
-      { label: '⚡ 300W – 400W (Medium Road / 5-7m pole)', next: 'FIND_BUDGET', filter: { minWatt: 300, maxWatt: 400, type: 'Road' } },
-      { label: '🚀 500W – 600W (Heavy Duty / 7-9m pole)', next: 'FIND_BUDGET', filter: { minWatt: 500, maxWatt: 800, type: 'Road' } },
-      { label: '🎯 Show All Road Lights', next: 'FIND_BUDGET', filter: { type: 'Road' } },
-      { label: '🔙 Change Installation Area', next: 'FIND_LOCATION' },
+      { label: '300W – 400W (Medium Road / 5-7m pole)', next: 'FIND_BUDGET', filter: { powerNeeds: 350, minWatt: 300, maxWatt: 400, type: 'Road' } },
+      { label: '500W – 600W (Heavy Duty / 7-9m pole)', next: 'FIND_BUDGET', filter: { powerNeeds: 550, minWatt: 500, maxWatt: 800, type: 'Road' } },
+      { label: 'Show All Road Lights', next: 'FIND_BUDGET', filter: { powerNeeds: 400, type: 'Road' } },
+      { label: 'Change Installation Area', next: 'FIND_LOCATION' },
     ],
   },
 
   FIND_POWER_STREET: {
-    message: `### 💡 Step 2 of 3: Light Output for Subdivision / Street
+    message: `### Step 2 of 3: Light Output for Subdivision / Street
 For neighborhood streets, alleys, and community pathways, which power level suits your project?`,
     options: [
-      { label: '💡 100W – 150W (Standard alleys & inner paths)', next: 'FIND_BUDGET', filter: { minWatt: 100, maxWatt: 150, type: 'Street' } },
-      { label: '⚡ 200W – 300W (Subdivision main roads & intersections)', next: 'FIND_BUDGET', filter: { minWatt: 200, maxWatt: 300, type: 'Street' } },
-      { label: '🎯 Show All Street Lights', next: 'FIND_BUDGET', filter: { type: 'Street' } },
-      { label: '🔙 Change Installation Area', next: 'FIND_LOCATION' },
+      { label: '100W – 150W (Standard alleys & inner paths)', next: 'FIND_BUDGET', filter: { powerNeeds: 150, minWatt: 100, maxWatt: 150, type: 'Street' } },
+      { label: '200W – 300W (Subdivision main roads & intersections)', next: 'FIND_BUDGET', filter: { powerNeeds: 250, minWatt: 200, maxWatt: 300, type: 'Street' } },
+      { label: 'Show All Street Lights', next: 'FIND_BUDGET', filter: { powerNeeds: 250, type: 'Street' } },
+      { label: 'Change Installation Area', next: 'FIND_LOCATION' },
     ],
   },
 
   FIND_POWER_HOME: {
-    message: `### 💡 Step 2 of 3: Residential Solar Lighting
+    message: `### Step 2 of 3: Residential Solar Lighting
 What area around your home or property are you lighting?`,
     options: [
-      { label: '💡 Gate & Front Entrance (50W – 150W)', next: 'FIND_BUDGET', filter: { minWatt: 50, maxWatt: 150, type: 'Residential' } },
-      { label: '⚡ Perimeter Fence & Wide Garden (200W – 350W)', next: 'FIND_BUDGET', filter: { minWatt: 200, maxWatt: 350, type: 'Residential' } },
-      { label: '🎯 Show All Residential Outdoor Lights', next: 'FIND_BUDGET', filter: { type: 'Residential' } },
-      { label: '🔙 Change Installation Area', next: 'FIND_LOCATION' },
+      { label: 'Gate & Front Entrance (50W – 150W)', next: 'FIND_BUDGET', filter: { powerNeeds: 100, minWatt: 50, maxWatt: 150, type: 'Residential' } },
+      { label: 'Perimeter Fence & Wide Garden (200W – 350W)', next: 'FIND_BUDGET', filter: { powerNeeds: 250, minWatt: 200, maxWatt: 350, type: 'Residential' } },
+      { label: 'Show All Residential Outdoor Lights', next: 'FIND_BUDGET', filter: { powerNeeds: 150, type: 'Residential' } },
+      { label: 'Change Installation Area', next: 'FIND_LOCATION' },
     ],
   },
 
   FIND_POWER_COMMERCIAL: {
-    message: `### 💡 Step 2 of 3: Commercial & Facility Lighting
+    message: `### Step 2 of 3: Commercial & Facility Lighting
 What is the lighting requirement for your facility?`,
     options: [
-      { label: '⚡ Parking Lots & Walkways (200W – 300W)', next: 'FIND_BUDGET', filter: { minWatt: 200, maxWatt: 300, type: 'Commercial' } },
-      { label: '🚀 Heavy-Duty Yards & Warehouses (400W – 800W)', next: 'FIND_BUDGET', filter: { minWatt: 400, maxWatt: 800, type: 'Commercial' } },
-      { label: '🎯 Show All Commercial Grade Lights', next: 'FIND_BUDGET', filter: { type: 'Commercial' } },
-      { label: '🔙 Change Installation Area', next: 'FIND_LOCATION' },
+      { label: 'Parking Lots & Walkways (200W – 300W)', next: 'FIND_BUDGET', filter: { powerNeeds: 250, minWatt: 200, maxWatt: 300, type: 'Commercial' } },
+      { label: 'Heavy-Duty Yards & Warehouses (400W – 800W)', next: 'FIND_BUDGET', filter: { powerNeeds: 500, minWatt: 400, maxWatt: 800, type: 'Commercial' } },
+      { label: 'Show All Commercial Grade Lights', next: 'FIND_BUDGET', filter: { powerNeeds: 400, type: 'Commercial' } },
+      { label: 'Change Installation Area', next: 'FIND_LOCATION' },
     ],
   },
 
   FIND_BUDGET: {
-    message: `### 🏷️ Step 3 of 3: Budget Range
+    message: `### Step 3 of 3: Budget Range
 What is your target budget per unit?`,
     options: [
-      { label: '🏷️ ₱1,000 – ₱2,000 (Economy / Best Value)', next: 'GENERATE_RESULTS', filter: { budget: '1000-2000' } },
-      { label: '💎 ₱2,000 – ₱3,500 (Standard Quality)', next: 'GENERATE_RESULTS', filter: { budget: '2500-3500' } },
-      { label: '👑 ₱3,500+ (Heavy Duty / Industrial)', next: 'GENERATE_RESULTS', filter: { budget: '3000+' } },
-      { label: '✨ Any Budget (Show Best Matches)', next: 'GENERATE_RESULTS', filter: { budget: 'any' } },
-      { label: '🔙 Back to Step 2', next: 'FIND_LOCATION' },
+      { label: '₱1,000 – ₱2,000 (Economy / Best Value)', next: 'GENERATE_RESULTS', filter: { budget: 2000 } },
+      { label: '₱2,000 – ₱3,500 (Standard Quality)', next: 'GENERATE_RESULTS', filter: { budget: 3500 } },
+      { label: '₱3,500+ (Heavy Duty / Industrial)', next: 'GENERATE_RESULTS', filter: { budget: 5000 } },
+      { label: 'Any Budget (Show Best Matches)', next: 'GENERATE_RESULTS', filter: { budget: 'any' } },
+      { label: 'Back to Step 2', next: 'FIND_LOCATION' },
     ],
   },
 
   PRICING_INFO: {
-    message: `### 💰 JD Solar Pricing Overview
+    message: `### JD Solar Pricing Overview
 
 Our solar lighting packages offer premium commercial-grade hardware at direct trading rates:
 
@@ -123,15 +125,15 @@ Our solar lighting packages offer premium commercial-grade hardware at direct tr
 
 All packages include **Aviation-grade aluminum body**, **Monocrystalline solar panel**, and **LiFePO4 Lithium battery**.`,
     options: [
-      { label: '🔍 Find Light Within My Budget', next: 'FIND_LOCATION' },
-      { label: '📦 Browse All Products', url: '/browse' },
-      { label: '📍 Contact Quiapo / Cavite Branch', next: 'BRANCHES_INFO' },
-      { label: '🏠 Main Menu', next: 'ROOT' },
+      { label: 'Find Light Within My Budget', next: 'FIND_LOCATION' },
+      { label: 'Browse All Products', url: '/browse' },
+      { label: 'Contact Quiapo / Cavite Branch', next: 'BRANCHES_INFO' },
+      { label: 'Main Menu', next: 'ROOT' },
     ],
   },
 
   SAVINGS_INFO: {
-    message: `### ⚡ Zero Electricity Cost with JD Solar
+    message: `### Zero Electricity Cost with JD Solar
 
 Switching conventional outdoor lighting to solar lights yields immediate savings:
 
@@ -144,14 +146,14 @@ Switching conventional outdoor lighting to solar lights yields immediate savings
 * **Dusk-to-Dawn Radar Sensor:** Lights charge 6–8 hrs in sunlight and provide 10–12+ hrs of continuous night illumination.
 * **Typhoon & Weather Ready:** IP65 / IP67 certified waterproof construction.`,
     options: [
-      { label: '🔍 Help Me Choose a Light', next: 'FIND_LOCATION' },
-      { label: '💰 Check Price Ranges', next: 'PRICING_INFO' },
-      { label: '🏠 Main Menu', next: 'ROOT' },
+      { label: 'Help Me Choose a Light', next: 'FIND_LOCATION' },
+      { label: 'Check Price Ranges', next: 'PRICING_INFO' },
+      { label: 'Main Menu', next: 'ROOT' },
     ],
   },
 
   BRANCHES_INFO: {
-    message: `### 📍 JD Solar Branch Locations & Store Hours
+    message: `### JD Solar Branch Locations & Store Hours
 
 We operate two key hubs for store pickup, testing, and wholesale consultations:
 
@@ -167,15 +169,15 @@ We operate two key hubs for store pickup, testing, and wholesale consultations:
 
 Feel free to walk in or request a quote online!`,
     options: [
-      { label: '📞 Speak to Sales / Contact', next: 'CONTACT_INFO' },
-      { label: '🔍 Find Solar Lights', next: 'FIND_LOCATION' },
-      { label: '📦 View Product Catalog', url: '/browse' },
-      { label: '🏠 Main Menu', next: 'ROOT' },
+      { label: 'Speak to Sales / Contact', next: 'CONTACT_INFO' },
+      { label: 'Find Solar Lights', next: 'FIND_LOCATION' },
+      { label: 'View Product Catalog', url: '/browse' },
+      { label: 'Main Menu', next: 'ROOT' },
     ],
   },
 
   WARRANTY_INFO: {
-    message: `### 🛡️ 1-Year Standard Warranty & Customer Guarantee
+    message: `### 1-Year Standard Warranty & Customer Guarantee
 
 Every JD Solar product is backed by our customer satisfaction commitment:
 
@@ -184,14 +186,14 @@ Every JD Solar product is backed by our customer satisfaction commitment:
 * **LiFePO4 Long-Life Batteries:** Rated for over 2,000 charge cycles (3–5+ years operating life).
 * **Replacement Support:** Direct technical diagnosis and parts replacement handled at our Quiapo and Cavite branches.`,
     options: [
-      { label: '🔍 Browse Guaranteed Models', url: '/browse' },
-      { label: '📍 Visit Branch for Service', next: 'BRANCHES_INFO' },
-      { label: '🏠 Main Menu', next: 'ROOT' },
+      { label: 'Browse Guaranteed Models', url: '/browse' },
+      { label: 'Visit Branch for Service', next: 'BRANCHES_INFO' },
+      { label: 'Main Menu', next: 'ROOT' },
     ],
   },
 
   CONTACT_INFO: {
-    message: `### 📞 Get in Touch with JD Solar
+    message: `### Get in Touch with JD Solar
 
 We are ready to assist you with single-unit orders, community street lighting, or government / LGU procurement:
 
@@ -202,9 +204,9 @@ We are ready to assist you with single-unit orders, community street lighting, o
 
 You can also browse our online inventory and submit a quote directly!`,
     options: [
-      { label: '📦 Browse Online Catalog', url: '/browse' },
-      { label: '🔍 Start Product Recommendation', next: 'FIND_LOCATION' },
-      { label: '🏠 Main Menu', next: 'ROOT' },
+      { label: 'Browse Online Catalog', url: '/browse' },
+      { label: 'Start Product Recommendation', next: 'FIND_LOCATION' },
+      { label: 'Main Menu', next: 'ROOT' },
     ],
   },
 }
@@ -243,40 +245,52 @@ export function filterProducts(products, criteria = {}) {
 }
 
 /**
- * Generate recommendation message text and cards
+ * Generate recommendation message text and cards using Multi-Criteria Decision Analysis
  */
 export function generateRecommendations(products, criteria = {}) {
-  let matches = filterProducts(products, criteria)
+  const result = matchSolarProducts(products, criteria, { threshold: 0.65, limit: 4 })
+  const { matches, thresholdUsed, thresholdRelaxed } = result
 
-  if (matches.length === 0) {
-    // Fallback to top products in general
-    matches = (products && products.length > 0 ? products : FALLBACK_PRODUCTS).slice(0, 3)
+  let text = `### Multi-Criteria Product Recommendations\n\n`
+  if (thresholdRelaxed) {
+    text += `*Note: Evaluated against your Budget, Location, and Power Needs. Showing top compatible candidates closest to your target threshold:*\n\n`
   } else {
-    matches = matches.slice(0, 4)
+    text += `Evaluated against your requirements (**Budget, Location, and Power Needs**) with a **${Math.round(thresholdUsed * 100)}% compatibility threshold**:\n\n`
   }
 
-  let text = `### 🌟 Recommended Solar Lights for Your Project\n\n`
-  text += `Based on your selection, here are top-rated JD Solar models that match your requirements:\n\n`
-
-  matches.forEach((p, index) => {
-    text += `#### ${index + 1}. [${p.name}](/product/${p.id})\n`
-    text += `* **Power:** ${p.watt ? `${p.watt}W` : 'High Output'}\n`
-    text += `* **Price Range:** ₱${p.price_range || 'Inquire for pricing'}\n`
-    text += `* **Protection:** ${p.waterproof_grade || 'IP65'} Waterproof\n`
-    if (p.battery) text += `* **Battery:** ${p.battery}\n`
-    text += `👉 [View Full Product Specifications](/product/${p.id})\n\n`
+  matches.forEach((item, index) => {
+    const p = item.product
+    text += `#### ${index + 1}. [${p.name}](/product/${p.id}) — **${item.matchPercentage}% Match**\n`
+    text += `* **Match Assessment:** ${item.explanation}\n`
+    text += `* **Power Output:** ${p.watt ? `${p.watt}W` : 'Standard'} (Power Fit: ${item.breakdown.powerScore}%)\n`
+    text += `* **Price Range:** ₱${p.price_range || 'Inquire for pricing'} (Budget Fit: ${item.breakdown.budgetScore}%)\n`
+    text += `* **Location Suitability:** Score: ${item.breakdown.locationScore}%\n`
+    text += `* **Waterproof Rating:** ${p.waterproof_grade || 'IP65'} Certified\n`
+    if (p.battery) text += `* **Battery Chemistry:** ${p.battery}\n`
+    text += `[View Full Product Specifications](/product/${p.id})\n\n`
   })
 
   text += `Need to explore more or compare models? Click below:`
 
   const options = [
-    { label: '📦 Browse All Solar Lights', url: '/browse' },
-    { label: '🔄 Find Another Light', next: 'FIND_LOCATION' },
-    { label: '📍 Visit a Branch', next: 'BRANCHES_INFO' },
-    { label: '🏠 Main Menu', next: 'ROOT' },
+    { label: 'Browse All Solar Lights', url: '/browse' },
+    { label: 'Adjust Multi-Criteria Requirements', next: 'FIND_LOCATION' },
+    { label: 'Visit a Branch', next: 'BRANCHES_INFO' },
+    { label: 'Main Menu', next: 'ROOT' },
   ]
 
-  return { message: text, options, matches }
+  return { message: text, options, matches: matches.map((m) => m.product) }
+}
+
+/**
+ * Strips all emoji characters and variation selectors from a string.
+ */
+export function stripEmojis(str) {
+  if (!str) return ''
+  return str
+    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2702}-\u{27B0}\u{24C2}-\u{1F251}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2B50}-\u{2B55}]/gu, '')
+    .replace(/[\uFE00-\uFE0F\u200D]/g, '')
+    .trim()
 }
 
 /**
@@ -286,11 +300,36 @@ export function matchUserQuery(query, products = []) {
   const q = (query || '').toLowerCase().trim()
   const list = products.length > 0 ? products : FALLBACK_PRODUCTS
 
+  // Multi-criteria natural language extraction (Budget, Location, Power Needs)
+  const numBudgetMatch = q.match(/(?:budget|presyo|price|under|below|max)?\s*(?:₱|php)?\s*(\d{3,5})\s*(?:php|pesos)?/i)
+  const numWattMatch = q.match(/(\d{2,4})\s*w(?:att|atts)?/i)
+  const hasRoad = ['road', 'highway', 'daan'].some((w) => q.includes(w))
+  const hasStreet = ['street', 'subdivision', 'alley', 'eskinita'].some((w) => q.includes(w))
+  const hasHome = ['home', 'bahay', 'gate', 'garden', 'backyard', 'perimeter'].some((w) => q.includes(w))
+  const hasCommercial = ['commercial', 'warehouse', 'parking', 'lot'].some((w) => q.includes(w))
+
+  const detectedCriteria = {}
+  if (numBudgetMatch && parseInt(numBudgetMatch[1], 10) >= 500) {
+    detectedCriteria.budget = parseInt(numBudgetMatch[1], 10)
+  }
+  if (numWattMatch) {
+    detectedCriteria.powerNeeds = parseInt(numWattMatch[1], 10)
+  }
+  if (hasRoad) detectedCriteria.location = 'road'
+  else if (hasStreet) detectedCriteria.location = 'street'
+  else if (hasHome) detectedCriteria.location = 'home'
+  else if (hasCommercial) detectedCriteria.location = 'commercial'
+
+  const criteriaCount = (detectedCriteria.budget ? 1 : 0) + (detectedCriteria.powerNeeds ? 1 : 0) + (detectedCriteria.location ? 1 : 0)
+  if (criteriaCount >= 2) {
+    return generateRecommendations(list, detectedCriteria)
+  }
+
   // Check if user is asking about a specific product (e.g. from ProductInfoPage)
   const matchedProduct = list.find((p) => q.includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(q))
   if (matchedProduct && (q.includes('tell me more') || q.includes('about') || q.includes('fit') || q.length > 10)) {
     const p = matchedProduct
-    const text = `### ☀️ About the [${p.name}](/product/${p.id})
+    const text = `### About the [${p.name}](/product/${p.id})
 
 Here is what you need to know about this model:
 
@@ -306,10 +345,24 @@ Zero electricity costs, automatic dusk-to-dawn operation, and guaranteed 1-year 
     return {
       message: text,
       options: [
-        { label: `👉 View Product Page`, url: `/product/${p.id}` },
-        { label: '🔍 Find Other Models', next: 'FIND_LOCATION' },
-        { label: '📍 Branch Inquiries', next: 'BRANCHES_INFO' },
-        { label: '🏠 Main Menu', next: 'ROOT' },
+        { label: 'View Product Page', url: `/product/${p.id}` },
+        { label: 'Find Other Models', next: 'FIND_LOCATION' },
+        { label: 'Branch Inquiries', next: 'BRANCHES_INFO' },
+        { label: 'Main Menu', next: 'ROOT' },
+      ],
+    }
+  }
+
+  // Emoji inquiry handling
+  if (['emoji', 'emojis', 'emoticon', 'emoticons'].some((k) => q.includes(k))) {
+    return {
+      message: `JD Solar Assistant operates in a clean, text-only mode without emojis. I can guide you step-by-step to the right solar lighting products, calculate electricity savings, or provide branch details. How can I assist you?`,
+      options: [
+        { label: 'Find the Right Solar Light', next: 'FIND_LOCATION' },
+        { label: 'Pricing & Packages', next: 'PRICING_INFO' },
+        { label: 'Calculate Electricity Savings', next: 'SAVINGS_INFO' },
+        { label: 'Quiapo & Cavite Branches', next: 'BRANCHES_INFO' },
+        { label: 'Main Menu', next: 'ROOT' },
       ],
     }
   }
@@ -357,11 +410,11 @@ I can guide you step-by-step to the best solar light for your project, show pric
 
 Please pick an option below to proceed:`,
     options: [
-      { label: '🔍 Find the Right Solar Light', next: 'FIND_LOCATION' },
-      { label: '💰 View Pricing & Packages', next: 'PRICING_INFO' },
-      { label: '⚡ Calculate Savings', next: 'SAVINGS_INFO' },
-      { label: '📍 Branch Locations', next: 'BRANCHES_INFO' },
-      { label: '📦 Browse Full Catalog', url: '/browse' },
+      { label: 'Find the Right Solar Light', next: 'FIND_LOCATION' },
+      { label: 'View Pricing & Packages', next: 'PRICING_INFO' },
+      { label: 'Calculate Savings', next: 'SAVINGS_INFO' },
+      { label: 'Branch Locations', next: 'BRANCHES_INFO' },
+      { label: 'Browse Full Catalog', url: '/browse' },
     ],
   }
 }

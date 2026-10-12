@@ -299,17 +299,6 @@ export default function ProductInfoPage() {
                   <span>Ask Solar Assistant</span>
                 </button>
               </div>
-
-              {/* Trust & Guarantee Microcopy */}
-              <div className="flex items-center justify-center gap-3 pt-1 text-[11px] font-medium text-jds-on-surface-variant flex-wrap">
-                <span className="flex items-center gap-1">
-                  <span className="text-emerald-600 font-bold">✓</span> 48-Hour Stock Hold Guarantee
-                </span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <span className="text-emerald-600 font-bold">✓</span> Free Showroom Illumination Demo
-                </span>
-              </div>
             </div>
           </motion.div>
         </div>

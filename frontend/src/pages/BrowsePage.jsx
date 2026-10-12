@@ -9,7 +9,9 @@ import {
   HiOutlineLifebuoy,
   HiOutlineBolt,
   HiOutlineFunnel,
+  HiOutlineSparkles,
 } from 'react-icons/hi2'
+import MultiCriteriaMatchModal from '../components/MultiCriteriaMatchModal'
 
 const INITIAL_CATEGORIES = [
   'All Products',
@@ -35,6 +37,7 @@ export default function BrowsePage() {
   const [waterproofFilter, setWaterproofFilter] = useState('All Ratings')
   const [maxPriceFilter, setMaxPriceFilter] = useState(50000)
   const [batteryFilter, setBatteryFilter] = useState('All')
+  const [showMatcher, setShowMatcher] = useState(false)
 
   useEffect(() => {
     const query = searchParams.get('search')
@@ -121,11 +124,20 @@ export default function BrowsePage() {
     <div className="jds-page-bg font-inter text-jds-on-surface min-h-screen">
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Page Header */}
-        <div className="flex flex-col gap-2 mb-12">
-          <h1 className="text-headline-lg-mobile md:text-headline-xl text-jds-on-surface">Digital Product Guide</h1>
-          <p className="text-body-lg text-jds-on-surface-variant max-w-2xl">
-            Discover our complete range of solar-powered lights and streetlights. Built for durability, designed for Manila's streets.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-headline-lg-mobile md:text-headline-xl text-jds-on-surface">Digital Product Guide</h1>
+            <p className="text-body-lg text-jds-on-surface-variant max-w-2xl">
+              Discover our complete range of solar-powered lights and streetlights. Built for durability, designed for Manila's streets.
+            </p>
+          </div>
+          <Link
+            to="/match"
+            className="self-start sm:self-auto flex items-center gap-2 bg-jds-primary hover:bg-jds-primary/90 text-white font-bold text-label-md px-5 py-3 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 shrink-0"
+          >
+            <HiOutlineSparkles className="text-lg" />
+            <span>Product Matcher Wizard</span>
+          </Link>
         </div>
 
         <div className="flex flex-col md:flex-row gap-8 items-start w-full">
@@ -324,14 +336,15 @@ export default function BrowsePage() {
                 className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
               >
                 {filtered.map((product) => (
-                  <div
+                  <Link
                     key={product.id}
-                    className="bg-jds-surface-container-lowest flex flex-col border border-jds-outline-variant card-shadow rounded-lg p-4 group"
+                    to={`/product/${product.id}`}
+                    className="bg-jds-surface-container-lowest flex flex-col border border-jds-outline-variant card-shadow rounded-lg p-4 cursor-pointer no-underline text-inherit"
                   >
                     <div className="aspect-square rounded-lg bg-jds-surface-variant mb-4 overflow-hidden relative flex items-center justify-center">
                       {product.image_url ? (
                         <img
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="w-full h-full object-cover"
                           src={product.image_url}
                           alt={product.name}
                         />
@@ -368,13 +381,12 @@ export default function BrowsePage() {
                         </p>
                       )}
                     </div>
-                    <Link
-                      to={`/product/${product.id}`}
-                      className="w-full border border-jds-secondary text-jds-secondary py-2 rounded text-label-md hover:bg-jds-secondary hover:text-white transition-colors text-center block"
+                    <div
+                      className="w-full border border-jds-secondary text-jds-secondary py-2 rounded text-label-md text-center block"
                     >
                       View Details
-                    </Link>
-                  </div>
+                    </div>
+                  </Link>
                 ))}
               </motion.div>
             ) : (
@@ -433,6 +445,13 @@ export default function BrowsePage() {
           </div>
         </section>
       </main>
+
+      {/* Multi-Criteria Product Matching Modal */}
+      <MultiCriteriaMatchModal
+        isOpen={showMatcher}
+        onClose={() => setShowMatcher(false)}
+        products={products}
+      />
     </div>
   )
 }
