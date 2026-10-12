@@ -11,11 +11,20 @@ import {
   HiOutlineFunnel,
 } from 'react-icons/hi2'
 
-const categories = ['All Products', 'Aviation Aluminum Solar Light', 'Aviation Aluminum Solar Road Light', 'Aviation Aluminum Solar Street Light', 'Integrated Solar Street Light', 'Aluminum Solar Street Light', 'Solar Streetlight']
+const INITIAL_CATEGORIES = [
+  'All Products',
+  'Aviation Aluminum Solar Light',
+  'Aviation Aluminum Solar Road Light',
+  'Aviation Aluminum Solar Street Light',
+  'Integrated Solar Street Light',
+  'Aluminum Solar Street Light',
+  'Solar Streetlight'
+]
 
 export default function BrowsePage() {
   const [searchParams] = useSearchParams()
   const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState(INITIAL_CATEGORIES)
   const [loading, setLoading] = useState(true)
 
   const [search, setSearch] = useState(searchParams.get('search') || '')
@@ -51,6 +60,18 @@ export default function BrowsePage() {
       }
     }
     fetchProducts()
+
+    const fetchCategories = async () => {
+      try {
+        const { data, error } = await supabase.from('categories').select('name').order('name')
+        if (!error && data && data.length > 0) {
+          setCategories(['All Products', ...data.map(c => c.name)])
+        }
+      } catch (err) {
+        console.warn('Failed to load categories on BrowsePage:', err)
+      }
+    }
+    fetchCategories()
   }, [])
 
   const filtered = products

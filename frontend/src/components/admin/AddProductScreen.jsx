@@ -1,21 +1,17 @@
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { Button } from '../ui/button'
-import { ArrowLeft, Upload, Image as ImageIcon, X, Link2, Check } from 'lucide-react'
+import { ArrowLeft, Upload, Image as ImageIcon, X, Link2, Check, Plus } from 'lucide-react'
+import CategoryModal from './CategoryModal'
+import { fetchCategoriesWithCounts, DEFAULT_CATEGORIES } from '../../lib/categories'
 
-const PRODUCT_TYPES = [
-  'Aviation Aluminum Solar Light',
-  'Aviation Aluminum Solar Road Light',
-  'Aviation Aluminum Solar Street Light',
-  'Integrated Solar Street Light',
-  'Aluminum Solar Street Light',
-  'Solar Streetlight',
-]
 
 export default function AddProductScreen({ onNavigate }) {
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES)
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [form, setForm] = useState({
     name: '',
-    type: PRODUCT_TYPES[0],
+    type: DEFAULT_CATEGORIES[0] || 'Solar Streetlight',
     watt: '',
     waterproof_grade: 'IP65',
     method_control: '',
@@ -37,6 +33,23 @@ export default function AddProductScreen({ onNavigate }) {
   const [imageUploading, setImageUploading] = useState(false)
   const [imageUploadError, setImageUploadError] = useState('')
   const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      const { data } = await fetchCategoriesWithCounts()
+      if (data && data.length > 0) {
+        const names = data.map(c => c.name)
+        setCategories(names)
+        setForm(prev => {
+          if (!prev.type || !names.includes(prev.type)) {
+            return { ...prev, type: names[0] }
+          }
+          return prev
+        })
+      }
+    }
+    loadCategories()
+  }, [])
 
   const handleImageFileChange = async (e) => {
     const file = e.target.files?.[0]
@@ -143,10 +156,27 @@ export default function AddProductScreen({ onNavigate }) {
             <input required value={form.name} onChange={(e) => handleChange('name', e.target.value)} className={inputClass} placeholder="e.g. Aviation Aluminum Solar Street Light 200W" />
           </div>
           <div className="space-y-2">
-            <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Type</label>
-            <select value={form.type} onChange={(e) => handleChange('type', e.target.value)} className={inputClass}>
-              {PRODUCT_TYPES.map(t => <option key={t}>{t}</option>)}
-            </select>
+            <div className="flex items-center justify-between">
+              <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Type / Category</label>
+              <span className="text-[11px] text-jds-on-surface-variant/60 font-medium">Add via + icon</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <select 
+                value={form.type} 
+                onChange={(e) => handleChange('type', e.target.value)} 
+                className={`${inputClass} flex-1`}
+              >
+                {categories.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <button
+                type="button"
+                onClick={() => setIsCategoryModalOpen(true)}
+                className="h-11 w-11 flex items-center justify-center rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 hover:bg-jds-primary/10 hover:border-jds-primary hover:text-jds-primary text-jds-on-surface-variant transition-all shrink-0 shadow-sm"
+                title="Add or Manage Categories"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+            </div>
           </div>
           <div className="space-y-2">
             <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Wattage (W)</label>
@@ -337,6 +367,20 @@ export default function AddProductScreen({ onNavigate }) {
           </Button>
         </div>
       </form>
+
+      <CategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onCategoryAdded={(newCat) => {
+          setCategories(prev => Array.from(new Set([...prev, newCat])))
+          setForm(prev => ({ ...prev, type: newCat }))
+        }}
+        onCategoriesChanged={(names) => {
+          if (names && names.length > 0) {
+            setCategories(names)
+          }
+        }}
+      />
     </div>
   )
 }

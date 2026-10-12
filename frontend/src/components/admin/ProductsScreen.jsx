@@ -2,8 +2,11 @@ import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
-import { Search, Plus, Pencil, Trash2, Upload, Image as ImageIcon } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, Upload, Image as ImageIcon, Tag } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import CategoryModal from './CategoryModal'
+import { fetchCategoriesWithCounts, DEFAULT_CATEGORIES } from '../../lib/categories'
+
 
 const EDIT_FIELDS = [
   { key: 'name', label: 'Product Name', type: 'text' },
@@ -27,6 +30,8 @@ const SELECT_COLS = 'id,name,type,watt,waterproof_grade,method_control,material,
 
 export default function ProductsScreen({ onNavigate }) {
   const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES)
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('All Types')
@@ -69,7 +74,17 @@ export default function ProductsScreen({ onNavigate }) {
     }
   }
 
-  useEffect(() => { fetchProducts() }, [])
+  useEffect(() => { 
+    fetchProducts()
+    loadCategories()
+  }, [])
+
+  const loadCategories = async () => {
+    const { data } = await fetchCategoriesWithCounts()
+    if (data && data.length > 0) {
+      setCategories(data.map(c => c.name))
+    }
+  }
 
   const fetchProducts = async () => {
     const { data, error } = await supabase.from('products').select(SELECT_COLS).order('id')
@@ -124,7 +139,7 @@ export default function ProductsScreen({ onNavigate }) {
     }
   }
 
-  const types = ['All Types', ...new Set(products.map(p => p.type).filter(Boolean))]
+  const types = ['All Types', ...new Set([...categories, ...products.map(p => p.type).filter(Boolean)])]
   const filtered = products.filter(p => {
     const s = p.name.toLowerCase().includes(search.toLowerCase()) || (p.type || '').toLowerCase().includes(search.toLowerCase())
     
@@ -149,9 +164,22 @@ export default function ProductsScreen({ onNavigate }) {
           <h1 className="text-headline-md font-bold text-jds-on-surface">Solar Products</h1>
           <p className="text-body-md text-jds-on-surface-variant">Manage and curate the solar inventory catalog.</p>
         </div>
-        <Button onClick={() => onNavigate('add-product')} className="bg-jds-primary text-jds-on-primary hover:opacity-90 rounded-lg px-6 gap-2 w-full sm:w-auto justify-center">
-          <Plus className="h-4 w-4" /> Add Product
-        </Button>
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <Button 
+            variant="outline" 
+            onClick={() => setIsCategoryModalOpen(true)} 
+            className="border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface hover:bg-jds-surface-container-low hover:border-jds-primary hover:text-jds-primary rounded-lg px-4 gap-2 h-10 font-semibold shadow-sm transition-all"
+          >
+            <Tag className="h-4 w-4" />
+            <span>Categories</span>
+            <span className="flex items-center justify-center h-5 w-5 rounded-full bg-jds-primary/10 text-jds-primary text-[11px] font-bold">
+              +
+            </span>
+          </Button>
+          <Button onClick={() => onNavigate('add-product')} className="bg-jds-primary text-jds-on-primary hover:opacity-90 rounded-lg px-6 gap-2 w-full sm:w-auto justify-center">
+            <Plus className="h-4 w-4" /> Add Product
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-4 bg-jds-surface-container-low/20 p-4 rounded-xl border border-jds-outline-variant/20">
@@ -165,6 +193,14 @@ export default function ProductsScreen({ onNavigate }) {
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-10 w-full sm:w-auto rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-lowest px-4 text-body-md outline-none focus:border-jds-secondary transition-all">
               {types.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
+            <button
+              type="button"
+              onClick={() => setIsCategoryModalOpen(true)}
+              className="h-10 w-10 flex items-center justify-center rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-lowest hover:bg-jds-primary/10 hover:border-jds-primary hover:text-jds-primary text-jds-on-surface-variant transition-all shrink-0"
+              title="Add or Manage Categories"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           </div>
         </div>
 
@@ -209,17 +245,45 @@ export default function ProductsScreen({ onNavigate }) {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {EDIT_FIELDS.map(f => (
               <div key={f.key} className="space-y-1.5">
-                <label className="text-label-sm font-bold text-jds-on-surface-variant/80">{f.label}</label>
-                <input
-                  type={f.type}
-                  value={editingProduct[f.key] ?? ''}
-                  onChange={(e) => handleFieldChange(f.key, e.target.value, f.type)}
-                  className={`h-11 w-full rounded-lg border bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:bg-jds-surface-container-lowest transition-all ${
-                    validationErrors[f.key]
-                      ? 'border-jds-error focus:border-jds-error focus:ring-1 focus:ring-jds-error/20'
-                      : 'border-jds-outline-variant/30 focus:border-jds-secondary'
-                  }`}
-                />
+                <div className="flex items-center justify-between">
+                  <label className="text-label-sm font-bold text-jds-on-surface-variant/80">{f.label}</label>
+                  {f.key === 'type' && (
+                    <span className="text-[11px] text-jds-on-surface-variant/60 font-medium">Add via +</span>
+                  )}
+                </div>
+                {f.key === 'type' ? (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={editingProduct.type ?? ''}
+                      onChange={(e) => handleFieldChange('type', e.target.value, 'text')}
+                      className="h-11 flex-1 rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-3 text-body-md outline-none focus:bg-jds-surface-container-lowest focus:border-jds-secondary transition-all"
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setIsCategoryModalOpen(true)}
+                      className="h-11 w-11 flex items-center justify-center rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 hover:bg-jds-primary/10 hover:border-jds-primary hover:text-jds-primary text-jds-on-surface-variant transition-all shrink-0"
+                      title="Add New Category"
+                    >
+                      <Plus className="h-5 w-5" />
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type={f.type}
+                    value={editingProduct[f.key] ?? ''}
+                    onChange={(e) => handleFieldChange(f.key, e.target.value, f.type)}
+                    className={`h-11 w-full rounded-lg border bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:bg-jds-surface-container-lowest transition-all ${
+                      validationErrors[f.key]
+                        ? 'border-jds-error focus:border-jds-error focus:ring-1 focus:ring-jds-error/20'
+                        : 'border-jds-outline-variant/30 focus:border-jds-secondary'
+                    }`}
+                  />
+                )}
                 {validationErrors[f.key] && (
                   <p className="text-label-sm text-jds-error font-medium">{validationErrors[f.key]}</p>
                 )}
@@ -345,6 +409,23 @@ export default function ProductsScreen({ onNavigate }) {
           </Table>
         </div>
       </div>
+
+      <CategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onCategoryAdded={(newCat) => {
+          setCategories(prev => Array.from(new Set([...prev, newCat])))
+          if (editingProduct) {
+            handleFieldChange('type', newCat, 'text')
+          }
+        }}
+        onCategoriesChanged={(names) => {
+          if (names && names.length > 0) {
+            setCategories(names)
+          }
+          fetchProducts()
+        }}
+      />
     </div>
   )
 }
