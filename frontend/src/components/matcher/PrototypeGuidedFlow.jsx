@@ -150,7 +150,7 @@ export default function PrototypeGuidedFlow({
       </div>
 
       {/* Main Step Card Container */}
-      <div className="rounded-3xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-2xl border border-neutral-200/80 dark:border-neutral-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 sm:p-8">
+      <div className="rounded-3xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-2xl border border-neutral-200/80 dark:border-neutral-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 sm:p-8 lg:p-9 min-h-[460px] flex flex-col justify-between">
         <AnimatePresence mode="wait">
           {/* STEP 1: Environment */}
           {currentStep === 1 && (
@@ -160,7 +160,7 @@ export default function PrototypeGuidedFlow({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="space-y-6"
+              className="flex-1 flex flex-col justify-between space-y-6"
             >
               <div className="text-center max-w-md mx-auto space-y-1">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
@@ -222,7 +222,7 @@ export default function PrototypeGuidedFlow({
                 })}
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-neutral-100 dark:border-neutral-800">
+              <div className="flex justify-end pt-4 mt-auto border-t border-neutral-100 dark:border-neutral-800">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(2)}
@@ -243,7 +243,7 @@ export default function PrototypeGuidedFlow({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="space-y-6"
+              className="flex-1 flex flex-col justify-between space-y-6"
             >
               <div className="text-center max-w-md mx-auto space-y-1">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
@@ -316,7 +316,7 @@ export default function PrototypeGuidedFlow({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-neutral-100 dark:border-neutral-800">
+              <div className="flex items-center justify-between pt-4 mt-auto border-t border-neutral-100 dark:border-neutral-800">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(1)}
@@ -345,7 +345,7 @@ export default function PrototypeGuidedFlow({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="space-y-6"
+              className="flex-1 flex flex-col justify-between space-y-6"
             >
               <div className="text-center max-w-md mx-auto space-y-1">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
@@ -420,7 +420,7 @@ export default function PrototypeGuidedFlow({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-neutral-100 dark:border-neutral-800">
+              <div className="flex items-center justify-between pt-4 mt-auto border-t border-neutral-100 dark:border-neutral-800">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(2)}
@@ -449,7 +449,7 @@ export default function PrototypeGuidedFlow({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="space-y-6"
+              className="flex-1 flex flex-col justify-between space-y-6"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-neutral-100 dark:border-neutral-800">
                 <div>
@@ -568,7 +568,7 @@ export default function PrototypeGuidedFlow({
               </div>
 
               {/* Action Footer */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-auto border-t border-neutral-100 dark:border-neutral-800">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(1)}

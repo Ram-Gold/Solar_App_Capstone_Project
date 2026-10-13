@@ -126,7 +126,7 @@ export default function ChatboxPage() {
   const isFreshChat = messages.length <= 1
 
   return (
-    <div className="h-[calc(100vh-80px)] w-full flex flex-col font-inter overflow-hidden sunlight-bg grain-texture relative">
+    <div className="h-screen w-full flex flex-col font-inter overflow-hidden sunlight-bg grain-texture relative pt-14 sm:pt-16">
       {/* Background Glows */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-jds-primary-container/10 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-jds-secondary-container/10 blur-[120px] rounded-full pointer-events-none" />

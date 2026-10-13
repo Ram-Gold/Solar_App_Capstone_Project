@@ -62,48 +62,50 @@ export default function MatchWizardPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-80px)] w-full py-10 px-4 sm:px-6 lg:px-8 sunlight-bg relative font-inter text-neutral-900 dark:text-neutral-100">
+    <div className="min-h-screen flex-1 flex flex-col justify-between w-full pt-16 sm:pt-20 pb-6 sm:pb-8 px-4 sm:px-6 lg:px-8 sunlight-bg relative font-inter text-neutral-900 dark:text-neutral-100 overflow-x-hidden">
       {/* Background Solar Accents */}
       <div className="absolute top-12 left-1/3 w-96 h-96 bg-amber-400/10 blur-[140px] rounded-full pointer-events-none" />
       <div className="absolute bottom-12 right-1/4 w-96 h-96 bg-orange-400/10 blur-[140px] rounded-full pointer-events-none" />
 
-      <div className="max-w-4xl mx-auto relative z-10">
-        {/* Navigation Breadcrumb / Top Bar */}
-        <div className="flex items-center justify-between gap-4 mb-8">
-          <Link
-            to="/browse"
-            className="inline-flex items-center gap-2 text-xs font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
-          >
-            <ArrowLeft className="size-3.5" />
-            <span>Catalog</span>
-          </Link>
+      <div className="max-w-4xl mx-auto relative z-10 w-full flex-1 flex flex-col justify-between">
+        {/* Top Header Section */}
+        <div>
+          <div className="flex items-center justify-between gap-4 mb-4 sm:mb-6">
+            <Link
+              to="/browse"
+              className="inline-flex items-center gap-2 text-xs font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
+            >
+              <ArrowLeft className="size-3.5" />
+              <span>Catalog</span>
+            </Link>
 
-          <Link
-            to="/chat"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-white/70 dark:bg-neutral-800/60 hover:bg-white dark:hover:bg-neutral-800 px-3.5 py-1.5 rounded-full border border-neutral-200/80 dark:border-neutral-700 backdrop-blur-md transition-all shadow-xs"
+            <Link
+              to="/chat"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-white/70 dark:bg-neutral-800/60 hover:bg-white dark:hover:bg-neutral-800 px-3.5 py-1.5 rounded-full border border-neutral-200/80 dark:border-neutral-700 backdrop-blur-md transition-all shadow-xs"
+            >
+              <MessageSquare className="size-3.5 text-amber-600" />
+              <span>Solar Assistant</span>
+            </Link>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="text-center mb-4 sm:mb-6"
           >
-            <MessageSquare className="size-3.5 text-amber-600" />
-            <span>Solar Assistant</span>
-          </Link>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-neutral-900 dark:text-white">
+              Solar Product Matcher
+            </h1>
+          </motion.div>
         </div>
 
-        {/* Minimal Hero Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-neutral-900 dark:text-white">
-            Solar Product Matcher
-          </h1>
-        </motion.div>
-
-        {/* Guided Flow View */}
+        {/* Guided Flow View - Centered and fills primary vertical space */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
+          className="my-auto py-2"
         >
           <PrototypeGuidedFlow
             criteria={criteria}
@@ -114,7 +116,7 @@ export default function MatchWizardPage() {
         </motion.div>
 
         {/* Bottom Context Banner */}
-        <div className="mt-8 p-4 rounded-2xl bg-white/70 dark:bg-neutral-900/60 backdrop-blur-xl border border-neutral-200/70 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500 shadow-xs">
+        <div className="mt-6 sm:mt-8 p-4 rounded-2xl bg-white/70 dark:bg-neutral-900/60 backdrop-blur-xl border border-neutral-200/70 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500 shadow-xs">
           <div className="flex items-center gap-2.5">
             <Info className="size-4 text-amber-600 shrink-0" />
             <span>

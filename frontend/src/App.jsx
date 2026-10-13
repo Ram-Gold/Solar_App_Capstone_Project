@@ -22,12 +22,14 @@ function AppLayout() {
   const isDashboardRoute = pathname.startsWith('/admin') || pathname.startsWith('/staff')
   const isLoginRoute = pathname === '/login'
   const isPortalRoute = pathname.startsWith('/portal')
+  const isMatchRoute = pathname.startsWith('/match')
+  const isChatRoute = pathname.startsWith('/chat')
   const showShell = !isLoginRoute
 
   return (
     <div className="flex flex-col min-h-screen">
       {showShell && <Navbar />}
-      <main className={isDashboardRoute ? 'flex-grow' : 'flex-grow'}>
+      <main className="flex-grow flex flex-col">
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/about" element={<AboutPage />} />
@@ -55,7 +57,7 @@ function AppLayout() {
           />
         </Routes>
       </main>
-      {showShell && !isDashboardRoute && !isPortalRoute && <Footer />}
+      {showShell && !isDashboardRoute && !isPortalRoute && !isMatchRoute && !isChatRoute && <Footer />}
       {showShell && pathname !== '/chat' && !isPortalRoute && <ChatWidget />}
     </div>
   )
