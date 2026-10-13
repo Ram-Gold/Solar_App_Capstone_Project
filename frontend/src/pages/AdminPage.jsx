@@ -11,6 +11,7 @@ import UsersScreen from '../components/admin/UsersScreen'
 import ProfileScreen from '../components/admin/ProfileScreen'
 import RegisterSaleScreen from '../components/admin/RegisterSaleScreen'
 import WarrantyClaimsScreen from '../components/admin/WarrantyClaimsScreen'
+import CustomersScreen from '../components/admin/CustomersScreen'
 
 const PickupsScreen = (props) => <QuotesScreen {...props} filterType="pickup" />
 const InquiriesScreen = (props) => <QuotesScreen {...props} filterType="inquiry" />
@@ -18,6 +19,7 @@ const InquiriesScreen = (props) => <QuotesScreen {...props} filterType="inquiry"
 const screens = {
   dashboard: DashboardScreen,
   'register-sale': RegisterSaleScreen,
+  customers: CustomersScreen,
   claims: WarrantyClaimsScreen,
   pickups: PickupsScreen,
   inquiries: InquiriesScreen,

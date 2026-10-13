@@ -10,6 +10,7 @@ import {
   ShoppingBag,
   QrCode,
   ShieldCheck,
+  UserCheck,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -17,6 +18,7 @@ import { useNavigate } from 'react-router-dom'
 const mainLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'register-sale', label: 'Register Sale & QR', icon: QrCode },
+  { id: 'customers', label: 'Customers & Tokens', icon: UserCheck },
   { id: 'claims', label: 'Warranty & Claims', icon: ShieldCheck },
   { id: 'pickups', label: 'Store Pickups', icon: ShoppingBag },
   { id: 'inquiries', label: 'Product Inquiries', icon: Ticket },

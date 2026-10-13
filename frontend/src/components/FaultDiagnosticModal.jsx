@@ -17,8 +17,7 @@ import {
   RefreshCw,
   Send,
   Sparkles,
-  Cpu,
-  Activity,
+  Wrench,
   Check,
   ChevronRight,
   Info,
@@ -45,7 +44,7 @@ export default function FaultDiagnosticModal({
   purchase,
   customerToken,
   onClaimSubmitted,
-  initialMode = 'assistant', // 'assistant' | 'claim' | 'scan'
+  initialMode = 'assistant', // 'assistant' | 'claim'
 }) {
   const [activeTab, setActiveTab] = useState(initialMode === 'claim' ? 'claim' : 'assistant')
   
@@ -53,7 +52,6 @@ export default function FaultDiagnosticModal({
   const [currentNodeKey, setCurrentNodeKey] = useState('ROOT')
   const [messages, setMessages] = useState([])
   const [userInput, setUserInput] = useState('')
-  const [isScanning, setIsScanning] = useState(false)
   const [currentDiagnosis, setCurrentDiagnosis] = useState(null)
   const chatScrollRef = useRef(null)
 
@@ -70,17 +68,15 @@ export default function FaultDiagnosticModal({
   useEffect(() => {
     if (!isOpen || !purchase) return
 
-    const startNodeKey = initialMode === 'scan' ? 'AUTO_TELEMETRY_SCAN' : 'ROOT'
-    const startNode = DIAGNOSTIC_TREE[startNodeKey] || DIAGNOSTIC_TREE.ROOT
+    const startNode = DIAGNOSTIC_TREE.ROOT
 
-    setCurrentNodeKey(startNodeKey)
+    setCurrentNodeKey('ROOT')
     setCurrentDiagnosis(null)
-    setIsScanning(initialMode === 'scan')
 
     const initialBotMessage = {
       id: 'msg-init',
       role: 'bot',
-      nodeKey: startNodeKey,
+      nodeKey: 'ROOT',
       content: stripEmojis(typeof startNode.message === 'function' ? startNode.message(purchase) : startNode.message),
       options: (startNode.options || []).map(o => ({ ...o, label: stripEmojis(o.label) })),
       diagnosis: startNode.faultCode ? startNode : null,
@@ -88,11 +84,6 @@ export default function FaultDiagnosticModal({
     }
 
     setMessages([initialBotMessage])
-
-    // If initial mode is scan, simulate automatic progress
-    if (initialMode === 'scan') {
-      simulateScan('AUTO_TELEMETRY_SCAN')
-    }
   }, [isOpen, purchase, initialMode])
 
   // Auto-scroll chat
@@ -100,33 +91,9 @@ export default function FaultDiagnosticModal({
     if (activeTab === 'assistant' && chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
     }
-  }, [messages, isScanning, activeTab])
+  }, [messages, activeTab])
 
   if (!isOpen || !purchase) return null
-
-  // Execute scan simulation
-  const simulateScan = (targetNodeKey) => {
-    setIsScanning(true)
-    setTimeout(() => {
-      setIsScanning(false)
-      const nextNode = DIAGNOSTIC_TREE.TELEMETRY_RESULT
-      setCurrentNodeKey('TELEMETRY_RESULT')
-      setCurrentDiagnosis(nextNode)
-
-      setMessages(prev => [
-        ...prev,
-        {
-          id: `msg-${Date.now()}`,
-          role: 'bot',
-          nodeKey: 'TELEMETRY_RESULT',
-          content: stripEmojis(typeof nextNode.message === 'function' ? nextNode.message(purchase) : nextNode.message),
-          options: (nextNode.options || []).map(o => ({ ...o, label: stripEmojis(o.label) })),
-          diagnosis: nextNode,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ])
-    }, 1400)
-  }
 
   // Handle selecting an option button
   const handleSelectOption = (opt) => {
@@ -146,13 +113,6 @@ export default function FaultDiagnosticModal({
     // Check if transferring to claim
     if (opt.next === 'TRANSFER_TO_CLAIM') {
       transferToClaim(opt.category)
-      return
-    }
-
-    // Check if triggering automated telemetry scan
-    if (opt.next === 'AUTO_TELEMETRY_SCAN') {
-      setMessages(prev => [...prev, userMsg])
-      simulateScan('AUTO_TELEMETRY_SCAN')
       return
     }
 
@@ -180,7 +140,7 @@ export default function FaultDiagnosticModal({
   const handleSendMessage = (e) => {
     e.preventDefault()
     const text = stripEmojis(userInput.trim())
-    if (!text || isScanning) return
+    if (!text) return
 
     const userMsg = {
       id: `usr-${Date.now()}`,
@@ -220,25 +180,25 @@ export default function FaultDiagnosticModal({
 
     let prefill = ''
     if (currentDiagnosis) {
-      prefill = `[AUTO-DIAGNOSTIC TRIAGE REPORT]
+      prefill = `[TROUBLESHOOTING TRIAGE REPORT]
 Fault Code: ${currentDiagnosis.faultCode || 'N/A'}
 Diagnosis: ${currentDiagnosis.title || 'Reported Fault'}
 Severity: ${currentDiagnosis.severityLabel || 'Standard Inspection'}
-Confidence: ${currentDiagnosis.confidence || 'Automated Analysis'}
+Confidence: ${currentDiagnosis.confidence || 'Symptom-Based Analysis'}
 
-Telemetry Readings:
-- PV Yield: ${currentDiagnosis.telemetry?.pvEfficiency || 'Nominal'}
-- Panel Voc: ${currentDiagnosis.telemetry?.panelVoltage || 'Nominal'}
+Technical Assessment & Observed Symptoms:
+- PV State: ${currentDiagnosis.telemetry?.pvEfficiency || 'Nominal'}
+- Panel Circuit: ${currentDiagnosis.telemetry?.panelVoltage || 'Nominal'}
 - Battery State: ${currentDiagnosis.telemetry?.batteryVoltage || 'Nominal'}
 - Enclosure Seal: ${currentDiagnosis.telemetry?.ipIntegrity || 'Nominal'}
 
 Observed Notes:
-Unit was triaged using JD Solar Auto-Diagnostic Engine. Hardware inspection or module exchange requested under registered warranty.`
+Unit was triaged using the JD Solar Troubleshooting Guide based on physical symptoms. Hardware inspection or shop service requested under registered warranty.`
     } else {
-      prefill = `[AUTO-DIAGNOSTIC REPORT]
+      prefill = `[TROUBLESHOOTING CLAIM REPORT]
 Product: ${purchase.product_name}
 Serial #: ${purchase.serial_number || 'N/A'}
-Customer completed auto-diagnostic triage and requested technician review.`
+Customer completed troubleshooting steps and submitted for technician review.`
     }
 
     setDescription(prefill)
@@ -250,7 +210,6 @@ Customer completed auto-diagnostic triage and requested technician review.`
     const root = DIAGNOSTIC_TREE.ROOT
     setCurrentNodeKey('ROOT')
     setCurrentDiagnosis(null)
-    setIsScanning(false)
     setMessages([
       {
         id: `msg-${Date.now()}`,
@@ -336,20 +295,16 @@ Customer completed auto-diagnostic triage and requested technician review.`
         <div className="p-4 md:p-5 border-b border-jds-outline-variant/30 flex items-center justify-between bg-jds-surface-container-low shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-jds-primary/10 flex items-center justify-center text-jds-primary shadow-sm">
-              <Cpu className="w-5 h-5" />
+              <Wrench className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm md:text-base font-bold text-jds-on-surface">
-                  Solar Auto-Diagnostic System
+                  Solar Troubleshooting & Claims
                 </h2>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Decision-Tree AI
-                </span>
               </div>
               <p className="text-[11px] md:text-xs text-jds-on-surface-variant truncate max-w-xs md:max-w-md">
-                Triage for: <strong className="text-jds-on-surface font-semibold">{purchase.product_name}</strong>
+                Troubleshooting for: <strong className="text-jds-on-surface font-semibold">{purchase.product_name}</strong>
               </p>
             </div>
           </div>
@@ -358,7 +313,7 @@ Customer completed auto-diagnostic triage and requested technician review.`
             {activeTab === 'assistant' && (
               <button
                 onClick={handleResetChat}
-                title="Restart Diagnostics"
+                title="Restart Troubleshooting"
                 className="p-1.5 text-jds-on-surface-variant hover:text-jds-primary rounded-lg hover:bg-jds-surface-container transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -385,7 +340,7 @@ Customer completed auto-diagnostic triage and requested technician review.`
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Auto-Diagnostic Guide</span>
+            <span>Troubleshooting Guide</span>
           </button>
 
           <button
@@ -398,7 +353,7 @@ Customer completed auto-diagnostic triage and requested technician review.`
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Official Warranty Claim</span>
+            <span>File Manual Claim</span>
             {currentDiagnosis && (
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
             )}
@@ -455,7 +410,7 @@ Customer completed auto-diagnostic triage and requested technician review.`
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                       </div>
 
-                      {/* Diagnostic Verdict & Telemetry Box */}
+                      {/* Diagnostic Verdict & Technical Assessment Box */}
                       {isBot && msg.diagnosis && msg.diagnosis.telemetry && (
                         <div className="mt-3.5 p-3.5 rounded-xl bg-jds-surface border border-jds-outline-variant/40 space-y-3">
                           <div className="flex items-center justify-between">
@@ -473,10 +428,10 @@ Customer completed auto-diagnostic triage and requested technician review.`
                             </span>
                           </div>
 
-                          {/* Telemetry Metrics Grid */}
+                          {/* Technical Assessment Benchmarks Grid */}
                           <div className="grid grid-cols-2 gap-2 text-[10px]">
                             <div className="p-2 rounded-lg bg-jds-surface-container/50 border border-jds-outline-variant/20">
-                              <span className="text-jds-on-surface-variant block">PV Voltage / Yield:</span>
+                              <span className="text-jds-on-surface-variant block">PV Circuit / Irradiance:</span>
                               <strong className="text-jds-on-surface font-semibold">{msg.diagnosis.telemetry.pvEfficiency}</strong>
                             </div>
                             <div className="p-2 rounded-lg bg-jds-surface-container/50 border border-jds-outline-variant/20">
@@ -484,11 +439,11 @@ Customer completed auto-diagnostic triage and requested technician review.`
                               <strong className="text-jds-on-surface font-semibold">{msg.diagnosis.telemetry.batteryVoltage}</strong>
                             </div>
                             <div className="p-2 rounded-lg bg-jds-surface-container/50 border border-jds-outline-variant/20">
-                              <span className="text-jds-on-surface-variant block">BMS Circuit State:</span>
+                              <span className="text-jds-on-surface-variant block">Controller / BMS:</span>
                               <strong className="text-jds-on-surface font-semibold">{msg.diagnosis.telemetry.bmsState}</strong>
                             </div>
                             <div className="p-2 rounded-lg bg-jds-surface-container/50 border border-jds-outline-variant/20">
-                              <span className="text-jds-on-surface-variant block">Weatherproof Seal:</span>
+                              <span className="text-jds-on-surface-variant block">Enclosure Seal:</span>
                               <strong className="text-jds-on-surface font-semibold">{msg.diagnosis.telemetry.ipIntegrity}</strong>
                             </div>
                           </div>
@@ -505,7 +460,7 @@ Customer completed auto-diagnostic triage and requested technician review.`
                                 key={optIdx}
                                 type="button"
                                 onClick={() => handleSelectOption(opt)}
-                                disabled={isScanning || !isLatestBot}
+                                disabled={!isLatestBot}
                                 className={`text-left inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                                   !isLatestBot
                                     ? 'bg-jds-surface-container/50 text-jds-on-surface-variant/60 border border-transparent cursor-default'
@@ -529,23 +484,6 @@ Customer completed auto-diagnostic triage and requested technician review.`
                   </div>
                 )
               })}
-
-              {/* Scanning Telemetry Pulse Animation */}
-              {isScanning && (
-                <div className="p-4 rounded-2xl bg-jds-surface-container-low border border-jds-primary/30 space-y-3 animate-in fade-in max-w-[85%]">
-                  <div className="flex items-center gap-2 text-jds-primary font-bold text-xs">
-                    <Activity className="w-4 h-4 animate-spin text-jds-primary" />
-                    <span>Analyzing Photovoltaic & Battery Telemetry...</span>
-                  </div>
-                  <div className="w-full bg-jds-surface-container rounded-full h-2 overflow-hidden">
-                    <div className="bg-jds-primary h-2 rounded-full animate-pulse w-3/4" />
-                  </div>
-                  <div className="text-[11px] text-jds-on-surface-variant flex justify-between">
-                    <span>Reading Voc & LiFePO4 Cutoff Thresholds...</span>
-                    <span className="font-mono text-jds-primary font-bold">Scanning</span>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Bottom Input & Quick Actions */}
@@ -555,13 +493,12 @@ Customer completed auto-diagnostic triage and requested technician review.`
                   type="text"
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
-                  placeholder="Ask a question or describe what's happening (e.g. 'won't charge', 'dies after 2 hours')..."
-                  disabled={isScanning}
+                  placeholder="Describe observed symptoms (e.g. 'won't charge', 'dies after 2 hours')..."
                   className="flex-1 bg-jds-surface rounded-xl px-3.5 py-2 text-xs text-jds-on-surface border border-jds-outline-variant/50 focus:border-jds-primary focus:outline-none placeholder:text-jds-on-surface-variant/50 transition-colors"
                 />
                 <button
                   type="submit"
-                  disabled={isScanning || !userInput.trim()}
+                  disabled={!userInput.trim()}
                   className="p-2.5 bg-jds-primary text-jds-on-primary rounded-xl disabled:opacity-40 hover:bg-jds-primary/90 transition-colors shadow-sm"
                   aria-label="Send"
                 >
@@ -571,15 +508,15 @@ Customer completed auto-diagnostic triage and requested technician review.`
 
               <div className="flex items-center justify-between mt-2 px-1 text-[10px] text-jds-on-surface-variant">
                 <span className="flex items-center gap-1.5">
-                  <Cpu className="w-3 h-3 text-jds-primary" />
-                  Automated Solar Diagnostic Engine
+                  <Wrench className="w-3 h-3 text-jds-primary" />
+                  Symptom-Based Troubleshooting
                 </span>
                 <button
                   type="button"
                   onClick={() => transferToClaim()}
                   className="hover:underline text-jds-primary font-semibold flex items-center gap-1"
                 >
-                  <span>Skip to Manual Claim</span>
+                  <span>File Manual Claim Directly</span>
                   <ChevronRight className="w-3 h-3" />
                 </button>
               </div>
@@ -624,16 +561,16 @@ Customer completed auto-diagnostic triage and requested technician review.`
             ) : (
               <form onSubmit={handleSubmitClaim} className="space-y-4">
                 
-                {/* Auto-Triage Handoff Banner */}
+                {/* Troubleshooting Handoff Banner */}
                 {currentDiagnosis && (
                   <div className="p-3.5 rounded-xl bg-jds-primary/10 border border-jds-primary/30 text-xs flex items-start gap-2.5">
                     <Sparkles className="w-4 h-4 text-jds-primary shrink-0 mt-0.5" />
                     <div>
                       <strong className="text-jds-on-surface block font-semibold">
-                        Auto-Diagnostic Findings Pre-Populated
+                        Troubleshooting Findings Pre-Populated
                       </strong>
                       <span className="text-[11px] text-jds-on-surface-variant">
-                        Diagnosed as: <strong>{currentDiagnosis.title}</strong> ({currentDiagnosis.severityLabel}). All telemetry readings and technical descriptions have been mapped below.
+                        Diagnosed as: <strong>{currentDiagnosis.title}</strong> ({currentDiagnosis.severityLabel}). Technical findings and observed symptoms have been mapped below.
                       </span>
                     </div>
                   </div>
@@ -763,7 +700,7 @@ Customer completed auto-diagnostic triage and requested technician review.`
                     onClick={() => setActiveTab('assistant')}
                     className="px-4 py-2 text-xs font-medium text-jds-on-surface-variant hover:text-jds-on-surface rounded-xl transition-colors"
                   >
-                    Back to Assistant
+                    Back to Troubleshooting Guide
                   </button>
                   <button
                     type="submit"
@@ -773,12 +710,12 @@ Customer completed auto-diagnostic triage and requested technician review.`
                     {isUploading ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Submitting Diagnostic Ticket...
+                        Submitting Claim Ticket...
                       </>
                     ) : (
                       <>
                         <ShieldCheck className="w-3.5 h-3.5" />
-                        Submit Official Claim Ticket
+                        Submit Warranty Claim Ticket
                       </>
                     )}
                   </button>

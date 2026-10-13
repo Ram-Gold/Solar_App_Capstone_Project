@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import { loginCustomerWithPassword } from '../lib/customerService'
 import { motion } from 'framer-motion'
 import {
   HiOutlineEnvelope,
@@ -17,7 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [remember, setRemember] = useState(false)
-  const { signIn } = useAuth()
+  const { signIn, setCustomerSession } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
@@ -26,6 +27,20 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      // 1. First attempt customer login via customer authentication
+      const custRes = await loginCustomerWithPassword(email, password)
+      if (custRes?.token) {
+        if (setCustomerSession) {
+          setCustomerSession(custRes.token, email.trim().toLowerCase())
+        } else {
+          localStorage.setItem('jd_customer_token', custRes.token)
+          localStorage.setItem('jd_customer_email', email.trim().toLowerCase())
+        }
+        navigate(`/portal?token=${custRes.token}`)
+        return
+      }
+
+      // 2. Otherwise attempt Supabase staff/admin authentication
       const { data, error } = await signIn(email, password)
       if (error) {
         setError(error.message)
@@ -36,9 +51,19 @@ export default function LoginPage() {
           const { data: adminRow } = await supabase.from('admins').select('id').eq('id', userId).maybeSingle()
           if (adminRow) {
             navigate('/admin')
-          } else {
-            navigate('/staff')
+            return
           }
+
+          // Check if user is a customer linked to auth.users
+          const { data: custRow } = await supabase.from('customers').select('access_token').eq('id', userId).maybeSingle()
+          if (custRow?.access_token) {
+            localStorage.setItem('jd_customer_token', custRow.access_token)
+            navigate(`/portal?token=${custRow.access_token}`)
+            return
+          }
+
+          // Otherwise default to staff dashboard
+          navigate('/staff')
         } else {
           navigate('/admin')
         }
@@ -81,9 +106,9 @@ export default function LoginPage() {
           <div className="bg-jds-surface-container-lowest border border-jds-outline-variant/30 rounded-xl p-10 shadow-[0px_4px_12px_rgba(0,0,0,0.05)]">
             {/* Card Header */}
             <div className="text-center mb-10">
-              <h1 className="text-headline-lg text-jds-on-surface mb-2">Staff Login</h1>
+              <h1 className="text-headline-lg text-jds-on-surface mb-2">Portal Login</h1>
               <p className="text-body-md text-jds-on-surface-variant">
-                Access the internal solar management dashboard.
+                Access your solar dashboard, warranties, or staff panel.
               </p>
             </div>
 

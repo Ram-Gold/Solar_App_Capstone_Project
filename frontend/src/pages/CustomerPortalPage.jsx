@@ -17,16 +17,24 @@ import {
   Store,
   ChevronRight,
   Info,
-  Cpu,
   Sparkles,
-  Activity
+  KeyRound,
+  Lock,
+  Mail,
+  Check
 } from 'lucide-react'
-import { fetchCustomerPortalData } from '../lib/customerService'
+import {
+  fetchCustomerPortalData,
+  getCustomerAuthStatus,
+  setCustomerPassword
+} from '../lib/customerService'
 import { formatDate, formatRemainingText, getClaimStatusMeta } from '../lib/warrantyUtils'
 import FaultDiagnosticModal from '../components/FaultDiagnosticModal'
+import { useAuth } from '../context/AuthContext'
 
 export default function CustomerPortalPage() {
   const [searchParams] = useSearchParams()
+  const { setCustomerSession } = useAuth()
   const [token, setToken] = useState(() => {
     const urlToken = searchParams.get('token')
     if (urlToken) {
@@ -47,6 +55,17 @@ export default function CustomerPortalPage() {
   const [diagnosticMode, setDiagnosticMode] = useState('assistant')
   const [manualTokenInput, setManualTokenInput] = useState('')
 
+  // Password & Security Management States
+  const [authStatus, setAuthStatus] = useState({ hasPassword: false, email: null })
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
+  const [pwdEmail, setPwdEmail] = useState('')
+  const [pwdNew, setPwdNew] = useState('')
+  const [pwdConfirm, setPwdConfirm] = useState('')
+  const [pwdCurrent, setPwdCurrent] = useState('')
+  const [pwdLoading, setPwdLoading] = useState(false)
+  const [pwdError, setPwdError] = useState(null)
+  const [pwdSuccess, setPwdSuccess] = useState(null)
+
   const loadData = async (activeToken) => {
     if (!activeToken) {
       setLoading(false)
@@ -60,6 +79,13 @@ export default function CustomerPortalPage() {
       if (fetchErr) throw fetchErr
       if (!data) throw new Error('Customer account not found.')
       setPortalData(data)
+
+      // Fetch password & auth status
+      const authInfo = await getCustomerAuthStatus(activeToken)
+      setAuthStatus(authInfo)
+      if (authInfo?.email) {
+        setPwdEmail(authInfo.email)
+      }
     } catch (err) {
       console.error('Portal load failed:', err)
       setError(err.message || 'Failed to retrieve your customer dashboard.')
@@ -86,6 +112,52 @@ export default function CustomerPortalPage() {
 
   const handleClaimSubmitted = () => {
     if (token) loadData(token)
+  }
+
+  const handleSavePassword = async (e) => {
+    e.preventDefault()
+    setPwdError(null)
+    setPwdSuccess(null)
+
+    if (!pwdEmail.trim() || !pwdEmail.includes('@')) {
+      setPwdError('Please enter a valid email address.')
+      return
+    }
+    if (!pwdNew || pwdNew.length < 6) {
+      setPwdError('Password must be at least 6 characters.')
+      return
+    }
+    if (pwdNew !== pwdConfirm) {
+      setPwdError('New password and confirmation do not match.')
+      return
+    }
+
+    try {
+      setPwdLoading(true)
+      const res = await setCustomerPassword({
+        token,
+        email: pwdEmail.trim(),
+        password: pwdNew,
+        currentPassword: authStatus.hasPassword ? pwdCurrent : null
+      })
+
+      setPwdSuccess(res.message || 'Account password updated successfully.')
+      setAuthStatus({ hasPassword: true, email: pwdEmail.trim().toLowerCase() })
+      if (setCustomerSession) {
+        setCustomerSession(token, pwdEmail.trim().toLowerCase())
+      }
+      setPwdNew('')
+      setPwdConfirm('')
+      setPwdCurrent('')
+      setTimeout(() => {
+        setIsPasswordModalOpen(false)
+        setPwdSuccess(null)
+      }, 1500)
+    } catch (err) {
+      setPwdError(err.message || 'Failed to save password.')
+    } finally {
+      setPwdLoading(false)
+    }
   }
 
   // 1. NO TOKEN SCREEN
@@ -171,12 +243,6 @@ export default function CustomerPortalPage() {
       {/* Top Banner & Customer Header */}
       <div className="bg-jds-surface border-b border-jds-outline-variant/30 px-4 py-6 md:px-8">
         <div className="max-w-4xl mx-auto space-y-4">
-          
-          {/* Quick Bookmark Reminder Pill */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-jds-primary/10 text-jds-primary text-[11px] font-semibold border border-jds-primary/20">
-            <Bookmark className="w-3.5 h-3.5" />
-            <span>Bookmark this link on your mobile browser for anytime access</span>
-          </div>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -191,13 +257,27 @@ export default function CustomerPortalPage() {
               </p>
             </div>
 
-            <button
-              onClick={() => loadData(token)}
-              className="self-start md:self-auto px-3.5 py-1.5 rounded-xl bg-jds-surface-container/60 border border-jds-outline-variant/40 hover:bg-jds-surface-container text-xs font-medium text-jds-on-surface flex items-center gap-1.5 transition-colors"
-            >
-              <RefreshCw className="w-3 h-3" />
-              Refresh Status
-            </button>
+            <div className="flex items-center gap-2 self-start md:self-auto">
+              <button
+                onClick={() => {
+                  setPwdError(null)
+                  setPwdSuccess(null)
+                  setIsPasswordModalOpen(true)
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-jds-primary/10 hover:bg-jds-primary/20 border border-jds-primary/30 text-xs font-semibold text-jds-primary flex items-center gap-1.5 transition-colors"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                {authStatus.hasPassword ? 'Change Password' : 'Set Password'}
+              </button>
+
+              <button
+                onClick={() => loadData(token)}
+                className="px-3.5 py-1.5 rounded-xl bg-jds-surface-container/60 border border-jds-outline-variant/40 hover:bg-jds-surface-container text-xs font-medium text-jds-on-surface flex items-center gap-1.5 transition-colors"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Refresh Status
+              </button>
+            </div>
           </div>
 
           {/* Quick Metrics Bar */}
@@ -304,21 +384,17 @@ export default function CustomerPortalPage() {
                       </div>
                     </div>
 
-                    {/* Auto-Diagnostic System Bar */}
+                    {/* Troubleshooting & Claim Actions */}
                     <div className="p-3.5 rounded-xl bg-gradient-to-br from-jds-surface-container/60 via-jds-surface-container-low to-jds-surface border border-jds-primary/20 space-y-2.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 font-bold text-xs text-jds-on-surface">
-                          <Cpu className="w-3.5 h-3.5 text-jds-primary" />
-                          <span>Auto-Diagnostic System</span>
+                          <Wrench className="w-3.5 h-3.5 text-jds-primary" />
+                          <span>Troubleshooting & Claims</span>
                         </div>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Decision-Tree Ready
-                        </span>
                       </div>
 
                       <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
-                        Automated triage for PV panel soiling, LiFePO4 battery BMS cutoff, sensor errors & hardware defects.
+                        Follow step-by-step troubleshooting based on observed symptoms, or directly file a warranty claim for shop repair.
                       </p>
 
                       <div className="grid grid-cols-2 gap-2 pt-0.5">
@@ -331,39 +407,27 @@ export default function CustomerPortalPage() {
                           className="py-2 px-2.5 rounded-xl bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
                         >
                           <Sparkles className="w-3.5 h-3.5" />
-                          <span>Run Triage</span>
+                          <span>Troubleshoot</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => {
                             setSelectedPurchaseForClaim(p)
-                            setDiagnosticMode('scan')
+                            setDiagnosticMode('claim')
                           }}
                           className="py-2 px-2.5 rounded-xl bg-jds-surface border border-jds-outline-variant/60 hover:bg-jds-surface-container hover:border-jds-primary/40 text-xs font-semibold text-jds-on-surface transition-all flex items-center justify-center gap-1.5 active:scale-95"
                         >
-                          <Activity className="w-3.5 h-3.5 text-jds-primary" />
-                          <span>Quick Scan</span>
+                          <Wrench className="w-3.5 h-3.5 text-jds-primary" />
+                          <span>File Manual Claim</span>
                         </button>
                       </div>
                     </div>
 
-                    {/* Direct Claim Link */}
-                    <div className="flex items-center justify-between text-[11px] pt-1 border-t border-jds-outline-variant/20">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedPurchaseForClaim(p)
-                          setDiagnosticMode('claim')
-                        }}
-                        className="hover:underline text-jds-on-surface-variant hover:text-jds-primary font-medium flex items-center gap-1 transition-colors"
-                      >
-                        <Wrench className="w-3 h-3 text-jds-primary" />
-                        <span>File Manual Claim</span>
-                      </button>
-                      <span className="text-[10px] text-jds-on-surface-variant/70">
-                        Coverage: {p.warranty_months || 12} Mos
-                      </span>
+                    {/* Hardware & Coverage Summary Footer */}
+                    <div className="flex items-center justify-between text-[11px] pt-1 border-t border-jds-outline-variant/20 text-jds-on-surface-variant">
+                      <span>Serial #: <strong className="font-mono text-jds-on-surface">{p.serial_number || 'N/A'}</strong></span>
+                      <span>Warranty: <strong>{p.warranty_months || 12} Months</strong></span>
                     </div>
                   </div>
                 )
@@ -443,6 +507,43 @@ export default function CustomerPortalPage() {
           )}
         </div>
 
+        {/* Account Security & Password Status Card */}
+        <div className="p-6 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center shrink-0 mt-0.5">
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-jds-on-surface">Account Password & Security</h3>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                  authStatus.hasPassword
+                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                    : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                }`}>
+                  {authStatus.hasPassword ? 'Password Enabled' : 'Token Only'}
+                </span>
+              </div>
+              <p className="text-xs text-jds-on-surface-variant max-w-xl">
+                {authStatus.hasPassword
+                  ? `Linked login email: ${authStatus.email}. You can sign in via email & password on the main portal login page.`
+                  : 'You are currently accessing this portal via token or QR scan. Set a password to sign in via email & password anytime.'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              setPwdError(null)
+              setPwdSuccess(null)
+              setIsPasswordModalOpen(true)
+            }}
+            className="px-4 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 transition-all shrink-0 shadow-sm"
+          >
+            {authStatus.hasPassword ? 'Change Password' : 'Set Up Password'}
+          </button>
+        </div>
+
         {/* Branch Support & Assistance Footer Card */}
         <div className="p-6 rounded-2xl bg-jds-surface-container/40 border border-jds-outline-variant/30 text-xs space-y-3">
           <div className="flex items-center gap-2 font-bold text-sm text-jds-on-surface">
@@ -464,6 +565,128 @@ export default function CustomerPortalPage() {
         </div>
 
       </div>
+
+      {/* Password Management Modal */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+            <div className="flex items-center justify-between border-b border-jds-outline-variant/20 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-jds-primary/10 text-jds-primary flex items-center justify-center">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-jds-on-surface">
+                    {authStatus.hasPassword ? 'Change Account Password' : 'Set Account Password'}
+                  </h3>
+                  <p className="text-[11px] text-jds-on-surface-variant">
+                    Manage credentials to log in via email and password
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="w-7 h-7 rounded-lg hover:bg-jds-surface-container flex items-center justify-center text-jds-on-surface-variant"
+              >
+                ✕
+              </button>
+            </div>
+
+            {pwdError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-500 font-medium">
+                {pwdError}
+              </div>
+            )}
+
+            {pwdSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-500 font-medium flex items-center gap-2">
+                <Check className="w-4 h-4" />
+                <span>{pwdSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSavePassword} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-jds-on-surface-variant" />
+                  Account Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. yourname@gmail.com"
+                  value={pwdEmail}
+                  onChange={(e) => setPwdEmail(e.target.value)}
+                  className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                />
+              </div>
+
+              {authStatus.hasPassword && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-jds-on-surface-variant" />
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Enter current password"
+                    value={pwdCurrent}
+                    onChange={(e) => setPwdCurrent(e.target.value)}
+                    className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-jds-on-surface-variant" />
+                  {authStatus.hasPassword ? 'New Password' : 'Create Password'}
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Minimum 6 characters"
+                  value={pwdNew}
+                  onChange={(e) => setPwdNew(e.target.value)}
+                  className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-jds-on-surface-variant" />
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Re-enter password"
+                  value={pwdConfirm}
+                  onChange={(e) => setPwdConfirm(e.target.value)}
+                  className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-jds-outline-variant/20">
+                <button
+                  type="button"
+                  onClick={() => setIsPasswordModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-jds-surface-container/70 border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={pwdLoading}
+                  className="px-5 py-2 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-bold hover:bg-jds-primary/90 transition-all disabled:opacity-60 shadow-sm"
+                >
+                  {pwdLoading ? 'Saving...' : 'Save Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Fault Diagnostic Modal */}
       {selectedPurchaseForClaim && (

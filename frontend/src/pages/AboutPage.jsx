@@ -349,9 +349,6 @@ export default function AboutPage() {
             whileInView="visible"
             viewport={{ once: true }}
           >
-            <span className="text-label-md text-jds-secondary uppercase tracking-[0.2em] font-semibold mb-2 block">
-              Strategic Blueprint
-            </span>
             <h2 className="text-headline-lg text-jds-on-surface font-bold">
               Vision, Mission, and Values
             </h2>
@@ -372,9 +369,6 @@ export default function AboutPage() {
             >
               {/* Vision Card */}
               <div className="bg-jds-surface p-8 rounded-2xl border border-jds-outline-variant/40 shadow-sm relative group hover:border-jds-secondary/40 transition-all duration-300">
-                <div className="absolute top-0 right-8 transform -translate-y-1/2 bg-jds-secondary text-white w-12 h-12 rounded-xl flex items-center justify-center shadow-md">
-                  <HiOutlineSparkles className="text-2xl" />
-                </div>
                 <h3 className="text-headline-md text-jds-on-surface font-bold mb-4">Vision</h3>
                 <p className="text-body-lg text-jds-on-surface-variant leading-relaxed">
                   To be a leading provider of accessible, sustainable solar energy solutions across the Philippines, 
@@ -385,9 +379,6 @@ export default function AboutPage() {
 
               {/* Mission Card */}
               <div className="bg-jds-surface p-8 rounded-2xl border border-jds-outline-variant/40 shadow-sm relative group hover:border-jds-primary/40 transition-all duration-300">
-                <div className="absolute top-0 right-8 transform -translate-y-1/2 bg-jds-primary text-white w-12 h-12 rounded-xl flex items-center justify-center shadow-md">
-                  <HiOutlineBolt className="text-2xl" />
-                </div>
                 <h3 className="text-headline-md text-jds-on-surface font-bold mb-4">Mission</h3>
                 <p className="text-body-lg text-jds-on-surface-variant leading-relaxed">
                   To deliver affordable and essential solar energy products through innovative online operations and 

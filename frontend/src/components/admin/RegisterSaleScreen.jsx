@@ -13,13 +13,16 @@ import {
   User,
   Package,
   Calendar,
-  Sparkles
+  Sparkles,
+  Users
 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { searchCustomerByPhone, registerCustomerAndSale } from '../../lib/customerService'
 import QRReceiptModal from './QRReceiptModal'
+import CustomersScreen from './CustomersScreen'
 
-export default function RegisterSaleScreen() {
+export default function RegisterSaleScreen({ onNavigate }) {
+  const [activeTab, setActiveTab] = useState('register') // 'register' | 'customers'
   const [phoneNumber, setPhoneNumber] = useState('')
   const [fullName, setFullName] = useState('')
   const [branchLocation, setBranchLocation] = useState('Cavite')
@@ -196,8 +199,70 @@ export default function RegisterSaleScreen() {
     }
   }
 
+  const handleSelectCustomerForSale = (customer) => {
+    setPhoneNumber(customer.phone_number || '')
+    setFullName(customer.full_name || '')
+    setIsReturningCustomer(true)
+    setExistingCustomerRecord(customer)
+    setActiveTab('register')
+  }
+
+  if (activeTab === 'customers') {
+    return (
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between pb-2">
+          <div className="flex items-center gap-2 p-1 bg-jds-surface border border-jds-outline-variant/30 rounded-xl shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setActiveTab('register')}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-jds-on-surface-variant hover:text-jds-on-surface transition-all"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>Register In-Store Sale</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('customers')}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-jds-primary/10 text-jds-primary transition-all"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Customer Directory & Tokens</span>
+            </button>
+          </div>
+        </div>
+
+        <CustomersScreen
+          onNavigate={onNavigate}
+          onSelectCustomerForSale={handleSelectCustomerForSale}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
+      {/* Tab Switcher */}
+      <div className="flex items-center justify-between pb-2">
+        <div className="flex items-center gap-2 p-1 bg-jds-surface border border-jds-outline-variant/30 rounded-xl shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setActiveTab('register')}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-jds-primary/10 text-jds-primary transition-all"
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span>Register In-Store Sale</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('customers')}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-jds-on-surface-variant hover:text-jds-on-surface transition-all"
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Customer Directory & Tokens</span>
+          </button>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-jds-outline-variant/30">
         <div>

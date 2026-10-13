@@ -34,6 +34,24 @@ export const AuthProvider = ({ children }) => {
         return 'staff'
       }
 
+      // Check customer accounts by auth user id if table/column exists
+      try {
+        const { data: custData, error: custErr } = await supabase
+          .from('customers')
+          .select('id, access_token')
+          .eq('id', userId)
+          .maybeSingle()
+
+        if (!custErr && custData) {
+          if (custData.access_token) {
+            localStorage.setItem('jd_customer_token', custData.access_token)
+          }
+          return 'customer'
+        }
+      } catch (cErr) {
+        console.warn('Customer role check ignored:', cErr)
+      }
+
       console.warn('User not found in admins or staff tables')
       return 'staff' // Default fallback
     } catch (err) {
@@ -50,9 +68,9 @@ export const AuthProvider = ({ children }) => {
       if (!mounted) return
       
       const currentUser = session?.user ?? null
-      setUser(currentUser)
       
       if (currentUser) {
+        setUser(currentUser)
         setLoading(true)
         const userRole = await fetchRole(currentUser.id)
         if (mounted) {
@@ -60,7 +78,15 @@ export const AuthProvider = ({ children }) => {
           setLoading(false)
         }
       } else {
-        if (mounted) {
+        // Check if there is an active logged-in customer token in localStorage
+        const custToken = localStorage.getItem('jd_customer_token')
+        const custEmail = localStorage.getItem('jd_customer_email')
+        if (custToken) {
+          setUser({ id: custToken, email: custEmail || 'customer@account.local', isCustomer: true })
+          setRole('customer')
+          setLoading(false)
+        } else {
+          setUser(null)
           setRole(null)
           setLoading(false)
         }
@@ -72,6 +98,24 @@ export const AuthProvider = ({ children }) => {
       updateAuthState(session)
     })
 
+    // Custom event listener for customer direct login/logout events
+    const handleCustomerSessionChange = () => {
+      if (!mounted) return
+      const custToken = localStorage.getItem('jd_customer_token')
+      const custEmail = localStorage.getItem('jd_customer_email')
+      if (custToken) {
+        setUser({ id: custToken, email: custEmail || 'customer@account.local', isCustomer: true })
+        setRole('customer')
+        setLoading(false)
+      } else {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          updateAuthState(session)
+        })
+      }
+    }
+
+    window.addEventListener('jd_customer_auth_change', handleCustomerSessionChange)
+
     // Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('AuthProvider: Auth state changed:', _event)
@@ -80,6 +124,7 @@ export const AuthProvider = ({ children }) => {
 
     return () => {
       mounted = false
+      window.removeEventListener('jd_customer_auth_change', handleCustomerSessionChange)
       subscription.unsubscribe()
     }
   }, [])
@@ -87,12 +132,29 @@ export const AuthProvider = ({ children }) => {
   const handleSignOut = async () => {
     try {
       setLoading(true)
+      // Clear customer local session
+      localStorage.removeItem('jd_customer_token')
+      localStorage.removeItem('jd_customer_email')
+      window.dispatchEvent(new Event('jd_customer_auth_change'))
       await supabase.auth.signOut()
     } catch (err) {
       console.error('Sign out error:', err)
     } finally {
+      setUser(null)
+      setRole(null)
       setLoading(false)
     }
+  }
+
+  const setCustomerSession = (token, email) => {
+    if (token) {
+      localStorage.setItem('jd_customer_token', token)
+      if (email) localStorage.setItem('jd_customer_email', email)
+    } else {
+      localStorage.removeItem('jd_customer_token')
+      localStorage.removeItem('jd_customer_email')
+    }
+    window.dispatchEvent(new Event('jd_customer_auth_change'))
   }
 
   const value = useMemo(() => ({
@@ -100,7 +162,8 @@ export const AuthProvider = ({ children }) => {
     role,
     loading,
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
-    signOut: handleSignOut
+    signOut: handleSignOut,
+    setCustomerSession
   }), [user, role, loading])
 
   console.log('AuthProvider: Rendering, user=', user?.id, 'role=', role, 'loading=', loading)

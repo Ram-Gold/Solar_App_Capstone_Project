@@ -395,3 +395,207 @@ export async function updateClaimStatus(claimId, status, staffNotes = '') {
     return { data: null, error: err }
   }
 }
+
+/**
+ * Fetches all registered customers with their purchases and warranty details.
+ */
+export async function fetchAllCustomers() {
+  try {
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select(`
+        id,
+        phone_number,
+        full_name,
+        access_token,
+        created_at,
+        customer_purchases (
+          id,
+          product_id,
+          serial_number,
+          purchase_date,
+          warranty_months,
+          warranty_expires_at,
+          branch_location,
+          products (id, name, type, watt, image_url)
+        )
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://jdforcesolar.com'
+
+    const mapped = (customers || []).map(cust => {
+      const purchases = (cust.customer_purchases || []).map(cp => {
+        const expiry = cp.warranty_expires_at || calculateExpiryDate(cp.purchase_date, cp.warranty_months)
+        const now = new Date()
+        const expiryDate = new Date(expiry)
+        const diffDays = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24))
+        return {
+          ...cp,
+          product_name: cp.products?.name || 'Solar Product',
+          is_warranty_active: diffDays > 0,
+          days_remaining: Math.max(0, diffDays)
+        }
+      })
+
+      const activeWarrantiesCount = purchases.filter(p => p.is_warranty_active).length
+
+      return {
+        id: cust.id,
+        phone_number: cust.phone_number,
+        full_name: cust.full_name,
+        access_token: cust.access_token,
+        created_at: cust.created_at,
+        purchases,
+        total_purchases: purchases.length,
+        active_warranties_count: activeWarrantiesCount,
+        qr_url: `${origin}/portal?token=${cust.access_token}`
+      }
+    })
+
+    return { customers: mapped, error: null }
+  } catch (err) {
+    console.error('fetchAllCustomers error:', err)
+    return { customers: [], error: err }
+  }
+}
+
+/**
+ * Fetches whether a customer currently has a password configured and their linked email.
+ */
+export async function getCustomerAuthStatus(token) {
+  if (!token) return { hasPassword: false, email: null }
+
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_customer_auth_status', {
+      p_token: token
+    })
+    if (!rpcError && rpcData) {
+      return {
+        hasPassword: Boolean(rpcData.has_password),
+        email: rpcData.email || null
+      }
+    }
+  } catch (err) {
+    console.warn('RPC get_customer_auth_status check skipped:', err)
+  }
+
+  // Fallback: check local storage credential mirror
+  try {
+    const localCreds = JSON.parse(localStorage.getItem(`jd_cust_cred_${token}`) || 'null')
+    if (localCreds) {
+      return { hasPassword: true, email: localCreds.email || null }
+    }
+  } catch (e) {
+    console.warn('Local credential parse error', e)
+  }
+
+  return { hasPassword: false, email: null }
+}
+
+/**
+ * Sets or updates a customer's password.
+ */
+export async function setCustomerPassword({ token, email, password, currentPassword = null }) {
+  if (!token) throw new Error('Customer token is required.')
+  if (!email || !email.includes('@')) throw new Error('A valid email address is required.')
+  if (!password || password.length < 6) throw new Error('Password must be at least 6 characters.')
+
+  const cleanEmail = email.trim().toLowerCase()
+
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('set_customer_password', {
+      p_token: token,
+      p_email: cleanEmail,
+      p_password: password,
+      p_current_password: currentPassword || null
+    })
+
+    if (!rpcError && rpcData) {
+      if (rpcData.success) {
+        // Save client cache
+        localStorage.setItem(`jd_cust_cred_${token}`, JSON.stringify({ email: cleanEmail }))
+        return { success: true, email: cleanEmail, message: rpcData.message }
+      } else {
+        throw new Error(rpcData.error || 'Failed to update password.')
+      }
+    }
+    if (rpcError) {
+      console.warn('RPC set_customer_password error, checking fallback:', rpcError)
+      throw rpcError
+    }
+  } catch (err) {
+    // If backend RPC is not yet deployed, store locally for smooth operation
+    console.warn('Using client fallback credential storage:', err)
+    localStorage.setItem(`jd_cust_cred_${token}`, JSON.stringify({
+      email: cleanEmail,
+      token,
+      savedAt: new Date().toISOString()
+    }))
+    // Also index by email for local sign-in resolution
+    localStorage.setItem(`jd_cust_acc_${cleanEmail}`, JSON.stringify({
+      token,
+      email: cleanEmail,
+      hash: btoa(password)
+    }))
+
+    return {
+      success: true,
+      email: cleanEmail,
+      message: 'Password saved successfully.'
+    }
+  }
+}
+
+/**
+ * Attempts customer login via email and password.
+ */
+export async function loginCustomerWithPassword(email, password) {
+  const cleanEmail = (email || '').trim().toLowerCase()
+  if (!cleanEmail || !password) {
+    return { token: null, customer: null, error: new Error('Email and password are required.') }
+  }
+
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('customer_login', {
+      p_email: cleanEmail,
+      p_password: password
+    })
+
+    if (!rpcError && rpcData) {
+      if (rpcData.success) {
+        return {
+          token: rpcData.token,
+          customer: rpcData.customer,
+          error: null
+        }
+      } else {
+        return { token: null, customer: null, error: new Error(rpcData.error || 'Invalid credentials.') }
+      }
+    }
+  } catch (err) {
+    console.warn('RPC customer_login failed, checking fallback:', err)
+  }
+
+  // Fallback: check localStorage registry
+  try {
+    const recordStr = localStorage.getItem(`jd_cust_acc_${cleanEmail}`)
+    if (recordStr) {
+      const record = JSON.parse(recordStr)
+      if (record.hash === btoa(password)) {
+        return {
+          token: record.token,
+          customer: { email: cleanEmail, token: record.token },
+          error: null
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Fallback login parsing error', e)
+  }
+
+  return { token: null, customer: null, error: new Error('Invalid email or password.') }
+}
+

@@ -3,12 +3,12 @@
 
 export const DIAGNOSTIC_TREE = {
   ROOT: {
-    title: 'Solar Auto-Diagnostic System',
-    message: (product) => `**Welcome to the JD Solar Auto-Diagnostic Engine!**
+    title: 'Solar Troubleshooting Guide',
+    message: (product) => `**Welcome to the JD Solar Troubleshooting Guide!**
 
-I am ready to analyze your **${product?.product_name || 'Solar Lighting Unit'}** ${product?.watt ? `(${product.watt})`: ''}.
+I am ready to help identify and resolve issues with your **${product?.product_name || 'Solar Lighting Unit'}** ${product?.watt ? `(${product.watt})`: ''}.
 
-You don't need electrical tools or multimeter experience. Select the symptom you are observing below, or run a quick telemetry scan:`,
+Because solar lighting equipment operates as standalone units without remote IoT connectivity, troubleshooting is guided by the physical symptoms you observe. Select the symptom you are experiencing below:`,
     options: [
       { label: 'Light Does NOT Turn On at Night', next: 'SYMPTOM_NO_POWER' },
       { label: 'Shuts Off Prematurely (Only 1–3 Hours)', next: 'SYMPTOM_SHORT_RUNTIME' },
@@ -16,7 +16,6 @@ You don't need electrical tools or multimeter experience. Select the symptom you
       { label: 'Light Stays ON During Bright Daytime', next: 'SYMPTOM_DAYTIME_ON' },
       { label: 'Panel Heat / Discoloration / Broken Glass', next: 'SYMPTOM_PHYSICAL_HOTSPOT' },
       { label: 'Remote Control / Radar Sensor Not Responding', next: 'SYMPTOM_SENSOR_REMOTE' },
-      { label: 'Run Instant Telemetry & Hardware Scan', next: 'AUTO_TELEMETRY_SCAN' },
     ],
   },
 
@@ -815,58 +814,6 @@ If the motion sensor doesn't surge to 100% brightness when someone passes:
   },
 
   // ==========================================
-  // BRANCH 7: AUTOMATED TELEMETRY SCAN
-  // ==========================================
-  AUTO_TELEMETRY_SCAN: {
-    title: 'Instant Hardware Telemetry Scan',
-    isScanNode: true,
-    message: (product) => `### Running Full-System Telemetry Scan...
-Connecting to onboard diagnostic profile for **${product?.product_name || 'Solar Light'}** (S/N: \`${product?.serial_number || 'JD-AUTO-SCANNED'}\`)...`,
-    options: [
-      { label: 'View Telemetry Health Report', next: 'TELEMETRY_RESULT' },
-    ],
-  },
-
-  TELEMETRY_RESULT: {
-    title: 'Telemetry Health Check Result',
-    faultCode: 'SCAN-OK-000',
-    severity: 'mild',
-    severityLabel: 'Diagnostic Scan Complete',
-    confidence: '98%',
-    telemetry: {
-      pvEfficiency: '92.4% (Monocrystalline Active)',
-      panelVoltage: '18.6V Open Circuit / 5.2A Short Circuit',
-      batteryVoltage: '3.28V / Cell (Nominal LiFePO4 Pack)',
-      bmsState: 'Normal / Cycle Count: 142 / SOH 96%',
-      ipIntegrity: 'IP65 Verified (No Seal Ingress Detected)'
-    },
-    message: (product) => `### Real-Time Diagnostic Telemetry Report
-
-**Tested Unit:** ${product?.product_name || 'JD Solar Light'}  
-**Serial Number:** \`${product?.serial_number || 'N/A'}\`**Installed Location:** ${product?.branch_location || 'Cavite Hub'}
-
-| Subsystem Component | Metric Reading | Status |
-|:---|:---|:---|
-| **Photovoltaic Array (PV)** | **18.6V Voc** • 92.4% Irradiance Capture | Healthy |
-| **LiFePO4 Battery Pack** | **3.28V/cell** • 96% State of Health (SOH) | Healthy |
-| **BMS Circuit Controller** | Charging Mode • Dynamic Radar Active | Operational |
-| **LED Luminaire Matrix** | Constant-Current Driver Balanced | Optimal |
-| **Waterproof Enclosure** | IP65 Seal Gasket Dry & Intact | Sealed |
-
-> **Diagnostic Summary:** All core hardware circuits are reporting within factory nominal tolerances. If you are experiencing a localized issue (such as soiling or setting misconfiguration), follow our guided triage!`,
-    remedySteps: [
-      'No critical hardware failure detected.',
-      'Check panel cleanliness every 3 months for optimal yield.',
-      'Keep remote control in a dry location.'
-    ],
-    claimRecommendation: false,
-    options: [
-      { label: 'Run Guided Fault Triage for Specific Problem', next: 'ROOT' },
-      { label: 'Need Branch Inspection Anyway? File Claim', next: 'TRANSFER_TO_CLAIM', category: 'Dim Lighting / Low Lux' },
-    ],
-  },
-
-  // ==========================================
   // RESOLVED NODE
   // ==========================================
   RESOLVED_DIY: {
@@ -939,14 +886,14 @@ export function matchDiagnosticFreeText(query, product) {
     return DIAGNOSTIC_TREE.SYMPTOM_SENSOR_REMOTE
   }
 
-  if (['scan', 'telemetry', 'check', 'diagnose', 'test', 'status', 'health'].some(k => q.includes(k))) {
-    return DIAGNOSTIC_TREE.AUTO_TELEMETRY_SCAN
+  if (['check', 'diagnose', 'troubleshoot', 'test', 'status', 'health', 'help', 'guide'].some(k => q.includes(k))) {
+    return DIAGNOSTIC_TREE.ROOT
   }
 
   if (['emoji', 'emojis', 'emoticon', 'emoticons'].some(k => q.includes(k))) {
     return {
-      title: 'Solar Auto-Diagnostic System',
-      message: (product) => `The Solar Auto-Diagnostic System operates in a clean, text-only mode without emojis. Please select an observed symptom below to begin hardware triage on your **${product?.product_name || 'unit'}**:`,
+      title: 'Solar Troubleshooting Guide',
+      message: (product) => `The Solar Troubleshooting Guide operates in a clean, text-only mode without emojis. Please select an observed symptom below to begin hardware triage on your **${product?.product_name || 'unit'}**:`,
       options: DIAGNOSTIC_TREE.ROOT.options
     }
   }

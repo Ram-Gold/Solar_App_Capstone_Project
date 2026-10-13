@@ -27,9 +27,9 @@ function AppLayout() {
   const showShell = !isLoginRoute
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className={`flex flex-col ${isChatRoute ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
       {showShell && <Navbar />}
-      <main className="flex-grow flex flex-col">
+      <main className="flex-grow flex flex-col min-h-0">
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/about" element={<AboutPage />} />

@@ -69,10 +69,10 @@ export default function PrototypeGuidedFlow({
   const [injected, setInjected] = useState(false)
 
   const steps = [
-    { num: 1, title: 'Environment', icon: MapPin },
-    { num: 2, title: 'Illumination', icon: Zap },
-    { num: 3, title: 'Budget Allocation', icon: CircleDollarSign },
-    { num: 4, title: 'Recommendations', icon: SlidersHorizontal },
+    { num: 1, label: 'Environment' },
+    { num: 2, label: 'Illumination' },
+    { num: 3, label: 'Budget' },
+    { num: 4, label: 'Results' },
   ]
 
   const handleConsult = () => {
@@ -84,68 +84,60 @@ export default function PrototypeGuidedFlow({
 
   return (
     <div className="w-full">
-      {/* Horizontal Dotted Progress Guide */}
-      <div className="max-w-xl mx-auto mb-8 px-4">
-        <div className="relative flex items-center justify-between">
-          {/* Horizontal Background Dotted Guide Line */}
-          <div className="absolute left-4 right-4 top-3 h-0.5 border-t-2 border-dotted border-neutral-300 dark:border-neutral-700 z-0" />
+      {/* Minimal Linear Progress Stepper (matches reference image) */}
+      <div className="max-w-md mx-auto mb-8 px-4 select-none" aria-label={`Step ${currentStep} of ${steps.length}`}>
+        <div className="relative">
+          {/* Base Track Line (runs precisely from center of first dot to center of last dot) */}
+          <div className="absolute top-2.5 left-[12.5%] right-[12.5%] h-[2px] -translate-y-1/2 bg-neutral-300 dark:bg-neutral-700 z-0">
+            {/* Active Accent Fill Line */}
+            <div
+              className="h-full bg-amber-500 transition-all duration-300 ease-out"
+              style={{
+                width: `${((currentStep - 1) / (steps.length - 1)) * 100}%`,
+              }}
+            />
+          </div>
 
-          {/* Active Progress Fill Line */}
-          <div
-            className="absolute left-4 top-3 h-0.5 bg-amber-500 transition-all duration-300 z-0"
-            style={{
-              width: `${((currentStep - 1) / (steps.length - 1)) * 100}%`,
-              maxWidth: 'calc(100% - 32px)',
-            }}
-          />
+          {/* Equidistant Step Columns */}
+          <div className="grid grid-cols-4 relative z-10">
+            {steps.map((s) => {
+              const isCompleted = currentStep > s.num
+              const isCurrent = currentStep === s.num
 
-          {/* Dotted Step Nodes */}
-          {steps.map((s) => {
-            const isCompleted = currentStep > s.num
-            const isCurrent = currentStep === s.num
+              return (
+                <div key={s.num} className="flex flex-col items-center">
+                  {/* Dot Container (h-5 so center is at top-2.5 / 10px) */}
+                  <div className="h-5 flex items-center justify-center">
+                    {isCurrent ? (
+                      /* Active Bullseye Target Dot */
+                      <div className="size-[18px] rounded-full border-2 border-amber-500 bg-white dark:bg-neutral-900 flex items-center justify-center shadow-xs">
+                        <div className="size-2 rounded-full bg-amber-500" />
+                      </div>
+                    ) : isCompleted ? (
+                      /* Completed Solid Accent Dot */
+                      <div className="size-2.5 rounded-full bg-amber-500" />
+                    ) : (
+                      /* Upcoming Muted Gray Dot */
+                      <div className="size-2.5 rounded-full bg-neutral-400 dark:bg-neutral-600" />
+                    )}
+                  </div>
 
-            return (
-              <button
-                key={s.num}
-                type="button"
-                onClick={() => setCurrentStep(s.num)}
-                className="group relative z-10 flex flex-col items-center cursor-pointer focus:outline-none"
-                aria-label={`Step ${s.num}: ${s.title}`}
-              >
-                {/* Tactical Step Dot */}
-                <div
-                  className={`flex items-center justify-center rounded-full transition-all duration-200 ${
-                    isCurrent
-                      ? 'size-7 bg-amber-500 text-white shadow-md shadow-amber-500/25 ring-4 ring-amber-500/20 scale-110'
-                      : isCompleted
-                      ? 'size-6 bg-amber-500 text-white shadow-xs'
-                      : 'size-6 bg-neutral-200 dark:bg-neutral-800 text-neutral-400 border border-neutral-300 dark:border-neutral-700 group-hover:border-neutral-400'
-                  }`}
-                >
-                  {isCompleted ? (
-                    <Check className="size-3.5 stroke-[2.5]" />
-                  ) : isCurrent ? (
-                    <div className="size-2 rounded-full bg-white" />
-                  ) : (
-                    <div className="size-1.5 rounded-full bg-neutral-400 dark:bg-neutral-500" />
-                  )}
+                  {/* Step Label */}
+                  <span
+                    className={`mt-2 text-xs text-center transition-colors ${
+                      isCurrent
+                        ? 'text-neutral-900 dark:text-white font-semibold'
+                        : isCompleted
+                        ? 'text-neutral-600 dark:text-neutral-300 font-medium'
+                        : 'text-neutral-400 dark:text-neutral-500 font-normal'
+                    }`}
+                  >
+                    {s.label}
+                  </span>
                 </div>
-
-                {/* Step Caption */}
-                <span
-                  className={`mt-2 text-[11px] transition-colors hidden sm:block ${
-                    isCurrent
-                      ? 'text-neutral-900 dark:text-white font-semibold'
-                      : isCompleted
-                      ? 'text-neutral-700 dark:text-neutral-300 font-medium'
-                      : 'text-neutral-400 dark:text-neutral-500 font-normal'
-                  }`}
-                >
-                  {s.title}
-                </span>
-              </button>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       </div>
 

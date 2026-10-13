@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { Printer, Copy, Check, X, ShieldCheck, Calendar, Phone, User, Store } from 'lucide-react'
+import { Printer, Copy, Check, X, ShieldCheck, Calendar, Phone, User, Store, Key, ExternalLink } from 'lucide-react'
 import { formatDate } from '../../lib/warrantyUtils'
 
 export default function QRReceiptModal({
@@ -10,15 +10,26 @@ export default function QRReceiptModal({
   purchases = [],
   qrUrl
 }) {
-  const [copied, setCopied] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
+  const [copiedToken, setCopiedToken] = useState(false)
 
   if (!isOpen || !customer) return null
 
+  const token = customer.access_token || customer.token || ''
+  const computedQrUrl = qrUrl || (token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/portal?token=${token}` : '')
+
   const handleCopyLink = () => {
-    if (!qrUrl) return
-    navigator.clipboard.writeText(qrUrl)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (!computedQrUrl) return
+    navigator.clipboard.writeText(computedQrUrl)
+    setCopiedLink(true)
+    setTimeout(() => setCopiedLink(false), 2000)
+  }
+
+  const handleCopyToken = () => {
+    if (!token) return
+    navigator.clipboard.writeText(token)
+    setCopiedToken(true)
+    setTimeout(() => setCopiedToken(false), 2000)
   }
 
   const handlePrint = () => {
@@ -37,8 +48,8 @@ export default function QRReceiptModal({
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-jds-on-surface">Sale & Warranty QR Generated</h2>
-              <p className="text-xs text-jds-on-surface-variant">Ready for customer scan or thermal slip print</p>
+              <h2 className="text-lg font-bold text-jds-on-surface">Customer QR & Access Token</h2>
+              <p className="text-xs text-jds-on-surface-variant">Customer credentials for digital warranty access</p>
             </div>
           </div>
           <button
@@ -50,37 +61,72 @@ export default function QRReceiptModal({
         </div>
 
         {/* Modal Body (Scrollable if tall) */}
-        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
           
           {/* Centered QR Display */}
           <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow-inner border border-gray-200 text-slate-900">
             <div className="p-3 bg-white rounded-xl shadow-md border border-gray-100">
               <QRCodeSVG
-                value={qrUrl || ''}
-                size={210}
+                value={computedQrUrl || ''}
+                size={200}
                 level="H"
                 includeMargin={false}
               />
             </div>
             <p className="mt-3 text-xs font-semibold tracking-wider uppercase text-slate-500">
-              Scan with mobile camera to open dashboard
+              Scan with mobile camera to open warranty portal
             </p>
-            <div className="mt-2 flex items-center gap-2">
+
+            {/* Direct Portal URL */}
+            <div className="mt-3 w-full max-w-sm flex items-center gap-2">
               <input
                 type="text"
                 readOnly
-                value={qrUrl || ''}
-                className="text-xs bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 w-64 text-slate-700 truncate select-all"
+                value={computedQrUrl || ''}
+                className="text-xs bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 w-full text-slate-700 truncate select-all font-mono"
               />
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors flex items-center gap-1.5"
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors flex items-center gap-1.5 shrink-0"
+                title="Copy customer portal link"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? 'Copied' : 'Copy'}
+                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedLink ? 'Copied' : 'Copy Link'}
               </button>
             </div>
+          </div>
+
+          {/* Access Token Box */}
+          <div className="p-4 rounded-xl bg-jds-surface-container/60 border border-jds-outline-variant/40 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-jds-on-surface flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5 text-jds-primary" />
+                Customer Access Token
+              </span>
+              <span className="text-[10px] uppercase font-semibold text-jds-primary bg-jds-primary/10 px-2 py-0.5 rounded-md">
+                Unique UUID
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={token}
+                className="text-xs bg-jds-surface border border-jds-outline-variant/50 rounded-lg px-3 py-2 w-full text-jds-on-surface font-mono select-all focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleCopyToken}
+                className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 transition-all flex items-center gap-1.5 shrink-0 shadow-xs"
+              >
+                {copiedToken ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedToken ? 'Copied Token' : 'Copy Token'}
+              </button>
+            </div>
+            <p className="text-[11px] text-jds-on-surface-variant">
+              This token authorizes customer access to their warranty certificates, product records, and self-service diagnostics.
+            </p>
           </div>
 
           {/* Customer & Branch Details */}
