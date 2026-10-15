@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { FaFacebook, FaInstagram, FaMailBulk } from 'react-icons/fa'
+import jdSolarLogo from '../assets/jdsolarlogo.webp'
 
 export default function Footer() {
   return (
@@ -25,12 +26,13 @@ export default function Footer() {
         <div className="flex flex-col flex-1 justify-between">
           <div className="flex flex-col sm:flex-row justify-between items-start gap-10">
             <div className="flex flex-col gap-4 max-w-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-jds-primary rounded-lg flex items-center justify-center text-white">
-                  <i className="fa-solid fa-sun text-sm"></i>
-                </div>
-                <span className="font-inter text-headline-md font-bold text-jds-primary tracking-tight">JD Solar</span>
-              </div>
+              <Link to="/" className="inline-block group" aria-label="JD Solar Home">
+                <img 
+                  src={jdSolarLogo} 
+                  alt="JD Solar" 
+                  className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+                />
+              </Link>
               <p className="font-inter text-body-md text-jds-on-surface-variant leading-relaxed">
                 JD-Foz Solar Products Trading. Quiapo's most trusted partner for sustainable energy solutions and high-quality solar technology.
               </p>

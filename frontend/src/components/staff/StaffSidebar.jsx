@@ -11,7 +11,8 @@ import {
   UserCheck,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
+import jdSolarLogo from '../../assets/jdsolarlogo.webp'
 
 const mainLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -59,6 +60,20 @@ export default function StaffSidebar({ activeScreen, onNavigate, isOpen, onClose
     <aside className={`fixed inset-y-0 left-0 z-40 flex h-full w-64 shrink-0 flex-col border-r border-jds-outline-variant/30 bg-jds-surface transition-transform duration-300 lg:static lg:translate-x-0 ${
       isOpen ? 'translate-x-0' : '-translate-x-full'
     }`}>
+      {/* Brand Header */}
+      <div className="px-6 py-5 border-b border-jds-outline-variant/30 flex items-center justify-between">
+        <Link to="/" className="flex items-center group" aria-label="JD Solar Home">
+          <img 
+            src={jdSolarLogo} 
+            alt="JD Solar" 
+            className="h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+          />
+        </Link>
+        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-jds-primary/10 text-jds-primary">
+          Staff
+        </span>
+      </div>
+
       {/* Navigation */}
       <nav className="flex-1 space-y-6 overflow-y-auto px-4 py-6">
         <div className="space-y-1">

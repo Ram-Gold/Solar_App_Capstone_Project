@@ -11,6 +11,7 @@ import {
   HiOutlineArrowLeft,
   HiOutlineSun,
 } from 'react-icons/hi2'
+import jdSolarLogo from '../assets/jdsolarlogo.webp'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -80,9 +81,12 @@ export default function LoginPage() {
       {/* Minimal Header */}
       <header className="w-full">
         <nav className="flex justify-between items-center w-full px-4 md:px-10 py-8 max-w-[1200px] mx-auto">
-          <Link to="/" className="flex items-center gap-2 group">
-            <HiOutlineSun className="text-jds-primary text-3xl" />
-            <span className="text-headline-md font-bold text-jds-primary">JD Solar</span>
+          <Link to="/" className="flex items-center group" aria-label="JD Solar Home">
+            <img 
+              src={jdSolarLogo} 
+              alt="JD Solar" 
+              className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+            />
           </Link>
           <Link
             to="/"

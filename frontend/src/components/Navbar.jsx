@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import { HiOutlineMagnifyingGlass, HiOutlineBars3, HiOutlineXMark } from 'react-icons/hi2'
-
+import jdSolarLogo from '../assets/jdsolarlogo.webp'
 
 const navLinks = [
   { to: '/', label: 'Home' },
@@ -55,13 +55,12 @@ export default function Navbar() {
       <div className="flex items-center justify-between w-full px-6 py-4 max-w-screen-2xl mx-auto">
         {/* Left Group: Logo & Navigation */}
         <div className="flex items-center gap-12">
-          <Link to="/" className="flex items-center gap-2 group shrink-0">
-            <div className="w-8 h-8 bg-jds-primary rounded-lg flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300 shadow-md">
-              <div className="w-4 h-4 bg-white rounded-full opacity-80" />
-            </div>
-            <span className="font-inter text-headline-md font-bold text-jds-on-surface tracking-tighter">
-              JD<span className="text-jds-primary">Solar</span>
-            </span>
+          <Link to="/" className="flex items-center shrink-0" aria-label="JD Solar Home">
+            <img 
+              src={jdSolarLogo} 
+              alt="JD Solar" 
+              className="h-10 sm:h-11 w-auto object-contain rounded-xl"
+            />
           </Link>
 
           {/* Navigation Links - Anchored Left (lg screens) */}

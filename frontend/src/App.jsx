@@ -15,7 +15,6 @@ import CustomerPortalPage from './pages/CustomerPortalPage'
 import { ChatProvider } from './context/ChatContext'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
-import './App.css'
 
 function AppLayout() {
   const { pathname } = useLocation()
