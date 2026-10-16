@@ -11,6 +11,7 @@ import {
   QrCode,
   ShieldCheck,
   UserCheck,
+  CalendarDays,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
@@ -21,8 +22,7 @@ const mainLinks = [
   { id: 'register-sale', label: 'Register Sale & QR', icon: QrCode },
   { id: 'customers', label: 'Customers & Tokens', icon: UserCheck },
   { id: 'claims', label: 'Warranty & Claims', icon: ShieldCheck },
-  { id: 'pickups', label: 'Store Pickups', icon: ShoppingBag },
-  { id: 'inquiries', label: 'Product Inquiries', icon: Ticket },
+  { id: 'inquiries', label: 'Inquiries', icon: CalendarDays },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'images', label: 'Images', icon: ImageIcon },
@@ -44,7 +44,9 @@ export default function AdminSidebar({ activeScreen, onNavigate, isOpen, onClose
 
   const NavItem = ({ item }) => {
     const Icon = item.icon
-    const isActive = activeScreen === item.id
+    const isActive =
+      activeScreen === item.id ||
+      (item.id === 'inquiries' && (activeScreen === 'pickups' || activeScreen === 'quotes' || activeScreen === 'calendar'))
     return (
       <button
         onClick={() => {
@@ -53,7 +55,7 @@ export default function AdminSidebar({ activeScreen, onNavigate, isOpen, onClose
         }}
         className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
           isActive
-            ? 'bg-jds-primary/10 text-jds-primary'
+            ? 'bg-jds-primary/10 text-jds-primary font-bold'
             : 'text-jds-on-surface-variant hover:bg-jds-surface-container hover:text-jds-on-surface'
         }`}
       >

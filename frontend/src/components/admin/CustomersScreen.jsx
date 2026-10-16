@@ -89,6 +89,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
   const [isSubmittingExtension, setIsSubmittingExtension] = useState(false)
 
   const [removingPurchase, setRemovingPurchase] = useState(null)
+  const [inlineConfirmRemoveId, setInlineConfirmRemoveId] = useState(null)
   const [isSubmittingRemoval, setIsSubmittingRemoval] = useState(false)
 
   const [unitActionMessage, setUnitActionMessage] = useState(null)
@@ -160,6 +161,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
     setVoidingPurchase(null)
     setExtendingPurchase(null)
     setRemovingPurchase(null)
+    setInlineConfirmRemoveId(null)
   }
 
   // Handle Void Warranty
@@ -324,15 +326,16 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
   }
 
   // Handle Remove Unit & Warranty
-  const handleConfirmRemove = async () => {
-    if (!removingPurchase || !selectedCustomer) return
+  const handleConfirmRemove = async (purchaseOverride = null) => {
+    const target = purchaseOverride || removingPurchase
+    if (!target || !selectedCustomer) return
 
     try {
       setIsSubmittingRemoval(true)
-      const { error } = await removeCustomerPurchase({ purchaseId: removingPurchase.id })
+      const { error } = await removeCustomerPurchase({ purchaseId: target.id })
       if (error) throw error
 
-      const updatedPurchases = (selectedCustomer.purchases || []).filter(p => p.id !== removingPurchase.id)
+      const updatedPurchases = (selectedCustomer.purchases || []).filter(p => p.id !== target.id)
       const activeCount = updatedPurchases.filter(p => p.is_warranty_active).length
 
       setSelectedCustomer(prev => ({
@@ -350,6 +353,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
       } : c))
 
       setRemovingPurchase(null)
+      setInlineConfirmRemoveId(null)
       setUnitActionMessage({ type: 'success', text: 'Unit and warranty record permanently removed.' })
       setTimeout(() => setUnitActionMessage(null), 3000)
     } catch (err) {
@@ -1181,14 +1185,54 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                           {/* Remove Unit / Purchase */}
                           <button
                             type="button"
-                            onClick={() => setRemovingPurchase(purchase)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-rose-500/30 text-rose-500 hover:bg-rose-500/10 text-xs font-semibold transition-colors"
+                            onClick={() => setInlineConfirmRemoveId(purchase.id)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-rose-500/30 text-rose-500 hover:bg-rose-500/10 text-xs font-semibold transition-colors cursor-pointer"
                             title="Delete equipment record from customer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             <span>Remove</span>
                           </button>
                         </div>
+
+                        {/* Inline Remove Confirmation */}
+                        {inlineConfirmRemoveId === purchase.id && (
+                          <div className="mt-3 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-150">
+                            <div className="flex items-center gap-2.5">
+                              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                              <div className="text-xs">
+                                <span className="font-bold text-rose-700 dark:text-rose-300">
+                                  Are you sure you want to remove?
+                                </span>
+                                <span className="text-rose-600/90 dark:text-rose-400 block sm:inline sm:ml-1">
+                                  Registered Unit: {purchase.product_name} {purchase.serial_number ? `(${purchase.serial_number})` : ''}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                              <button
+                                type="button"
+                                onClick={() => setInlineConfirmRemoveId(null)}
+                                disabled={isSubmittingRemoval}
+                                className="px-3.5 py-1.5 rounded-lg border border-jds-outline-variant/40 bg-jds-surface text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmRemove(purchase)}
+                                disabled={isSubmittingRemoval}
+                                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+                              >
+                                {isSubmittingRemoval ? (
+                                  <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
+                                <span>Yes</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1212,7 +1256,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
       {/* Void Warranty Modal */}
       {voidingPurchase && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
@@ -1295,7 +1339,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
       {/* Extend Warranty Modal */}
       {extendingPurchase && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center shrink-0">
@@ -1388,22 +1432,22 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
       {/* Remove Unit Confirmation Modal */}
       {removingPurchase && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-body-md font-bold text-jds-on-surface truncate">Remove Unit Record</h3>
+                <h3 className="text-body-md font-bold text-jds-on-surface truncate">Are you sure you want to remove?</h3>
                 <p className="text-label-sm text-jds-on-surface-variant truncate">
-                  {removingPurchase.product_name} {removingPurchase.serial_number ? `(${removingPurchase.serial_number})` : ''}
+                  Registered Unit: {removingPurchase.product_name} {removingPurchase.serial_number ? `(${removingPurchase.serial_number})` : ''}
                 </p>
               </div>
             </div>
 
             <div className="text-xs text-rose-600 bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl leading-relaxed">
-              Are you sure you want to permanently delete this equipment record from this customer profile? This action will remove all linked warranty details.
+              This action will permanently delete this equipment record from the customer profile and remove all linked warranty details.
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-jds-outline-variant/20">
@@ -1411,22 +1455,22 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                 type="button"
                 onClick={() => setRemovingPurchase(null)}
                 disabled={isSubmittingRemoval}
-                className="px-4 py-2 rounded-xl border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors"
+                className="px-4 py-2 rounded-xl border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={handleConfirmRemove}
+                onClick={() => handleConfirmRemove(removingPurchase)}
                 disabled={isSubmittingRemoval}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {isSubmittingRemoval ? (
                   <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
                 ) : (
                   <Trash2 className="w-3.5 h-3.5" />
                 )}
-                <span>Delete Record</span>
+                <span>Yes</span>
               </button>
             </div>
           </div>

@@ -19,6 +19,8 @@ import {
   X,
   RotateCcw,
   ShoppingBag,
+  ArrowRight,
+  Save,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import CategoryModal from './CategoryModal'
@@ -54,6 +56,69 @@ const EDIT_FIELDS = [
   { key: 'ideal_location', label: 'Ideal Location', type: 'text' },
 ]
 
+export const getChangedFields = (orig, curr) => {
+  if (!orig || !curr) return []
+  const changes = []
+
+  EDIT_FIELDS.forEach((f) => {
+    const rawOld = orig[f.key]
+    const rawNew = curr[f.key]
+
+    if (f.type === 'number') {
+      const oldNum = rawOld === '' || rawOld === null || rawOld === undefined ? null : Number(rawOld)
+      const newNum = rawNew === '' || rawNew === null || rawNew === undefined ? null : Number(rawNew)
+      if (oldNum !== newNum) {
+        changes.push({
+          key: f.key,
+          label: f.label,
+          oldValue: oldNum === null ? 'None' : oldNum.toString(),
+          newValue: newNum === null ? 'None' : newNum.toString(),
+        })
+      }
+    } else {
+      const oldStr = (rawOld ?? '').toString().trim()
+      const newStr = (rawNew ?? '').toString().trim()
+      if (oldStr !== newStr) {
+        changes.push({
+          key: f.key,
+          label: f.label,
+          oldValue: oldStr || 'None',
+          newValue: newStr || 'None',
+        })
+      }
+    }
+  })
+
+  // Check image_url
+  const oldImg = (orig.image_url ?? '').toString().trim()
+  const newImg = (curr.image_url ?? '').toString().trim()
+  if (oldImg !== newImg) {
+    changes.push({
+      key: 'image_url',
+      label: 'Product Image',
+      oldValue: oldImg ? 'Previous Image' : 'None',
+      newValue: newImg ? 'New Image' : 'None',
+      isImage: true,
+      oldImgUrl: oldImg,
+      newImgUrl: newImg,
+    })
+  }
+
+  // Check in_stock
+  const oldStock = Boolean(orig.in_stock)
+  const newStock = Boolean(curr.in_stock)
+  if (oldStock !== newStock) {
+    changes.push({
+      key: 'in_stock',
+      label: 'Stock Availability Status',
+      oldValue: oldStock ? 'In Stock' : 'Out of Stock',
+      newValue: newStock ? 'In Stock' : 'Out of Stock',
+    })
+  }
+
+  return changes
+}
+
 export default function ProductsScreen({ onNavigate }) {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES)
@@ -65,6 +130,9 @@ export default function ProductsScreen({ onNavigate }) {
   const [stockFilter, setStockFilter] = useState('All Stock')
   const [sortOrder, setSortOrder] = useState('stock_priority')
   const [editingProduct, setEditingProduct] = useState(null)
+  const [originalProduct, setOriginalProduct] = useState(null)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [pendingChanges, setPendingChanges] = useState([])
   const [savingProduct, setSavingProduct] = useState(false)
   const [validationErrors, setValidationErrors] = useState({})
   const [editingImageUploading, setEditingImageUploading] = useState(false)
@@ -83,8 +151,12 @@ export default function ProductsScreen({ onNavigate }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        if (editingProduct && !savingProduct) {
+        if (showConfirmModal) {
+          setShowConfirmModal(false)
+        } else if (editingProduct && !savingProduct) {
           setEditingProduct(null)
+          setOriginalProduct(null)
+          setPendingChanges([])
           setValidationErrors({})
         } else if (quickRestockItem && !updatingStock) {
           setQuickRestockItem(null)
@@ -95,7 +167,7 @@ export default function ProductsScreen({ onNavigate }) {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [editingProduct, savingProduct, quickRestockItem, updatingStock, saleModalProduct])
+  }, [editingProduct, savingProduct, quickRestockItem, updatingStock, saleModalProduct, showConfirmModal])
 
   const handleEditImageUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -161,11 +233,38 @@ export default function ProductsScreen({ onNavigate }) {
   }
 
   const handleOpenEditProduct = (product) => {
-    setEditingProduct({
+    const prepared = {
       ...product,
       stock_quantity: getStockQuantity(product),
-    })
+    }
+    setEditingProduct(prepared)
+    setOriginalProduct(prepared)
+    setShowConfirmModal(false)
+    setPendingChanges([])
     setValidationErrors({})
+  }
+
+  const handleCloseEdit = () => {
+    setEditingProduct(null)
+    setOriginalProduct(null)
+    setShowConfirmModal(false)
+    setPendingChanges([])
+    setValidationErrors({})
+  }
+
+  const handleInitiateSave = () => {
+    if (!editingProduct) return
+    
+    // Validate watt
+    const wattVal = editingProduct.watt
+    if (wattVal === '' || wattVal === null || wattVal === undefined || isNaN(Number(wattVal)) || Number(wattVal) <= 0) {
+      setValidationErrors(prev => ({ ...prev, watt: 'Power must be a positive number' }))
+      return
+    }
+
+    const changes = getChangedFields(originalProduct, editingProduct)
+    setPendingChanges(changes)
+    setShowConfirmModal(true)
   }
 
   const handleEditSave = async () => {
@@ -175,6 +274,7 @@ export default function ProductsScreen({ onNavigate }) {
     const wattVal = editingProduct.watt
     if (wattVal === '' || wattVal === null || wattVal === undefined || isNaN(Number(wattVal)) || Number(wattVal) <= 0) {
       setValidationErrors(prev => ({ ...prev, watt: 'Power must be a positive number' }))
+      setShowConfirmModal(false)
       return
     }
 
@@ -205,6 +305,9 @@ export default function ProductsScreen({ onNavigate }) {
 
       setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p))
       setEditingProduct(null)
+      setOriginalProduct(null)
+      setShowConfirmModal(false)
+      setPendingChanges([])
       setValidationErrors({})
     } catch (err) {
       console.error('Failed to save product:', err)
@@ -656,13 +759,139 @@ export default function ProductsScreen({ onNavigate }) {
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
           onClick={(e) => {
-            if (e.target === e.currentTarget && !savingProduct) {
-              setEditingProduct(null)
-              setValidationErrors({})
+            if (e.target === e.currentTarget && !savingProduct && !showConfirmModal) {
+              handleCloseEdit()
             }
           }}
         >
           <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl border border-jds-outline-variant/30 bg-jds-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-auto">
+            {/* Inline Confirmation Modal */}
+            {showConfirmModal && (
+              <div 
+                className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-150"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget && !savingProduct) {
+                    setShowConfirmModal(false)
+                  }
+                }}
+              >
+                <div className="w-full max-w-lg rounded-2xl border border-jds-outline-variant/30 bg-jds-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh]">
+                  {/* Header */}
+                  <div className="border-b border-jds-outline-variant/20 px-6 py-4 bg-jds-surface-container-low/40 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-jds-primary/10 text-jds-primary">
+                        <Save className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-body-lg font-bold text-jds-on-surface">Confirm Product Updates</h4>
+                        <p className="text-label-sm text-jds-on-surface-variant font-medium">
+                          {editingProduct.name || `Product #${editingProduct.id}`}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={savingProduct}
+                      onClick={() => setShowConfirmModal(false)}
+                      className="rounded-lg p-1.5 text-jds-on-surface-variant/60 hover:bg-jds-surface-container-high hover:text-jds-on-surface transition-colors disabled:opacity-50"
+                      title="Return to editing"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  {/* Body */}
+                  <div className="p-6 overflow-y-auto space-y-4 flex-1">
+                    {pendingChanges.length > 0 ? (
+                      <>
+                        <div className="rounded-lg bg-jds-surface-container-low/50 border border-jds-outline-variant/20 p-3.5 flex items-start gap-3">
+                          <AlertCircle className="h-5 w-5 text-jds-primary shrink-0 mt-0.5" />
+                          <div className="text-body-sm text-jds-on-surface-variant">
+                            <span className="font-semibold text-jds-on-surface">
+                              {pendingChanges.length} specification{pendingChanges.length > 1 ? 's' : ''} modified.
+                            </span>{' '}
+                            Please confirm that you want to save all updates to this product.
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
+                            Summary of Modifications
+                          </p>
+                          <div className="divide-y divide-jds-outline-variant/15 rounded-xl border border-jds-outline-variant/25 bg-jds-surface-container-lowest overflow-hidden max-h-56 overflow-y-auto">
+                            {pendingChanges.map((change) => (
+                              <div key={change.key} className="p-3 space-y-1.5 text-xs">
+                                <div className="font-bold text-jds-on-surface">
+                                  {change.label}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="rounded bg-jds-surface-container px-2 py-0.5 font-mono text-jds-on-surface-variant line-through truncate max-w-[170px]">
+                                    {change.oldValue}
+                                  </span>
+                                  <ArrowRight className="h-3.5 w-3.5 text-jds-on-surface-variant/50 shrink-0" />
+                                  <span className="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 font-mono font-semibold text-emerald-700 dark:text-emerald-400 truncate max-w-[190px]">
+                                    {change.newValue}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="py-6 text-center space-y-2">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-jds-surface-container text-jds-on-surface-variant">
+                          <RotateCcw className="h-6 w-6" />
+                        </div>
+                        <h5 className="text-body-md font-bold text-jds-on-surface">No Changes Detected</h5>
+                        <p className="text-body-sm text-jds-on-surface-variant max-w-xs mx-auto">
+                          No product specifications were modified. You can continue editing or close.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="border-t border-jds-outline-variant/20 px-6 py-4 bg-jds-surface-container-low/20 flex items-center justify-end gap-3 shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={savingProduct}
+                      onClick={() => setShowConfirmModal(false)}
+                      className="border-jds-outline-variant text-jds-on-surface-variant hover:bg-jds-surface-container-high h-11 px-5"
+                    >
+                      Back to Editing
+                    </Button>
+                    {pendingChanges.length > 0 ? (
+                      <Button
+                        type="button"
+                        disabled={savingProduct}
+                        onClick={handleEditSave}
+                        className="bg-jds-primary text-jds-on-primary font-bold px-6 h-11"
+                      >
+                        {savingProduct ? (
+                          <div className="flex items-center gap-2">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            <span>Saving...</span>
+                          </div>
+                        ) : (
+                          'Confirm & Save Changes'
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        onClick={handleCloseEdit}
+                        className="bg-jds-primary text-jds-on-primary font-bold px-6 h-11"
+                      >
+                        Close Dialog
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-jds-outline-variant/20 px-6 py-4 bg-jds-surface-container-low/30 shrink-0">
               <div className="flex items-center gap-3">
@@ -680,10 +909,7 @@ export default function ProductsScreen({ onNavigate }) {
               <button
                 type="button"
                 disabled={savingProduct}
-                onClick={() => {
-                  setEditingProduct(null)
-                  setValidationErrors({})
-                }}
+                onClick={handleCloseEdit}
                 className="rounded-lg p-1.5 text-jds-on-surface-variant/60 hover:bg-jds-surface-container-high hover:text-jds-on-surface transition-colors disabled:opacity-50"
                 title="Close modal"
               >
@@ -832,17 +1058,14 @@ export default function ProductsScreen({ onNavigate }) {
                   type="button"
                   variant="outline" 
                   disabled={savingProduct}
-                  onClick={() => {
-                    setEditingProduct(null)
-                    setValidationErrors({})
-                  }} 
+                  onClick={handleCloseEdit} 
                   className="border-jds-outline-variant text-jds-on-surface-variant hover:bg-jds-surface-container-high h-11 px-5"
                 >
                   Cancel
                 </Button>
                 <Button 
                   type="button"
-                  onClick={handleEditSave} 
+                  onClick={handleInitiateSave} 
                   disabled={savingProduct}
                   className="bg-jds-primary text-jds-on-primary font-bold px-7 h-11"
                 >

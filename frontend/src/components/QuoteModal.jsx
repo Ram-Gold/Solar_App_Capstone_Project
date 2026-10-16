@@ -11,6 +11,8 @@ import {
   ShieldCheck,
   Building2,
   Calendar,
+  Clock,
+  AlertCircle,
 } from 'lucide-react'
 import { FaFacebook, FaInstagram } from 'react-icons/fa'
 import { getInquiryStatusConfig, normalizeInquiryStatus } from '../lib/inquiryStatusUtils'
@@ -36,6 +38,48 @@ const INQUIRY_TOPICS = [
   'Warranty Coverage & Replacement Protocols',
   'General Inquiries & Specifications',
 ]
+
+export const BUSINESS_HOURS = {
+  startHour: 9,
+  endHour: 17,
+  startStr: '09:00',
+  endStr: '17:00',
+  daysDescription: 'Monday through Saturday',
+  hoursDescription: '9:00 AM – 5:00 PM',
+}
+
+export const BUSINESS_TIME_SLOTS = [
+  { value: '09:00', label: '9:00 AM' },
+  { value: '10:00', label: '10:00 AM' },
+  { value: '11:00', label: '11:00 AM' },
+  { value: '13:00', label: '1:00 PM' },
+  { value: '14:00', label: '2:00 PM' },
+  { value: '15:00', label: '3:00 PM' },
+  { value: '16:00', label: '4:00 PM' },
+  { value: '17:00', label: '5:00 PM' },
+]
+
+export const getNextBusinessDay = () => {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  // If tomorrow is Sunday (0), advance to Monday
+  if (d.getDay() === 0) {
+    d.setDate(d.getDate() + 1)
+  }
+  return d.toISOString().split('T')[0]
+}
+
+export const isWithinBusinessHours = (timeStr) => {
+  if (!timeStr) return false
+  const [hStr, mStr] = timeStr.split(':')
+  const h = parseInt(hStr, 10)
+  const m = parseInt(mStr || '0', 10)
+  if (isNaN(h) || isNaN(m)) return false
+  if (h < BUSINESS_HOURS.startHour) return false
+  if (h > BUSINESS_HOURS.endHour) return false
+  if (h === BUSINESS_HOURS.endHour && m > 0) return false
+  return true
+}
 
 // Helper to format HTML5 24hr time (e.g. "14:30") into 12hr display (e.g. "2:30 PM")
 const formatDisplayTime = (timeStr) => {
@@ -66,11 +110,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
 
   // Step 2 State (Showroom Visit)
   const [selectedBranch, setSelectedBranch] = useState(BRANCHES[0].name)
-  const [visitDate, setVisitDate] = useState(() => {
-    const d = new Date()
-    d.setDate(d.getDate() + 1)
-    return d.toISOString().split('T')[0]
-  })
+  const [visitDate, setVisitDate] = useState(getNextBusinessDay)
   const [visitTime, setVisitTime] = useState('10:00')
 
   // Generated Ticket State
@@ -84,6 +124,8 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       setErrors({})
       setCopied(false)
       setLoading(false)
+      setVisitDate(getNextBusinessDay())
+      setVisitTime('10:00')
     }
   }, [isOpen, initialMode])
 
@@ -117,14 +159,24 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
     if (!visitDate) {
       errs.visitDate = 'Please select a visit date.'
     } else {
-      const selected = new Date(visitDate)
-      if (selected.getDay() === 0) {
+      const selected = new Date(visitDate + 'T00:00:00')
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (isNaN(selected.getTime())) {
+        errs.visitDate = 'Please choose a valid calendar date.'
+      } else if (selected < today) {
+        errs.visitDate = 'Visit date must be an upcoming business day.'
+      } else if (selected.getDay() === 0) {
         errs.visitDate = 'Our showrooms are closed on Sundays. Please choose Monday through Saturday.'
       }
     }
+
     if (!visitTime) {
-      errs.visitTime = 'Please select a visit time.'
+      errs.visitTime = 'Please select a visit time slot.'
+    } else if (!isWithinBusinessHours(visitTime)) {
+      errs.visitTime = 'Showroom visits must be scheduled within business hours: 9:00 AM to 5:00 PM.'
     }
+
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -209,11 +261,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const tomorrowStr = (() => {
-    const d = new Date()
-    d.setDate(d.getDate() + 1)
-    return d.toISOString().split('T')[0]
-  })()
+  const minBusinessDateStr = getNextBusinessDay()
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
@@ -472,35 +520,103 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               </div>
             </div>
 
-            {/* Date Input */}
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Target Visit Date <span className="text-amber-600">*</span>
-              </label>
-              <input
-                type="date"
-                min={tomorrowStr}
-                required
-                value={visitDate}
-                onChange={(e) => setVisitDate(e.target.value)}
-                className="w-full rounded-xl border border-stone-200 bg-stone-50/40 px-3.5 py-2.5 text-sm outline-none focus:border-amber-500 focus:bg-white"
-              />
-              {errors.visitDate && <p className="text-[11px] text-red-500 mt-1">{errors.visitDate}</p>}
+            {/* Showroom Business Hours Banner */}
+            <div className="p-3.5 rounded-2xl border border-stone-200 bg-stone-50/80 text-xs text-stone-700 flex items-start gap-2.5">
+              <Clock className="h-4 w-4 text-stone-500 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold block text-stone-900">Showroom Business Hours</span>
+                <span className="text-[11px] text-stone-600 block mt-0.5">
+                  Monday to Saturday: 9:00 AM – 5:00 PM • Closed on Sundays
+                </span>
+              </div>
             </div>
 
-            {/* Time Input */}
+            {/* Date Input */}
             <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Preferred Time Slot <span className="text-amber-600">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-stone-700">
+                  Target Visit Date <span className="text-amber-600">*</span>
+                </label>
+                <span className="text-[11px] text-stone-500 font-medium">Mon – Sat Only</span>
+              </div>
+              <input
+                type="date"
+                min={minBusinessDateStr}
+                required
+                value={visitDate}
+                onClick={(e) => {
+                  try {
+                    e.currentTarget.showPicker?.()
+                  } catch (err) {}
+                }}
+                onChange={(e) => {
+                  setVisitDate(e.target.value)
+                  if (errors.visitDate) {
+                    setErrors((prev) => {
+                      const next = { ...prev }
+                      delete next.visitDate
+                      return next
+                    })
+                  }
+                }}
+                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors cursor-pointer ${
+                  errors.visitDate
+                    ? 'border-red-400 bg-red-50/20'
+                    : 'border-stone-200 bg-stone-50/40 focus:border-amber-500 focus:bg-white'
+                }`}
+              />
+              {errors.visitDate && (
+                <p className="text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{errors.visitDate}</span>
+                </p>
+              )}
+            </div>
+
+            {/* Time Slot Input */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-stone-700">
+                  Preferred Time Slot <span className="text-amber-600">*</span>
+                </label>
+                <span className="text-[11px] text-stone-500 font-medium">9:00 AM – 5:00 PM</span>
+              </div>
+
+              {/* Time Input constrained to business hours (09:00 - 17:00) with showPicker on click */}
               <input
                 type="time"
+                min="09:00"
+                max="17:00"
+                step="900"
                 required
                 value={visitTime}
-                onChange={(e) => setVisitTime(e.target.value)}
-                className="w-full rounded-xl border border-stone-200 bg-stone-50/40 px-3.5 py-2.5 text-sm outline-none focus:border-amber-500 focus:bg-white"
+                onClick={(e) => {
+                  try {
+                    e.currentTarget.showPicker?.()
+                  } catch (err) {}
+                }}
+                onChange={(e) => {
+                  setVisitTime(e.target.value)
+                  if (errors.visitTime) {
+                    setErrors((prev) => {
+                      const next = { ...prev }
+                      delete next.visitTime
+                      return next
+                    })
+                  }
+                }}
+                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors cursor-pointer ${
+                  errors.visitTime
+                    ? 'border-red-400 bg-red-50/20'
+                    : 'border-stone-200 bg-stone-50/40 focus:border-amber-500 focus:bg-white'
+                }`}
               />
-              {errors.visitTime && <p className="text-[11px] text-red-500 mt-1">{errors.visitTime}</p>}
+              {errors.visitTime && (
+                <p className="text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{errors.visitTime}</span>
+                </p>
+              )}
             </div>
 
             {/* Inline Navigation Buttons */}

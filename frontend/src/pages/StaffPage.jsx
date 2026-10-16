@@ -6,21 +6,20 @@ import ProductsScreen from '../components/admin/ProductsScreen'
 import AddProductScreen from '../components/admin/AddProductScreen'
 import OrdersScreen from '../components/admin/OrdersScreen'
 import ImagesScreen from '../components/admin/ImagesScreen'
-import QuotesScreen from '../components/admin/QuotesScreen'
 import RegisterSaleScreen from '../components/admin/RegisterSaleScreen'
 import WarrantyClaimsScreen from '../components/admin/WarrantyClaimsScreen'
 import CustomersScreen from '../components/admin/CustomersScreen'
-
-const PickupsScreen = (props) => <QuotesScreen {...props} filterType="pickup" />
-const InquiriesScreen = (props) => <QuotesScreen {...props} filterType="inquiry" />
+import InquiriesScreen from '../components/admin/InquiriesScreen'
 
 const screens = {
   dashboard: DashboardScreen,
   'register-sale': RegisterSaleScreen,
   customers: CustomersScreen,
   claims: WarrantyClaimsScreen,
-  pickups: PickupsScreen,
   inquiries: InquiriesScreen,
+  calendar: InquiriesScreen,
+  pickups: InquiriesScreen,
+  quotes: InquiriesScreen,
   products: ProductsScreen,
   'add-product': AddProductScreen,
   orders: OrdersScreen,

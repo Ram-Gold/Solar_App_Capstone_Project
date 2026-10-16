@@ -545,95 +545,91 @@ export default function WarrantyClaimsScreen() {
         </div>
       )}
 
-      {/* Customer Ticket Detail Modal (Wide 2-Column Industrial Layout) */}
+      {/* Customer Ticket Detail Modal (UI/UX Pro Max Tonal Layout) */}
       {activeModalClaim && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget && !modalSaving) handleCloseModal()
           }}
         >
-          <div className="relative w-full max-w-5xl max-h-[92vh] flex flex-col rounded-2xl border border-jds-outline-variant/40 bg-jds-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-auto">
+          <div className="relative w-full max-w-5xl max-h-[90vh] flex flex-col rounded-3xl bg-jds-surface dark:bg-[#18140e] shadow-2xl border border-jds-outline-variant/20 dark:border-white/10 overflow-hidden my-auto animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4.5 border-b border-jds-outline-variant/30 bg-jds-surface-container-low/40 shrink-0">
+            <div className="flex items-center justify-between px-7 py-5 border-b border-jds-outline-variant/15 bg-jds-surface-container-lowest/80 dark:bg-white/[0.02] backdrop-blur-sm shrink-0">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="font-mono text-xs font-bold text-jds-primary bg-jds-primary/10 px-3 py-1 rounded-lg border border-jds-primary/20">
+                <span className="font-mono text-xs font-bold text-jds-primary bg-jds-primary/10 px-3.5 py-1 rounded-full border border-jds-primary/20">
                   CLAIM-{activeModalClaim.id.slice(0, 8).toUpperCase()}
                 </span>
-                <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border ${getClaimStatusMeta(activeModalClaim.status).color}`}>
+                <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getClaimStatusMeta(activeModalClaim.status).color}`}>
                   {getClaimStatusMeta(activeModalClaim.status).label}
                 </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-jds-surface-container text-jds-on-surface-variant border border-jds-outline-variant/30">
-                  {activeModalClaim.customer_purchases?.branch_location || 'Cavite'} Store
+                <span className="text-xs font-semibold px-3 py-1 rounded-full bg-jds-surface-container text-jds-on-surface-variant flex items-center gap-1.5">
+                  <Store className="w-3.5 h-3.5 text-jds-primary" />
+                  <span>{activeModalClaim.customer_purchases?.branch_location || 'Cavite'} Store</span>
                 </span>
               </div>
               <button
                 type="button"
                 disabled={modalSaving}
                 onClick={handleCloseModal}
-                className="rounded-lg p-1.5 text-jds-on-surface-variant hover:bg-jds-surface-container-high hover:text-jds-on-surface transition-colors disabled:opacity-50 cursor-pointer"
-                title="Close modal"
+                className="rounded-full p-2 text-jds-on-surface-variant hover:bg-jds-surface-container hover:text-jds-on-surface transition-colors disabled:opacity-50 cursor-pointer"
+                title="Close ticket details"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body: Split 2-Column */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 overflow-y-auto flex-1 max-h-[calc(92vh-140px)]">
-              {/* Left Column: Customer Profile, Product & Diagnostic Evidence (7 cols) */}
-              <div className="lg:col-span-7 space-y-5">
+            {/* Modal Body: Split 2-Column with Generous Spacing */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 p-7 overflow-y-auto flex-1 max-h-[calc(90vh-140px)]">
+              {/* Left Column: Customer Profile, Equipment & Diagnostic Evidence (7 cols) */}
+              <div className="lg:col-span-7 space-y-6">
                 {modalSuccessMsg && (
-                  <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                  <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2.5 animate-in fade-in">
                     <Check className="w-4 h-4 shrink-0" />
                     <span>{modalSuccessMsg}</span>
                   </div>
                 )}
 
-                {/* Customer Profile & Purchase Information */}
-                <div className="p-4.5 rounded-xl bg-jds-surface-container-low/40 border border-jds-outline-variant/30 space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-jds-on-surface-variant uppercase tracking-wider pb-2 border-b border-jds-outline-variant/20">
-                    <span className="flex items-center gap-1.5">
-                      <User className="w-4 h-4 text-jds-primary" /> Customer Profile
-                    </span>
-                    <span className="text-[11px] font-normal text-jds-on-surface-variant">
+                {/* Equipment & Customer Dossier */}
+                <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl p-6 shadow-sm space-y-4">
+                  {/* Eyebrow Header */}
+                  <div className="flex items-center justify-between pb-3.5 border-b border-jds-outline-variant/15 text-xs">
+                    <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-jds-on-surface-variant">
+                      <User className="w-4 h-4 text-jds-primary" />
+                      <span>Customer & Equipment Details</span>
+                    </div>
+                    <span className="text-xs text-jds-on-surface-variant/70">
                       Submitted: {formatDate(activeModalClaim.created_at)}
                     </span>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  {/* Customer Information Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
                     <div>
-                      <div className="text-base font-bold text-jds-on-surface">
+                      <h3 className="text-base font-bold text-jds-on-surface">
                         {activeModalClaim.customer_purchases?.customers?.full_name || 'Customer'}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <Phone className="w-3.5 h-3.5 text-jds-on-surface-variant/60" />
                         <span className="font-mono text-xs font-semibold text-jds-on-surface">
-                          {activeModalClaim.customer_purchases?.customers?.phone_number || 'No phone'}
+                          {activeModalClaim.customer_purchases?.customers?.phone_number || 'No contact phone'}
                         </span>
                         <button
                           type="button"
                           onClick={() => handleCopyPhone(activeModalClaim.customer_purchases?.customers?.phone_number)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-jds-surface border border-jds-outline-variant/30 text-[11px] font-medium text-jds-on-surface hover:text-jds-primary transition-colors cursor-pointer"
-                          title="Copy phone number"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-jds-surface-container hover:bg-jds-primary/10 hover:text-jds-primary text-xs font-medium text-jds-on-surface-variant transition-colors cursor-pointer"
+                          title="Copy customer phone"
                         >
                           <Copy className="w-3 h-3" />
                           <span>{copiedPhone ? 'Copied' : 'Copy'}</span>
                         </button>
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                {/* Product & Hardware Warranty Card */}
-                <div className="p-4.5 rounded-xl bg-jds-surface-container-low/40 border border-jds-outline-variant/30 space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-jds-on-surface-variant uppercase tracking-wider pb-2 border-b border-jds-outline-variant/20">
-                    <span className="flex items-center gap-1.5">
-                      <Package className="w-4 h-4 text-jds-primary" /> Product & Hardware Warranty
-                    </span>
                     <span
-                      className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                      className={`self-start sm:self-auto text-xs font-bold px-3 py-1 rounded-full border ${
                         isWarrantyActive(activeModalClaim.customer_purchases?.warranty_expires_at)
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                          : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                          : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
                       }`}
                     >
                       {isWarrantyActive(activeModalClaim.customer_purchases?.warranty_expires_at)
@@ -642,93 +638,121 @@ export default function WarrantyClaimsScreen() {
                     </span>
                   </div>
 
-                  <div>
-                    <div className="text-sm font-bold text-jds-on-surface">
-                      {activeModalClaim.customer_purchases?.products?.name || 'Solar Light Unit'}
+                  {/* Hardware Specification Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-3">
+                    <div className="bg-jds-surface-container-low/60 dark:bg-white/[0.04] rounded-xl p-3.5 space-y-1">
+                      <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 text-jds-primary" /> Solar Product Unit
+                      </span>
+                      <div className="text-xs font-bold text-jds-on-surface">
+                        {activeModalClaim.customer_purchases?.products?.name || 'Solar Light Unit'}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-jds-on-surface-variant mt-2 pt-2 border-t border-jds-outline-variant/15">
-                      {activeModalClaim.customer_purchases?.serial_number && (
-                        <div>
-                          Serial Number: <strong className="font-mono text-jds-on-surface font-semibold">{activeModalClaim.customer_purchases.serial_number}</strong>
-                        </div>
-                      )}
-                      <div>
-                        Purchase Date: <strong className="text-jds-on-surface font-semibold">{formatDate(activeModalClaim.customer_purchases?.purchase_date)}</strong>
+
+                    <div className="bg-jds-surface-container-low/60 dark:bg-white/[0.04] rounded-xl p-3.5 space-y-1">
+                      <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-jds-primary" /> Serial Number
+                      </span>
+                      <div className="font-mono text-xs font-bold text-jds-on-surface">
+                        {activeModalClaim.customer_purchases?.serial_number || 'N/A'}
                       </div>
-                      <div>
-                        Coverage Period: <strong className="text-jds-on-surface font-semibold">{activeModalClaim.customer_purchases?.warranty_months || 12} Months</strong>
+                    </div>
+
+                    <div className="bg-jds-surface-container-low/60 dark:bg-white/[0.04] rounded-xl p-3.5 space-y-1">
+                      <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-jds-primary" /> Purchase Date & Period
+                      </span>
+                      <div className="text-xs font-semibold text-jds-on-surface">
+                        {formatDate(activeModalClaim.customer_purchases?.purchase_date)} ({activeModalClaim.customer_purchases?.warranty_months || 12} Mos)
                       </div>
-                      <div>
-                        Remaining: <strong className="text-jds-on-surface font-semibold">{getRemainingDays(activeModalClaim.customer_purchases?.warranty_expires_at)} days</strong>
+                    </div>
+
+                    <div className="bg-jds-surface-container-low/60 dark:bg-white/[0.04] rounded-xl p-3.5 space-y-1">
+                      <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-jds-primary" /> Coverage Countdown
+                      </span>
+                      <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        {getRemainingDays(activeModalClaim.customer_purchases?.warranty_expires_at)} days remaining
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Customer Fault Diagnostic Report */}
-                <div className="p-4.5 rounded-xl border border-jds-outline-variant/30 bg-jds-surface space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-jds-outline-variant/20">
-                    <div className="flex items-center gap-2">
+                {/* Customer Fault Diagnostic Report & Evidence Gallery */}
+                <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl p-6 shadow-sm space-y-5">
+                  {/* Eyebrow Header */}
+                  <div className="flex items-center justify-between pb-3.5 border-b border-jds-outline-variant/15 text-xs">
+                    <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-jds-on-surface">
                       <FileText className="w-4 h-4 text-jds-primary" />
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-jds-on-surface">Customer Fault Report</h3>
+                      <span>Diagnostic Fault Report</span>
                     </div>
-                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-jds-primary/10 text-jds-primary border border-jds-primary/20">
+                    <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
                       Category: {activeModalClaim.issue_category}
                     </span>
                   </div>
 
-                  <div className="bg-jds-surface-container-low/40 p-4 rounded-xl border border-jds-outline-variant/20">
-                    <p className="text-xs text-jds-on-surface whitespace-pre-line leading-relaxed">
+                  {/* Fault Explanation */}
+                  <div className="bg-jds-surface-container-low/50 dark:bg-white/[0.04] rounded-2xl p-4.5 space-y-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
+                      Customer Problem Statement
+                    </span>
+                    <p className="text-xs text-jds-on-surface whitespace-pre-line leading-relaxed pt-1">
                       {activeModalClaim.description}
                     </p>
                   </div>
 
-                  {/* Uploaded Evidence Gallery */}
-                  <div className="space-y-2 pt-1">
-                    <span className="text-xs font-bold text-jds-on-surface-variant flex items-center gap-1.5">
-                      <ImageIcon className="w-3.5 h-3.5 text-jds-primary" />
-                      Attached Photo / Video Evidence ({activeModalClaim.media_urls?.length || 0})
+                  {/* Evidence Gallery */}
+                  <div className="space-y-3 pt-1">
+                    <span className="text-xs font-bold text-jds-on-surface flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-jds-primary" />
+                      <span>Photographic Fault Evidence</span>
+                      <span className="text-[11px] font-normal text-jds-on-surface-variant">
+                        ({activeModalClaim.media_urls?.length || 0} attached)
+                      </span>
                     </span>
+
                     {activeModalClaim.media_urls && activeModalClaim.media_urls.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-1">
                         {activeModalClaim.media_urls.map((url, imgIdx) => (
                           <div
                             key={imgIdx}
                             onClick={() => setSelectedMedia(url)}
-                            className="group relative h-28 rounded-xl overflow-hidden border border-jds-outline-variant/40 bg-black/10 cursor-pointer shadow-xs hover:border-jds-primary transition-all"
+                            className="group relative aspect-4/3 rounded-xl overflow-hidden bg-black/10 cursor-pointer shadow-xs hover:shadow-md transition-all ring-1 ring-black/5 dark:ring-white/10"
                           >
                             <img
                               src={url}
-                              alt="Fault evidence submission"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              alt="Fault evidence"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none'
                               }}
                             />
-                            <div className="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white font-semibold text-xs gap-1">
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white font-semibold text-xs gap-1.5 backdrop-blur-[2px]">
                               <Maximize2 className="w-4 h-4" />
-                              <span>Preview</span>
+                              <span>Enlarge</span>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-jds-on-surface-variant/60 italic">No media files attached by customer.</p>
+                      <div className="p-4 rounded-xl bg-jds-surface-container-low/40 dark:bg-white/[0.02] text-center text-xs text-jds-on-surface-variant/60 italic">
+                        No customer media files attached for this claim.
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: Lifecycle Stepper & Technician Triage Actions (5 cols) */}
-              <div className="lg:col-span-5 space-y-5">
+              {/* Right Column: Lifecycle Stage & Technician Triage (5 cols) */}
+              <div className="lg:col-span-5 space-y-6">
                 {/* Visual Claim Lifecycle Pipeline */}
-                <div className="p-4.5 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/30 space-y-3">
-                  <div className="flex items-center gap-2 pb-2 border-b border-jds-outline-variant/20">
+                <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl p-6 shadow-sm space-y-4">
+                  <div className="flex items-center gap-2 pb-3.5 border-b border-jds-outline-variant/15 text-xs font-bold uppercase tracking-wider text-jds-on-surface">
                     <Layers className="w-4 h-4 text-jds-primary" />
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-jds-on-surface">Lifecycle Stage</h3>
+                    <span>Claim Lifecycle Progression</span>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 pt-1">
                     {KANBAN_COLUMNS.map((col) => {
                       const ColIcon = col.icon
                       const isCurrent = (modalStatus || activeModalClaim.status) === col.id
@@ -736,18 +760,23 @@ export default function WarrantyClaimsScreen() {
                         <div
                           key={col.id}
                           onClick={() => setModalStatus(col.id)}
-                          className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                          className={`flex items-center justify-between p-3 rounded-xl text-xs cursor-pointer transition-all ${
                             isCurrent
-                              ? `${col.headerBg} ${col.accentBorder} font-bold shadow-xs ring-1 ring-jds-primary/30`
-                              : 'border-jds-outline-variant/25 bg-jds-surface/50 text-jds-on-surface-variant hover:bg-jds-surface-container hover:text-jds-on-surface'
+                              ? `${col.headerBg} font-bold shadow-xs ring-1 ring-jds-primary/40`
+                              : 'text-jds-on-surface-variant hover:bg-jds-surface-container-low/60 hover:text-jds-on-surface'
                           }`}
                         >
-                          <div className="flex items-center gap-2.5">
-                            <ColIcon className="w-4 h-4 shrink-0" />
-                            <span>{col.title}</span>
+                          <div className="flex items-center gap-3">
+                            <div className={`p-1.5 rounded-lg ${isCurrent ? 'bg-white/30 dark:bg-black/30' : 'bg-jds-surface-container'}`}>
+                              <ColIcon className="w-4 h-4 shrink-0" />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-xs leading-none">{col.title}</div>
+                              <div className="text-[10px] text-jds-on-surface-variant/70 mt-1">{col.description}</div>
+                            </div>
                           </div>
                           {isCurrent && (
-                            <span className="text-[10px] uppercase tracking-wide font-extrabold px-2 py-0.5 rounded-full bg-white/20 dark:bg-black/20 border border-current">
+                            <span className="text-[10px] uppercase tracking-wide font-extrabold px-2.5 py-0.5 rounded-full bg-white/30 dark:bg-black/30 border border-current">
                               Active
                             </span>
                           )}
@@ -758,21 +787,21 @@ export default function WarrantyClaimsScreen() {
                 </div>
 
                 {/* Technician Triage Form */}
-                <div className="p-4.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface space-y-4">
-                  <div className="flex items-center gap-2">
+                <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl p-6 shadow-sm space-y-5">
+                  <div className="flex items-center gap-2 pb-3.5 border-b border-jds-outline-variant/15 text-xs font-bold uppercase tracking-wider text-jds-on-surface">
                     <ShieldCheck className="w-4 h-4 text-jds-primary" />
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-jds-on-surface">Technician Actions</h3>
+                    <span>Technician Decision & Notes</span>
                   </div>
 
                   {/* Stage Dropdown */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-jds-on-surface-variant">
-                      Selected Ticket Stage
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-jds-on-surface-variant block">
+                      Target Ticket Stage
                     </label>
                     <select
                       value={modalStatus}
                       onChange={(e) => setModalStatus(e.target.value)}
-                      className="w-full bg-jds-surface-container-low/30 border border-jds-outline-variant/50 rounded-xl px-3.5 py-2.5 text-xs font-bold text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
+                      className="w-full bg-jds-surface-container-low/50 dark:bg-white/[0.04] border border-jds-outline-variant/30 rounded-xl px-4 py-3 text-xs font-semibold text-jds-on-surface focus:outline-none focus:ring-2 focus:ring-jds-primary transition-all cursor-pointer"
                     >
                       <option value="pending">Pending Review (Awaiting Inspection)</option>
                       <option value="in_review">Under Inspection (Evaluating Fault)</option>
@@ -783,25 +812,27 @@ export default function WarrantyClaimsScreen() {
                   </div>
 
                   {/* Technician Notes */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-jds-on-surface-variant">
                         Technician Notes
                       </label>
-                      <span className="text-[10px] text-jds-on-surface-variant/60">Visible to customer</span>
+                      <span className="text-[11px] text-jds-on-surface-variant/60">Visible to customer</span>
                     </div>
                     <textarea
                       rows={3}
-                      placeholder="e.g. Unit inspected at branch. Battery fault confirmed; approved for full module replacement."
+                      placeholder="e.g. Unit inspected at counter. Battery fault confirmed; replacement authorized."
                       value={modalNotes}
                       onChange={(e) => setModalNotes(e.target.value)}
-                      className="w-full bg-jds-surface-container-low/30 border border-jds-outline-variant/50 rounded-xl p-3 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary placeholder:text-jds-on-surface-variant/40 transition-colors"
+                      className="w-full bg-jds-surface-container-low/50 dark:bg-white/[0.04] border border-jds-outline-variant/30 rounded-xl p-4 text-xs text-jds-on-surface focus:outline-none focus:ring-2 focus:ring-jds-primary placeholder:text-jds-on-surface-variant/40 transition-all leading-relaxed"
                     />
 
                     {/* Quick Presets */}
-                    <div className="space-y-1 pt-1">
-                      <span className="text-[10px] font-semibold text-jds-on-surface-variant/70">Quick Presets:</span>
-                      <div className="flex flex-wrap gap-1.5">
+                    <div className="space-y-2 pt-2">
+                      <span className="text-[11px] font-semibold text-jds-on-surface-variant/80 block">
+                        One-Click Preset Responses:
+                      </span>
+                      <div className="flex flex-wrap gap-2">
                         {[
                           'Approved: Bring solar unit to counter for direct swap.',
                           'Inspection: Unit passed test. Please verify cable connection.',
@@ -812,9 +843,9 @@ export default function WarrantyClaimsScreen() {
                             key={pIdx}
                             type="button"
                             onClick={() => setModalNotes(preset)}
-                            className="px-2 py-1 rounded-md bg-jds-surface-container-low border border-jds-outline-variant/30 text-[10px] font-medium text-jds-on-surface-variant hover:text-jds-primary hover:border-jds-primary transition-all text-left cursor-pointer"
+                            className="px-3 py-1.5 rounded-full bg-jds-surface-container dark:bg-white/[0.06] text-[11px] font-medium text-jds-on-surface-variant hover:text-jds-primary hover:bg-jds-primary/10 transition-colors text-left cursor-pointer"
                           >
-                            {preset.slice(0, 28)}...
+                            {preset.slice(0, 32)}...
                           </button>
                         ))}
                       </div>
@@ -825,33 +856,38 @@ export default function WarrantyClaimsScreen() {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-jds-outline-variant/30 bg-jds-surface-container-low/40 shrink-0">
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                disabled={modalSaving}
-                className="px-5 py-2.5 rounded-xl border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface-variant hover:bg-jds-surface-container transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                disabled={modalSaving}
-                onClick={handleSaveModalChanges}
-                className="px-6 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-bold hover:bg-jds-primary/90 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
-              >
-                {modalSaving ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    <span>Updating Ticket...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Save & Update Ticket</span>
-                  </>
-                )}
-              </button>
+            <div className="flex items-center justify-between px-7 py-4.5 border-t border-jds-outline-variant/15 bg-jds-surface-container-lowest/80 dark:bg-white/[0.02] backdrop-blur-sm shrink-0">
+              <span className="text-xs text-jds-on-surface-variant/60 hidden sm:inline">
+                Press <kbd className="px-1.5 py-0.5 rounded bg-jds-surface-container text-[11px] font-mono">Esc</kbd> to close
+              </span>
+              <div className="flex items-center gap-3 ml-auto">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  disabled={modalSaving}
+                  className="px-5 py-2.5 rounded-xl text-xs font-semibold text-jds-on-surface-variant hover:bg-jds-surface-container transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={modalSaving}
+                  onClick={handleSaveModalChanges}
+                  className="px-6 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-bold hover:bg-jds-primary/90 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+                >
+                  {modalSaving ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <span>Updating Ticket...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Save & Update Ticket</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
