@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {
   X,
   ShieldCheck,
@@ -407,7 +408,7 @@ Customer completed troubleshooting steps and submitted for technician review.`
                     >
                       {/* Markdown Text */}
                       <div className="prose prose-sm max-w-none text-xs leading-relaxed prose-headings:font-bold prose-headings:text-jds-on-surface prose-headings:text-xs prose-headings:my-1.5 prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-table:my-2 prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                       </div>
 
                       {/* Diagnostic Verdict & Technical Assessment Box */}

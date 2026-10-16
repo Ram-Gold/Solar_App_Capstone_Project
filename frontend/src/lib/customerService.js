@@ -142,7 +142,8 @@ export async function fetchCustomerPortalData(token) {
     }
 
     // Purchases
-    const { data: rawPurchases, error: purchasesErr } = await supabase
+    let rawPurchases = null
+    const { data: pWithVoid, error: errVoid } = await supabase
       .from('customer_purchases')
       .select(`
         id,
@@ -152,18 +153,42 @@ export async function fetchCustomerPortalData(token) {
         warranty_months,
         warranty_expires_at,
         branch_location,
+        is_voided,
+        void_reason,
+        voided_at,
         products (name, image_url, type, watt)
       `)
       .eq('customer_id', custData.id)
       .order('purchase_date', { ascending: false })
 
-    if (purchasesErr) throw purchasesErr
+    if (!errVoid) {
+      rawPurchases = pWithVoid
+    } else {
+      const { data: pFallback, error: errFallback } = await supabase
+        .from('customer_purchases')
+        .select(`
+          id,
+          product_id,
+          serial_number,
+          purchase_date,
+          warranty_months,
+          warranty_expires_at,
+          branch_location,
+          products (name, image_url, type, watt)
+        `)
+        .eq('customer_id', custData.id)
+        .order('purchase_date', { ascending: false })
+
+      if (errFallback) throw errFallback
+      rawPurchases = pFallback
+    }
 
     const purchases = (rawPurchases || []).map(cp => {
       const expiry = cp.warranty_expires_at || calculateExpiryDate(cp.purchase_date, cp.warranty_months)
       const now = new Date()
       const expiryDate = new Date(expiry)
       const diffDays = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24))
+      const isVoided = Boolean(cp.is_voided)
       return {
         id: cp.id,
         product_id: cp.product_id,
@@ -176,8 +201,11 @@ export async function fetchCustomerPortalData(token) {
         warranty_months: cp.warranty_months,
         warranty_expires_at: expiry,
         branch_location: cp.branch_location,
-        is_warranty_active: diffDays > 0,
-        days_remaining: Math.max(0, diffDays)
+        is_voided: isVoided,
+        void_reason: cp.void_reason || null,
+        voided_at: cp.voided_at || null,
+        is_warranty_active: !isVoided && diffDays > 0,
+        days_remaining: isVoided ? 0 : Math.max(0, diffDays)
       }
     })
 
@@ -401,7 +429,8 @@ export async function updateClaimStatus(claimId, status, staffNotes = '') {
  */
 export async function fetchAllCustomers() {
   try {
-    const { data: customers, error } = await supabase
+    let customers = null
+    const { data: withVoid, error: errVoid } = await supabase
       .from('customers')
       .select(`
         id,
@@ -417,12 +446,41 @@ export async function fetchAllCustomers() {
           warranty_months,
           warranty_expires_at,
           branch_location,
+          is_voided,
+          void_reason,
+          voided_at,
           products (id, name, type, watt, image_url)
         )
       `)
       .order('created_at', { ascending: false })
 
-    if (error) throw error
+    if (!errVoid) {
+      customers = withVoid
+    } else {
+      const { data: fallback, error: errFallback } = await supabase
+        .from('customers')
+        .select(`
+          id,
+          phone_number,
+          full_name,
+          access_token,
+          created_at,
+          customer_purchases (
+            id,
+            product_id,
+            serial_number,
+            purchase_date,
+            warranty_months,
+            warranty_expires_at,
+            branch_location,
+            products (id, name, type, watt, image_url)
+          )
+        `)
+        .order('created_at', { ascending: false })
+
+      if (errFallback) throw errFallback
+      customers = fallback
+    }
 
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://jdforcesolar.com'
 
@@ -432,11 +490,15 @@ export async function fetchAllCustomers() {
         const now = new Date()
         const expiryDate = new Date(expiry)
         const diffDays = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24))
+        const isVoided = Boolean(cp.is_voided)
         return {
           ...cp,
           product_name: cp.products?.name || 'Solar Product',
-          is_warranty_active: diffDays > 0,
-          days_remaining: Math.max(0, diffDays)
+          is_voided: isVoided,
+          void_reason: cp.void_reason || null,
+          voided_at: cp.voided_at || null,
+          is_warranty_active: !isVoided && diffDays > 0,
+          days_remaining: isVoided ? 0 : Math.max(0, diffDays)
         }
       })
 
@@ -598,4 +660,287 @@ export async function loginCustomerWithPassword(email, password) {
 
   return { token: null, customer: null, error: new Error('Invalid email or password.') }
 }
+
+/**
+ * Updates basic customer profile information (full_name, phone_number).
+ */
+export async function updateCustomerProfile(customerId, { fullName, phoneNumber }) {
+  if (!customerId) throw new Error('Customer ID is required.')
+
+  const updates = {}
+  if (fullName !== undefined) updates.full_name = fullName.trim()
+  if (phoneNumber !== undefined) updates.phone_number = phoneNumber.trim()
+
+  const { data, error } = await supabase
+    .from('customers')
+    .update(updates)
+    .eq('id', customerId)
+    .select(`
+      id,
+      phone_number,
+      full_name,
+      access_token,
+      created_at
+    `)
+    .single()
+
+  if (error) throw error
+  return { customer: data, error: null }
+}
+
+/**
+ * Adds an individual product purchase / unit to an existing customer.
+ */
+export async function addCustomerProductPurchase({
+  customerId,
+  productId,
+  serialNumber = null,
+  warrantyMonths = 12,
+  purchaseDate = null,
+  branchLocation = 'Cavite'
+}) {
+  if (!customerId) throw new Error('Customer ID is required.')
+  if (!productId) throw new Error('Product is required.')
+
+  const payload = {
+    customer_id: customerId,
+    product_id: productId,
+    serial_number: (serialNumber || '').trim() || null,
+    purchase_date: purchaseDate || new Date().toISOString().split('T')[0],
+    warranty_months: Number(warrantyMonths || 12),
+    branch_location: branchLocation || 'Cavite'
+  }
+
+  const { data, error } = await supabase
+    .from('customer_purchases')
+    .insert([payload])
+    .select(`
+      id,
+      customer_id,
+      product_id,
+      serial_number,
+      purchase_date,
+      warranty_months,
+      warranty_expires_at,
+      branch_location,
+      products (id, name, type, watt, image_url)
+    `)
+    .single()
+
+  if (error) throw error
+
+  const expiry = data.warranty_expires_at || calculateExpiryDate(data.purchase_date, data.warranty_months)
+  const now = new Date()
+  const expiryDate = new Date(expiry)
+  const diffDays = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24))
+
+  return {
+    purchase: {
+      ...data,
+      product_name: data.products?.name || 'Solar Product',
+      is_voided: false,
+      void_reason: null,
+      is_warranty_active: diffDays > 0,
+      days_remaining: Math.max(0, diffDays)
+    },
+    error: null
+  }
+}
+
+/**
+ * Voids warranty for a specific customer purchase.
+ */
+export async function voidCustomerWarranty({ purchaseId, reason = 'Administrative Void' }) {
+  if (!purchaseId) throw new Error('Purchase ID is required.')
+
+  const nowIso = new Date().toISOString()
+  
+  // Try updating with is_voided and void_reason
+  const { data, error } = await supabase
+    .from('customer_purchases')
+    .update({
+      is_voided: true,
+      void_reason: reason,
+      voided_at: nowIso
+    })
+    .eq('id', purchaseId)
+    .select()
+
+  if (error) {
+    if (error.code === '42703') {
+      // Column does not exist yet; fall back to setting warranty_expires_at to past timestamp
+      const fallback = await supabase
+        .from('customer_purchases')
+        .update({
+          warranty_expires_at: '1970-01-01T00:00:00Z'
+        })
+        .eq('id', purchaseId)
+        .select()
+      if (fallback.error) throw fallback.error
+      return { 
+        data: fallback.data, 
+        warning: 'Please run warranty_void_migration.sql in Supabase to track explicit void reasons.', 
+        error: null 
+      }
+    }
+    throw error
+  }
+  return { data, error: null }
+}
+
+/**
+ * Unvoids / reactivates warranty for a specific customer purchase.
+ */
+export async function unvoidCustomerWarranty({ purchaseId, warrantyMonths = 12, purchaseDate }) {
+  if (!purchaseId) throw new Error('Purchase ID is required.')
+
+  const { data, error } = await supabase
+    .from('customer_purchases')
+    .update({
+      is_voided: false,
+      void_reason: null,
+      voided_at: null
+    })
+    .eq('id', purchaseId)
+    .select()
+
+  if (error) {
+    if (error.code === '42703') {
+      // If column does not exist, recalculate expiry date from purchaseDate and warrantyMonths
+      if (purchaseDate) {
+        const recalculated = calculateExpiryDate(purchaseDate, warrantyMonths)
+        await supabase
+          .from('customer_purchases')
+          .update({ warranty_expires_at: recalculated })
+          .eq('id', purchaseId)
+      }
+      return { data: null, error: null }
+    }
+    throw error
+  }
+  return { data, error: null }
+}
+
+/**
+ * Extends the warranty period for an existing customer purchase.
+ */
+export async function extendCustomerWarranty({ purchaseId, additionalMonths = 12 }) {
+  if (!purchaseId) throw new Error('Purchase ID is required.')
+  const monthsToAdd = Number(additionalMonths) || 12
+
+  const { data: current, error: fetchErr } = await supabase
+    .from('customer_purchases')
+    .select('id, purchase_date, warranty_months, warranty_expires_at')
+    .eq('id', purchaseId)
+    .single()
+
+  if (fetchErr || !current) throw (fetchErr || new Error('Purchase record not found.'))
+
+  const baseExpiry = current.warranty_expires_at 
+    ? new Date(current.warranty_expires_at) 
+    : new Date(calculateExpiryDate(current.purchase_date, current.warranty_months || 12))
+  const now = new Date()
+  
+  // If already expired, extend from today; if still active, add to existing expiration date
+  const startFrom = baseExpiry > now ? baseExpiry : now
+  const newExpiry = new Date(startFrom)
+  newExpiry.setMonth(newExpiry.getMonth() + monthsToAdd)
+
+  const newTotalMonths = (Number(current.warranty_months) || 12) + monthsToAdd
+
+  const updatePayload = {
+    warranty_months: newTotalMonths,
+    warranty_expires_at: newExpiry.toISOString()
+  }
+
+  // Attempt update clearing void status as well
+  let { data, error } = await supabase
+    .from('customer_purchases')
+    .update({
+      ...updatePayload,
+      is_voided: false,
+      void_reason: null,
+      voided_at: null
+    })
+    .eq('id', purchaseId)
+    .select(`
+      id,
+      customer_id,
+      product_id,
+      serial_number,
+      purchase_date,
+      warranty_months,
+      warranty_expires_at,
+      branch_location,
+      products (id, name, type, watt, image_url)
+    `)
+    .single()
+
+  if (error && error.code === '42703') {
+    const fallback = await supabase
+      .from('customer_purchases')
+      .update(updatePayload)
+      .eq('id', purchaseId)
+      .select(`
+        id,
+        customer_id,
+        product_id,
+        serial_number,
+        purchase_date,
+        warranty_months,
+        warranty_expires_at,
+        branch_location,
+        products (id, name, type, watt, image_url)
+      `)
+      .single()
+    if (fallback.error) throw fallback.error
+    data = fallback.data
+    error = null
+  }
+
+  if (error) throw error
+
+  const expiry = data.warranty_expires_at || calculateExpiryDate(data.purchase_date, data.warranty_months)
+  const diffDays = Math.ceil((new Date(expiry) - new Date()) / (1000 * 60 * 60 * 24))
+
+  return {
+    purchase: {
+      ...data,
+      product_name: data.products?.name || 'Solar Product',
+      is_voided: false,
+      void_reason: null,
+      is_warranty_active: diffDays > 0,
+      days_remaining: Math.max(0, diffDays)
+    },
+    error: null
+  }
+}
+
+/**
+ * Removes / deletes a customer purchase and any associated warranty claims.
+ */
+export async function removeCustomerPurchase({ purchaseId }) {
+  if (!purchaseId) throw new Error('Purchase ID is required.')
+
+  // 1. Delete associated warranty claims first to respect foreign key constraint
+  try {
+    await supabase
+      .from('warranty_claims')
+      .delete()
+      .eq('purchase_id', purchaseId)
+  } catch (claimErr) {
+    console.warn('Non-fatal: Error deleting linked warranty claims:', claimErr)
+  }
+
+  // 2. Delete the purchase record
+  const { error } = await supabase
+    .from('customer_purchases')
+    .delete()
+    .eq('id', purchaseId)
+
+  if (error) throw error
+  return { success: true, error: null }
+}
+
+
 

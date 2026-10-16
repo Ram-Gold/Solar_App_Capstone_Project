@@ -24,6 +24,7 @@ export default function AddProductScreen({ onNavigate }) {
     lighting_time: '',
     price_range: '',
     size: '',
+    stock_quantity: 15,
     in_stock: true,
     sales: 0,
     image_url: '',
@@ -101,6 +102,11 @@ export default function AddProductScreen({ onNavigate }) {
     setError('')
     setSaving(true)
 
+    const stockQty = form.stock_quantity !== '' && form.stock_quantity !== null && form.stock_quantity !== undefined
+      ? Math.max(0, Number(form.stock_quantity))
+      : (form.in_stock ? 15 : 0)
+    const inStock = stockQty > 0
+
     const payload = {
       name: form.name,
       type: form.type,
@@ -116,12 +122,18 @@ export default function AddProductScreen({ onNavigate }) {
       lighting_time: form.lighting_time || null,
       price_range: form.price_range || null,
       size: form.size || null,
-      in_stock: form.in_stock,
+      stock_quantity: stockQty,
+      in_stock: inStock,
       sales: Number(form.sales) || 0,
       image_url: form.image_url || null,
     }
 
-    const { error: insertError } = await supabase.from('products').insert([payload])
+    let { error: insertError } = await supabase.from('products').insert([payload])
+    if (insertError && insertError.message && insertError.message.includes('stock_quantity')) {
+      const { stock_quantity, ...fallbackPayload } = payload
+      const retry = await supabase.from('products').insert([fallbackPayload])
+      insertError = retry.error
+    }
 
     if (insertError) {
       setError(insertError.message)
@@ -134,7 +146,7 @@ export default function AddProductScreen({ onNavigate }) {
   const inputClass = "h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-[1200px] mx-auto space-y-8">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => onNavigate('products')} className="h-10 w-10 text-jds-on-surface-variant hover:bg-jds-surface-container-low">
           <ArrowLeft className="h-5 w-5" />
@@ -348,10 +360,46 @@ export default function AddProductScreen({ onNavigate }) {
           )}
         </div>
 
-        <div className="flex items-center gap-3 pt-2">
-          <input type="checkbox" id="in-stock" checked={form.in_stock} onChange={(e) => handleChange('in_stock', e.target.checked)} className="h-5 w-5 rounded border-jds-outline-variant/30 accent-jds-primary cursor-pointer" />
-          <label htmlFor="in-stock" className="text-body-md font-medium text-jds-on-surface cursor-pointer">In Stock</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+          <div className="space-y-1.5">
+            <label className="text-label-sm font-bold text-jds-on-surface-variant/80">Stock Quantity (Units)</label>
+            <input
+              type="number"
+              min="0"
+              value={form.stock_quantity ?? 15}
+              onChange={(e) => {
+                const val = e.target.value === '' ? '' : Number(e.target.value)
+                setForm(prev => ({
+                  ...prev,
+                  stock_quantity: val,
+                  in_stock: val === '' ? prev.in_stock : val > 0
+                }))
+              }}
+              className={inputClass}
+              placeholder="e.g. 15"
+            />
+            <p className="text-xs text-jds-on-surface-variant/60 font-medium">0 units marks item as Out of Stock, 1–5 units triggers Low Stock alert.</p>
+          </div>
+
+          <div className="flex items-center gap-3 pt-6">
+            <input
+              type="checkbox"
+              id="in-stock"
+              checked={form.in_stock}
+              onChange={(e) => {
+                const checked = e.target.checked
+                setForm(prev => ({
+                  ...prev,
+                  in_stock: checked,
+                  stock_quantity: checked ? (prev.stock_quantity > 0 ? prev.stock_quantity : 15) : 0
+                }))
+              }}
+              className="h-5 w-5 rounded border-jds-outline-variant/30 accent-jds-primary cursor-pointer"
+            />
+            <label htmlFor="in-stock" className="text-body-md font-medium text-jds-on-surface cursor-pointer">In Stock</label>
+          </div>
         </div>
+
 
         <div className="flex gap-4 pt-6 border-t border-jds-outline-variant/20">
           <Button type="submit" disabled={saving} className="bg-jds-primary text-jds-on-primary hover:opacity-90 px-10 h-12 text-body-md font-bold rounded-lg">

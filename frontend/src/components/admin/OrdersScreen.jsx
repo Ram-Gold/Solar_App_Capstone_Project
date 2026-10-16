@@ -76,7 +76,7 @@ export default function OrdersScreen() {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-[1200px] mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-headline-md font-bold text-jds-on-surface">Order Management</h1>

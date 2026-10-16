@@ -2,18 +2,31 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useChat } from '../context/ChatContext'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Link } from 'react-router-dom'
+import SolarSavingsCalculatorModal from './SolarSavingsCalculatorModal'
 import {
   HiOutlineCpuChip,
   HiOutlineXMark,
   HiOutlineArrowPath,
   HiOutlinePaperAirplane,
   HiOutlineSparkles,
+  HiOutlineArrowTopRightOnSquare,
 } from 'react-icons/hi2'
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false)
-  const { messages, sendMessage, selectOption, resetChat, isLoading, initialMessage } = useChat()
+  const {
+    messages,
+    sendMessage,
+    selectOption,
+    resetChat,
+    isLoading,
+    initialMessage,
+    isSavingsModalOpen,
+    closeSavingsModal,
+    sendSavingsSummaryToChat,
+  } = useChat()
   const [input, setInput] = useState('')
   const scrollRef = useRef(null)
 
@@ -26,7 +39,10 @@ export default function ChatWidget() {
   // Automatically open widget if an initial message was triggered from product page
   useEffect(() => {
     if (initialMessage) {
-      setIsOpen(true)
+      const timer = setTimeout(() => {
+        setIsOpen(true)
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [initialMessage])
 
@@ -39,26 +55,8 @@ export default function ChatWidget() {
 
   return (
     <>
-      {/* FAB Button */}
-      <AnimatePresence>
-        {!isOpen && (
-          <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-tr from-jds-primary to-jds-primary-container text-jds-on-primary rounded-full shadow-2xl flex items-center justify-center z-[100] hover:scale-105 active:scale-95 transition-transform group"
-            aria-label="Open JD Solar Assistant"
-          >
-            <HiOutlineSparkles className="text-2xl animate-pulse" />
-            <span className="absolute -top-10 right-0 bg-jds-surface-container-highest text-jds-on-surface text-[12px] font-semibold px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md pointer-events-none">
-              Need Solar Help? Chat with us!
-            </span>
-          </motion.button>
-        )}
-      </AnimatePresence>
-
       {/* Chat Window */}
+
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -107,6 +105,28 @@ export default function ChatWidget() {
 
             {/* Message Area */}
             <main ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 chat-scroll bg-jds-surface">
+              {messages.length === 0 && (
+                <div className="flex flex-col items-center justify-center text-center py-8 px-4 text-jds-on-surface-variant">
+                  <div className="w-10 h-10 rounded-2xl bg-jds-primary-container/30 text-jds-primary flex items-center justify-center mb-3">
+                    <HiOutlineSparkles size={20} />
+                  </div>
+                  <h4 className="text-label-md font-bold text-jds-on-surface mb-1">How can we assist you?</h4>
+                  <p className="text-[12px] text-jds-on-surface-variant/70 mb-4 max-w-xs">
+                    Ask a question below about our solar lighting systems, pricing, or branch pickups.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 justify-center">
+                    {['Pricing & packages', 'Warranty policy', 'Store branches'].map((prompt) => (
+                      <button
+                        key={prompt}
+                        onClick={() => sendMessage(prompt)}
+                        className="text-[11px] bg-white hover:bg-jds-primary/5 text-jds-on-surface px-2.5 py-1 rounded-full border border-jds-outline-variant/50 hover:border-jds-primary cursor-pointer transition-all"
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {messages.map((msg, idx) => {
                 const isAssistant = msg.role === 'assistant'
                 const isLatestAssistant = isAssistant && idx === messages.length - 1
@@ -123,6 +143,7 @@ export default function ChatWidget() {
                       {/* Markdown rendering */}
                       <div className="prose prose-sm max-w-none text-body-md leading-relaxed prose-headings:font-bold prose-headings:text-jds-on-surface prose-headings:my-1.5 prose-p:my-1 prose-ul:my-1 prose-li:my-0.5">
                         <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
                           components={{
                             a: ({ ...props }) => (
                               <Link
@@ -134,6 +155,20 @@ export default function ChatWidget() {
                               >
                                 {props.children}
                               </Link>
+                            ),
+                            table: ({ ...props }) => (
+                              <div className="overflow-x-auto my-2.5 rounded-xl border border-jds-outline-variant/40 bg-white/70 shadow-xs">
+                                <table className="min-w-full divide-y divide-jds-outline-variant/30 text-[11px] text-left" {...props} />
+                              </div>
+                            ),
+                            thead: ({ ...props }) => (
+                              <thead className="bg-jds-surface-container font-bold text-jds-on-surface" {...props} />
+                            ),
+                            th: ({ ...props }) => (
+                              <th className="px-2.5 py-1.5 font-bold uppercase tracking-wider text-[10px] text-jds-on-surface" {...props} />
+                            ),
+                            td: ({ ...props }) => (
+                              <td className="px-2.5 py-1.5 whitespace-nowrap text-jds-on-surface-variant font-medium border-t border-jds-outline-variant/20" {...props} />
                             ),
                           }}
                         >
@@ -150,27 +185,46 @@ export default function ChatWidget() {
                           className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-jds-outline-variant/30"
                         >
                           {msg.options.map((opt, optIdx) => {
+                            const isSelected = msg.selectedOption === opt.label
+                            const hasSelection = Boolean(msg.selectedOption)
+
                             if (opt.url) {
                               return (
                                 <Link
                                   key={optIdx}
                                   to={opt.url}
-                                  onClick={() => setIsOpen(false)}
-                                  className="inline-flex items-center text-label-sm font-semibold bg-jds-primary-container text-jds-on-primary-container px-3 py-1.5 rounded-lg border border-jds-primary/20 hover:opacity-90 transition-all active:scale-95"
+                                  onClick={() => {
+                                    selectOption(opt, msg.id)
+                                    setIsOpen(false)
+                                  }}
+                                  className={`inline-flex items-center gap-1.5 text-label-sm px-3 py-1.5 rounded-lg border transition-all text-left ${
+                                    isSelected
+                                      ? 'bg-jds-primary text-white border-jds-primary shadow-sm font-semibold'
+                                      : hasSelection
+                                      ? 'opacity-40 bg-jds-surface-container/60 text-jds-on-surface-variant/70 border-transparent pointer-events-none'
+                                      : isLatestAssistant
+                                      ? 'bg-white text-jds-on-surface border-jds-outline-variant hover:border-jds-primary hover:bg-jds-primary/5 active:scale-95 shadow-xs font-medium'
+                                      : 'bg-jds-surface-container text-jds-on-surface-variant/70 border-transparent cursor-default pointer-events-none font-medium'
+                                  }`}
                                 >
-                                  {opt.label}
+                                  <span>{opt.label}</span>
+                                  <HiOutlineArrowTopRightOnSquare size={12} className={isSelected ? 'text-white' : 'opacity-60'} />
                                 </Link>
                               )
                             }
                             return (
                               <button
                                 key={optIdx}
-                                onClick={() => selectOption(opt)}
-                                disabled={isLoading || !isLatestAssistant}
-                                className={`inline-flex items-center text-label-sm font-medium px-3 py-1.5 rounded-lg border transition-all text-left ${
-                                  isLatestAssistant
-                                    ? 'bg-white text-jds-on-surface border-jds-outline-variant hover:border-jds-primary hover:bg-jds-primary/5 active:scale-95 cursor-pointer shadow-sm'
-                                    : 'bg-jds-surface-container text-jds-on-surface-variant/70 border-transparent cursor-default'
+                                onClick={() => selectOption(opt, msg.id)}
+                                disabled={isLoading || hasSelection || !isLatestAssistant}
+                                className={`inline-flex items-center text-label-sm px-3 py-1.5 rounded-lg border transition-all text-left ${
+                                  isSelected
+                                    ? 'bg-jds-primary text-white border-jds-primary shadow-sm font-semibold cursor-default'
+                                    : hasSelection
+                                    ? 'opacity-40 bg-jds-surface-container/60 text-jds-on-surface-variant/70 border-transparent cursor-not-allowed pointer-events-none'
+                                    : isLatestAssistant
+                                    ? 'bg-white text-jds-on-surface border-jds-outline-variant hover:border-jds-primary hover:bg-jds-primary/5 active:scale-95 cursor-pointer shadow-xs font-medium'
+                                    : 'bg-jds-surface-container text-jds-on-surface-variant/70 border-transparent cursor-default font-medium'
                                 }`}
                               >
                                 {opt.label}
@@ -228,6 +282,13 @@ export default function ChatWidget() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Solar Electricity Savings Calculator Modal */}
+      <SolarSavingsCalculatorModal
+        isOpen={isSavingsModalOpen}
+        onClose={closeSavingsModal}
+        onSendToChat={sendSavingsSummaryToChat}
+      />
     </>
   )
 }

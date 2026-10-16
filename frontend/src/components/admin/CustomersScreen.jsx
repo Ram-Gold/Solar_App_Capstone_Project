@@ -9,6 +9,10 @@ import {
   ExternalLink,
   ShieldCheck,
   ShieldAlert,
+  ShieldX,
+  Trash2,
+  RotateCcw,
+  AlertTriangle,
   Phone,
   User,
   Package,
@@ -18,13 +22,25 @@ import {
   Plus,
   Eye,
   EyeOff,
-  ChevronDown,
-  ChevronUp,
+  X,
+  Edit2,
+  Save,
+  ArrowRight,
   Clock,
-  Printer
+  Hash,
+  AlertCircle
 } from 'lucide-react'
-import { fetchAllCustomers } from '../../lib/customerService'
-import { formatDate } from '../../lib/warrantyUtils'
+import { supabase } from '../../lib/supabaseClient'
+import {
+  fetchAllCustomers,
+  updateCustomerProfile,
+  addCustomerProductPurchase,
+  voidCustomerWarranty,
+  unvoidCustomerWarranty,
+  extendCustomerWarranty,
+  removeCustomerPurchase
+} from '../../lib/customerService'
+import { formatDate, calculateExpiryDate } from '../../lib/warrantyUtils'
 import QRReceiptModal from './QRReceiptModal'
 
 export default function CustomersScreen({ onNavigate, onSelectCustomerForSale }) {
@@ -34,18 +50,48 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
   const [branchFilter, setBranchFilter] = useState('All')
   const [warrantyFilter, setWarrantyFilter] = useState('All')
 
-  // Selected customer for full QR & Token modal
-  const [activeCustomerForQr, setActiveCustomerForQr] = useState(null)
-  
-  // Track copied tokens and links by customer ID
-  const [copiedTokens, setCopiedTokens] = useState({})
-  const [copiedLinks, setCopiedLinks] = useState({})
+  // Catalog products for quick product registration
+  const [catalogProducts, setCatalogProducts] = useState([])
 
-  // Expanded rows to view purchase breakdown
-  const [expandedRows, setExpandedRows] = useState({})
-  
-  // Visible full tokens state
-  const [revealedTokens, setRevealedTokens] = useState({})
+  // Modal states
+  const [selectedCustomer, setSelectedCustomer] = useState(null)
+  const [activeCustomerForQr, setActiveCustomerForQr] = useState(null)
+
+  // Edit Customer Profile state inside modal
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [profileMessage, setProfileMessage] = useState(null)
+
+  // Token & link states inside modal
+  const [isTokenRevealedInModal, setIsTokenRevealedInModal] = useState(false)
+  const [modalTokenCopied, setModalTokenCopied] = useState(false)
+  const [modalLinkCopied, setModalLinkCopied] = useState(false)
+
+  // Add Product form state inside modal
+  const [isAddingProduct, setIsAddingProduct] = useState(false)
+  const [newProductId, setNewProductId] = useState('')
+  const [newSerial, setNewSerial] = useState('')
+  const [newWarrantyMonths, setNewWarrantyMonths] = useState(12)
+  const [newBranch, setNewBranch] = useState('Cavite')
+  const [newPurchaseDate, setNewPurchaseDate] = useState(new Date().toISOString().split('T')[0])
+  const [isSavingProduct, setIsSavingProduct] = useState(false)
+  const [productAddMessage, setProductAddMessage] = useState(null)
+
+  // Warranty management modal states
+  const [voidingPurchase, setVoidingPurchase] = useState(null)
+  const [voidReasonPreset, setVoidReasonPreset] = useState('Broken warranty seal / Tampered')
+  const [voidReasonCustom, setVoidReasonCustom] = useState('')
+  const [isSubmittingVoid, setIsSubmittingVoid] = useState(false)
+
+  const [extendingPurchase, setExtendingPurchase] = useState(null)
+  const [extensionMonths, setExtensionMonths] = useState(12)
+  const [isSubmittingExtension, setIsSubmittingExtension] = useState(false)
+
+  const [removingPurchase, setRemovingPurchase] = useState(null)
+  const [isSubmittingRemoval, setIsSubmittingRemoval] = useState(false)
+
+  const [unitActionMessage, setUnitActionMessage] = useState(null)
 
   const loadData = async () => {
     try {
@@ -60,34 +106,364 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
     }
   }
 
+  const loadCatalog = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, type, watt, default_warranty_months, image_url')
+        .order('name', { ascending: true })
+      if (!error && data) {
+        setCatalogProducts(data)
+        if (data.length > 0 && !newProductId) {
+          setNewProductId(data[0].id)
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load catalog products:', e)
+    }
+  }
+
   useEffect(() => {
     loadData()
+    loadCatalog()
   }, [])
 
-  const handleCopyToken = (customerId, token) => {
-    if (!token) return
-    navigator.clipboard.writeText(token)
-    setCopiedTokens(prev => ({ ...prev, [customerId]: true }))
-    setTimeout(() => {
-      setCopiedTokens(prev => ({ ...prev, [customerId]: false }))
-    }, 2000)
+  // Open modal and initialize form state
+  const handleOpenCustomerModal = (customer, openAddProduct = false) => {
+    setSelectedCustomer(customer)
+    setEditName(customer.full_name || '')
+    setEditPhone(customer.phone_number || '')
+    setIsSavingProfile(false)
+    setProfileMessage(null)
+    setIsTokenRevealedInModal(false)
+    setModalTokenCopied(false)
+    setModalLinkCopied(false)
+    setIsAddingProduct(openAddProduct)
+    setNewProductId(catalogProducts[0]?.id || '')
+    setNewSerial('')
+    setNewWarrantyMonths(12)
+    setNewBranch('Cavite')
+    setNewPurchaseDate(new Date().toISOString().split('T')[0])
+    setProductAddMessage(null)
+    setUnitActionMessage(null)
+    setVoidingPurchase(null)
+    setExtendingPurchase(null)
+    setRemovingPurchase(null)
   }
 
-  const handleCopyLink = (customerId, qrUrl) => {
-    if (!qrUrl) return
-    navigator.clipboard.writeText(qrUrl)
-    setCopiedLinks(prev => ({ ...prev, [customerId]: true }))
-    setTimeout(() => {
-      setCopiedLinks(prev => ({ ...prev, [customerId]: false }))
-    }, 2000)
+  const handleCloseCustomerModal = () => {
+    setSelectedCustomer(null)
+    setIsAddingProduct(false)
+    setProfileMessage(null)
+    setProductAddMessage(null)
+    setUnitActionMessage(null)
+    setVoidingPurchase(null)
+    setExtendingPurchase(null)
+    setRemovingPurchase(null)
   }
 
-  const toggleRow = (customerId) => {
-    setExpandedRows(prev => ({ ...prev, [customerId]: !prev[customerId] }))
+  // Handle Void Warranty
+  const handleConfirmVoid = async () => {
+    if (!voidingPurchase || !selectedCustomer) return
+    const finalReason = voidReasonPreset === 'Other / Custom reason'
+      ? (voidReasonCustom.trim() || 'Administrative Void')
+      : (voidReasonCustom.trim() ? `${voidReasonPreset}: ${voidReasonCustom.trim()}` : voidReasonPreset)
+
+    try {
+      setIsSubmittingVoid(true)
+      const { warning, error } = await voidCustomerWarranty({
+        purchaseId: voidingPurchase.id,
+        reason: finalReason
+      })
+      if (error) throw error
+
+      const updatedPurchases = (selectedCustomer.purchases || []).map(p => {
+        if (p.id === voidingPurchase.id) {
+          return {
+            ...p,
+            is_voided: true,
+            void_reason: finalReason,
+            voided_at: new Date().toISOString(),
+            is_warranty_active: false,
+            days_remaining: 0
+          }
+        }
+        return p
+      })
+
+      const activeCount = updatedPurchases.filter(p => p.is_warranty_active).length
+
+      setSelectedCustomer(prev => ({
+        ...prev,
+        purchases: updatedPurchases,
+        active_warranties_count: activeCount
+      }))
+
+      setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? {
+        ...c,
+        purchases: updatedPurchases,
+        active_warranties_count: activeCount
+      } : c))
+
+      setVoidingPurchase(null)
+      setVoidReasonCustom('')
+      setUnitActionMessage({ 
+        type: 'success', 
+        text: warning ? `Warranty voided. (${warning})` : 'Unit warranty successfully marked as voided.' 
+      })
+      setTimeout(() => setUnitActionMessage(null), 4000)
+    } catch (err) {
+      console.error('Failed to void warranty:', err)
+      setUnitActionMessage({ type: 'error', text: err.message || 'Failed to void warranty.' })
+    } finally {
+      setIsSubmittingVoid(false)
+    }
   }
 
-  const toggleRevealToken = (customerId) => {
-    setRevealedTokens(prev => ({ ...prev, [customerId]: !prev[customerId] }))
+  // Handle Reactivate / Unvoid Warranty
+  const handleConfirmUnvoid = async (purchase) => {
+    if (!purchase || !selectedCustomer) return
+
+    try {
+      setUnitActionMessage(null)
+      const { error } = await unvoidCustomerWarranty({
+        purchaseId: purchase.id,
+        warrantyMonths: purchase.warranty_months,
+        purchaseDate: purchase.purchase_date
+      })
+      if (error) throw error
+
+      const expiry = purchase.warranty_expires_at || calculateExpiryDate(purchase.purchase_date, purchase.warranty_months)
+      const diffDays = Math.ceil((new Date(expiry) - new Date()) / (1000 * 60 * 60 * 24))
+      const isActive = diffDays > 0
+
+      const updatedPurchases = (selectedCustomer.purchases || []).map(p => {
+        if (p.id === purchase.id) {
+          return {
+            ...p,
+            is_voided: false,
+            void_reason: null,
+            voided_at: null,
+            is_warranty_active: isActive,
+            days_remaining: Math.max(0, diffDays)
+          }
+        }
+        return p
+      })
+
+      const activeCount = updatedPurchases.filter(p => p.is_warranty_active).length
+
+      setSelectedCustomer(prev => ({
+        ...prev,
+        purchases: updatedPurchases,
+        active_warranties_count: activeCount
+      }))
+
+      setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? {
+        ...c,
+        purchases: updatedPurchases,
+        active_warranties_count: activeCount
+      } : c))
+
+      setUnitActionMessage({ type: 'success', text: 'Warranty reactivated and restored successfully.' })
+      setTimeout(() => setUnitActionMessage(null), 3000)
+    } catch (err) {
+      console.error('Failed to unvoid warranty:', err)
+      setUnitActionMessage({ type: 'error', text: err.message || 'Failed to reactivate warranty.' })
+    }
+  }
+
+  // Handle Extend Warranty
+  const handleConfirmExtend = async () => {
+    if (!extendingPurchase || !selectedCustomer) return
+
+    try {
+      setIsSubmittingExtension(true)
+      const { purchase: updated, error } = await extendCustomerWarranty({
+        purchaseId: extendingPurchase.id,
+        additionalMonths: extensionMonths
+      })
+      if (error) throw error
+
+      const updatedPurchases = (selectedCustomer.purchases || []).map(p => {
+        if (p.id === extendingPurchase.id) {
+          return {
+            ...p,
+            ...updated
+          }
+        }
+        return p
+      })
+
+      const activeCount = updatedPurchases.filter(p => p.is_warranty_active).length
+
+      setSelectedCustomer(prev => ({
+        ...prev,
+        purchases: updatedPurchases,
+        active_warranties_count: activeCount
+      }))
+
+      setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? {
+        ...c,
+        purchases: updatedPurchases,
+        active_warranties_count: activeCount
+      } : c))
+
+      setExtendingPurchase(null)
+      setUnitActionMessage({ 
+        type: 'success', 
+        text: `Warranty extended by ${extensionMonths} months.` 
+      })
+      setTimeout(() => setUnitActionMessage(null), 3000)
+    } catch (err) {
+      console.error('Failed to extend warranty:', err)
+      setUnitActionMessage({ type: 'error', text: err.message || 'Failed to extend warranty.' })
+    } finally {
+      setIsSubmittingExtension(false)
+    }
+  }
+
+  // Handle Remove Unit & Warranty
+  const handleConfirmRemove = async () => {
+    if (!removingPurchase || !selectedCustomer) return
+
+    try {
+      setIsSubmittingRemoval(true)
+      const { error } = await removeCustomerPurchase({ purchaseId: removingPurchase.id })
+      if (error) throw error
+
+      const updatedPurchases = (selectedCustomer.purchases || []).filter(p => p.id !== removingPurchase.id)
+      const activeCount = updatedPurchases.filter(p => p.is_warranty_active).length
+
+      setSelectedCustomer(prev => ({
+        ...prev,
+        purchases: updatedPurchases,
+        total_purchases: updatedPurchases.length,
+        active_warranties_count: activeCount
+      }))
+
+      setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? {
+        ...c,
+        purchases: updatedPurchases,
+        total_purchases: updatedPurchases.length,
+        active_warranties_count: activeCount
+      } : c))
+
+      setRemovingPurchase(null)
+      setUnitActionMessage({ type: 'success', text: 'Unit and warranty record permanently removed.' })
+      setTimeout(() => setUnitActionMessage(null), 3000)
+    } catch (err) {
+      console.error('Failed to remove purchase:', err)
+      setUnitActionMessage({ type: 'error', text: err.message || 'Failed to remove unit.' })
+    } finally {
+      setIsSubmittingRemoval(false)
+    }
+  }
+
+  // Handle saving edited customer profile
+  const handleSaveProfile = async (e) => {
+    e.preventDefault()
+    if (!selectedCustomer) return
+    const trimmedName = editName.trim()
+    const trimmedPhone = editPhone.trim()
+
+    if (!trimmedName || !trimmedPhone) {
+      setProfileMessage({ type: 'error', text: 'Name and phone number are required.' })
+      return
+    }
+
+    try {
+      setIsSavingProfile(true)
+      setProfileMessage(null)
+      const { customer: updated, error } = await updateCustomerProfile(selectedCustomer.id, {
+        fullName: trimmedName,
+        phoneNumber: trimmedPhone
+      })
+      if (error) throw error
+
+      setSelectedCustomer(prev => ({
+        ...prev,
+        full_name: updated.full_name,
+        phone_number: updated.phone_number
+      }))
+
+      setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? {
+        ...c,
+        full_name: updated.full_name,
+        phone_number: updated.phone_number
+      } : c))
+
+      setProfileMessage({ type: 'success', text: 'Customer profile updated successfully.' })
+      setTimeout(() => setProfileMessage(null), 3000)
+    } catch (err) {
+      console.error('Failed to update customer profile:', err)
+      setProfileMessage({ type: 'error', text: err.message || 'Failed to update profile.' })
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
+
+  // Handle adding an individual product unit
+  const handleAddProduct = async (e) => {
+    e.preventDefault()
+    if (!selectedCustomer || !newProductId) return
+
+    try {
+      setIsSavingProduct(true)
+      setProductAddMessage(null)
+
+      const { purchase, error } = await addCustomerProductPurchase({
+        customerId: selectedCustomer.id,
+        productId: newProductId,
+        serialNumber: newSerial,
+        warrantyMonths: newWarrantyMonths,
+        purchaseDate: newPurchaseDate,
+        branchLocation: newBranch
+      })
+
+      if (error) throw error
+
+      const updatedPurchases = [purchase, ...(selectedCustomer.purchases || [])]
+      const activeCount = updatedPurchases.filter(p => p.is_warranty_active).length
+
+      setSelectedCustomer(prev => ({
+        ...prev,
+        purchases: updatedPurchases,
+        total_purchases: updatedPurchases.length,
+        active_warranties_count: activeCount
+      }))
+
+      setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? {
+        ...c,
+        purchases: updatedPurchases,
+        total_purchases: updatedPurchases.length,
+        active_warranties_count: activeCount
+      } : c))
+
+      setIsAddingProduct(false)
+      setNewSerial('')
+      setProductAddMessage({ type: 'success', text: 'Unit successfully registered to customer.' })
+      setTimeout(() => setProductAddMessage(null), 3000)
+    } catch (err) {
+      console.error('Failed to add product purchase:', err)
+      setProductAddMessage({ type: 'error', text: err.message || 'Failed to register product.' })
+    } finally {
+      setIsSavingProduct(false)
+    }
+  }
+
+  const handleCopyModalToken = () => {
+    if (!selectedCustomer?.access_token) return
+    navigator.clipboard.writeText(selectedCustomer.access_token)
+    setModalTokenCopied(true)
+    setTimeout(() => setModalTokenCopied(false), 2000)
+  }
+
+  const handleCopyModalLink = () => {
+    if (!selectedCustomer?.qr_url) return
+    navigator.clipboard.writeText(selectedCustomer.qr_url)
+    setModalLinkCopied(true)
+    setTimeout(() => setModalLinkCopied(false), 2000)
   }
 
   // Filtered customer list
@@ -245,230 +621,817 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
         </div>
       </div>
 
-      {/* Customer Directory List */}
-      <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-xs overflow-hidden">
-        {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-center">
-            <div className="w-8 h-8 rounded-full border-2 border-jds-primary border-t-transparent animate-spin mb-3" />
-            <p className="text-sm font-semibold text-jds-on-surface">Loading customer directory...</p>
-            <p className="text-xs text-jds-on-surface-variant">Retrieving warranty tokens and records</p>
+      {/* Customer Directory: Card Grid View */}
+      {loading ? (
+        <div className="py-20 flex flex-col items-center justify-center text-center bg-jds-surface border border-jds-outline-variant/40 rounded-2xl">
+          <div className="w-8 h-8 rounded-full border-2 border-jds-primary border-t-transparent animate-spin mb-3" />
+          <p className="text-sm font-semibold text-jds-on-surface">Loading customer directory...</p>
+          <p className="text-xs text-jds-on-surface-variant">Retrieving warranty tokens and records</p>
+        </div>
+      ) : filteredCustomers.length === 0 ? (
+        <div className="py-16 flex flex-col items-center justify-center text-center px-4 bg-jds-surface border border-jds-outline-variant/40 rounded-2xl">
+          <div className="w-12 h-12 rounded-2xl bg-jds-surface-container flex items-center justify-center text-jds-on-surface-variant mb-3">
+            <Users className="w-6 h-6" />
           </div>
-        ) : filteredCustomers.length === 0 ? (
-          <div className="py-16 flex flex-col items-center justify-center text-center px-4">
-            <div className="w-12 h-12 rounded-2xl bg-jds-surface-container flex items-center justify-center text-jds-on-surface-variant mb-3">
-              <Users className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-bold text-jds-on-surface">No customers found</h3>
-            <p className="text-xs text-jds-on-surface-variant max-w-sm mt-1 mb-4">
-              {searchQuery || branchFilter !== 'All' || warrantyFilter !== 'All'
-                ? 'Try adjusting your search criteria or resetting your active filters.'
-                : 'No customer profiles have been registered in the system yet.'}
-            </p>
-            {(searchQuery || branchFilter !== 'All' || warrantyFilter !== 'All') && (
-              <button
-                onClick={() => {
-                  setSearchQuery('')
-                  setBranchFilter('All')
-                  setWarrantyFilter('All')
-                }}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-jds-surface-container text-jds-on-surface hover:bg-jds-surface-container-high transition-colors"
-              >
-                Reset Filters
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y divide-jds-outline-variant/20">
-            {filteredCustomers.map((customer) => {
-              const isExpanded = !!expandedRows[customer.id]
-              const isTokenRevealed = !!revealedTokens[customer.id]
-              const isTokenCopied = !!copiedTokens[customer.id]
-              const isLinkCopied = !!copiedLinks[customer.id]
-              const displayToken = isTokenRevealed
-                ? customer.access_token
-                : `${(customer.access_token || '').slice(0, 8)}••••••••${(customer.access_token || '').slice(-4)}`
-
-              return (
-                <div key={customer.id} className="transition-colors hover:bg-jds-surface-container/20">
-                  {/* Main Row */}
-                  <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    {/* Left: Customer Profile */}
-                    <div className="flex items-start gap-3.5 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center font-bold text-sm shrink-0">
-                        {customer.full_name ? customer.full_name.charAt(0).toUpperCase() : 'C'}
-                      </div>
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm font-bold text-jds-on-surface truncate">
-                            {customer.full_name}
-                          </h3>
-                          {customer.active_warranties_count > 0 ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                              <ShieldCheck className="w-3 h-3" />
-                              {customer.active_warranties_count} Active
-                            </span>
-                          ) : customer.total_purchases > 0 ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-neutral-500/10 text-neutral-400 border border-neutral-500/20">
-                              <ShieldAlert className="w-3 h-3" />
-                              Warranties Expired
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500">
-                              No Purchases
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-3 text-xs text-jds-on-surface-variant flex-wrap font-mono">
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-3 h-3 text-jds-on-surface-variant/70" />
-                            {customer.phone_number}
-                          </span>
-                          <span className="text-jds-outline-variant/60">•</span>
-                          <span className="flex items-center gap-1 font-inter text-[11px]">
-                            <Calendar className="w-3 h-3 text-jds-on-surface-variant/70" />
-                            Registered {formatDate(customer.created_at)}
-                          </span>
-                          <span className="text-jds-outline-variant/60">•</span>
-                          <span className="flex items-center gap-1 font-inter text-[11px]">
-                            <Package className="w-3 h-3 text-jds-on-surface-variant/70" />
-                            {customer.total_purchases} Unit{customer.total_purchases === 1 ? '' : 's'}
-                          </span>
-                        </div>
-                      </div>
+          <h3 className="text-base font-bold text-jds-on-surface">No customers found</h3>
+          <p className="text-xs text-jds-on-surface-variant max-w-sm mt-1 mb-4">
+            {searchQuery || branchFilter !== 'All' || warrantyFilter !== 'All'
+              ? 'Try adjusting your search criteria or resetting your active filters.'
+              : 'No customer profiles have been registered in the system yet.'}
+          </p>
+          {(searchQuery || branchFilter !== 'All' || warrantyFilter !== 'All') && (
+            <button
+              onClick={() => {
+                setSearchQuery('')
+                setBranchFilter('All')
+                setWarrantyFilter('All')
+              }}
+              className="px-4 py-2 text-xs font-semibold rounded-xl bg-jds-surface-container text-jds-on-surface hover:bg-jds-surface-container-high transition-colors"
+            >
+              Reset Filters
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredCustomers.map((customer) => (
+            <div
+              key={customer.id}
+              onClick={() => handleOpenCustomerModal(customer)}
+              className="rounded-2xl border border-jds-outline-variant/40 bg-jds-surface p-5 shadow-xs hover:shadow-md hover:border-jds-primary/60 transition-all cursor-pointer flex flex-col justify-between gap-4 group"
+            >
+              {/* Card Top: Customer Avatar, Name, Phone & Warranty Badge */}
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center font-bold text-sm shrink-0 group-hover:bg-jds-primary group-hover:text-white transition-colors">
+                      {customer.full_name ? customer.full_name.charAt(0).toUpperCase() : 'C'}
                     </div>
-
-                    {/* Middle: Token Display */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-jds-surface-container/40 border border-jds-outline-variant/40 rounded-xl px-3 py-2 max-w-xl">
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <Key className="w-3.5 h-3.5 text-jds-primary" />
-                        <span className="text-[11px] font-bold text-jds-on-surface">Token:</span>
-                      </div>
-
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <span
-                          className="font-mono text-xs text-jds-on-surface truncate select-all"
-                          title={customer.access_token}
-                        >
-                          {displayToken}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => toggleRevealToken(customer.id)}
-                          className="p-1 text-jds-on-surface-variant hover:text-jds-on-surface transition-colors shrink-0"
-                          title={isTokenRevealed ? 'Hide full token' : 'Show full token'}
-                        >
-                          {isTokenRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleCopyToken(customer.id, customer.access_token)}
-                          className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-jds-surface hover:bg-jds-surface-container border border-jds-outline-variant/40 text-jds-on-surface flex items-center gap-1 shrink-0 transition-colors shadow-2xs"
-                          title="Copy raw access token"
-                        >
-                          {isTokenCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                          <span>{isTokenCopied ? 'Copied' : 'Copy'}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Right: Actions & QR Modal trigger */}
-                    <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
-                      {/* View QR Code Button */}
-                      <button
-                        type="button"
-                        onClick={() => setActiveCustomerForQr(customer)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 transition-all shadow-xs"
-                      >
-                        <QrCode className="w-3.5 h-3.5" />
-                        <span>View QR & Token</span>
-                      </button>
-
-                      {/* Copy Portal Link Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleCopyLink(customer.id, customer.qr_url)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container text-jds-on-surface transition-colors"
-                        title="Copy customer self-service URL"
-                      >
-                        {isLinkCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                        <span>{isLinkCopied ? 'Link Copied' : 'Copy Link'}</span>
-                      </button>
-
-                      {/* Expand / Collapse Details Button */}
-                      {customer.total_purchases > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => toggleRow(customer.id)}
-                          className="p-1.5 text-jds-on-surface-variant hover:text-jds-on-surface rounded-lg hover:bg-jds-surface-container transition-colors"
-                          title={isExpanded ? 'Collapse equipment list' : 'View purchased equipment'}
-                        >
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </button>
-                      )}
+                    <div className="min-w-0">
+                      <h3 className="text-body-md font-bold text-jds-on-surface truncate group-hover:text-jds-primary transition-colors">
+                        {customer.full_name}
+                      </h3>
+                      <p className="text-label-sm font-mono text-jds-on-surface-variant flex items-center gap-1.5 mt-0.5">
+                        <Phone className="w-3.5 h-3.5 text-jds-on-surface-variant/70 shrink-0" />
+                        <span>{customer.phone_number}</span>
+                      </p>
                     </div>
                   </div>
 
-                  {/* Expanded Purchase Breakdown */}
-                  {isExpanded && customer.purchases && customer.purchases.length > 0 && (
-                    <div className="px-5 pb-4 pt-1 bg-jds-surface-container/20 border-t border-jds-outline-variant/20 animate-in fade-in">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant mb-2 flex items-center justify-between">
-                        <span>Registered Units & Warranty Status ({customer.purchases.length})</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (onSelectCustomerForSale) {
-                              onSelectCustomerForSale(customer)
-                            } else if (onNavigate) {
-                              onNavigate('register-sale')
-                            }
-                          }}
-                          className="text-[11px] text-jds-primary font-semibold hover:underline"
-                        >
-                          + Register New Unit for {customer.full_name.split(' ')[0]}
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                        {customer.purchases.map((purchase, pIdx) => (
-                          <div
-                            key={purchase.id || pIdx}
-                            className="p-3 rounded-xl bg-jds-surface border border-jds-outline-variant/40 flex items-start justify-between gap-3 text-xs"
-                          >
-                            <div className="space-y-1 min-w-0">
-                              <div className="font-semibold text-jds-on-surface truncate">
-                                {purchase.product_name}
-                              </div>
-                              <div className="text-[11px] text-jds-on-surface-variant flex items-center gap-2 flex-wrap">
-                                {purchase.serial_number && (
-                                  <span>S/N: <strong className="font-mono text-jds-on-surface">{purchase.serial_number}</strong></span>
-                                )}
-                                <span>Branch: {purchase.branch_location || 'Cavite'}</span>
-                                <span>Purchased: {purchase.purchase_date}</span>
-                              </div>
-                            </div>
-
-                            <div className="text-right shrink-0">
-                              <div className={`font-semibold ${purchase.is_warranty_active ? 'text-emerald-500' : 'text-neutral-400'}`}>
-                                {purchase.is_warranty_active ? `${purchase.days_remaining}d left` : 'Expired'}
-                              </div>
-                              <div className="text-[10px] text-jds-on-surface-variant">
-                                Exp: {formatDate(purchase.warranty_expires_at)}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                  {customer.active_warranties_count > 0 ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
+                      <ShieldCheck className="w-3 h-3" />
+                      <span>{customer.active_warranties_count} Active</span>
+                    </span>
+                  ) : customer.total_purchases > 0 && customer.purchases?.length > 0 && customer.purchases.every(p => p.is_voided) ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20 shrink-0">
+                      <ShieldX className="w-3 h-3" />
+                      <span>Voided</span>
+                    </span>
+                  ) : customer.total_purchases > 0 ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-neutral-500/10 text-neutral-400 border border-neutral-500/20 shrink-0">
+                      <ShieldAlert className="w-3 h-3" />
+                      <span>Expired</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500 shrink-0">
+                      No Units
+                    </span>
                   )}
                 </div>
-              )
-            })}
+              </div>
+
+              {/* Card Bottom: Registered Date, Units Count, & Add Warranty Shortcut */}
+              <div className="pt-3 border-t border-jds-outline-variant/20 flex items-center justify-between gap-2 text-xs text-jds-on-surface-variant">
+                <div className="flex items-center gap-1.5 min-w-0 truncate">
+                  <Calendar className="w-3.5 h-3.5 text-jds-on-surface-variant/70 shrink-0" />
+                  <span className="truncate">Reg: {formatDate(customer.created_at)}</span>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 font-semibold text-jds-on-surface">
+                    <Package className="w-3.5 h-3.5 text-jds-primary shrink-0" />
+                    <span>
+                      {customer.total_purchases} Unit{customer.total_purchases === 1 ? '' : 's'}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleOpenCustomerModal(customer, true)
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-jds-primary/10 hover:bg-jds-primary hover:text-white text-jds-primary text-[11px] font-semibold transition-all shadow-2xs"
+                    title="Add equipment warranty to customer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Add Warranty</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Customer Detail & Management Modal */}
+      {selectedCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-2xl max-h-[90vh] bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-jds-outline-variant/30 flex items-center justify-between gap-3 bg-jds-surface-container-low/20 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center font-bold text-base shrink-0">
+                  {selectedCustomer.full_name ? selectedCustomer.full_name.charAt(0).toUpperCase() : 'C'}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-body-lg font-bold text-jds-on-surface truncate">
+                    {selectedCustomer.full_name}
+                  </h2>
+                  <p className="text-label-sm text-jds-on-surface-variant">
+                    Registered {formatDate(selectedCustomer.created_at)}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleCloseCustomerModal}
+                className="p-1.5 text-jds-on-surface-variant hover:text-jds-on-surface rounded-lg hover:bg-jds-surface-container transition-colors shrink-0"
+                title="Close modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-5 overflow-y-auto space-y-6 flex-1">
+              {/* 1. Edit Profile Form */}
+              <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-label-md font-bold text-jds-on-surface flex items-center gap-2">
+                    <User className="w-4 h-4 text-jds-primary" />
+                    <span>Customer Details</span>
+                  </h3>
+                  {profileMessage && (
+                    <span
+                      className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                        profileMessage.type === 'success'
+                          ? 'bg-emerald-500/10 text-emerald-600'
+                          : 'bg-jds-error/10 text-jds-error'
+                      }`}
+                    >
+                      {profileMessage.text}
+                    </span>
+                  )}
+                </div>
+
+                <form onSubmit={handleSaveProfile} className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-label-sm font-semibold text-jds-on-surface-variant">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Customer full name..."
+                        className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary transition-colors"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-label-sm font-semibold text-jds-on-surface-variant">
+                        Phone Number
+                      </label>
+                      <input
+                        type="text"
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        placeholder="Customer contact number..."
+                        className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface font-mono outline-none focus:border-jds-primary transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="submit"
+                      disabled={isSavingProfile}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-jds-primary text-jds-on-primary text-label-sm font-semibold hover:bg-jds-primary/90 transition-all disabled:opacity-50"
+                    >
+                      {isSavingProfile ? (
+                        <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      ) : (
+                        <Save className="w-3.5 h-3.5" />
+                      )}
+                      <span>Save Changes</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* 2. Token & Portal Actions */}
+              <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest p-4 space-y-3">
+                <h3 className="text-label-md font-bold text-jds-on-surface flex items-center gap-2">
+                  <Key className="w-4 h-4 text-jds-primary" />
+                  <span>Access Credentials & Portal</span>
+                </h3>
+
+                {/* Token Box */}
+                <div className="p-3 rounded-lg bg-jds-surface-container/30 border border-jds-outline-variant/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70 block mb-0.5">
+                      Unique Token ID
+                    </span>
+                    <span className="font-mono text-xs text-jds-on-surface font-medium break-all select-all">
+                      {isTokenRevealedInModal
+                        ? selectedCustomer.access_token
+                        : `${(selectedCustomer.access_token || '').slice(0, 8)}••••••••${(selectedCustomer.access_token || '').slice(-4)}`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsTokenRevealedInModal(!isTokenRevealedInModal)}
+                      className="p-1.5 text-jds-on-surface-variant hover:text-jds-on-surface rounded-lg hover:bg-jds-surface-container transition-colors"
+                      title={isTokenRevealedInModal ? 'Mask token' : 'Reveal full token'}
+                    >
+                      {isTokenRevealedInModal ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyModalToken}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container text-xs font-semibold text-jds-on-surface transition-colors"
+                    >
+                      {modalTokenCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{modalTokenCopied ? 'Copied' : 'Copy Token'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Portal Link & QR Buttons */}
+                <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => window.open(selectedCustomer.qr_url, '_blank', 'noopener,noreferrer')}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-jds-primary/10 text-jds-primary hover:bg-jds-primary hover:text-white border border-jds-primary/30 text-xs font-semibold transition-all"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Go to Customer Page</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyModalLink}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container text-xs font-semibold text-jds-on-surface transition-colors"
+                  >
+                    {modalLinkCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{modalLinkCopied ? 'Link Copied' : 'Copy Portal Link'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveCustomerForQr(selectedCustomer)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container text-xs font-semibold text-jds-on-surface transition-colors"
+                  >
+                    <QrCode className="w-3.5 h-3.5 text-jds-primary" />
+                    <span>View Full QR</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 3. Installed Units / Equipment Section */}
+              <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-jds-primary" />
+                    <h3 className="text-label-md font-bold text-jds-on-surface">
+                      Registered Units ({selectedCustomer.purchases?.length || 0})
+                    </h3>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingProduct(!isAddingProduct)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 transition-all shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{isAddingProduct ? 'Cancel' : 'Add Product'}</span>
+                  </button>
+                </div>
+
+                {productAddMessage && (
+                  <div
+                    className={`p-3 rounded-lg text-xs font-semibold ${
+                      productAddMessage.type === 'success'
+                        ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                        : 'bg-jds-error/10 text-jds-error border border-jds-error/20'
+                    }`}
+                  >
+                    {productAddMessage.text}
+                  </div>
+                )}
+
+                {/* Inline 'Add Product' Form */}
+                {isAddingProduct && (
+                  <form
+                    onSubmit={handleAddProduct}
+                    className="p-4 rounded-xl border border-jds-primary/30 bg-jds-primary/5 space-y-3"
+                  >
+                    <div className="flex items-center justify-between border-b border-jds-primary/20 pb-2">
+                      <span className="text-xs font-bold text-jds-primary uppercase tracking-wide">
+                        Register New Unit to Customer
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingProduct(false)}
+                        className="text-jds-on-surface-variant hover:text-jds-on-surface text-xs"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-jds-on-surface-variant uppercase tracking-wider block mb-1">
+                          Product Model *
+                        </label>
+                        <select
+                          value={newProductId}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setNewProductId(val)
+                            const p = catalogProducts.find((item) => item.id === val)
+                            if (p && p.default_warranty_months) {
+                              setNewWarrantyMonths(p.default_warranty_months)
+                            }
+                          }}
+                          className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary"
+                          required
+                        >
+                          {catalogProducts.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} {p.watt ? `(${p.watt}W)` : ''} - {p.type || 'Solar'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-jds-on-surface-variant uppercase tracking-wider block mb-1">
+                            Serial Number
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. SN-89472"
+                            value={newSerial}
+                            onChange={(e) => setNewSerial(e.target.value)}
+                            className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm font-mono text-jds-on-surface outline-none focus:border-jds-primary"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-jds-on-surface-variant uppercase tracking-wider block mb-1">
+                            Warranty Duration
+                          </label>
+                          <select
+                            value={newWarrantyMonths}
+                            onChange={(e) => setNewWarrantyMonths(Number(e.target.value))}
+                            className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary"
+                          >
+                            <option value={12}>12 Months (1 Year)</option>
+                            <option value={24}>24 Months (2 Years)</option>
+                            <option value={36}>36 Months (3 Years)</option>
+                            <option value={60}>60 Months (5 Years)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-jds-on-surface-variant uppercase tracking-wider block mb-1">
+                            Branch Location
+                          </label>
+                          <select
+                            value={newBranch}
+                            onChange={(e) => setNewBranch(e.target.value)}
+                            className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary"
+                          >
+                            <option value="Cavite">Cavite Branch</option>
+                            <option value="Quiapo">Quiapo Branch</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-jds-on-surface-variant uppercase tracking-wider block mb-1">
+                            Purchase Date
+                          </label>
+                          <input
+                            type="date"
+                            value={newPurchaseDate}
+                            onChange={(e) => setNewPurchaseDate(e.target.value)}
+                            className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <button
+                          type="submit"
+                          disabled={isSavingProduct}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 transition-all disabled:opacity-50"
+                        >
+                          {isSavingProduct ? (
+                            <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                          ) : (
+                            <Check className="w-3.5 h-3.5" />
+                          )}
+                          <span>Register Unit</span>
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                )}
+
+                {/* Inline Unit Action Feedback */}
+                {unitActionMessage && (
+                  <div
+                    className={`p-3 rounded-lg text-xs font-semibold ${
+                      unitActionMessage.type === 'success'
+                        ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                        : 'bg-jds-error/10 text-jds-error border border-jds-error/20'
+                    }`}
+                  >
+                    {unitActionMessage.text}
+                  </div>
+                )}
+
+                {/* List of Registered Purchases */}
+                {!selectedCustomer.purchases || selectedCustomer.purchases.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-jds-on-surface-variant border border-dashed border-jds-outline-variant/40 rounded-xl">
+                    No products or units registered for this customer yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedCustomer.purchases.map((purchase, pIdx) => (
+                      <div
+                        key={purchase.id || pIdx}
+                        className="p-4 rounded-xl bg-jds-surface border border-jds-outline-variant/40 space-y-3 text-xs shadow-2xs"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1 min-w-0">
+                            <div className="font-bold text-jds-on-surface truncate text-body-sm">
+                              {purchase.product_name}
+                            </div>
+                            <div className="text-[11px] text-jds-on-surface-variant flex items-center gap-2 flex-wrap">
+                              {purchase.serial_number && (
+                                <span>
+                                  S/N: <strong className="font-mono text-jds-on-surface">{purchase.serial_number}</strong>
+                                </span>
+                              )}
+                              <span>Branch: {purchase.branch_location || 'Cavite'}</span>
+                              <span>Purchased: {purchase.purchase_date}</span>
+                              <span>Duration: {purchase.warranty_months || 12} Mos</span>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            {purchase.is_voided ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                                <ShieldX className="w-3 h-3" />
+                                <span>Voided</span>
+                              </span>
+                            ) : purchase.is_warranty_active ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                <ShieldCheck className="w-3 h-3" />
+                                <span>{purchase.days_remaining}d left</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-neutral-500/10 text-neutral-400 border border-neutral-500/20">
+                                <ShieldAlert className="w-3 h-3" />
+                                <span>Expired</span>
+                              </span>
+                            )}
+                            <div className="text-[10px] text-jds-on-surface-variant mt-1">
+                              Exp: {formatDate(purchase.warranty_expires_at)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Voided reason banner & reactivation */}
+                        {purchase.is_voided && (
+                          <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 text-[11px] flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">
+                                <strong>Void Reason:</strong> {purchase.void_reason || 'Administrative void by staff'}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmUnvoid(purchase)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-700 text-[10px] font-bold shrink-0 transition-colors"
+                              title="Reactivate equipment warranty"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>Reactivate</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Unit Management Action Buttons */}
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-jds-outline-variant/20">
+                          {/* Extend Warranty */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExtendingPurchase(purchase)
+                              setExtensionMonths(12)
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-jds-outline-variant/40 hover:bg-jds-surface-container text-xs font-semibold text-jds-on-surface transition-colors"
+                            title="Extend warranty period (+6, +12, +24 months)"
+                          >
+                            <Clock className="w-3.5 h-3.5 text-jds-primary" />
+                            <span>Extend</span>
+                          </button>
+
+                          {/* Void Warranty (if not already voided) */}
+                          {!purchase.is_voided && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setVoidingPurchase(purchase)
+                                setVoidReasonPreset('Broken warranty seal / Tampered')
+                                setVoidReasonCustom('')
+                              }}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-500/30 text-amber-600 hover:bg-amber-500/10 text-xs font-semibold transition-colors"
+                              title="Void warranty for customer equipment"
+                            >
+                              <ShieldX className="w-3.5 h-3.5" />
+                              <span>Void</span>
+                            </button>
+                          )}
+
+                          {/* Remove Unit / Purchase */}
+                          <button
+                            type="button"
+                            onClick={() => setRemovingPurchase(purchase)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-rose-500/30 text-rose-500 hover:bg-rose-500/10 text-xs font-semibold transition-colors"
+                            title="Delete equipment record from customer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remove</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-jds-outline-variant/20 bg-jds-surface-container-low/20 flex justify-end shrink-0">
+              <button
+                type="button"
+                onClick={handleCloseCustomerModal}
+                className="px-5 py-2 text-xs font-semibold rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface hover:bg-jds-surface-container transition-all"
+              >
+                Close
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Void Warranty Modal */}
+      {voidingPurchase && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-body-md font-bold text-jds-on-surface truncate">Void Equipment Warranty</h3>
+                <p className="text-label-sm text-jds-on-surface-variant truncate">
+                  {voidingPurchase.product_name} {voidingPurchase.serial_number ? `(${voidingPurchase.serial_number})` : ''}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-xs text-jds-on-surface-variant bg-amber-500/5 border border-amber-500/20 p-3 rounded-xl leading-relaxed">
+              Voiding marks this equipment as disqualified from warranty claims. You can reactivate this later if marked by mistake.
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-bold text-jds-on-surface-variant uppercase tracking-wider block mb-1">
+                  Reason for Invalidation *
+                </label>
+                <select
+                  value={voidReasonPreset}
+                  onChange={(e) => setVoidReasonPreset(e.target.value)}
+                  className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary"
+                >
+                  <option value="Broken warranty seal / Tampered">Broken warranty seal / Tampered</option>
+                  <option value="Physical impact / Dropped casing">Physical impact / Dropped casing</option>
+                  <option value="Water intrusion / Non-certified installation">Water intrusion / Non-certified installation</option>
+                  <option value="Unauthorized component modification">Unauthorized component modification</option>
+                  <option value="Commercial misuse / Electrical overvoltage">Commercial misuse / Electrical overvoltage</option>
+                  <option value="Other / Custom reason">Other / Custom reason</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-jds-on-surface-variant uppercase tracking-wider block mb-1">
+                  Additional Details or Technician Notes
+                </label>
+                <textarea
+                  rows={2}
+                  value={voidReasonCustom}
+                  onChange={(e) => setVoidReasonCustom(e.target.value)}
+                  placeholder="Add relevant inspection observations or serial notes..."
+                  className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-jds-outline-variant/20">
+              <button
+                type="button"
+                onClick={() => {
+                  setVoidingPurchase(null)
+                  setVoidReasonCustom('')
+                }}
+                disabled={isSubmittingVoid}
+                className="px-4 py-2 rounded-xl border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmVoid}
+                disabled={isSubmittingVoid}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition-colors disabled:opacity-50"
+              >
+                {isSubmittingVoid ? (
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                ) : (
+                  <ShieldX className="w-3.5 h-3.5" />
+                )}
+                <span>Confirm Void</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Extend Warranty Modal */}
+      {extendingPurchase && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center shrink-0">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-body-md font-bold text-jds-on-surface truncate">Extend Warranty Coverage</h3>
+                <p className="text-label-sm text-jds-on-surface-variant truncate">
+                  {extendingPurchase.product_name} {extendingPurchase.serial_number ? `(${extendingPurchase.serial_number})` : ''}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-bold text-jds-on-surface-variant uppercase tracking-wider block mb-1">
+                  Current Expiration Date
+                </label>
+                <div className="text-xs font-medium text-jds-on-surface bg-jds-surface-container/30 p-2.5 rounded-lg border border-jds-outline-variant/30 flex items-center justify-between">
+                  <span>Current Expiry:</span>
+                  <strong>{formatDate(extendingPurchase.warranty_expires_at)}</strong>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-jds-on-surface-variant uppercase tracking-wider block mb-1.5">
+                  Select Extension Period
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[6, 12, 24].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setExtensionMonths(m)}
+                      className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all ${
+                        extensionMonths === m
+                          ? 'bg-jds-primary text-jds-on-primary border-jds-primary shadow-xs'
+                          : 'bg-jds-surface border-jds-outline-variant/40 text-jds-on-surface hover:bg-jds-surface-container'
+                      }`}
+                    >
+                      +{m} Months
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Calculated Preview */}
+              {(() => {
+                const baseExpiry = extendingPurchase.warranty_expires_at 
+                  ? new Date(extendingPurchase.warranty_expires_at) 
+                  : new Date()
+                const startFrom = baseExpiry > new Date() ? baseExpiry : new Date()
+                const preview = new Date(startFrom)
+                preview.setMonth(preview.getMonth() + Number(extensionMonths))
+                return (
+                  <div className="text-xs text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg flex items-center justify-between">
+                    <span>Updated Expiry Date:</span>
+                    <strong className="font-semibold">{formatDate(preview)}</strong>
+                  </div>
+                )
+              })()}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-jds-outline-variant/20">
+              <button
+                type="button"
+                onClick={() => setExtendingPurchase(null)}
+                disabled={isSubmittingExtension}
+                className="px-4 py-2 rounded-xl border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmExtend}
+                disabled={isSubmittingExtension}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 transition-colors disabled:opacity-50"
+              >
+                {isSubmittingExtension ? (
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                ) : (
+                  <Check className="w-3.5 h-3.5" />
+                )}
+                <span>Apply Extension</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Unit Confirmation Modal */}
+      {removingPurchase && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-body-md font-bold text-jds-on-surface truncate">Remove Unit Record</h3>
+                <p className="text-label-sm text-jds-on-surface-variant truncate">
+                  {removingPurchase.product_name} {removingPurchase.serial_number ? `(${removingPurchase.serial_number})` : ''}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-xs text-rose-600 bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl leading-relaxed">
+              Are you sure you want to permanently delete this equipment record from this customer profile? This action will remove all linked warranty details.
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-jds-outline-variant/20">
+              <button
+                type="button"
+                onClick={() => setRemovingPurchase(null)}
+                disabled={isSubmittingRemoval}
+                className="px-4 py-2 rounded-xl border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRemove}
+                disabled={isSubmittingRemoval}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 transition-colors disabled:opacity-50"
+              >
+                {isSubmittingRemoval ? (
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Delete Record</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* QR & Token Receipt Modal */}
       {activeCustomerForQr && (

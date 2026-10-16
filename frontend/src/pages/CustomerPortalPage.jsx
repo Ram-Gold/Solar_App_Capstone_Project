@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import {
   ShieldCheck,
   ShieldAlert,
+  ShieldX,
   Package,
   Calendar,
   Phone,
@@ -366,21 +367,36 @@ export default function CustomerPortalPage() {
 
                       {/* Warranty Status Pill */}
                       <div className="mt-3">
-                        <div
-                          className={`p-2.5 rounded-xl text-xs flex items-center justify-between border ${
-                            isActive
-                              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                              : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5 font-semibold">
-                            {isActive ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
-                            <span>{isActive ? 'Active Warranty' : 'Expired'}</span>
+                        {p.is_voided ? (
+                          <div className="space-y-2">
+                            <div className="p-2.5 rounded-xl text-xs flex items-center justify-between border bg-rose-500/10 text-rose-500 border-rose-500/20">
+                              <div className="flex items-center gap-1.5 font-semibold">
+                                <ShieldX className="w-4 h-4" />
+                                <span>Warranty Voided</span>
+                              </div>
+                              <span className="text-[11px] font-medium">Disqualified</span>
+                            </div>
+                            <div className="p-2.5 rounded-xl bg-rose-500/5 border border-rose-500/20 text-[11px] text-rose-600 leading-snug">
+                              <strong>Void Reason:</strong> {p.void_reason || 'Disqualified under warranty policy.'}
+                            </div>
                           </div>
-                          <span className="text-[11px] font-medium">
-                            {formatRemainingText(p.days_remaining)}
-                          </span>
-                        </div>
+                        ) : (
+                          <div
+                            className={`p-2.5 rounded-xl text-xs flex items-center justify-between border ${
+                              isActive
+                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 font-semibold">
+                              {isActive ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
+                              <span>{isActive ? 'Active Warranty' : 'Expired'}</span>
+                            </div>
+                            <span className="text-[11px] font-medium">
+                              {formatRemainingText(p.days_remaining)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -393,35 +409,56 @@ export default function CustomerPortalPage() {
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
-                        Follow step-by-step troubleshooting based on observed symptoms, or directly file a warranty claim for shop repair.
-                      </p>
+                      {p.is_voided ? (
+                        <div className="space-y-2.5">
+                          <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
+                            This equipment's warranty is voided. You can still use our self-diagnostic troubleshooting guide or visit our Quiapo / Cavite branch for non-warranty shop servicing.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPurchaseForClaim(p)
+                              setDiagnosticMode('assistant')
+                            }}
+                            className="w-full py-2 px-2.5 rounded-xl bg-jds-surface-container border border-jds-outline-variant/60 hover:bg-jds-surface-container-high text-xs font-semibold text-jds-on-surface transition-all flex items-center justify-center gap-1.5 shadow-2xs"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-jds-primary" />
+                            <span>Run Troubleshooting Guide</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
+                            Follow step-by-step troubleshooting based on observed symptoms, or directly file a warranty claim for shop repair.
+                          </p>
 
-                      <div className="grid grid-cols-2 gap-2 pt-0.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedPurchaseForClaim(p)
-                            setDiagnosticMode('assistant')
-                          }}
-                          className="py-2 px-2.5 rounded-xl bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>Troubleshoot</span>
-                        </button>
+                          <div className="grid grid-cols-2 gap-2 pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedPurchaseForClaim(p)
+                                setDiagnosticMode('assistant')
+                              }}
+                              className="py-2 px-2.5 rounded-xl bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>Troubleshoot</span>
+                            </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedPurchaseForClaim(p)
-                            setDiagnosticMode('claim')
-                          }}
-                          className="py-2 px-2.5 rounded-xl bg-jds-surface border border-jds-outline-variant/60 hover:bg-jds-surface-container hover:border-jds-primary/40 text-xs font-semibold text-jds-on-surface transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                        >
-                          <Wrench className="w-3.5 h-3.5 text-jds-primary" />
-                          <span>File Manual Claim</span>
-                        </button>
-                      </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedPurchaseForClaim(p)
+                                setDiagnosticMode('claim')
+                              }}
+                              className="py-2 px-2.5 rounded-xl bg-jds-surface border border-jds-outline-variant/60 hover:bg-jds-surface-container hover:border-jds-primary/40 text-xs font-semibold text-jds-on-surface transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                            >
+                              <Wrench className="w-3.5 h-3.5 text-jds-primary" />
+                              <span>File Manual Claim</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {/* Hardware & Coverage Summary Footer */}

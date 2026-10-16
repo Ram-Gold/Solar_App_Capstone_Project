@@ -146,6 +146,7 @@ Switching conventional outdoor lighting to solar lights yields immediate savings
 * **Dusk-to-Dawn Radar Sensor:** Lights charge 6–8 hrs in sunlight and provide 10–12+ hrs of continuous night illumination.
 * **Typhoon & Weather Ready:** IP65 / IP67 certified waterproof construction.`,
     options: [
+      { label: 'Open Savings Calculator', action: 'OPEN_SAVINGS_CALCULATOR' },
       { label: 'Help Me Choose a Light', next: 'FIND_LOCATION' },
       { label: 'Check Price Ranges', next: 'PRICING_INFO' },
       { label: 'Main Menu', next: 'ROOT' },
@@ -434,6 +435,12 @@ export function splitIntoSentenceSegments(text) {
     const isLastPara = pIdx === paragraphs.length - 1
     const paraSuffix = isLastPara ? '' : '\n\n'
 
+    // If paragraph contains a markdown table (e.g. contains |---| or multiple table rows), keep whole table intact
+    if (para.includes('|---|') || (para.trim().startsWith('|') && para.includes('\n|'))) {
+      segments.push(para + paraSuffix)
+      continue
+    }
+
     const lines = para.split('\n')
     for (let lIdx = 0; lIdx < lines.length; lIdx++) {
       const line = lines[lIdx]
@@ -441,11 +448,12 @@ export function splitIntoSentenceSegments(text) {
       const lineSuffix = isLastLineInPara ? paraSuffix : '\n'
 
       const trimmed = line.trim()
-      // If line is a markdown heading, bullet list item, or numbered list item, keep whole line intact
+      // If line is a markdown heading, bullet list item, numbered list item, or table row, keep whole line intact
       if (
         trimmed.startsWith('#') ||
         trimmed.startsWith('*') ||
         trimmed.startsWith('-') ||
+        trimmed.startsWith('|') ||
         /^\d+\./.test(trimmed)
       ) {
         segments.push(line + lineSuffix)

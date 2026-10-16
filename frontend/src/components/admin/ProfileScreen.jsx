@@ -62,7 +62,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-[1200px] mx-auto space-y-8">
       <div className="space-y-1">
         <h1 className="text-headline-md font-bold text-jds-on-surface">Personal Profile</h1>
         <p className="text-body-md text-jds-on-surface-variant">Manage your account information and administrative settings.</p>

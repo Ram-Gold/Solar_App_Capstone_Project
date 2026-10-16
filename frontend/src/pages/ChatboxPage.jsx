@@ -5,43 +5,20 @@ import {
   HiOutlineUser,
   HiOutlineSparkles,
   HiOutlineArrowPath,
-  HiOutlineCurrencyDollar,
-  HiOutlineCube,
-  HiOutlineMapPin,
-  HiOutlineBolt,
   HiOutlineArrowTopRightOnSquare,
+  HiOutlineInformationCircle,
+  HiOutlineClock,
+  HiOutlineChatBubbleLeftRight,
+  HiOutlineTrash,
 } from 'react-icons/hi2'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useChat } from '../context/ChatContext'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import MultiCriteriaMatchModal from '../components/MultiCriteriaMatchModal'
-
-const suggestionCards = [
-  {
-    title: 'Product Matcher Wizard',
-    desc: 'Step-by-step sizing algorithm considering budget, location, and wattage needs.',
-    icon: HiOutlineCube,
-    to: '/match',
-  },
-  {
-    title: 'Pricing & Wattage Guide',
-    desc: 'Compare price tiers from 50W residential to 800W highway lighting.',
-    icon: HiOutlineCurrencyDollar,
-    action: { label: 'Pricing & Packages', next: 'PRICING_INFO' },
-  },
-  {
-    title: 'Calculate Savings',
-    desc: 'See how much you eliminate from Meralco electricity bills with zero-grid solar.',
-    icon: HiOutlineBolt,
-    action: { label: 'Calculate Electricity Savings', next: 'SAVINGS_INFO' },
-  },
-  {
-    title: 'Quiapo & Cavite Branches',
-    desc: 'Store locations, pickup hours, and direct wholesale inquiries.',
-    icon: HiOutlineMapPin,
-    action: { label: 'Quiapo & Cavite Branches', next: 'BRANCHES_INFO' },
-  },
-]
+import SolarSavingsCalculatorModal from '../components/SolarSavingsCalculatorModal'
+import ChatHelpModal from '../components/ChatHelpModal'
+import { formatSessionDate } from '../lib/chatStorage'
 
 const quickFaqPills = [
   'What is your warranty policy?',
@@ -103,11 +80,31 @@ const SunPulse = ({ isLoading }) => {
 }
 
 export default function ChatboxPage() {
-  const navigate = useNavigate()
-  const { messages, sendMessage, selectOption, resetChat, isLoading, products } = useChat()
+  const {
+    messages,
+    sendMessage,
+    selectOption,
+    resetChat,
+    isLoading,
+    products,
+    isSavingsModalOpen,
+    closeSavingsModal,
+    sendSavingsSummaryToChat,
+    sessions,
+    loadSession,
+    deleteSession,
+  } = useChat()
   const [input, setInput] = useState('')
   const [showMatcher, setShowMatcher] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const scrollRef = useRef(null)
+
+  // When leaving the chat assistant, restart/reset the active conversation
+  useEffect(() => {
+    return () => {
+      resetChat()
+    }
+  }, [])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -122,8 +119,8 @@ export default function ChatboxPage() {
     setInput('')
   }
 
-  // Count if only welcome message exists
-  const isFreshChat = messages.length <= 1
+  // Fresh chat state: no messages exchanged yet
+  const isFreshChat = messages.length === 0
 
   return (
     <div className="flex-1 min-h-0 w-full flex flex-col font-inter overflow-hidden sunlight-bg grain-texture relative">
@@ -134,31 +131,24 @@ export default function ChatboxPage() {
       {/* Main Content Area */}
       <div className="flex-grow flex flex-col items-center justify-start relative z-10 overflow-hidden">
         {/* Top Header Toolbar */}
-        <div className="w-full max-w-4xl px-4 py-3 flex items-center justify-between border-b border-jds-outline-variant/20">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-label-md font-bold text-jds-on-surface">JD Solar Smart Assistant</span>
-            <span className="hidden sm:inline-block text-[11px] bg-jds-primary-container text-jds-on-primary-container font-semibold px-2 py-0.5 rounded-full">
-              FAQ & Consultation
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/match"
-              className="flex items-center gap-1.5 text-label-sm font-semibold text-jds-primary hover:text-jds-on-primary-container bg-jds-primary-container/40 hover:bg-jds-primary-container px-3 py-1.5 rounded-xl border border-jds-primary/20 shadow-xs transition-all active:scale-95"
-            >
-              <HiOutlineSparkles className="text-base" />
-              <span>Product Matcher</span>
-              <HiOutlineArrowTopRightOnSquare size={13} className="opacity-70" />
-            </Link>
-            <button
-              onClick={resetChat}
-              className="flex items-center gap-1.5 text-label-sm font-semibold text-jds-on-surface-variant hover:text-jds-primary bg-white/70 hover:bg-white px-3 py-1.5 rounded-xl border border-jds-outline-variant/30 shadow-sm transition-all active:scale-95 cursor-pointer"
-            >
-              <HiOutlineArrowPath className="text-base" />
-              <span>Reset Chat</span>
-            </button>
-          </div>
+        <div className="w-full max-w-4xl px-4 py-3 flex items-center justify-end gap-2 border-b border-jds-outline-variant/20">
+          <button
+            type="button"
+            onClick={() => setShowHelp(true)}
+            className="flex items-center gap-1.5 text-label-sm font-semibold text-jds-on-surface-variant hover:text-jds-primary bg-white/70 hover:bg-white px-3 py-1.5 rounded-xl border border-jds-outline-variant/30 shadow-xs transition-all active:scale-95 cursor-pointer"
+            title="Assistant architecture and data privacy policy"
+            aria-label="Help and Data Policy"
+          >
+            <HiOutlineInformationCircle className="text-base" />
+            <span>Help</span>
+          </button>
+          <button
+            onClick={resetChat}
+            className="flex items-center gap-1.5 text-label-sm font-semibold text-jds-on-surface-variant hover:text-jds-primary bg-white/70 hover:bg-white px-3 py-1.5 rounded-xl border border-jds-outline-variant/30 shadow-sm transition-all active:scale-95 cursor-pointer"
+          >
+            <HiOutlineArrowPath className="text-base" />
+            <span>Reset Chat</span>
+          </button>
         </div>
 
         {/* Messages Container */}
@@ -170,65 +160,45 @@ export default function ChatboxPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col items-center justify-center text-center pt-2 pb-6"
               >
+                {/* Chatbot at the top */}
                 <SunPulse isLoading={isLoading} />
-                <h1 className="text-headline-md sm:text-headline-lg text-jds-on-surface font-extrabold tracking-tight mt-6 mb-2">
+                <h1 className="text-headline-md sm:text-headline-lg text-jds-on-surface font-extrabold tracking-tight mt-6 mb-5">
                   Solar Assistant & <span className="text-jds-primary">FAQ Consultation</span>
                 </h1>
-                <p className="text-body-md text-jds-on-surface-variant/80 max-w-lg mb-8">
-                  Get instant answers regarding product specifications, branch pickup, warranty, or jump into our step-by-step matcher.
-                </p>
 
-                {/* Quick Starting Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 w-full px-2 mb-6">
-                  {suggestionCards.map((card, idx) => {
-                    if (card.to) {
-                      return (
-                        <Link
-                          key={card.title}
-                          to={card.to}
-                          className="p-4 bg-white/80 backdrop-blur-md border border-jds-outline-variant/30 rounded-2xl text-left hover:border-jds-primary hover:shadow-md transition-all group block"
-                        >
-                          <div className="w-9 h-9 rounded-xl bg-jds-primary-container/30 flex items-center justify-center text-jds-primary mb-3 group-hover:scale-105 transition-transform">
-                            <card.icon size={18} />
-                          </div>
-                          <div className="text-label-md font-bold text-jds-on-surface mb-1 group-hover:text-jds-primary transition-colors flex items-center justify-between">
-                            <span>{card.title}</span>
-                            <HiOutlineArrowTopRightOnSquare size={13} className="text-jds-primary opacity-60" />
-                          </div>
-                          <div className="text-[12px] text-jds-on-surface-variant/70 leading-snug">
-                            {card.desc}
-                          </div>
-                        </Link>
-                      )
-                    }
-
-                    return (
-                      <motion.button
-                        key={card.title}
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.08 * idx }}
-                        onClick={() => selectOption(card.action)}
-                        className="p-4 bg-white/80 backdrop-blur-md border border-jds-outline-variant/30 rounded-2xl text-left hover:border-jds-primary hover:shadow-md transition-all group cursor-pointer"
-                      >
-                        <div className="w-9 h-9 rounded-xl bg-jds-primary-container/30 flex items-center justify-center text-jds-primary mb-3 group-hover:scale-105 transition-transform">
-                          <card.icon size={18} />
-                        </div>
-                        <div className="text-label-md font-bold text-jds-on-surface mb-1 group-hover:text-jds-primary transition-colors">
-                          {card.title}
-                        </div>
-                        <div className="text-[12px] text-jds-on-surface-variant/70 leading-snug">
-                          {card.desc}
-                        </div>
-                      </motion.button>
-                    )
-                  })}
+                {/* Chatbox Input directly on Welcome Screen */}
+                <div className="w-full max-w-2xl px-2 mb-4">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      handleSend()
+                    }}
+                    className="flex items-center gap-3 bg-white/90 backdrop-blur-xl p-2 pl-5 pr-2 rounded-[2rem] border border-jds-outline-variant/40 shadow-sm focus-within:ring-4 focus-within:ring-jds-primary/20 focus-within:border-jds-primary transition-all group"
+                  >
+                    <HiOutlineSparkles className="text-jds-primary size-5 opacity-60 group-focus-within:opacity-100 transition-opacity" />
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder="Ask about solar lights, pricing, branches, or warranty..."
+                      className="flex-grow bg-transparent py-2.5 outline-none text-jds-on-surface text-body-md placeholder:text-jds-on-surface-variant/50"
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="submit"
+                      disabled={isLoading || !input.trim()}
+                      className="bg-jds-primary text-white p-3 rounded-full transition-all disabled:opacity-30 active:scale-95 shadow-md shadow-jds-primary/20 hover:bg-jds-primary/90 cursor-pointer"
+                      aria-label="Send message"
+                    >
+                      <HiOutlinePaperAirplane size={17} className="rotate-[-20deg] translate-x-0.5 -translate-y-0.5" />
+                    </button>
+                  </form>
                 </div>
 
-                {/* FAQ Quick Chips */}
-                <div className="w-full px-2 max-w-2xl">
+                {/* Frequently Asked Questions */}
+                <div className="w-full px-2 max-w-2xl mb-8">
                   <div className="text-label-xs uppercase font-extrabold text-jds-on-surface-variant/60 tracking-wider mb-2.5">
-                    Common Questions
+                    Frequently Asked Questions
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     {quickFaqPills.map((pill) => (
@@ -242,6 +212,65 @@ export default function ChatboxPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Conversation History at bottom - Only visible for users who already talked to the assistant */}
+                {sessions && sessions.length > 0 && (
+                  <div className="w-full max-w-2xl px-2 mb-6 text-left">
+                    <div className="flex items-center justify-between mb-2.5 px-1">
+                      <div className="flex items-center gap-2">
+                        <HiOutlineClock className="text-jds-primary size-4" />
+                        <span className="text-label-sm font-bold text-jds-on-surface uppercase tracking-wider">
+                          Conversation History
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-jds-on-surface-variant/60 font-medium">
+                        {`${sessions.length} saved locally`}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                      {sessions.map((session) => (
+                        <div
+                          key={session.id}
+                          onClick={() => loadSession(session.id)}
+                          className="group flex items-center justify-between p-3.5 bg-white/85 hover:bg-white border border-jds-outline-variant/30 hover:border-jds-primary/60 rounded-2xl shadow-2xs hover:shadow-sm transition-all cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 pr-2">
+                            <div className="w-8 h-8 rounded-xl bg-jds-primary-container/20 group-hover:bg-jds-primary-container/40 text-jds-primary flex items-center justify-center shrink-0 transition-colors">
+                              <HiOutlineChatBubbleLeftRight size={16} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-label-md font-semibold text-jds-on-surface truncate group-hover:text-jds-primary transition-colors">
+                                {session.title}
+                              </div>
+                              <div className="text-[11px] text-jds-on-surface-variant/70">
+                                {formatSessionDate(session.updatedAt)}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[11px] text-jds-on-surface-variant/60 bg-jds-surface-container-high px-2 py-0.5 rounded-full hidden sm:inline-block font-medium">
+                              {session.messages?.filter((m) => m.role === 'user').length || 1} queries
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                deleteSession(session.id)
+                              }}
+                              className="p-1.5 rounded-lg text-jds-on-surface-variant/50 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                              title="Delete conversation"
+                              aria-label={`Delete conversation ${session.title}`}
+                            >
+                              <HiOutlineTrash size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -285,6 +314,7 @@ export default function ChatboxPage() {
                         >
                           <div className="prose prose-slate max-w-none prose-p:leading-relaxed text-body-md font-normal prose-headings:font-bold prose-headings:text-jds-on-surface">
                             <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
                               components={{
                                 a: ({ ...props }) => (
                                   <Link
@@ -295,6 +325,20 @@ export default function ChatboxPage() {
                                   >
                                     {props.children}
                                   </Link>
+                                ),
+                                table: ({ ...props }) => (
+                                  <div className="overflow-x-auto my-3 rounded-2xl border border-jds-outline-variant/40 bg-white/80 shadow-xs">
+                                    <table className="min-w-full divide-y divide-jds-outline-variant/30 text-body-xs text-left" {...props} />
+                                  </div>
+                                ),
+                                thead: ({ ...props }) => (
+                                  <thead className="bg-jds-surface-container font-bold text-jds-on-surface" {...props} />
+                                ),
+                                th: ({ ...props }) => (
+                                  <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[11px] text-jds-on-surface" {...props} />
+                                ),
+                                td: ({ ...props }) => (
+                                  <td className="px-4 py-2.5 whitespace-nowrap text-jds-on-surface-variant font-medium border-t border-jds-outline-variant/20" {...props} />
                                 ),
                               }}
                             >
@@ -311,26 +355,43 @@ export default function ChatboxPage() {
                               className="mt-4 pt-3 border-t border-jds-outline-variant/30 flex flex-wrap gap-2"
                             >
                               {msg.options.map((opt, optIdx) => {
+                                const isSelected = msg.selectedOption === opt.label
+                                const hasSelection = Boolean(msg.selectedOption)
+
                                 if (opt.url) {
                                   return (
                                     <Link
                                       key={optIdx}
                                       to={opt.url}
-                                      className="inline-flex items-center text-label-sm font-semibold bg-jds-primary-container text-jds-on-primary-container px-3.5 py-2 rounded-xl border border-jds-primary/20 hover:shadow-sm hover:opacity-95 transition-all active:scale-95"
+                                      onClick={() => selectOption(opt, msg.id)}
+                                      className={`inline-flex items-center gap-1.5 text-label-sm px-3.5 py-2 rounded-xl border transition-all text-left ${
+                                        isSelected
+                                          ? 'bg-jds-primary text-white border-jds-primary shadow-sm font-semibold'
+                                          : hasSelection
+                                          ? 'opacity-40 bg-jds-surface-container/60 text-jds-on-surface-variant/70 border-transparent pointer-events-none'
+                                          : isLatestAssistant
+                                          ? 'bg-white text-jds-on-surface border-jds-outline-variant/60 hover:border-jds-primary hover:bg-jds-primary/5 active:scale-95 cursor-pointer shadow-xs font-medium'
+                                          : 'bg-jds-surface-container text-jds-on-surface-variant/70 border-transparent cursor-default pointer-events-none font-medium'
+                                      }`}
                                     >
-                                      {opt.label}
+                                      <span>{opt.label}</span>
+                                      <HiOutlineArrowTopRightOnSquare size={13} className={isSelected ? 'text-white' : 'opacity-60'} />
                                     </Link>
                                   )
                                 }
                                 return (
                                   <button
                                     key={optIdx}
-                                    onClick={() => selectOption(opt)}
-                                    disabled={isLoading || !isLatestAssistant}
-                                    className={`inline-flex items-center text-label-sm font-medium px-3.5 py-2 rounded-xl border transition-all text-left ${
-                                      isLatestAssistant
-                                        ? 'bg-white text-jds-on-surface border-jds-outline-variant/60 hover:border-jds-primary hover:bg-jds-primary/5 active:scale-95 cursor-pointer shadow-sm'
-                                        : 'bg-jds-surface-container text-jds-on-surface-variant/70 border-transparent cursor-default'
+                                    onClick={() => selectOption(opt, msg.id)}
+                                    disabled={isLoading || hasSelection || !isLatestAssistant}
+                                    className={`inline-flex items-center text-label-sm px-3.5 py-2 rounded-xl border transition-all text-left ${
+                                      isSelected
+                                        ? 'bg-jds-primary text-white border-jds-primary shadow-sm font-semibold cursor-default'
+                                        : hasSelection
+                                        ? 'opacity-40 bg-jds-surface-container/60 text-jds-on-surface-variant/70 border-transparent cursor-not-allowed pointer-events-none'
+                                        : isLatestAssistant
+                                        ? 'bg-white text-jds-on-surface border-jds-outline-variant/60 hover:border-jds-primary hover:bg-jds-primary/5 active:scale-95 cursor-pointer shadow-xs font-medium'
+                                        : 'bg-jds-surface-container text-jds-on-surface-variant/70 border-transparent cursor-default font-medium'
                                     }`}
                                   >
                                     {opt.label}
@@ -368,36 +429,38 @@ export default function ChatboxPage() {
           </div>
         </div>
 
-        {/* Input Area - Floating at bottom */}
-        <div className="absolute bottom-6 left-0 right-0 px-4 z-20">
-          <div className="max-w-3xl mx-auto">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                handleSend()
-              }}
-              className="flex items-center gap-3 bg-white/80 backdrop-blur-xl p-2 pl-6 pr-2 rounded-[2.5rem] border border-white shadow-[0_8px_30px_rgb(0,0,0,0.06)] focus-within:ring-4 focus-within:ring-jds-primary/20 transition-all group"
-            >
-              <HiOutlineSparkles className="text-jds-primary size-6 opacity-60 group-focus-within:opacity-100 transition-opacity" />
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about solar lights, pricing, branches, or warranty..."
-                className="flex-grow bg-transparent py-3.5 outline-none text-jds-on-surface text-body-md placeholder:text-jds-on-surface-variant/50"
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={isLoading || !input.trim()}
-                className="bg-jds-primary text-white p-3.5 rounded-full transition-all disabled:opacity-30 active:scale-95 shadow-lg shadow-jds-primary/20 hover:bg-jds-primary/90"
-                aria-label="Send message"
+        {/* Input Area - Floating at bottom (Only shown once in active conversation mode) */}
+        {!isFreshChat && (
+          <div className="absolute bottom-6 left-0 right-0 px-4 z-20">
+            <div className="max-w-3xl mx-auto">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleSend()
+                }}
+                className="flex items-center gap-3 bg-white/80 backdrop-blur-xl p-2 pl-6 pr-2 rounded-[2.5rem] border border-white shadow-[0_8px_30px_rgb(0,0,0,0.06)] focus-within:ring-4 focus-within:ring-jds-primary/20 transition-all group"
               >
-                <HiOutlinePaperAirplane size={19} className="rotate-[-20deg] translate-x-0.5 -translate-y-0.5" />
-              </button>
-            </form>
+                <HiOutlineSparkles className="text-jds-primary size-6 opacity-60 group-focus-within:opacity-100 transition-opacity" />
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ask about solar lights, pricing, branches, or warranty..."
+                  className="flex-grow bg-transparent py-3.5 outline-none text-jds-on-surface text-body-md placeholder:text-jds-on-surface-variant/50"
+                  disabled={isLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading || !input.trim()}
+                  className="bg-jds-primary text-white p-3.5 rounded-full transition-all disabled:opacity-30 active:scale-95 shadow-lg shadow-jds-primary/20 hover:bg-jds-primary/90"
+                  aria-label="Send message"
+                >
+                  <HiOutlinePaperAirplane size={19} className="rotate-[-20deg] translate-x-0.5 -translate-y-0.5" />
+                </button>
+              </form>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Multi-Criteria Matching Modal */}
@@ -405,6 +468,19 @@ export default function ChatboxPage() {
         isOpen={showMatcher}
         onClose={() => setShowMatcher(false)}
         products={products}
+      />
+
+      {/* Solar Savings Calculator Modal */}
+      <SolarSavingsCalculatorModal
+        isOpen={isSavingsModalOpen}
+        onClose={closeSavingsModal}
+        onSendToChat={sendSavingsSummaryToChat}
+      />
+
+      {/* Assistant Help & Privacy Disclosure Modal */}
+      <ChatHelpModal
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
       />
     </div>
   )

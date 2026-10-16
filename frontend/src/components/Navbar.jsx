@@ -43,9 +43,14 @@ export default function Navbar() {
   }
 
   const dynamicNavLinks = [...navLinks]
-  if (user && (role === 'admin' || role === 'staff')) {
-    const dashboardPath = role === 'admin' ? '/admin' : '/staff'
-    dynamicNavLinks.push({ to: dashboardPath, label: 'Dashboard' })
+  const isDashboardRoute = pathname.startsWith('/admin') || pathname.startsWith('/staff')
+  const isAdminOrStaff = (user && (role === 'admin' || role === 'staff')) || isDashboardRoute
+
+  if (isAdminOrStaff) {
+    const dashboardPath = (role === 'admin' || pathname.startsWith('/admin')) ? '/admin' : '/staff'
+    const homeIndex = dynamicNavLinks.findIndex((link) => link.to === '/')
+    const insertIndex = homeIndex !== -1 ? homeIndex + 1 : 1
+    dynamicNavLinks.splice(insertIndex, 0, { to: dashboardPath, label: 'Dashboard' })
   } else if (user && role === 'customer') {
     dynamicNavLinks.push({ to: '/portal', label: 'My Dashboard' })
   }

@@ -10,8 +10,10 @@ import {
   Copy,
   ShieldCheck,
   Building2,
+  Calendar,
 } from 'lucide-react'
 import { FaFacebook, FaInstagram } from 'react-icons/fa'
+import { getInquiryStatusConfig, normalizeInquiryStatus } from '../lib/inquiryStatusUtils'
 
 const BRANCHES = [
   {
@@ -544,12 +546,8 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                   </div>
                   <span className="text-xl font-black text-stone-900 font-mono tracking-wider">{generatedTicket.ticket_code}</span>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                  isReserve 
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
-                    : 'bg-blue-100 text-blue-800 border-blue-300'
-                }`}>
-                  {isReserve ? 'Hold Active' : 'Consultation Scheduled'}
+                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${getInquiryStatusConfig(generatedTicket.status || 'Pending').badgeClass}`}>
+                  {getInquiryStatusConfig(generatedTicket.status || 'Pending').label}
                 </span>
               </div>
 
@@ -575,12 +573,6 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                     {generatedTicket.store_branch}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-stone-500">Scheduled Visit</span>
-                  <span className="font-semibold">
-                    {generatedTicket.visit_date} at {generatedTicket.visit_time_slot}
-                  </span>
-                </div>
                 {!isReserve && generatedTicket.purpose_of_visitation && (
                   <div className="flex justify-between pt-1 border-t border-stone-200/50">
                     <span className="text-stone-500">Inquiry Topic</span>
@@ -589,6 +581,28 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                     </span>
                   </div>
                 )}
+              </div>
+
+              {/* Stitched Calendar Ticket Stub */}
+              <div
+                className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs ${getInquiryStatusConfig(generatedTicket.status || 'Pending').calendarClass}`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className={`p-2 rounded-lg bg-white/70 dark:bg-black/30 ${getInquiryStatusConfig(generatedTicket.status || 'Pending').calendarIconClass}`}>
+                    <Calendar className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold block text-sm">
+                      {generatedTicket.visit_date} • {generatedTicket.visit_time_slot}
+                    </span>
+                    <span className="text-[11px] opacity-80">
+                      Showroom Visit at {generatedTicket.store_branch}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-mono uppercase tracking-wider font-bold opacity-75">
+                  Showroom Pass
+                </span>
               </div>
 
               {/* Guidance Instructions */}

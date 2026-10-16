@@ -9,6 +9,11 @@ import {
   splitIntoSentenceSegments,
   stripEmojis,
 } from '../lib/solarBotEngine'
+import {
+  loadChatSessions,
+  saveChatSession,
+  deleteChatSession,
+} from '../lib/chatStorage'
 
 const sanitizeOption = (opt) => (opt ? { ...opt, label: stripEmojis(opt.label) } : opt)
 const sanitizeOptions = (opts) => (Array.isArray(opts) ? opts.map(sanitizeOption) : [])
@@ -20,6 +25,9 @@ export function ChatProvider({ children }) {
   const [criteria, setCriteria] = useState({})
   const [isLoading, setIsLoading] = useState(false)
   const [initialMessage, setInitialMessage] = useState(null)
+  const [isSavingsModalOpen, setIsSavingsModalOpen] = useState(false)
+  const [sessionId, setSessionId] = useState(() => `sess-${Date.now()}`)
+  const [sessions, setSessions] = useState(() => loadChatSessions())
   const timersRef = useRef([])
 
   const clearAllTimers = () => {
@@ -31,17 +39,33 @@ export function ChatProvider({ children }) {
     return () => clearAllTimers()
   }, [])
 
-  // Initialize with welcoming ROOT bot message
-  const [messages, setMessages] = useState(() => [
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: stripEmojis(DECISION_TREE.ROOT.message),
-      options: sanitizeOptions(DECISION_TREE.ROOT.options),
-      isStreaming: false,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    },
-  ])
+  // Auto-prune sessions older than 30 days periodically in background
+  useEffect(() => {
+    setSessions(loadChatSessions())
+    const interval = setInterval(() => {
+      setSessions(loadChatSessions())
+    }, 3600000) // check hourly
+    return () => clearInterval(interval)
+  }, [])
+
+  // Initialize with empty messages list until user enters or selects a query
+  const [messages, setMessages] = useState(() => [])
+
+  // Auto-save completed turns to local storage history
+  useEffect(() => {
+    if (
+      !isLoading &&
+      messages.some((m) => m.role === 'user') &&
+      !messages.some((m) => m.isStreaming)
+    ) {
+      const updated = saveChatSession({
+        id: sessionId,
+        messages,
+        criteria,
+      })
+      setSessions(updated)
+    }
+  }, [messages, isLoading, sessionId, criteria])
 
   // Fetch real-time products from Supabase on mount
   useEffect(() => {
@@ -62,21 +86,42 @@ export function ChatProvider({ children }) {
     }
   }, [])
 
-  // Reset chat back to starting state
+  // Load a past session from local history into the chat view
+  const loadSession = (id) => {
+    const target = sessions.find((s) => s.id === id)
+    if (!target) return
+    clearAllTimers()
+    setIsLoading(false)
+    setSessionId(target.id)
+    setMessages(target.messages || [])
+    setCriteria(target.criteria || {})
+  }
+
+  // Delete a session from local history
+  const deleteSession = (id) => {
+    const updated = deleteChatSession(id)
+    setSessions(updated)
+    if (sessionId === id) {
+      resetChat()
+    }
+  }
+
+  // Reset chat back to starting state and persist current if active
   const resetChat = () => {
     clearAllTimers()
+    if (messages.some((m) => m.role === 'user')) {
+      saveChatSession({
+        id: sessionId,
+        messages,
+        criteria,
+      })
+      setSessions(loadChatSessions())
+    }
     setCriteria({})
     setIsLoading(false)
-    setMessages([
-      {
-        id: `welcome-${Date.now()}`,
-        role: 'assistant',
-        content: stripEmojis(DECISION_TREE.ROOT.message),
-        options: sanitizeOptions(DECISION_TREE.ROOT.options),
-        isStreaming: false,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ])
+    const newId = `sess-${Date.now()}`
+    setSessionId(newId)
+    setMessages([])
   }
 
   // Stream bot response sentence-by-sentence with dynamic AI thinking delay
@@ -188,11 +233,38 @@ export function ChatProvider({ children }) {
   }
 
   // Handle clicking an interactive decision-tree option
-  const selectOption = (option) => {
+  const selectOption = (option, messageId = null) => {
     if (!option || isLoading) return
 
-    // If it's a link, routing is handled by Link component
-    if (option.url) return
+    // If it's an action to open the savings calculator modal
+    if (option.action === 'OPEN_SAVINGS_CALCULATOR') {
+      setIsSavingsModalOpen(true)
+      if (messageId) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId ? { ...m, selectedOption: option.label } : m
+          )
+        )
+      }
+      return
+    }
+
+    // When clicking Calculate Electricity Savings, open the interactive modal
+    if (option.next === 'SAVINGS_INFO') {
+      setIsSavingsModalOpen(true)
+    }
+
+    // If it's a link, record the selection on the message but do not generate a bot response
+    if (option.url) {
+      if (messageId) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId ? { ...m, selectedOption: option.label } : m
+          )
+        )
+      }
+      return
+    }
 
     const userText = stripEmojis(option.label)
     const newCriteria = option.filter ? { ...criteria, ...option.filter } : criteria
@@ -207,11 +279,30 @@ export function ChatProvider({ children }) {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
 
-    setMessages((prev) => [...prev, userMsg])
+    setMessages((prev) => {
+      let updated = prev
+      if (messageId) {
+        updated = prev.map((m) =>
+          m.id === messageId ? { ...m, selectedOption: option.label } : m
+        )
+      } else {
+        // Fallback: If messageId wasn't explicitly passed, mark the last assistant message that has options
+        const lastAssistantIdx = [...prev]
+          .reverse()
+          .findIndex((m) => m.role === 'assistant' && m.options?.length)
+        if (lastAssistantIdx !== -1) {
+          const actualIdx = prev.length - 1 - lastAssistantIdx
+          updated = prev.map((m, idx) =>
+            idx === actualIdx ? { ...m, selectedOption: option.label } : m
+          )
+        }
+      }
+      return [...updated, userMsg]
+    })
     setIsLoading(true)
 
-    let targetContent = ''
-    let targetOptions = []
+    let targetContent
+    let targetOptions
 
     if (option.next === 'GENERATE_RESULTS') {
       const result = generateRecommendations(products, newCriteria)
@@ -254,11 +345,56 @@ export function ChatProvider({ children }) {
     streamBotResponse(match.message, match.options)
   }
 
+  // Handle sending calculation summary from SolarSavingsCalculatorModal into chat
+  const sendSavingsSummaryToChat = (summary) => {
+    if (!summary || isLoading) return
+
+    const userText = `Calculated Solar Savings: Monthly electric bill ₱${Number(summary.totalBill).toLocaleString()}, with ~${summary.outdoorPercent}% spent on outdoor lighting (₱${Number(summary.monthlyOutdoorSpend).toLocaleString()}/mo). What JD Solar lights do you recommend to eliminate this cost?`
+
+    const userMsg = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: userText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    }
+
+    setMessages((prev) => [...prev, userMsg])
+    setIsLoading(true)
+
+    const botMessage = `### Personalized Solar Savings & Equipment Recommendation
+
+Thank you for providing your electrical bill profile. Switching your outdoor lighting to JD Solar completely eliminates this power consumption from your utility bill:
+
+| Metric | Current Grid Power | JD Solar Off-Grid | Projected Net Savings |
+|---|---|---|---|
+| **Monthly Outdoor Lighting** | ~₱${Number(summary.monthlyOutdoorSpend).toLocaleString()} | **₱0.00** | **₱${Number(summary.monthlyOutdoorSpend).toLocaleString()} / mo** |
+| **1-Year Energy Cost** | ~₱${Number(summary.annualSavings).toLocaleString()} | **₱0.00** | **₱${Number(summary.annualSavings).toLocaleString()} / yr** |
+| **3-Year Energy Cost** | ~₱${Number(summary.threeYearSavings).toLocaleString()} | **₱0.00** | **₱${Number(summary.threeYearSavings).toLocaleString()} total** |
+
+* **Recommended Equipment Tier:** **${summary.recommendedTier}**
+* **Capital Payback Period:** Full equipment recovery estimated in less than **${summary.paybackMonths} months**.
+* **Engineered Features:** Aviation-grade aluminum chassis, LiFePO4 battery pack, automatic radar dusk-to-dawn sensor, and IP65/IP67 waterproof rating.`
+
+    const botOptions = [
+      { label: 'Open Savings Calculator', action: 'OPEN_SAVINGS_CALCULATOR' },
+      { label: 'Browse Full Catalog', url: '/browse' },
+      { label: 'Quiapo & Cavite Branches', next: 'BRANCHES_INFO' },
+      { label: 'Main Menu', next: 'ROOT' },
+    ]
+
+    streamBotResponse(botMessage, botOptions)
+  }
+
+  const sendMessageRef = useRef(sendMessage)
+  useEffect(() => {
+    sendMessageRef.current = sendMessage
+  })
+
   // Handle incoming initialMessage from other pages (e.g., ProductInfoPage)
   useEffect(() => {
     if (initialMessage) {
       const timer = setTimeout(() => {
-        sendMessage(initialMessage)
+        sendMessageRef.current(initialMessage)
         setInitialMessage(null)
       }, 0)
       return () => clearTimeout(timer)
@@ -277,6 +413,15 @@ export function ChatProvider({ children }) {
         initialMessage,
         setInitialMessage,
         products,
+        isSavingsModalOpen,
+        setIsSavingsModalOpen,
+        openSavingsModal: () => setIsSavingsModalOpen(true),
+        closeSavingsModal: () => setIsSavingsModalOpen(false),
+        sendSavingsSummaryToChat,
+        sessions,
+        loadSession,
+        deleteSession,
+        sessionId,
       }}
     >
       {children}

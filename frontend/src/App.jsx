@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
-import ChatWidget from './components/ChatWidget'
 import LandingPage from './pages/LandingPage'
+
 import BrowsePage from './pages/BrowsePage'
 import ChatboxPage from './pages/ChatboxPage'
 import MatchWizardPage from './pages/MatchWizardPage'
@@ -57,8 +57,8 @@ function AppLayout() {
         </Routes>
       </main>
       {showShell && !isDashboardRoute && !isPortalRoute && !isMatchRoute && !isChatRoute && <Footer />}
-      {showShell && pathname !== '/chat' && !isPortalRoute && <ChatWidget />}
     </div>
+
   )
 }
 

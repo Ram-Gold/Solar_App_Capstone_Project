@@ -198,7 +198,7 @@ export default function ImagesScreen() {
   })
 
   return (
-    <div className="max-w-[1300px] mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
+    <div className="max-w-[1300px] mx-auto space-y-8 pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
