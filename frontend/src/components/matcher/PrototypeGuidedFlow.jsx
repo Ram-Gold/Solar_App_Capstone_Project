@@ -1,16 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+/* eslint-disable react-refresh/only-export-components */
 import {
-  MapPin,
   Zap,
-  CircleDollarSign,
   Check,
   ChevronRight,
   ChevronLeft,
-  SlidersHorizontal,
   RotateCcw,
-  MessageSquare,
   ArrowUpRight,
   ShieldCheck,
 } from 'lucide-react'
@@ -59,6 +56,33 @@ export const BUDGET_PRESETS = [
   { label: 'Any', value: 'any' },
 ]
 
+// Helper to format price ranges cleanly without double currency symbols
+function formatPriceRange(raw) {
+  if (!raw) return 'Inquire for Quote'
+  const str = String(raw).trim()
+  const cleaned = str.replace(/₱/g, '').trim()
+  if (cleaned.includes('-')) {
+    const parts = cleaned.split('-').map((s) => s.trim())
+    const min = Number(parts[0]?.replace(/[^0-9]/g, ''))
+    const max = Number(parts[1]?.replace(/[^0-9]/g, ''))
+    if (!isNaN(min) && !isNaN(max) && min > 0 && max > 0) {
+      return `₱${min.toLocaleString()} – ₱${max.toLocaleString()}`
+    }
+    return `₱${parts[0]} – ₱${parts[1]}`
+  }
+  if (cleaned.endsWith('+')) {
+    const num = Number(cleaned.replace(/[^0-9]/g, ''))
+    if (!isNaN(num) && num > 0) {
+      return `From ₱${num.toLocaleString()}`
+    }
+  }
+  const singleNum = Number(cleaned.replace(/[^0-9]/g, ''))
+  if (!isNaN(singleNum) && singleNum > 0) {
+    return `₱${singleNum.toLocaleString()}`
+  }
+  return `₱${cleaned}`
+}
+
 export default function PrototypeGuidedFlow({
   criteria,
   onCriteriaChange,
@@ -66,7 +90,6 @@ export default function PrototypeGuidedFlow({
   onConsultAssistant,
 }) {
   const [currentStep, setCurrentStep] = useState(1)
-  const [injected, setInjected] = useState(false)
 
   const steps = [
     { num: 1, label: 'Environment' },
@@ -75,12 +98,9 @@ export default function PrototypeGuidedFlow({
     { num: 4, label: 'Results' },
   ]
 
-  const handleConsult = () => {
-    if (!onConsultAssistant) return
-    onConsultAssistant()
-    setInjected(true)
-    setTimeout(() => setInjected(false), 3000)
-  }
+  const selectedLocation = LOCATIONS.find((l) => l.id === criteria.location)
+  const topMatch = matchResult?.matches?.[0]
+  const otherMatches = matchResult?.matches?.slice(1) || []
 
   return (
     <div className="w-full">
@@ -284,28 +304,6 @@ export default function PrototypeGuidedFlow({
                   </div>
                 </div>
 
-                {/* Quick Selection Chips */}
-                <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2">
-                  {POWER_PRESETS.map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() =>
-                        onCriteriaChange({
-                          ...criteria,
-                          powerNeeds: preset,
-                        })
-                      }
-                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 cursor-pointer ${
-                        criteria.powerNeeds === preset
-                          ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-xs'
-                          : 'bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 border border-neutral-200/70 dark:border-neutral-700 hover:border-neutral-300'
-                      }`}
-                    >
-                      {preset}W
-                    </button>
-                  ))}
-                </div>
               </div>
 
               <div className="flex items-center justify-between pt-4 mt-auto border-t border-neutral-100 dark:border-neutral-800">
@@ -426,7 +424,7 @@ export default function PrototypeGuidedFlow({
                   onClick={() => setCurrentStep(4)}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100 text-xs font-semibold shadow-xs transition-all duration-200 active:scale-[0.98] cursor-pointer"
                 >
-                  <span>Evaluate Compatibility</span>
+                  <span>View Recommended Solutions</span>
                   <ChevronRight className="size-3.5" />
                 </button>
               </div>
@@ -443,144 +441,248 @@ export default function PrototypeGuidedFlow({
               transition={{ duration: 0.22, ease: 'easeOut' }}
               className="flex-1 flex flex-col justify-between space-y-6"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-neutral-100 dark:border-neutral-800">
+              {/* Clean User-Centric Header */}
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-3 border-b border-neutral-100 dark:border-neutral-800">
                 <div>
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
-                    Step 04 of 04 · Results
-                  </span>
-                  <h3 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-white">
-                    Ranked Candidates ({matchResult.matches.length})
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-500">
+                      Step 04 of 04 · Recommendation
+                    </span>
+                    <span className="text-neutral-300 dark:text-neutral-700">·</span>
+                    <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                      Evaluated {matchResult?.totalEvaluated || 23} Models
+                    </span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
+                    Recommended Solar Configuration
                   </h3>
+                  <p className="text-xs sm:text-sm text-neutral-500 mt-0.5">
+                    Configured for {selectedLocation?.label || 'selected environment'} with {criteria.powerNeeds}W target illumination.
+                  </p>
                 </div>
 
-                {/* Sensitivity Slider in Apple capsule */}
-                <div className="flex items-center gap-3 px-3 py-1.5 rounded-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200/60 dark:border-neutral-700 text-xs">
-                  <span className="text-neutral-500 font-medium">Cutoff:</span>
-                  <input
-                    type="range"
-                    min="0.50"
-                    max="0.90"
-                    step="0.05"
-                    value={criteria.threshold}
-                    onChange={(e) =>
-                      onCriteriaChange({
-                        ...criteria,
-                        threshold: Number(e.target.value),
-                      })
-                    }
-                    className="w-24 h-1 bg-neutral-300 dark:bg-neutral-600 rounded-full appearance-none accent-amber-500 cursor-pointer"
-                  />
-                  <span className="font-semibold text-neutral-900 dark:text-white w-8 text-right">
-                    {Math.round(criteria.threshold * 100)}%
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="self-start sm:self-auto inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors cursor-pointer py-1.5 px-3 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                >
+                  <RotateCcw className="size-3.5" />
+                  <span>Adjust Criteria</span>
+                </button>
               </div>
 
-              {/* Matched List */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {matchResult.matches.map((item, idx) => {
-                  const p = item.product
-                  const isTop = idx === 0
-                  return (
-                    <div
-                      key={p.id}
-                      className={`p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between ${
-                        isTop
-                          ? 'border-amber-500/40 bg-amber-500/[0.02] shadow-[0_4px_16px_rgba(245,158,11,0.06)]'
-                          : 'border-neutral-200/70 dark:border-neutral-800 bg-white dark:bg-neutral-800/40'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                              item.matchPercentage >= 85
-                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                                : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
-                            }`}
-                          >
-                            <ShieldCheck className="size-3" />
-                            <span>{item.matchPercentage}% Compatibility</span>
-                            {isTop && <span className="opacity-75 font-normal">· Optimal</span>}
-                          </span>
-                          <span className="text-xs font-semibold text-neutral-900 dark:text-white">
-                            ₱{p.price_range}
+              {/* Recommendation Content */}
+              {topMatch ? (
+                <div className="space-y-6">
+                  {/* Hero Showcase Card */}
+                  <div className="relative overflow-hidden rounded-2xl border border-neutral-200/90 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-xs transition-all">
+                    <div className="p-5 sm:p-6 lg:p-7">
+                      {/* Top Status Bar within Hero Card */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-neutral-100 dark:border-neutral-800">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                            <ShieldCheck className="size-3.5 stroke-[2.2]" />
+                            <span>Top Recommended Model</span>
                           </span>
                         </div>
 
-                        <h4 className="text-sm font-semibold text-neutral-900 dark:text-white line-clamp-1 mb-1">
-                          {p.name}
-                        </h4>
-
-                        <p className="text-xs text-neutral-500 line-clamp-2 mb-3">
-                          {item.reason}
-                        </p>
-
-                        {/* Minimal Score Bars */}
-                        <div className="grid grid-cols-3 gap-1.5 py-2 px-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/80 mb-3 text-[10px]">
-                          <div>
-                            <span className="text-neutral-400 block">Photometrics</span>
-                            <span className="font-semibold text-neutral-800 dark:text-neutral-200">
-                              {item.breakdown.powerScore}%
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-neutral-400 block">Environment</span>
-                            <span className="font-semibold text-neutral-800 dark:text-neutral-200">
-                              {item.breakdown.locationScore}%
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-neutral-400 block">Budget Fit</span>
-                            <span className="font-semibold text-neutral-800 dark:text-neutral-200">
-                              {item.breakdown.budgetScore}%
-                            </span>
-                          </div>
+                        <div className="text-right">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 block">
+                            Price Range
+                          </span>
+                          <span className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
+                            {formatPriceRange(topMatch.product.price_range)}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-100 dark:border-neutral-800">
-                        <Link
-                          to={`/product/${p.id}`}
-                          className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white inline-flex items-center gap-1"
-                        >
-                          <span>Inquire this</span>
-                          <ArrowUpRight className="size-3" />
-                        </Link>
-                        <Link
-                          to={`/product/${p.id}`}
-                          className="text-[11px] font-medium text-neutral-400 hover:text-neutral-600"
-                        >
-                          Specs
-                        </Link>
+                      {/* Hero Layout: Image + Details */}
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-5 items-center">
+                        {/* Product Visual Box */}
+                        <div className="md:col-span-5 flex flex-col items-center">
+                          <div className="w-full aspect-square max-w-[220px] rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/70 dark:border-neutral-700/60 p-4 flex items-center justify-center relative shadow-xs group">
+                            {topMatch.product.image_url ? (
+                              <img
+                                src={topMatch.product.image_url}
+                                alt={topMatch.product.name}
+                                className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
+                              />
+                            ) : (
+                              <div className="size-full flex flex-col items-center justify-center text-neutral-400">
+                                <Zap className="size-10 text-amber-500/80 mb-2 stroke-[1.5]" />
+                                <span className="text-xs font-medium text-neutral-500">Commercial Solar Luminaire</span>
+                              </div>
+                            )}
+
+                            <div className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-md bg-neutral-900/85 text-white text-[11px] font-bold backdrop-blur-xs">
+                              {topMatch.product.watt}W
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Engineering Specs & Actions */}
+                        <div className="md:col-span-7 flex flex-col justify-between space-y-4">
+                          <div>
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500 block mb-1">
+                              {topMatch.product.type || 'Commercial Grade Solar Luminaire'}
+                            </span>
+                            <h4 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
+                              {topMatch.product.name}
+                            </h4>
+                          </div>
+
+                          {/* 4-Item Key Technical Specs Grid */}
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-100 dark:border-neutral-800">
+                              <span className="text-[10px] uppercase font-semibold text-neutral-400 block">
+                                Power Output
+                              </span>
+                              <span className="font-semibold text-neutral-800 dark:text-neutral-200">
+                                {topMatch.product.watt}W Luminaire
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-100 dark:border-neutral-800">
+                              <span className="text-[10px] uppercase font-semibold text-neutral-400 block">
+                                Protection
+                              </span>
+                              <span className="font-semibold text-neutral-800 dark:text-neutral-200">
+                                {topMatch.product.waterproof_grade || 'IP65'} Rated
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-100 dark:border-neutral-800">
+                              <span className="text-[10px] uppercase font-semibold text-neutral-400 block">
+                                Battery Spec
+                              </span>
+                              <span
+                                className="font-semibold text-neutral-800 dark:text-neutral-200 truncate block"
+                                title={topMatch.product.battery || 'LiFePO4 Storage'}
+                              >
+                                {topMatch.product.battery || 'LiFePO4 Storage'}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-100 dark:border-neutral-800">
+                              <span className="text-[10px] uppercase font-semibold text-neutral-400 block">
+                                Warranty
+                              </span>
+                              <span className="font-semibold text-neutral-800 dark:text-neutral-200">
+                                {topMatch.product.default_warranty_months
+                                  ? `${topMatch.product.default_warranty_months}-Month Coverage`
+                                  : '1-Year Distributor'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Direct User-Centric Action CTAs */}
+                          <div className="flex flex-wrap items-center gap-3 pt-2">
+                            <Link
+                              to={`/product/${topMatch.product.id}`}
+                              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100 text-xs font-semibold shadow-xs transition-all duration-150 active:scale-[0.98] cursor-pointer"
+                            >
+                              <span>Inquire this</span>
+                              <ArrowUpRight className="size-3.5" />
+                            </Link>
+
+                            <Link
+                              to={`/product/${topMatch.product.id}`}
+                              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full border border-neutral-300 dark:border-neutral-700 hover:border-neutral-400 text-neutral-700 dark:text-neutral-200 text-xs font-semibold transition-all hover:bg-neutral-100/50 dark:hover:bg-neutral-800 cursor-pointer"
+                            >
+                              <span>View Technical Specifications</span>
+                            </Link>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  )
-                })}
-              </div>
+                  </div>
+
+                  {/* Alternative Runner-up Candidates */}
+                  {otherMatches.length > 0 && (
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between mb-3">
+                        <h5 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                          Other Compatible Solutions ({otherMatches.length})
+                        </h5>
+                        <span className="text-[11px] text-neutral-400">
+                          Alternative wattage & price options
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {otherMatches.map((item) => {
+                          const p = item.product
+                          return (
+                            <div
+                              key={p.id}
+                              className="p-4 rounded-xl border border-neutral-200/80 dark:border-neutral-800 bg-white/70 dark:bg-neutral-850/40 hover:border-neutral-300 dark:hover:border-neutral-700 hover:shadow-xs transition-all flex flex-col justify-between group"
+                            >
+                              <div>
+                                <div className="flex items-start justify-between gap-2 mb-1.5">
+                                  <h6 className="text-xs font-semibold text-neutral-900 dark:text-white line-clamp-1 group-hover:text-amber-600 transition-colors">
+                                    {p.name}
+                                  </h6>
+                                  <span className="text-xs font-bold text-neutral-900 dark:text-white shrink-0">
+                                    {formatPriceRange(p.price_range)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 mb-2 text-[10px] text-neutral-400 font-medium">
+                                  <span>{p.watt}W · {p.waterproof_grade || 'IP65'}</span>
+                                </div>
+                                <p className="text-[11px] text-neutral-500 line-clamp-2 leading-relaxed">
+                                  {item.explanation || item.reason || 'Compatible secondary recommendation.'}
+                                </p>
+                              </div>
+
+                              <div className="pt-3 mt-3 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+                                <span className="text-[10px] text-neutral-400 font-medium">
+                                  Ready to dispatch
+                                </span>
+                                <Link
+                                  to={`/product/${p.id}`}
+                                  className="text-xs font-semibold text-neutral-900 dark:text-white hover:text-amber-600 dark:hover:text-amber-400 inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                  <span>Inquire this</span>
+                                  <ArrowUpRight className="size-3" />
+                                </Link>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12 space-y-3">
+                  <p className="text-sm text-neutral-500">
+                    No models satisfied the current criteria combination.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(1)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-neutral-900 text-white text-xs font-medium cursor-pointer"
+                  >
+                    <RotateCcw className="size-3.5" />
+                    <span>Adjust Match Criteria</span>
+                  </button>
+                </div>
+              )}
 
               {/* Action Footer */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-auto border-t border-neutral-100 dark:border-neutral-800">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(1)}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-800 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 cursor-pointer py-2 px-3 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                 >
                   <RotateCcw className="size-3.5" />
                   <span>Restart Flow</span>
                 </button>
 
-                {onConsultAssistant && (
-                  <button
-                    type="button"
-                    onClick={handleConsult}
-                    disabled={injected}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100 text-xs font-semibold shadow-xs transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:opacity-60"
-                  >
-                    <MessageSquare className="size-3.5" />
-                    <span>{injected ? 'Transferred to Chat' : 'Consult Solar Assistant'}</span>
-                  </button>
-                )}
+                <Link
+                  to="/browse"
+                  className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white py-2 px-4 rounded-full border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all cursor-pointer"
+                >
+                  <span>Browse Full Catalog</span>
+                  <ChevronRight className="size-3.5" />
+                </Link>
               </div>
             </motion.div>
           )}

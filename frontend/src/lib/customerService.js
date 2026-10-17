@@ -425,6 +425,80 @@ export async function updateClaimStatus(claimId, status, staffNotes = '') {
 }
 
 /**
+ * Archives a warranty claim by setting status to 'archived'.
+ */
+export async function archiveWarrantyClaim(claimId, staffNotes = '') {
+  try {
+    const updatePayload = {
+      status: 'archived',
+      updated_at: new Date().toISOString()
+    }
+    if (staffNotes !== undefined && staffNotes !== null) {
+      updatePayload.staff_notes = staffNotes
+    }
+
+    const { data, error } = await supabase
+      .from('warranty_claims')
+      .update(updatePayload)
+      .eq('id', claimId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return { data, error: null }
+  } catch (err) {
+    console.error('archiveWarrantyClaim error:', err)
+    return { data: null, error: err }
+  }
+}
+
+/**
+ * Restores an archived warranty claim back to an active triage status.
+ */
+export async function restoreWarrantyClaim(claimId, targetStatus = 'in_review', staffNotes = '') {
+  try {
+    const updatePayload = {
+      status: targetStatus,
+      updated_at: new Date().toISOString()
+    }
+    if (staffNotes) {
+      updatePayload.staff_notes = staffNotes
+    }
+
+    const { data, error } = await supabase
+      .from('warranty_claims')
+      .update(updatePayload)
+      .eq('id', claimId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return { data, error: null }
+  } catch (err) {
+    console.error('restoreWarrantyClaim error:', err)
+    return { data: null, error: err }
+  }
+}
+
+/**
+ * Permanently deletes a warranty claim from the database.
+ */
+export async function deleteWarrantyClaim(claimId) {
+  try {
+    const { error } = await supabase
+      .from('warranty_claims')
+      .delete()
+      .eq('id', claimId)
+
+    if (error) throw error
+    return { success: true, error: null }
+  } catch (err) {
+    console.error('deleteWarrantyClaim error:', err)
+    return { success: false, error: err }
+  }
+}
+
+/**
  * Fetches all registered customers with their purchases and warranty details.
  */
 export async function fetchAllCustomers() {

@@ -125,16 +125,16 @@ export default function LandingPage() {
 
             <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-4">
               <Link
-                to="/chat"
+                to="/browse"
                 className="bg-jd-primary-container text-jd-on-primary-container px-8 py-4 rounded-lg text-label-md font-bold hover:shadow-lg transition-all text-center"
               >
-                Get Started
+                Browse Products
               </Link>
               <Link
-                to="/browse"
+                to="/match"
                 className="border-2 border-jd-secondary text-jd-secondary px-8 py-4 rounded-lg text-label-md font-bold hover:bg-jd-secondary/5 transition-all text-center"
               >
-                View Solutions
+                Product Matching
               </Link>
             </motion.div>
           </motion.div>

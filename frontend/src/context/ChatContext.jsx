@@ -25,7 +25,6 @@ export function ChatProvider({ children }) {
   const [criteria, setCriteria] = useState({})
   const [isLoading, setIsLoading] = useState(false)
   const [initialMessage, setInitialMessage] = useState(null)
-  const [isSavingsModalOpen, setIsSavingsModalOpen] = useState(false)
   const [sessionId, setSessionId] = useState(() => `sess-${Date.now()}`)
   const [sessions, setSessions] = useState(() => loadChatSessions())
   const timersRef = useRef([])
@@ -236,24 +235,6 @@ export function ChatProvider({ children }) {
   const selectOption = (option, messageId = null) => {
     if (!option || isLoading) return
 
-    // If it's an action to open the savings calculator modal
-    if (option.action === 'OPEN_SAVINGS_CALCULATOR') {
-      setIsSavingsModalOpen(true)
-      if (messageId) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === messageId ? { ...m, selectedOption: option.label } : m
-          )
-        )
-      }
-      return
-    }
-
-    // When clicking Calculate Electricity Savings, open the interactive modal
-    if (option.next === 'SAVINGS_INFO') {
-      setIsSavingsModalOpen(true)
-    }
-
     // If it's a link, record the selection on the message but do not generate a bot response
     if (option.url) {
       if (messageId) {
@@ -345,46 +326,6 @@ export function ChatProvider({ children }) {
     streamBotResponse(match.message, match.options)
   }
 
-  // Handle sending calculation summary from SolarSavingsCalculatorModal into chat
-  const sendSavingsSummaryToChat = (summary) => {
-    if (!summary || isLoading) return
-
-    const userText = `Calculated Solar Savings: Monthly electric bill ₱${Number(summary.totalBill).toLocaleString()}, with ~${summary.outdoorPercent}% spent on outdoor lighting (₱${Number(summary.monthlyOutdoorSpend).toLocaleString()}/mo). What JD Solar lights do you recommend to eliminate this cost?`
-
-    const userMsg = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: userText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    }
-
-    setMessages((prev) => [...prev, userMsg])
-    setIsLoading(true)
-
-    const botMessage = `### Personalized Solar Savings & Equipment Recommendation
-
-Thank you for providing your electrical bill profile. Switching your outdoor lighting to JD Solar completely eliminates this power consumption from your utility bill:
-
-| Metric | Current Grid Power | JD Solar Off-Grid | Projected Net Savings |
-|---|---|---|---|
-| **Monthly Outdoor Lighting** | ~₱${Number(summary.monthlyOutdoorSpend).toLocaleString()} | **₱0.00** | **₱${Number(summary.monthlyOutdoorSpend).toLocaleString()} / mo** |
-| **1-Year Energy Cost** | ~₱${Number(summary.annualSavings).toLocaleString()} | **₱0.00** | **₱${Number(summary.annualSavings).toLocaleString()} / yr** |
-| **3-Year Energy Cost** | ~₱${Number(summary.threeYearSavings).toLocaleString()} | **₱0.00** | **₱${Number(summary.threeYearSavings).toLocaleString()} total** |
-
-* **Recommended Equipment Tier:** **${summary.recommendedTier}**
-* **Capital Payback Period:** Full equipment recovery estimated in less than **${summary.paybackMonths} months**.
-* **Engineered Features:** Aviation-grade aluminum chassis, LiFePO4 battery pack, automatic radar dusk-to-dawn sensor, and IP65/IP67 waterproof rating.`
-
-    const botOptions = [
-      { label: 'Open Savings Calculator', action: 'OPEN_SAVINGS_CALCULATOR' },
-      { label: 'Browse Full Catalog', url: '/browse' },
-      { label: 'Quiapo & Cavite Branches', next: 'BRANCHES_INFO' },
-      { label: 'Main Menu', next: 'ROOT' },
-    ]
-
-    streamBotResponse(botMessage, botOptions)
-  }
-
   const sendMessageRef = useRef(sendMessage)
   useEffect(() => {
     sendMessageRef.current = sendMessage
@@ -413,11 +354,6 @@ Thank you for providing your electrical bill profile. Switching your outdoor lig
         initialMessage,
         setInitialMessage,
         products,
-        isSavingsModalOpen,
-        setIsSavingsModalOpen,
-        openSavingsModal: () => setIsSavingsModalOpen(true),
-        closeSavingsModal: () => setIsSavingsModalOpen(false),
-        sendSavingsSummaryToChat,
         sessions,
         loadSession,
         deleteSession,

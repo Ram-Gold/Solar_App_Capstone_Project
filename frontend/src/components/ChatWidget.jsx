@@ -4,7 +4,6 @@ import { useChat } from '../context/ChatContext'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Link } from 'react-router-dom'
-import SolarSavingsCalculatorModal from './SolarSavingsCalculatorModal'
 import {
   HiOutlineCpuChip,
   HiOutlineXMark,
@@ -23,9 +22,6 @@ export default function ChatWidget() {
     resetChat,
     isLoading,
     initialMessage,
-    isSavingsModalOpen,
-    closeSavingsModal,
-    sendSavingsSummaryToChat,
   } = useChat()
   const [input, setInput] = useState('')
   const scrollRef = useRef(null)
@@ -184,7 +180,9 @@ export default function ChatWidget() {
                           transition={{ duration: 0.25 }}
                           className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-jds-outline-variant/30"
                         >
-                          {msg.options.map((opt, optIdx) => {
+                          {msg.options
+                            .filter((opt) => opt.action !== 'OPEN_SAVINGS_CALCULATOR' && opt.label !== 'Calculate Electricity Savings' && opt.label !== 'Calculate Savings')
+                            .map((opt, optIdx) => {
                             const isSelected = msg.selectedOption === opt.label
                             const hasSelection = Boolean(msg.selectedOption)
 
@@ -282,13 +280,6 @@ export default function ChatWidget() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Solar Electricity Savings Calculator Modal */}
-      <SolarSavingsCalculatorModal
-        isOpen={isSavingsModalOpen}
-        onClose={closeSavingsModal}
-        onSendToChat={sendSavingsSummaryToChat}
-      />
     </>
   )
 }

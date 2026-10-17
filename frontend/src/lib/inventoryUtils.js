@@ -34,30 +34,16 @@ export function getStockTier(product) {
 
 /**
  * Priority sort comparator:
- * 1. Out of stock first (0)
- * 2. Low stock second (1 to 5)
- * 3. Optimal stock third (> 5)
+ * The lower the stock, the higher the item is on the list (0, 1, 2, 3...)
  * Secondary sort: Newest first (highest id descending)
  */
 export function sortProductsByStockPriority(products) {
-  const tierWeight = {
-    out: 0,
-    low: 1,
-    optimal: 2,
-  }
-
   return [...products].sort((a, b) => {
-    const tierA = getStockTier(a)
-    const tierB = getStockTier(b)
-
-    if (tierWeight[tierA] !== tierWeight[tierB]) {
-      return tierWeight[tierA] - tierWeight[tierB]
-    }
-
-    // Within same tier, sort lower stock quantities first if both are low or out
     const qtyA = getStockQuantity(a)
     const qtyB = getStockQuantity(b)
-    if (tierA !== 'optimal' && qtyA !== qtyB) {
+
+    // Strictly sort lower stock quantities first
+    if (qtyA !== qtyB) {
       return qtyA - qtyB
     }
 
@@ -67,7 +53,7 @@ export function sortProductsByStockPriority(products) {
 }
 
 export const SORT_OPTIONS = [
-  { id: 'stock_priority', label: 'Out of Stock First' },
+  { id: 'stock_priority', label: 'Lowest Stock First' },
   { id: 'newest', label: 'Recently Added / Newest' },
   { id: 'sales', label: 'Highest Sales' },
   { id: 'watt_desc', label: 'Power Output (High to Low)' },

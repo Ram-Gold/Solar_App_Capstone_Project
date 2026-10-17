@@ -75,6 +75,11 @@ export const CLAIM_STATUSES = {
     label: 'Claim Declined',
     color: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
     description: 'Declined due to expired coverage or physical void terms.'
+  },
+  archived: {
+    label: 'Archived / Concluded',
+    color: 'bg-neutral-500/10 text-neutral-500 border-neutral-500/20',
+    description: 'Concluded and archived by store administration.'
   }
 }
 

@@ -16,7 +16,6 @@ import remarkGfm from 'remark-gfm'
 import { useChat } from '../context/ChatContext'
 import { Link } from 'react-router-dom'
 import MultiCriteriaMatchModal from '../components/MultiCriteriaMatchModal'
-import SolarSavingsCalculatorModal from '../components/SolarSavingsCalculatorModal'
 import ChatHelpModal from '../components/ChatHelpModal'
 import { formatSessionDate } from '../lib/chatStorage'
 
@@ -87,9 +86,6 @@ export default function ChatboxPage() {
     resetChat,
     isLoading,
     products,
-    isSavingsModalOpen,
-    closeSavingsModal,
-    sendSavingsSummaryToChat,
     sessions,
     loadSession,
     deleteSession,
@@ -354,7 +350,9 @@ export default function ChatboxPage() {
                               transition={{ duration: 0.25 }}
                               className="mt-4 pt-3 border-t border-jds-outline-variant/30 flex flex-wrap gap-2"
                             >
-                              {msg.options.map((opt, optIdx) => {
+                              {msg.options
+                                .filter((opt) => opt.action !== 'OPEN_SAVINGS_CALCULATOR' && opt.label !== 'Calculate Electricity Savings' && opt.label !== 'Calculate Savings')
+                                .map((opt, optIdx) => {
                                 const isSelected = msg.selectedOption === opt.label
                                 const hasSelection = Boolean(msg.selectedOption)
 
@@ -468,13 +466,6 @@ export default function ChatboxPage() {
         isOpen={showMatcher}
         onClose={() => setShowMatcher(false)}
         products={products}
-      />
-
-      {/* Solar Savings Calculator Modal */}
-      <SolarSavingsCalculatorModal
-        isOpen={isSavingsModalOpen}
-        onClose={closeSavingsModal}
-        onSendToChat={sendSavingsSummaryToChat}
       />
 
       {/* Assistant Help & Privacy Disclosure Modal */}

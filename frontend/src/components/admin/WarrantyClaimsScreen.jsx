@@ -25,9 +25,20 @@ import {
   Copy,
   Image as ImageIcon,
   Kanban,
-  GripVertical
+  GripVertical,
+  Archive,
+  Trash2,
+  RotateCcw,
+  Inbox
 } from 'lucide-react'
-import { fetchAllWarrantyClaims, updateClaimStatus } from '../../lib/customerService'
+import { useAuth } from '../../context/AuthContext'
+import {
+  fetchAllWarrantyClaims,
+  updateClaimStatus,
+  archiveWarrantyClaim,
+  restoreWarrantyClaim,
+  deleteWarrantyClaim
+} from '../../lib/customerService'
 import { formatDate, getClaimStatusMeta, isWarrantyActive, getRemainingDays, CLAIM_STATUSES } from '../../lib/warrantyUtils'
 
 const KANBAN_COLUMNS = [
@@ -84,10 +95,15 @@ const KANBAN_COLUMNS = [
 ]
 
 export default function WarrantyClaimsScreen() {
+  const { role } = useAuth()
+  const isAdmin = role === 'admin'
+
   const [claims, setClaims] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [branchFilter, setBranchFilter] = useState('all') // 'all' | 'Cavite' | 'Quiapo'
+  const [activeView, setActiveView] = useState('board') // 'board' | 'archived'
+  
   const [activeModalClaim, setActiveModalClaim] = useState(null)
   const [modalStatus, setModalStatus] = useState('')
   const [modalNotes, setModalNotes] = useState('')
@@ -95,6 +111,12 @@ export default function WarrantyClaimsScreen() {
   const [modalSuccessMsg, setModalSuccessMsg] = useState('')
   const [selectedMedia, setSelectedMedia] = useState(null)
   const [copiedPhone, setCopiedPhone] = useState(false)
+
+  // Confirmation dialogs state
+  const [claimToArchive, setClaimToArchive] = useState(null)
+  const [claimToDelete, setClaimToDelete] = useState(null)
+  const [claimToRestore, setClaimToRestore] = useState(null)
+  const [actionLoading, setActionLoading] = useState(false)
 
   // Drag-and-drop state
   const [draggingClaimId, setDraggingClaimId] = useState(null)
@@ -128,12 +150,18 @@ export default function WarrantyClaimsScreen() {
     }
   }, [activeModalClaim])
 
-  // Escape key handler to close modals or lightboxes
+  // Escape key handler to close modals or lightboxes in hierarchical order
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         if (selectedMedia) {
           setSelectedMedia(null)
+        } else if (claimToDelete && !actionLoading) {
+          setClaimToDelete(null)
+        } else if (claimToArchive && !actionLoading) {
+          setClaimToArchive(null)
+        } else if (claimToRestore && !actionLoading) {
+          setClaimToRestore(null)
         } else if (activeModalClaim && !modalSaving) {
           handleCloseModal()
         }
@@ -141,7 +169,7 @@ export default function WarrantyClaimsScreen() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedMedia, activeModalClaim, modalSaving])
+  }, [selectedMedia, claimToDelete, claimToArchive, claimToRestore, actionLoading, activeModalClaim, modalSaving])
 
   const handleOpenModal = (claim) => {
     setActiveModalClaim(claim)
@@ -178,6 +206,105 @@ export default function WarrantyClaimsScreen() {
       alert('Error updating claim: ' + err.message)
     } finally {
       setModalSaving(false)
+    }
+  }
+
+  // Initiate & confirm Archive
+  const handleInitiateArchive = (claim) => {
+    setClaimToArchive(claim)
+  }
+
+  const handleConfirmArchive = async () => {
+    if (!claimToArchive) return
+    setActionLoading(true)
+    try {
+      const { error } = await archiveWarrantyClaim(claimToArchive.id, claimToArchive.staff_notes || '')
+      if (error) throw error
+
+      setClaims((prev) =>
+        prev.map((c) =>
+          c.id === claimToArchive.id
+            ? { ...c, status: 'archived', updated_at: new Date().toISOString() }
+            : c
+        )
+      )
+
+      if (activeModalClaim?.id === claimToArchive.id) {
+        setActiveModalClaim((prev) => (prev ? { ...prev, status: 'archived' } : null))
+      }
+
+      setStatusToast(`Ticket CLAIM-${claimToArchive.id.slice(0, 8).toUpperCase()} moved to Archived Tickets.`)
+      setTimeout(() => setStatusToast(''), 4000)
+      setClaimToArchive(null)
+    } catch (err) {
+      console.error('Failed to archive ticket:', err)
+      alert('Error archiving claim: ' + (err.message || 'Server error'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Initiate & confirm Restore
+  const handleInitiateRestore = (claim) => {
+    setClaimToRestore(claim)
+  }
+
+  const handleConfirmRestore = async (targetStatus = 'in_review') => {
+    if (!claimToRestore) return
+    setActionLoading(true)
+    try {
+      const { error } = await restoreWarrantyClaim(claimToRestore.id, targetStatus, claimToRestore.staff_notes || '')
+      if (error) throw error
+
+      setClaims((prev) =>
+        prev.map((c) =>
+          c.id === claimToRestore.id
+            ? { ...c, status: targetStatus, updated_at: new Date().toISOString() }
+            : c
+        )
+      )
+
+      if (activeModalClaim?.id === claimToRestore.id) {
+        setActiveModalClaim((prev) => (prev ? { ...prev, status: targetStatus } : null))
+      }
+
+      setStatusToast(`Ticket CLAIM-${claimToRestore.id.slice(0, 8).toUpperCase()} restored to Active Board.`)
+      setTimeout(() => setStatusToast(''), 4000)
+      setClaimToRestore(null)
+    } catch (err) {
+      console.error('Failed to restore ticket:', err)
+      alert('Error restoring claim: ' + (err.message || 'Server error'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Initiate & confirm Delete
+  const handleInitiateDelete = (claim) => {
+    setClaimToDelete(claim)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!claimToDelete) return
+    setActionLoading(true)
+    try {
+      const { error } = await deleteWarrantyClaim(claimToDelete.id)
+      if (error) throw error
+
+      setClaims((prev) => prev.filter((c) => c.id !== claimToDelete.id))
+
+      if (activeModalClaim?.id === claimToDelete.id) {
+        handleCloseModal()
+      }
+
+      setStatusToast(`Ticket CLAIM-${claimToDelete.id.slice(0, 8).toUpperCase()} permanently deleted.`)
+      setTimeout(() => setStatusToast(''), 4000)
+      setClaimToDelete(null)
+    } catch (err) {
+      console.error('Failed to delete ticket:', err)
+      alert('Error deleting claim: ' + (err.message || 'Server error'))
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -223,8 +350,16 @@ export default function WarrantyClaimsScreen() {
     setTimeout(() => setCopiedPhone(false), 2000)
   }
 
-  // Filter claims
+  // Calculate totals
+  const activeClaimsCount = claims.filter((c) => (c.status || 'pending') !== 'archived').length
+  const archivedClaimsCount = claims.filter((c) => (c.status || 'pending') === 'archived').length
+
+  // Filter claims based on activeView
   const filteredClaims = claims.filter((c) => {
+    const isArchived = (c.status || 'pending') === 'archived'
+    if (activeView === 'board' && isArchived) return false
+    if (activeView === 'archived' && !isArchived) return false
+
     const cust = c.customer_purchases?.customers
     const prod = c.customer_purchases?.products
     const purchase = c.customer_purchases
@@ -270,6 +405,34 @@ export default function WarrantyClaimsScreen() {
         </div>
 
         <div className="flex items-center gap-2 self-start md:self-auto">
+          {/* View Mode Switcher: Active Board vs Archived Claims */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-jds-surface border border-jds-outline-variant/40 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setActiveView('board')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeView === 'board'
+                  ? 'bg-jds-primary text-jds-on-primary shadow-xs'
+                  : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+              }`}
+            >
+              <Kanban className="w-3.5 h-3.5" />
+              <span>Active Board ({activeClaimsCount})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView('archived')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeView === 'archived'
+                  ? 'bg-jds-primary text-jds-on-primary shadow-xs'
+                  : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+              }`}
+            >
+              <Archive className="w-3.5 h-3.5" />
+              <span>Archived ({archivedClaimsCount})</span>
+            </button>
+          </div>
+
           <button
             onClick={loadClaims}
             disabled={loading}
@@ -313,7 +476,7 @@ export default function WarrantyClaimsScreen() {
 
         {/* Total Summary */}
         <div className="flex items-center gap-3 text-xs text-jds-on-surface-variant font-medium">
-          <span>Active Filtered: <strong className="text-jds-on-surface font-semibold">{filteredClaims.length}</strong></span>
+          <span>{activeView === 'archived' ? 'Archived Records' : 'Active Tickets'}: <strong className="text-jds-on-surface font-semibold">{filteredClaims.length}</strong></span>
           <span className="text-jds-outline-variant">•</span>
           <span>Total Database Claims: <strong className="text-jds-on-surface font-semibold">{claims.length}</strong></span>
         </div>
@@ -335,11 +498,156 @@ export default function WarrantyClaimsScreen() {
         </div>
       )}
 
-      {/* Kanban Board Container with Gaps and Column Pagination */}
+      {/* Kanban Board Container or Archived Claims View */}
       {loading ? (
         <div className="py-24 text-center space-y-3">
           <div className="w-8 h-8 border-2 border-jds-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-jds-on-surface-variant font-medium">Loading warranty tickets onto Kanban board...</p>
+          <p className="text-xs text-jds-on-surface-variant font-medium">Loading warranty tickets onto board...</p>
+        </div>
+      ) : activeView === 'archived' ? (
+        <div className="space-y-4">
+          <div className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-850/40 border border-jds-outline-variant/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <Archive className="w-5 h-5 text-neutral-500" />
+              <div>
+                <h2 className="text-sm font-bold text-jds-on-surface">Archived Warranty Tickets</h2>
+                <p className="text-xs text-jds-on-surface-variant">Concluded and archived tickets retained for warranty history and auditing.</p>
+              </div>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-jds-surface border border-jds-outline-variant/30 text-jds-on-surface">
+              {filteredClaims.length} Archived Record{filteredClaims.length === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          {filteredClaims.length === 0 ? (
+            <div className="py-20 flex flex-col items-center justify-center text-center p-6 rounded-2xl border border-dashed border-jds-outline-variant/40 bg-jds-surface/30 space-y-3">
+              <Inbox className="w-10 h-10 text-jds-on-surface-variant/40" />
+              <div>
+                <h3 className="text-sm font-bold text-jds-on-surface">No Archived Tickets Found</h3>
+                <p className="text-xs text-jds-on-surface-variant mt-1 max-w-sm">
+                  {searchQuery || branchFilter !== 'all'
+                    ? 'No archived claims match your current search and branch filters.'
+                    : 'There are no archived warranty claims in the database.'}
+                </p>
+              </div>
+              {(searchQuery || branchFilter !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setBranchFilter('all')
+                  }}
+                  className="text-xs font-semibold text-jds-primary hover:underline cursor-pointer"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredClaims.map((claim) => {
+                const customer = claim.customer_purchases?.customers
+                const product = claim.customer_purchases?.products
+                const purchase = claim.customer_purchases
+
+                return (
+                  <div
+                    key={claim.id}
+                    onClick={() => handleOpenModal(claim)}
+                    className="rounded-xl border border-jds-outline-variant/40 bg-jds-surface p-4 transition-all hover:shadow-md hover:border-jds-primary/60 cursor-pointer space-y-3.5 flex flex-col justify-between group"
+                  >
+                    <div className="space-y-3">
+                      {/* Header */}
+                      <div className="flex items-center justify-between text-xs pb-2 border-b border-jds-outline-variant/20">
+                        <span className="font-mono text-[11px] font-bold text-neutral-600 dark:text-neutral-400 bg-neutral-500/10 px-2 py-0.5 rounded-md border border-neutral-500/20">
+                          CLAIM-{claim.id.slice(0, 8).toUpperCase()}
+                        </span>
+                        <span className="text-[11px] text-jds-on-surface-variant/70 font-medium">
+                          {formatDate(claim.updated_at || claim.created_at)}
+                        </span>
+                      </div>
+
+                      {/* Customer & Branch */}
+                      <div className="space-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-jds-on-surface flex items-center gap-1.5 truncate">
+                            <User className="w-3.5 h-3.5 text-jds-on-surface-variant shrink-0" />
+                            <span className="truncate">{customer?.full_name || 'Customer'}</span>
+                          </span>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-jds-surface-container text-jds-on-surface-variant border border-jds-outline-variant/30 shrink-0">
+                            {purchase?.branch_location || 'Cavite'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-mono text-jds-on-surface-variant/70 pl-5">
+                          {customer?.phone_number || 'No phone'}
+                        </div>
+                      </div>
+
+                      {/* Product */}
+                      <div className="p-3 rounded-lg bg-jds-surface-container-low/50 border border-jds-outline-variant/20 space-y-1">
+                        <div className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5 truncate">
+                          <Package className="w-3.5 h-3.5 text-jds-primary shrink-0" />
+                          <span className="truncate">{product?.name || 'Solar Light Unit'}</span>
+                        </div>
+                        {purchase?.serial_number && (
+                          <div className="text-[10px] font-mono text-jds-on-surface-variant flex items-center gap-1">
+                            <span>S/N:</span>
+                            <span className="font-semibold text-jds-on-surface">{purchase.serial_number}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Issue Category & Description */}
+                      <div className="space-y-1">
+                        <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-500/10 text-neutral-600 dark:text-neutral-400 border border-neutral-500/20">
+                          {claim.issue_category}
+                        </span>
+                        <p className="text-[11px] text-jds-on-surface-variant line-clamp-2 leading-relaxed">
+                          {claim.description}
+                        </p>
+                      </div>
+
+                      {claim.staff_notes && (
+                        <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1 truncate pt-1">
+                          <MessageSquare className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{claim.staff_notes}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions Footer */}
+                    <div
+                      className="pt-3 border-t border-jds-outline-variant/20 flex items-center justify-between gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {isAdmin ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleInitiateRestore(claim)}
+                            className="px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Restore to Board</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleInitiateDelete(claim)}
+                            className="px-3 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ml-auto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[10px] text-jds-on-surface-variant/60">Archived Record</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 items-start overflow-x-auto pb-6">
@@ -808,6 +1116,9 @@ export default function WarrantyClaimsScreen() {
                       <option value="approved">Approved for Replacement / Repair</option>
                       <option value="resolved">Resolved (Completed / Closed)</option>
                       <option value="rejected">Claim Declined (Void / Not Covered)</option>
+                      {modalStatus === 'archived' && (
+                        <option value="archived">Archived / Concluded</option>
+                      )}
                     </select>
                   </div>
 
@@ -856,10 +1167,50 @@ export default function WarrantyClaimsScreen() {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-between px-7 py-4.5 border-t border-jds-outline-variant/15 bg-jds-surface-container-lowest/80 dark:bg-white/[0.02] backdrop-blur-sm shrink-0">
-              <span className="text-xs text-jds-on-surface-variant/60 hidden sm:inline">
-                Press <kbd className="px-1.5 py-0.5 rounded bg-jds-surface-container text-[11px] font-mono">Esc</kbd> to close
-              </span>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 px-7 py-4.5 border-t border-jds-outline-variant/15 bg-jds-surface-container-lowest/80 dark:bg-white/[0.02] backdrop-blur-sm shrink-0">
+              {/* Admin Actions: Archive, Restore, Delete */}
+              {isAdmin ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  {activeModalClaim.status === 'archived' ? (
+                    <button
+                      type="button"
+                      disabled={modalSaving}
+                      onClick={() => handleInitiateRestore(activeModalClaim)}
+                      className="px-3.5 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      title="Restore ticket back to active triage"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Restore to Board</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={modalSaving}
+                      onClick={() => handleInitiateArchive(activeModalClaim)}
+                      className="px-3.5 py-2 rounded-xl border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container text-jds-on-surface text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      title="Move ticket to archive"
+                    >
+                      <Archive className="w-3.5 h-3.5 text-jds-on-surface-variant" />
+                      <span>Archive Claim</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={modalSaving}
+                    onClick={() => handleInitiateDelete(activeModalClaim)}
+                    className="px-3.5 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    title="Permanently remove ticket"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Claim</span>
+                  </button>
+                </div>
+              ) : (
+                <span className="text-xs text-jds-on-surface-variant/60 hidden sm:inline">
+                  Press <kbd className="px-1.5 py-0.5 rounded bg-jds-surface-container text-[11px] font-mono">Esc</kbd> to close
+                </span>
+              )}
+
               <div className="flex items-center gap-3 ml-auto">
                 <button
                   type="button"
@@ -888,6 +1239,282 @@ export default function WarrantyClaimsScreen() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ARCHIVE CONFIRMATION MODAL */}
+      {claimToArchive && (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !actionLoading) setClaimToArchive(null)
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-jds-outline-variant/40 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  <Archive className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-jds-on-surface">Archive Warranty Claim</h3>
+                  <p className="text-xs text-jds-on-surface-variant font-mono">
+                    CLAIM-{claimToArchive.id.slice(0, 8).toUpperCase()}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => setClaimToArchive(null)}
+                className="rounded-lg p-1 text-jds-on-surface-variant/60 hover:bg-jds-surface-container-high hover:text-jds-on-surface transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Ticket Details Summary */}
+            <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/40 p-3.5 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-jds-on-surface-variant">Customer:</span>
+                <span className="font-semibold text-jds-on-surface">
+                  {claimToArchive.customer_purchases?.customers?.full_name || 'Customer'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-jds-on-surface-variant">Product:</span>
+                <span className="font-semibold text-jds-on-surface">
+                  {claimToArchive.customer_purchases?.products?.name || 'Solar Luminaire'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-jds-on-surface-variant">Issue:</span>
+                <span className="font-semibold text-jds-on-surface">
+                  {claimToArchive.issue_category}
+                </span>
+              </div>
+            </div>
+
+            {/* Notice */}
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-jds-on-surface-variant leading-relaxed">
+                This ticket will be removed from the active triage Kanban board and saved into Archived Tickets. You can view or restore it at any time.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2 border-t border-jds-outline-variant/20">
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => setClaimToArchive(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-jds-on-surface-variant hover:bg-jds-surface-container transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={handleConfirmArchive}
+                className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                {actionLoading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Archiving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Archive className="w-4 h-4" />
+                    <span>Archive Ticket</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RESTORE CONFIRMATION MODAL */}
+      {claimToRestore && (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !actionLoading) setClaimToRestore(null)
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-emerald-500/30 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <RotateCcw className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-jds-on-surface">Restore Warranty Claim</h3>
+                  <p className="text-xs text-jds-on-surface-variant font-mono">
+                    CLAIM-{claimToRestore.id.slice(0, 8).toUpperCase()}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => setClaimToRestore(null)}
+                className="rounded-lg p-1 text-jds-on-surface-variant/60 hover:bg-jds-surface-container-high hover:text-jds-on-surface transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Ticket Details Summary */}
+            <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/40 p-3.5 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-jds-on-surface-variant">Customer:</span>
+                <span className="font-semibold text-jds-on-surface">
+                  {claimToRestore.customer_purchases?.customers?.full_name || 'Customer'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-jds-on-surface-variant">Product:</span>
+                <span className="font-semibold text-jds-on-surface">
+                  {claimToRestore.customer_purchases?.products?.name || 'Solar Luminaire'}
+                </span>
+              </div>
+            </div>
+
+            {/* Notice */}
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 flex items-start gap-3">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-jds-on-surface-variant leading-relaxed">
+                This ticket will be restored back to the active triage board under the "Under Inspection" stage.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2 border-t border-jds-outline-variant/20">
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => setClaimToRestore(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-jds-on-surface-variant hover:bg-jds-surface-container transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => handleConfirmRestore('in_review')}
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                {actionLoading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Restoring...</span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Restore Ticket</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {claimToDelete && (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !actionLoading) setClaimToDelete(null)
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-rose-500/30 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                  <Trash2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-jds-on-surface">Delete Warranty Claim</h3>
+                  <p className="text-xs text-jds-on-surface-variant font-mono">
+                    CLAIM-{claimToDelete.id.slice(0, 8).toUpperCase()}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => setClaimToDelete(null)}
+                className="rounded-lg p-1 text-jds-on-surface-variant/60 hover:bg-jds-surface-container-high hover:text-jds-on-surface transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Ticket Details Summary */}
+            <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/40 p-3.5 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-jds-on-surface-variant">Customer:</span>
+                <span className="font-semibold text-jds-on-surface">
+                  {claimToDelete.customer_purchases?.customers?.full_name || 'Customer'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-jds-on-surface-variant">Product:</span>
+                <span className="font-semibold text-jds-on-surface">
+                  {claimToDelete.customer_purchases?.products?.name || 'Solar Luminaire'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-jds-on-surface-variant">Issue:</span>
+                <span className="font-semibold text-jds-on-surface">
+                  {claimToDelete.issue_category}
+                </span>
+              </div>
+            </div>
+
+            {/* Irreversible Warning */}
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-jds-on-surface-variant leading-relaxed">
+                This action is permanent and cannot be undone. The warranty claim ticket, fault description, and diagnostic history will be permanently deleted from the database.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2 border-t border-jds-outline-variant/20">
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => setClaimToDelete(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-jds-on-surface-variant hover:bg-jds-surface-container transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={handleConfirmDelete}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                {actionLoading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Permanently</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

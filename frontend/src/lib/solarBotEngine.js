@@ -37,7 +37,6 @@ How can I help power your lighting project today? Please select an option below:
       { label: 'Open Multi-Criteria Matcher', url: '/match' },
       { label: 'Find the Right Solar Light', next: 'FIND_LOCATION' },
       { label: 'Pricing & Packages', next: 'PRICING_INFO' },
-      { label: 'Calculate Electricity Savings', next: 'SAVINGS_INFO' },
       { label: 'Quiapo & Cavite Branches', next: 'BRANCHES_INFO' },
       { label: '1-Year Warranty & Service', next: 'WARRANTY_INFO' },
       { label: 'Browse Full Catalog', url: '/browse' },
@@ -146,7 +145,6 @@ Switching conventional outdoor lighting to solar lights yields immediate savings
 * **Dusk-to-Dawn Radar Sensor:** Lights charge 6–8 hrs in sunlight and provide 10–12+ hrs of continuous night illumination.
 * **Typhoon & Weather Ready:** IP65 / IP67 certified waterproof construction.`,
     options: [
-      { label: 'Open Savings Calculator', action: 'OPEN_SAVINGS_CALCULATOR' },
       { label: 'Help Me Choose a Light', next: 'FIND_LOCATION' },
       { label: 'Check Price Ranges', next: 'PRICING_INFO' },
       { label: 'Main Menu', next: 'ROOT' },
@@ -357,11 +355,10 @@ Zero electricity costs, automatic dusk-to-dawn operation, and guaranteed 1-year 
   // Emoji inquiry handling
   if (['emoji', 'emojis', 'emoticon', 'emoticons'].some((k) => q.includes(k))) {
     return {
-      message: `JD Solar Assistant operates in a clean, text-only mode without emojis. I can guide you step-by-step to the right solar lighting products, calculate electricity savings, or provide branch details. How can I assist you?`,
+      message: `JD Solar Assistant operates in a clean, text-only mode without emojis. I can guide you step-by-step to the right solar lighting products, provide pricing packages, or share branch details. How can I assist you?`,
       options: [
         { label: 'Find the Right Solar Light', next: 'FIND_LOCATION' },
         { label: 'Pricing & Packages', next: 'PRICING_INFO' },
-        { label: 'Calculate Electricity Savings', next: 'SAVINGS_INFO' },
         { label: 'Quiapo & Cavite Branches', next: 'BRANCHES_INFO' },
         { label: 'Main Menu', next: 'ROOT' },
       ],
@@ -407,13 +404,12 @@ Zero electricity costs, automatic dusk-to-dawn operation, and guaranteed 1-year 
   return {
     message: `Thank you for asking! I'm the **JD Solar Assistant** bot.
 
-I can guide you step-by-step to the best solar light for your project, show pricing and savings estimates, or help you locate our Quiapo and Cavite branches.
+I can guide you step-by-step to the best solar light for your project, show pricing and equipment packages, or help you locate our Quiapo and Cavite branches.
 
 Please pick an option below to proceed:`,
     options: [
       { label: 'Find the Right Solar Light', next: 'FIND_LOCATION' },
       { label: 'View Pricing & Packages', next: 'PRICING_INFO' },
-      { label: 'Calculate Savings', next: 'SAVINGS_INFO' },
       { label: 'Branch Locations', next: 'BRANCHES_INFO' },
       { label: 'Browse Full Catalog', url: '/browse' },
     ],
