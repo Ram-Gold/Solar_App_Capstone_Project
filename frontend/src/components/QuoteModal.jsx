@@ -8,7 +8,6 @@ import {
   Sparkles,
   ArrowRight,
   Copy,
-  ShieldCheck,
   Building2,
   Calendar,
   Clock,
@@ -16,6 +15,10 @@ import {
 } from 'lucide-react'
 import { FaFacebook, FaInstagram } from 'react-icons/fa'
 import { getInquiryStatusConfig, normalizeInquiryStatus } from '../lib/inquiryStatusUtils'
+import { normalizePhMobile, isValidPhMobile } from '../lib/phoneUtils'
+import PhilippineAddressSelect from './ui/PhilippineAddressSelect'
+import { formatFullAddress } from '../lib/philippineAddresses'
+import { extractFacebookHandle, formatFacebookUrl } from '../lib/facebookUtils'
 
 const BRANCHES = [
   {
@@ -103,7 +106,13 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
   const [customerName, setCustomerName] = useState('')
   const [mobileContact, setMobileContact] = useState('')
   const [email, setEmail] = useState('')
+  const [province, setProvince] = useState('')
+  const [provinceCode, setProvinceCode] = useState('')
   const [city, setCity] = useState('')
+  const [cityCode, setCityCode] = useState('')
+  const [barangay, setBarangay] = useState('')
+  const [barangayCode, setBarangayCode] = useState('')
+  const [streetAddress, setStreetAddress] = useState('')
   const [inquiryTopic, setInquiryTopic] = useState(INQUIRY_TOPICS[0])
   const [facebook, setFacebook] = useState('')
   const [instagram, setInstagram] = useState('')
@@ -126,6 +135,13 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       setLoading(false)
       setVisitDate(getNextBusinessDay())
       setVisitTime('10:00')
+      setProvince('')
+      setProvinceCode('')
+      setCity('')
+      setCityCode('')
+      setBarangay('')
+      setBarangayCode('')
+      setStreetAddress('')
     }
   }, [isOpen, initialMode])
 
@@ -134,8 +150,15 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
   const isReserve = mode === 'reserve'
 
   const handlePhoneChange = (e) => {
-    const val = e.target.value.replace(/[^0-9+-\s]/g, '')
+    const val = normalizePhMobile(e.target.value)
     setMobileContact(val)
+    if (errors.mobileContact) {
+      setErrors((prev) => {
+        const next = { ...prev }
+        delete next.mobileContact
+        return next
+      })
+    }
   }
 
   const validateStep1 = () => {
@@ -143,10 +166,13 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
     if (!customerName.trim()) errs.customerName = 'Please enter your full name.'
     if (!mobileContact.trim()) {
       errs.mobileContact = 'Contact number is required.'
-    } else if (mobileContact.replace(/[^0-9]/g, '').length < 10) {
-      errs.mobileContact = 'Please provide a valid Philippine contact number (e.g. 0917-123-4567).'
+    } else if (!isValidPhMobile(mobileContact)) {
+      errs.mobileContact = 'Please provide a valid 11-digit Philippine mobile number starting with 09 (e.g. 09171234567).'
     }
-    if (!city.trim()) errs.city = 'Please enter your city or municipality.'
+    if (!province.trim()) errs.province = 'Please select a province.'
+    if (!city.trim()) errs.city = 'Please select a city or municipality.'
+    if (!barangay.trim()) errs.barangay = 'Please select a barangay or district.'
+    if (!streetAddress.trim()) errs.streetAddress = 'Please enter your house or street address.'
     if (!facebook.trim()) {
       errs.facebook = 'Facebook profile name or link is required for verification.'
     }
@@ -198,6 +224,12 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
     const ticketCode = `JDS-${isReserve ? 'RES' : 'INQ'}-${new Date().getFullYear()}-${randomHex}`
     const formattedTime = formatDisplayTime(visitTime)
     const effectivePurpose = isReserve ? 'Store Pickup & Reservation' : inquiryTopic
+    const formattedLocation = formatFullAddress({
+      province,
+      city,
+      barangay,
+      street: streetAddress,
+    })
 
     const payload = {
       ticket_code: ticketCode,
@@ -210,8 +242,11 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       customer_name: customerName.trim(),
       mobile_contact: mobileContact.trim(),
       email: email.trim() || null,
+      province: province.trim(),
       city: city.trim(),
-      facebook: facebook.trim() || null,
+      barangay: barangay.trim(),
+      street_address: streetAddress.trim(),
+      facebook: formatFacebookUrl(facebook),
       instagram: instagram.trim() || null,
       purpose_of_visitation: effectivePurpose,
       will_visit: true,
@@ -219,17 +254,44 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       visit_date: visitDate,
       visit_time_slot: formattedTime,
       preferred_channel: null,
-      delivery_address: null,
+      delivery_address: formattedLocation,
       project_notes: null,
       status: 'Pending',
       created_at: new Date().toISOString(),
     }
 
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('quote_tickets')
         .insert([payload])
         .select()
+
+      // Graceful fallback if PostgreSQL table has not yet applied province/barangay/street_address/facebook migration
+      if (
+        error &&
+        (error.code === '42703' ||
+          error.message?.includes('province') ||
+          error.message?.includes('barangay') ||
+          error.message?.includes('street_address') ||
+          error.message?.includes('facebook') ||
+          error.message?.includes('instagram'))
+      ) {
+        console.warn('Column missing in database, retrying with fallback payload:', error.message)
+        const fallbackPayload = { ...payload }
+        if (error.message?.includes('province')) delete fallbackPayload.province
+        if (error.message?.includes('barangay')) delete fallbackPayload.barangay
+        if (error.message?.includes('street_address')) delete fallbackPayload.street_address
+        if (error.message?.includes('facebook')) delete fallbackPayload.facebook
+        if (error.message?.includes('instagram')) delete fallbackPayload.instagram
+        fallbackPayload.city = `${city.trim()}, ${province.trim()}`
+        fallbackPayload.delivery_address = formattedLocation
+        const fallbackRes = await supabase
+          .from('quote_tickets')
+          .insert([fallbackPayload])
+          .select()
+        data = fallbackRes.data
+        error = fallbackRes.error
+      }
 
       if (error) {
         console.warn('Supabase insert note:', error.message)
@@ -386,8 +448,10 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               </label>
               <input
                 type="tel"
+                inputMode="numeric"
+                maxLength={11}
                 required
-                placeholder="0917-123-4567"
+                placeholder="09171234567"
                 value={mobileContact}
                 onChange={handlePhoneChange}
                 className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all ${
@@ -397,41 +461,87 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               {errors.mobileContact && <p className="text-[11px] text-red-500 mt-1">{errors.mobileContact}</p>}
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                City / Municipality <span className="text-amber-600">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Manila, Imus Cavite, Quezon City"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all ${
-                  errors.city ? 'border-red-400 bg-red-50/20' : 'border-stone-200 focus:border-amber-500 bg-stone-50/40 focus:bg-white'
-                }`}
-              />
-              {errors.city && <p className="text-[11px] text-red-500 mt-1">{errors.city}</p>}
-            </div>
+            {/* Cascading Philippine Address Dropdown Selector */}
+            <PhilippineAddressSelect
+              provinceCode={provinceCode}
+              provinceName={province}
+              cityCode={cityCode}
+              cityName={city}
+              barangayCode={barangayCode}
+              barangayName={barangay}
+              streetAddress={streetAddress}
+              errors={errors}
+              onLocationChange={({
+                provinceCode: pCode,
+                provinceName: pName,
+                cityCode: cCode,
+                cityName: cName,
+                barangayCode: bCode,
+                barangayName: bName,
+                streetAddress: sAddress,
+              }) => {
+                setProvinceCode(pCode)
+                setProvince(pName)
+                setCityCode(cCode)
+                setCity(cName)
+                setBarangayCode(bCode)
+                setBarangay(bName)
+                if (sAddress !== undefined) {
+                  setStreetAddress(sAddress)
+                }
+                if (errors.province || errors.city || errors.barangay || errors.streetAddress) {
+                  setErrors((prev) => {
+                    const next = { ...prev }
+                    delete next.province
+                    delete next.city
+                    delete next.barangay
+                    delete next.streetAddress
+                    return next
+                  })
+                }
+              }}
+              variant="modal"
+            />
 
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Facebook Profile / Link <span className="text-amber-600">*</span>
+                Facebook Profile / Username <span className="text-amber-600">*</span>
               </label>
-              <div className="relative">
-                <FaFacebook className="absolute left-3.5 top-3 h-4 w-4 text-[#1877F2]" />
+              <div
+                className={`flex items-center rounded-xl border bg-stone-50/40 transition-all overflow-hidden focus-within:border-amber-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-500/20 ${
+                  errors.facebook ? 'border-red-400 bg-red-50/20' : 'border-stone-200'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 pl-3.5 pr-2.5 py-2.5 bg-stone-100/80 border-r border-stone-200 text-stone-600 select-none shrink-0">
+                  <FaFacebook className="h-4 w-4 text-[#1877F2] shrink-0" />
+                  <span className="text-xs font-semibold text-stone-600 font-mono tracking-tight">facebook.com/</span>
+                </div>
                 <input
                   type="text"
                   required
-                  placeholder="facebook.com/profile or profile name"
+                  placeholder="username or profile ID"
                   value={facebook}
-                  onChange={(e) => setFacebook(e.target.value)}
-                  className={`w-full rounded-xl border pl-10 pr-3.5 py-2.5 text-sm outline-none transition-all ${
-                    errors.facebook ? 'border-red-400 bg-red-50/20' : 'border-stone-200 focus:border-amber-500 bg-stone-50/40 focus:bg-white'
-                  }`}
+                  onChange={(e) => {
+                    const cleanHandle = extractFacebookHandle(e.target.value)
+                    setFacebook(cleanHandle)
+                    if (errors.facebook) {
+                      setErrors((prev) => {
+                        const next = { ...prev }
+                        delete next.facebook
+                        return next
+                      })
+                    }
+                  }}
+                  className="w-full bg-transparent px-3 py-2.5 text-sm text-stone-800 outline-none placeholder:text-stone-400 font-medium"
                 />
               </div>
-              {errors.facebook && <p className="text-[11px] text-red-500 mt-1">{errors.facebook}</p>}
+              {errors.facebook ? (
+                <p className="text-[11px] text-red-500 mt-1">{errors.facebook}</p>
+              ) : (
+                <p className="text-[11px] text-stone-400 mt-1">
+                  Type your username or profile ID. Full links pasted are automatically cleaned.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -655,9 +765,9 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               <div className="border-b border-stone-200/80 pb-3 flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className={`h-2 w-2 rounded-full animate-ping ${isReserve ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                    <span className={`h-2 w-2 rounded-full ${isReserve ? 'bg-emerald-500' : 'bg-blue-500'}`} />
                     <span className={`text-[10px] font-bold uppercase tracking-wider ${isReserve ? 'text-emerald-700' : 'text-blue-700'}`}>
-                      {isReserve ? '48h Stock Hold Pass' : 'Verified Consultation Pass'}
+                      {isReserve ? 'Reservation Pass' : 'Consultation Pass'}
                     </span>
                   </div>
                   <span className="text-xl font-black text-stone-900 font-mono tracking-wider">{generatedTicket.ticket_code}</span>
@@ -676,6 +786,34 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 <div className="flex justify-between">
                   <span className="text-stone-500">Contact</span>
                   <span className="font-semibold">{generatedTicket.mobile_contact}</span>
+                </div>
+                {generatedTicket.facebook && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-500">Facebook</span>
+                    <a
+                      href={generatedTicket.facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-blue-600 hover:underline flex items-center gap-1 text-right truncate max-w-[200px]"
+                    >
+                      <FaFacebook className="h-3 w-3 shrink-0 text-[#1877F2]" />
+                      <span className="truncate">{generatedTicket.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//i, '')}</span>
+                    </a>
+                  </div>
+                )}
+                {generatedTicket.street_address && (
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">Address</span>
+                    <span className="font-semibold text-right truncate max-w-[200px]" title={generatedTicket.street_address}>
+                      {generatedTicket.street_address}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-stone-500">Area / City</span>
+                  <span className="font-semibold text-right truncate max-w-[200px]" title={generatedTicket.delivery_address || generatedTicket.city}>
+                    {generatedTicket.barangay ? `${generatedTicket.barangay.replace(/^brgy\.?\s*/i, '')}, ` : ''}{generatedTicket.city}{generatedTicket.province ? `, ${generatedTicket.province}` : ''}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-stone-500">{isReserve ? 'Reserved Unit' : 'Product & Qty'}</span>
@@ -715,21 +853,6 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                       Showroom Visit at {generatedTicket.store_branch}
                     </span>
                   </div>
-                </div>
-                <span className="text-[10px] font-mono uppercase tracking-wider font-bold opacity-75">
-                  Showroom Pass
-                </span>
-              </div>
-
-              {/* Guidance Instructions */}
-              <div className="pt-2 border-t border-stone-200/60 text-[11px] text-stone-600 leading-relaxed flex items-start gap-2">
-                <ShieldCheck className={`h-4 w-4 shrink-0 mt-0.5 ${isReserve ? 'text-emerald-600' : 'text-blue-600'}`} />
-                <div>
-                  {isReserve ? (
-                    <span>Present this pass at our <strong>{generatedTicket.store_branch}</strong> counter. Staff will retrieve your held stock for live physical illumination testing before payment.</span>
-                  ) : (
-                    <span>Present this pass to our showroom floor staff. A technical specialist will guide you through live demo fixtures and project sizing.</span>
-                  )}
                 </div>
               </div>
             </div>

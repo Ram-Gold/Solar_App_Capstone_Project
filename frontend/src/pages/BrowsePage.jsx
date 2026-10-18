@@ -15,12 +15,26 @@ import MultiCriteriaMatchModal from '../components/MultiCriteriaMatchModal'
 
 const INITIAL_CATEGORIES = [
   'All Products',
+  'Aluminum Solar Street Light (Gray)',
   'Aviation Aluminum Solar Light',
   'Aviation Aluminum Solar Road Light',
   'Aviation Aluminum Solar Street Light',
+  'Eco COB Flood Light',
+  'Eco LED Flood Light',
+  'Electric Streetlight',
+  'Electric Streetlight Cobra',
   'Integrated Solar Street Light',
-  'Aluminum Solar Street Light',
-  'Solar Streetlight'
+  'Integrated Solar Street Light (Warm White)',
+  'JD Star COB Floodlight',
+  'JDSTAR 220V LED Flood Light',
+  'JDSTAR Street Light',
+  'KKSKY Solar Floodlight',
+  'LW SO LED Outdoor Flood Light',
+  'Solar Flood Light HPC',
+  'Solar Flood Light UP39',
+  'Solar Flood Light UP39 (Warm White)',
+  'Solar Floodlight JDL',
+  'Solar Streetlight',
 ]
 
 export default function BrowsePage() {
@@ -192,6 +206,7 @@ export default function BrowsePage() {
                 {[
                   { label: 'All Ratings', value: 'All Ratings' },
                   { label: 'IP65', value: 'IP65' },
+                  { label: 'IP66', value: 'IP66' },
                   { label: 'IP67', value: 'IP67' }
                 ].map((opt) => (
                   <label 

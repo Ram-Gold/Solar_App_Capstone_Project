@@ -29,6 +29,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import CategoryModal from './CategoryModal'
 import RecordSaleModal from './RecordSaleModal'
+import AdminProductCard from './AdminProductCard'
 import { fetchCategoriesWithCounts, DEFAULT_CATEGORIES } from '../../lib/categories'
 import {
   getStockQuantity,
@@ -44,8 +45,13 @@ export const EDIT_FIELDS = [
   { key: 'price_range', label: 'Price Range', type: 'text', group: 'general' },
   { key: 'recommended_usage', label: 'Recommended Usage', type: 'text', group: 'general' },
   { key: 'ideal_location', label: 'Ideal Location', type: 'text', group: 'general' },
+  { key: 'place_of_use', label: 'Place of Use / Recommended Sites', type: 'text', group: 'general' },
 
   { key: 'watt', label: 'Power (Watts)', type: 'number', group: 'power' },
+  { key: 'voltage', label: 'Operating Voltage', type: 'text', group: 'power' },
+  { key: 'lumens', label: 'Luminous Flux (Lumens)', type: 'text', group: 'power' },
+  { key: 'color_temperature', label: 'Color Temperature', type: 'text', group: 'power' },
+  { key: 'beaming_angle', label: 'Beaming Angle', type: 'text', group: 'power' },
   { key: 'solar_panel', label: 'Solar Panel', type: 'text', group: 'power' },
   { key: 'battery', label: 'Battery Spec', type: 'text', group: 'power' },
   { key: 'charging_time', label: 'Charging Time', type: 'text', group: 'power' },
@@ -55,12 +61,15 @@ export const EDIT_FIELDS = [
 
   { key: 'size', label: 'Size / Dimensions', type: 'text', group: 'physical' },
   { key: 'material', label: 'Material', type: 'text', group: 'physical' },
+  { key: 'lamp_body_color', label: 'Lamp Body Color', type: 'text', group: 'physical' },
   { key: 'waterproof_grade', label: 'Waterproof Grade', type: 'text', group: 'physical' },
   { key: 'method_control', label: 'Control Method', type: 'text', group: 'physical' },
 
   { key: 'stock_quantity', label: 'Stock Quantity (Units)', type: 'number', group: 'inventory' },
   { key: 'sales', label: 'Total Sales', type: 'number', group: 'inventory' },
+  { key: 'warranty', label: 'Warranty Terms', type: 'text', group: 'inventory' },
   { key: 'default_warranty_months', label: 'Warranty (Months)', type: 'number', group: 'inventory' },
+  { key: 'life_span', label: 'Expected Lifespan', type: 'text', group: 'inventory' },
 ]
 
 export const EDIT_FIELD_GROUPS = [
@@ -1315,174 +1324,19 @@ export default function ProductsScreen({ onNavigate }) {
               </Button>
             </div>
           ) : (
-            prioritizedFiltered.map((p) => {
-              const badge = getStockBadgeConfig(p)
-              const stockQty = badge.quantity
-              return (
-                <div
-                  key={p.id}
-                  onClick={() => handleOpenEditProduct(p)}
-                  className={`flex flex-col justify-between rounded-2xl border bg-jds-surface-container-lowest p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group ${badge.rowBorderClass}`}
-                  title={`Click to view and edit ${p.name}`}
-                >
-                  <div className="space-y-3">
-                    {/* Card Top: Image + Status Badge */}
-                    <div className="relative rounded-xl overflow-hidden bg-black/5 border border-jds-outline-variant/20 h-44 flex items-center justify-center p-2">
-                      <img
-                        src={p.image_url || 'https://placehold.co/200x200?text=None'}
-                        alt={p.name}
-                        className="h-full w-full object-contain group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          e.target.onerror = null
-                          e.target.src = 'https://placehold.co/200x200?text=None'
-                        }}
-                      />
-                      <span
-                        className={`absolute top-2.5 right-2.5 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${badge.cardBadgeClass}`}
-                      >
-                        {badge.shortLabel}
-                      </span>
-                      <span className="absolute bottom-2.5 left-2.5 px-2 py-0.5 rounded-md bg-black/60 text-white font-mono text-[11px] font-bold">
-                        {p.watt}W
-                      </span>
-                    </div>
-
-                    {/* Card Body: Title & Details */}
-                    <div>
-                      <div className="flex items-center justify-between gap-2 text-xs text-jds-on-surface-variant font-mono">
-                        <span>{p.type || 'Standard'}</span>
-                        <span>ID: {p.id}</span>
-                      </div>
-                      <h4
-                        className="font-bold text-jds-on-surface text-body-md line-clamp-1 group-hover:text-jds-primary transition-colors mt-0.5"
-                        title={p.name}
-                      >
-                        {p.name}
-                      </h4>
-                      {p.price_range && (
-                        <p className="text-xs font-semibold text-jds-primary mt-0.5">{p.price_range}</p>
-                      )}
-                    </div>
-
-                    {/* Stock Stepper & Sales Section */}
-                    <div className="rounded-xl border border-jds-outline-variant/20 bg-jds-surface-container-low/20 p-2.5 space-y-2">
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className="text-jds-on-surface-variant">Inventory Stock:</span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            disabled={stockQty <= 0}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleRequestDirectStockChange(p, -1)
-                            }}
-                            className="h-6 w-6 rounded flex items-center justify-center border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container-high transition-all disabled:opacity-30 disabled:pointer-events-none text-xs"
-                            title="Decrease stock by 1"
-                            aria-label="Decrease stock"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </button>
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleOpenStockStepper(p, 0)
-                            }}
-                            className="font-mono font-bold text-jds-on-surface cursor-pointer px-1.5 py-0.5 rounded hover:bg-jds-surface-container hover:text-jds-primary transition-colors text-xs"
-                            title="Click number to open full stock adjustment modal"
-                          >
-                            {stockQty}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleRequestDirectStockChange(p, +1)
-                            }}
-                            className="h-6 w-6 rounded flex items-center justify-center border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container-high transition-all text-xs"
-                            title="Increase stock by 1"
-                            aria-label="Increase stock"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs pt-1 border-t border-jds-outline-variant/15">
-                        <span className="text-jds-on-surface-variant font-medium">Recorded Sales:</span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            disabled={(p.sales || 0) <= 0}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleRequestDirectSaleChange(p, -1)
-                            }}
-                            className="h-6 w-6 rounded flex items-center justify-center border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container-high transition-all disabled:opacity-30 disabled:pointer-events-none text-xs"
-                            title="Decrease sales by 1 (restores 1 stock)"
-                            aria-label="Decrease sales"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </button>
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSaleModalProduct(p)
-                            }}
-                            className="font-mono font-bold text-jds-on-surface cursor-pointer px-1.5 py-0.5 rounded hover:bg-jds-surface-container hover:text-jds-primary transition-colors text-xs"
-                            title="Click number to open Record Sale modal"
-                          >
-                            {p.sales || 0}
-                          </span>
-                          <button
-                            type="button"
-                            disabled={stockQty <= 0}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleRequestDirectSaleChange(p, +1)
-                            }}
-                            className="h-6 w-6 rounded flex items-center justify-center border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition-all disabled:opacity-30 disabled:pointer-events-none text-xs"
-                            title="Increase sales by 1 (deducts 1 stock)"
-                            aria-label="Increase sales"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card Footer: Action Buttons */}
-                  <div className="flex items-center justify-between pt-3 mt-3 border-t border-jds-outline-variant/20 gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleOpenEditProduct(p)
-                      }}
-                      className="flex-1 text-xs font-semibold h-8 gap-1.5 border-jds-outline-variant"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      <span>Edit</span>
-                    </Button>
-                    {role === 'admin' && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleInitiateDelete(p)
-                        }}
-                        className="h-8 w-8 text-jds-error hover:bg-jds-error-container/20 rounded-lg shrink-0"
-                        title="Delete product"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )
-            })
+            prioritizedFiltered.map((p) => (
+              <AdminProductCard
+                key={p.id}
+                product={p}
+                onOpenEdit={handleOpenEditProduct}
+                onOpenStockStepper={handleOpenStockStepper}
+                onOpenRecordSale={setSaleModalProduct}
+                onRequestDirectStockChange={handleRequestDirectStockChange}
+                onRequestDirectSaleChange={handleRequestDirectSaleChange}
+                onInitiateDelete={handleInitiateDelete}
+                showDelete={role === 'admin'}
+              />
+            ))
           )}
         </div>
       )}

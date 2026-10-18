@@ -20,6 +20,11 @@ import {
   HiOutlineBuildingStorefront,
   HiOutlineDocumentText,
   HiOutlineLockClosed,
+  HiOutlineLightBulb,
+  HiOutlineArrowsPointingOut,
+  HiOutlineSwatch,
+  HiOutlineCalendarDays,
+  HiOutlineMapPin,
 } from 'react-icons/hi2'
 
 export default function ProductInfoPage() {
@@ -83,9 +88,14 @@ export default function ProductInfoPage() {
     return [
       { label: 'Price Range', value: p.price_range ? `₱${p.price_range}` : null, icon: HiOutlineBanknotes },
       { label: 'Power Output', value: p.watt ? `${p.watt}W` : null, icon: HiOutlineBolt },
+      { label: 'Lumens', value: p.lumens, icon: HiOutlineLightBulb },
+      { label: 'Beaming Angle', value: p.beaming_angle, icon: HiOutlineArrowsPointingOut },
+      { label: 'Color Temperature', value: p.color_temperature, icon: HiOutlineSun },
+      { label: 'Voltage', value: p.voltage, icon: HiOutlineBolt },
       { label: 'Waterproof Grade', value: p.waterproof_grade, icon: HiOutlineShieldCheck },
       { label: 'Control Method', value: p.method_control, icon: HiOutlineSignal },
       { label: 'Material', value: p.material, icon: HiOutlineCog6Tooth },
+      { label: 'Lamp Body Color', value: p.lamp_body_color, icon: HiOutlineSwatch },
       { label: 'Solar Panel', value: p.solar_panel, icon: HiOutlineSun },
       { label: 'Battery', value: p.battery, icon: HiOutlineBattery100 },
       { label: 'Charging Time', value: p.charging_time, icon: HiOutlineClock },
@@ -93,6 +103,9 @@ export default function ProductInfoPage() {
       { label: 'SMD Lamp Beads', value: p.smd_lamp_beads, icon: HiOutlineCpuChip },
       { label: 'Lighting Time', value: p.lighting_time, icon: HiOutlineClock },
       { label: 'Size', value: p.size, icon: HiOutlineSquare2Stack },
+      { label: 'Warranty', value: p.warranty, icon: HiOutlineShieldCheck },
+      { label: 'Life Span', value: p.life_span, icon: HiOutlineCalendarDays },
+      { label: 'Place of Use', value: p.place_of_use, icon: HiOutlineMapPin },
       { label: 'Availability', value: p.in_stock ? 'In Stock' : 'Out of Stock', icon: HiOutlineShieldCheck },
     ].filter(spec => spec.value)
   }

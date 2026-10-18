@@ -43,44 +43,34 @@ import { formatDate, getClaimStatusMeta, isWarrantyActive, getRemainingDays, CLA
 
 const KANBAN_COLUMNS = [
   {
-    id: 'pending',
-    title: 'Pending Review',
-    description: 'Awaiting triage & technical inspection',
+    id: 'in_review',
+    title: 'Diagnostic Intake',
+    description: 'Triage & bench inspection in progress',
     accentBorder: 'border-amber-500/40',
     headerBg: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
     countBadge: 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30',
-    icon: Clock,
-    emptyText: 'No tickets awaiting review',
-  },
-  {
-    id: 'in_review',
-    title: 'Under Inspection',
-    description: 'Technician currently evaluating fault',
-    accentBorder: 'border-blue-500/40',
-    headerBg: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
-    countBadge: 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30',
     icon: AlertTriangle,
-    emptyText: 'No tickets currently under inspection',
+    emptyText: 'No tickets in diagnostic intake',
   },
   {
     id: 'approved',
-    title: 'Approved',
+    title: 'Approved for Release',
     description: 'Replacement or repair authorized',
     accentBorder: 'border-emerald-500/40',
     headerBg: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
     countBadge: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
     icon: CheckCircle2,
-    emptyText: 'No tickets in approved state',
+    emptyText: 'No tickets awaiting customer pickup',
   },
   {
     id: 'resolved',
-    title: 'Resolved',
-    description: 'Replacement completed / closed',
+    title: 'Handover Complete',
+    description: 'Replacement delivered / case closed',
     accentBorder: 'border-teal-500/40',
     headerBg: 'bg-teal-500/10 text-teal-700 dark:text-teal-400',
     countBadge: 'bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-500/30',
     icon: ShieldCheck,
-    emptyText: 'No resolved tickets',
+    emptyText: 'No closed tickets',
   },
   {
     id: 'rejected',
@@ -143,7 +133,8 @@ export default function WarrantyClaimsScreen() {
   // Sync modal state when active modal claim changes
   useEffect(() => {
     if (activeModalClaim) {
-      setModalStatus(activeModalClaim.status || 'pending')
+      const rawStatus = activeModalClaim.status || 'in_review'
+      setModalStatus(rawStatus === 'pending' ? 'in_review' : rawStatus)
       setModalNotes(activeModalClaim.staff_notes || '')
       setModalSuccessMsg('')
       setCopiedPhone(false)
@@ -312,8 +303,8 @@ export default function WarrantyClaimsScreen() {
   const handleDropClaim = async (claimId, targetStatus) => {
     const claim = claims.find((c) => c.id === claimId)
     if (!claim) return
-    const prevStatus = claim.status || 'pending'
-    if (prevStatus === targetStatus) return
+    const prevStatus = claim.status || 'in_review'
+    if (prevStatus === targetStatus || (prevStatus === 'pending' && targetStatus === 'in_review')) return
 
     const targetCol = KANBAN_COLUMNS.find((col) => col.id === targetStatus)
     const targetTitle = targetCol?.title || targetStatus
@@ -351,12 +342,12 @@ export default function WarrantyClaimsScreen() {
   }
 
   // Calculate totals
-  const activeClaimsCount = claims.filter((c) => (c.status || 'pending') !== 'archived').length
-  const archivedClaimsCount = claims.filter((c) => (c.status || 'pending') === 'archived').length
+  const activeClaimsCount = claims.filter((c) => (c.status || 'in_review') !== 'archived').length
+  const archivedClaimsCount = claims.filter((c) => (c.status || 'in_review') === 'archived').length
 
   // Filter claims based on activeView
   const filteredClaims = claims.filter((c) => {
-    const isArchived = (c.status || 'pending') === 'archived'
+    const isArchived = (c.status || 'in_review') === 'archived'
     if (activeView === 'board' && isArchived) return false
     if (activeView === 'archived' && !isArchived) return false
 
@@ -382,9 +373,15 @@ export default function WarrantyClaimsScreen() {
     )
   })
 
-  // Group claims by status
+  // Group claims by status (handling legacy 'pending' as 'in_review' for intake)
   const claimsByColumn = KANBAN_COLUMNS.reduce((acc, col) => {
-    acc[col.id] = filteredClaims.filter((c) => (c.status || 'pending') === col.id)
+    acc[col.id] = filteredClaims.filter((c) => {
+      const s = c.status || 'in_review'
+      if (col.id === 'in_review') {
+        return s === 'in_review' || s === 'pending'
+      }
+      return s === col.id
+    })
     return acc
   }, {})
 
@@ -650,7 +647,7 @@ export default function WarrantyClaimsScreen() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 items-start overflow-x-auto pb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start pb-6">
           {KANBAN_COLUMNS.map((col) => {
             const ColumnIcon = col.icon
             const colClaims = claimsByColumn[col.id] || []
@@ -1107,14 +1104,13 @@ export default function WarrantyClaimsScreen() {
                       Target Ticket Stage
                     </label>
                     <select
-                      value={modalStatus}
+                      value={modalStatus === 'pending' ? 'in_review' : modalStatus}
                       onChange={(e) => setModalStatus(e.target.value)}
                       className="w-full bg-jds-surface-container-low/50 dark:bg-white/[0.04] border border-jds-outline-variant/30 rounded-xl px-4 py-3 text-xs font-semibold text-jds-on-surface focus:outline-none focus:ring-2 focus:ring-jds-primary transition-all cursor-pointer"
                     >
-                      <option value="pending">Pending Review (Awaiting Inspection)</option>
-                      <option value="in_review">Under Inspection (Evaluating Fault)</option>
+                      <option value="in_review">Diagnostic Intake (Triage & Inspection)</option>
                       <option value="approved">Approved for Replacement / Repair</option>
-                      <option value="resolved">Resolved (Completed / Closed)</option>
+                      <option value="resolved">Handover Complete (Closed)</option>
                       <option value="rejected">Claim Declined (Void / Not Covered)</option>
                       {modalStatus === 'archived' && (
                         <option value="archived">Archived / Concluded</option>

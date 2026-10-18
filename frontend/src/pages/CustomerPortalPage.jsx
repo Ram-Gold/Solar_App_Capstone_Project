@@ -22,7 +22,8 @@ import {
   KeyRound,
   Lock,
   Mail,
-  Check
+  Check,
+  X
 } from 'lucide-react'
 import {
   fetchCustomerPortalData,
@@ -624,8 +625,9 @@ export default function CustomerPortalPage() {
               <button
                 onClick={() => setIsPasswordModalOpen(false)}
                 className="w-7 h-7 rounded-lg hover:bg-jds-surface-container flex items-center justify-center text-jds-on-surface-variant"
+                aria-label="Close"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 

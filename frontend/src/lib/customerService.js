@@ -738,28 +738,50 @@ export async function loginCustomerWithPassword(email, password) {
 /**
  * Updates basic customer profile information (full_name, phone_number).
  */
-export async function updateCustomerProfile(customerId, { fullName, phoneNumber }) {
+export async function updateCustomerProfile(customerId, { fullName, phoneNumber, province, city, barangay }) {
   if (!customerId) throw new Error('Customer ID is required.')
 
   const updates = {}
   if (fullName !== undefined) updates.full_name = fullName.trim()
   if (phoneNumber !== undefined) updates.phone_number = phoneNumber.trim()
+  if (province !== undefined) updates.province = province ? province.trim() : null
+  if (city !== undefined) updates.city = city ? city.trim() : null
+  if (barangay !== undefined) updates.barangay = barangay ? barangay.trim() : null
 
-  const { data, error } = await supabase
-    .from('customers')
-    .update(updates)
-    .eq('id', customerId)
-    .select(`
-      id,
-      phone_number,
-      full_name,
-      access_token,
-      created_at
-    `)
-    .single()
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .update(updates)
+      .eq('id', customerId)
+      .select(`
+        id,
+        phone_number,
+        full_name,
+        access_token,
+        created_at
+      `)
+      .single()
 
-  if (error) throw error
-  return { customer: data, error: null }
+    if (error && error.code === '42703') {
+      // Column does not exist fallback
+      delete updates.province
+      delete updates.city
+      delete updates.barangay
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('customers')
+        .update(updates)
+        .eq('id', customerId)
+        .select()
+        .single()
+      if (fallbackError) throw fallbackError
+      return { customer: fallbackData, error: null }
+    }
+
+    if (error) throw error
+    return { customer: data, error: null }
+  } catch (err) {
+    throw err
+  }
 }
 
 /**

@@ -51,25 +51,25 @@ export function formatRemainingText(daysRemaining) {
 }
 
 export const CLAIM_STATUSES = {
-  pending: {
-    label: 'Pending Review',
-    color: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-    description: 'Submitted and awaiting inspection by store technician.'
-  },
   in_review: {
-    label: 'Under Inspection',
-    color: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-    description: 'Store technician is currently evaluating the issue.'
+    label: 'Diagnostic Intake',
+    color: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+    description: 'Claim received; triage and technical bench inspection in progress.'
+  },
+  pending: {
+    label: 'Diagnostic Intake',
+    color: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+    description: 'Claim received; triage and technical bench inspection in progress.'
   },
   approved: {
-    label: 'Approved for Replacement / Repair',
+    label: 'Approved for Replacement',
     color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-    description: 'Claim approved! Visit branch or await unit handover.'
+    description: 'Claim approved. Replacement unit or repair authorized for customer handover.'
   },
   resolved: {
-    label: 'Resolved',
+    label: 'Handover Complete',
     color: 'bg-teal-500/10 text-teal-500 border-teal-500/20',
-    description: 'Unit serviced, replaced, or closed successfully.'
+    description: 'Replacement unit handed over or serviced; claim concluded.'
   },
   rejected: {
     label: 'Claim Declined',

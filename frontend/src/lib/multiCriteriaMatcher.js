@@ -57,11 +57,13 @@ export function scoreLocationFit(product, targetLocation) {
   const loc = targetLocation.toLowerCase()
   const name = (product.name || '').toLowerCase()
   const type = (product.type || '').toLowerCase()
+  const placeOfUse = (product.place_of_use || '').toLowerCase()
   const watt = product.watt || 0
 
   if (loc.includes('road') || loc === 'highway') {
     // Road lights require high beam spread and aviation aluminum
     if (name.includes('road') || type.includes('road')) return 1.0
+    if (placeOfUse.includes('highway') || placeOfUse.includes('road') || placeOfUse.includes('viaduct')) return 0.95
     if (name.includes('street') && watt >= 300) return 0.85
     if (watt >= 400) return 0.8
     if (watt < 200) return 0.25 // Too dim for main roads
@@ -69,8 +71,9 @@ export function scoreLocationFit(product, targetLocation) {
   }
 
   if (loc.includes('street') || loc.includes('subdivision') || loc.includes('alley')) {
-    // Subdivision streets: 100W-400W streetlights are ideal
+    // Subdivision streets: 100W-400W streetlights and community floodlights
     if (name.includes('street') || type.includes('street')) return 1.0
+    if (placeOfUse.includes('community') || placeOfUse.includes('square')) return 0.95
     if (name.includes('road') && watt <= 400) return 0.9
     if (watt >= 100 && watt <= 400) return 0.85
     if (watt > 600) return 0.65 // Overkill for quiet alleys
@@ -81,14 +84,16 @@ export function scoreLocationFit(product, targetLocation) {
     // Residential: 50W-250W is sweet spot
     if (watt >= 50 && watt <= 200) return 1.0
     if (watt > 200 && watt <= 350) return 0.85
+    if (placeOfUse.includes('park') || placeOfUse.includes('community')) return 0.85
     if (name.includes('road')) return 0.4 // Heavy road lights are awkward for gates
     if (watt > 400) return 0.35 // Excessively bright/large for home gates
     return 0.7
   }
 
   if (loc.includes('commercial') || loc.includes('parking') || loc.includes('warehouse')) {
-    // Commercial spaces: durable 200W-800W fixtures
-    if (watt >= 300 && watt <= 800) return 1.0
+    // Commercial spaces: durable 200W-1000W fixtures
+    if (watt >= 300 && watt <= 1000) return 1.0
+    if (placeOfUse.includes('viaduct') || placeOfUse.includes('square') || placeOfUse.includes('highway')) return 0.95
     if (watt >= 200 && watt < 300) return 0.8
     if (watt < 150) return 0.3 // Insufficient for commercial lots
     return 0.6

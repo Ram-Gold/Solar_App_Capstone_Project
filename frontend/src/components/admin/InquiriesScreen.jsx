@@ -38,6 +38,10 @@ import {
 } from '../../lib/inquiryStatusUtils'
 import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
+import PhilippineAddressSelect from '../ui/PhilippineAddressSelect'
+import { formatFullAddress } from '../../lib/philippineAddresses'
+import { FaFacebook } from 'react-icons/fa'
+import { extractFacebookHandle, formatFacebookUrl } from '../../lib/facebookUtils'
 
 export const CALENDAR_START_HOUR = 7 // 07:00 AM
 export const CALENDAR_END_HOUR = 20  // 08:00 PM (13 hours: 7 to 19 inclusive)
@@ -429,7 +433,15 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
   const [newCustName, setNewCustName] = useState('')
   const [newCustPhone, setNewCustPhone] = useState('')
   const [newCustEmail, setNewCustEmail] = useState('')
+  const [newCustFacebook, setNewCustFacebook] = useState('')
+  const [newCustProvince, setNewCustProvince] = useState('')
+  const [newCustProvinceCode, setNewCustProvinceCode] = useState('')
   const [newCustCity, setNewCustCity] = useState('')
+  const [newCustCityCode, setNewCustCityCode] = useState('')
+  const [newCustBarangay, setNewCustBarangay] = useState('')
+  const [newCustBarangayCode, setNewCustBarangayCode] = useState('')
+  const [newCustStreetAddress, setNewCustStreetAddress] = useState('')
+  const [newLocationErrors, setNewLocationErrors] = useState({})
   const [newBranch, setNewBranch] = useState('Cavite Distribution Hub')
   const [newType, setNewType] = useState('INQUIRY')
   const [newProduct, setNewProduct] = useState('')
@@ -538,7 +550,12 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         const matchesProduct = (t.product_name || '').toLowerCase().includes(q)
         const matchesContact = (t.mobile_contact || '').includes(q)
         const matchesCity = (t.city || '').toLowerCase().includes(q)
-        if (!matchesName && !matchesCode && !matchesProduct && !matchesContact && !matchesCity) return false
+        const matchesProvince = (t.province || '').toLowerCase().includes(q)
+        const matchesBarangay = (t.barangay || '').toLowerCase().includes(q)
+        const matchesStreet = (t.street_address || '').toLowerCase().includes(q)
+        const matchesAddress = (t.delivery_address || '').toLowerCase().includes(q)
+        const matchesFacebook = (t.facebook || '').toLowerCase().includes(q)
+        if (!matchesName && !matchesCode && !matchesProduct && !matchesContact && !matchesCity && !matchesProvince && !matchesBarangay && !matchesStreet && !matchesAddress && !matchesFacebook) return false
       }
 
       return true
@@ -826,7 +843,17 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
 
       const randomHex = Math.floor(100000 + Math.random() * 900000)
       const ticketCode = `JDS-${newType === 'PICKUP' ? 'RES' : 'INQ'}-${new Date().getFullYear()}-${randomHex}`
-      const purpose = newType === 'PICKUP' ? 'Store Pickup & Reservation' : 'Showroom Consultation & Inquiry'
+      const effectiveProvince = newCustProvince.trim() || 'Metro Manila (NCR)'
+      const effectiveCity = newCustCity.trim() || 'Walk-in / Showroom'
+      const effectiveBarangay = newCustBarangay.trim() || ''
+      const effectiveStreet = newCustStreetAddress.trim() || ''
+      const effectiveFacebook = formatFacebookUrl(newCustFacebook)
+      const formattedAddress = formatFullAddress({
+        street: effectiveStreet,
+        province: effectiveProvince,
+        city: effectiveCity,
+        barangay: effectiveBarangay
+      })
 
       const payload = {
         ticket_code: ticketCode,
@@ -836,7 +863,12 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         customer_name: newCustName.trim(),
         mobile_contact: newCustPhone.trim(),
         email: newCustEmail.trim() || null,
-        city: newCustCity.trim() || 'Walk-in / Showroom',
+        facebook: effectiveFacebook || null,
+        street_address: effectiveStreet,
+        province: effectiveProvince,
+        city: effectiveCity,
+        barangay: effectiveBarangay,
+        delivery_address: formattedAddress,
         purpose_of_visitation: purpose,
         will_visit: true,
         store_branch: newBranch,
@@ -847,10 +879,25 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         created_at: new Date().toISOString()
       }
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('quote_tickets')
         .insert([payload])
         .select()
+
+      if (error && (error.code === '42703' || error.message?.includes('street_address') || error.message?.includes('province') || error.message?.includes('barangay') || error.message?.includes('facebook'))) {
+        const fallbackPayload = { ...payload }
+        if (error.message?.includes('street_address')) delete fallbackPayload.street_address
+        if (error.message?.includes('province')) delete fallbackPayload.province
+        if (error.message?.includes('barangay')) delete fallbackPayload.barangay
+        if (error.message?.includes('facebook')) delete fallbackPayload.facebook
+        fallbackPayload.city = `${effectiveCity}, ${effectiveProvince}`
+        const fallbackRes = await supabase
+          .from('quote_tickets')
+          .insert([fallbackPayload])
+          .select()
+        data = fallbackRes.data
+        error = fallbackRes.error
+      }
 
       if (error) {
         console.warn('Supabase insert fallback:', error.message)
@@ -865,7 +912,15 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
       setNewCustName('')
       setNewCustPhone('')
       setNewCustEmail('')
+      setNewCustFacebook('')
+      setNewCustStreetAddress('')
+      setNewCustProvince('')
+      setNewCustProvinceCode('')
       setNewCustCity('')
+      setNewCustCityCode('')
+      setNewCustBarangay('')
+      setNewCustBarangayCode('')
+      setNewLocationErrors({})
       setNewProduct('')
       setNewWatt('')
       setNewQuantity(1)
@@ -1294,7 +1349,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                                 onDragEnd={handleDragEnd}
                                 onClick={() => handleOpenInquiry(ticket)}
                                 style={ticket.layout.style}
-                                title={`${ticket.customer_name} (${ticket.ticket_code})\n${timeDisplay}\nStatus: ${statusConfig.label}`}
+                                title={`${ticket.customer_name} (${ticket.ticket_code})\nLocation: ${ticket.barangay ? 'Brgy. ' + ticket.barangay + ', ' : ''}${ticket.city || ''}${ticket.province ? ', ' + ticket.province : ''}\n${timeDisplay}\nStatus: ${statusConfig.label}`}
                                 className={`absolute p-2 rounded-xl text-left border cursor-pointer transition-all group overflow-hidden ${statusConfig.calendarClass} ${
                                   isDragging
                                     ? 'opacity-30 scale-95 pointer-events-none'
@@ -1578,7 +1633,9 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                           <div className="text-xs text-jds-on-surface-variant flex items-center gap-1.5 mt-0.5">
                             <span>{q.mobile_contact}</span>
                             <span>•</span>
-                            <span>{q.city || 'Metro Manila'}</span>
+                            <span className="truncate max-w-[220px]" title={q.delivery_address || q.city}>
+                              {q.street_address ? `${q.street_address}, ` : ''}{q.barangay ? `${(q.city || '').toLowerCase().includes('manila') && !(q.city || '').toLowerCase().includes('metro') ? '' : 'Brgy. '}${q.barangay.replace(/^brgy\.?\s*/i, '')}, ` : ''}{q.city || 'Metro Manila'}{q.province ? `, ${q.province}` : ''}
+                            </span>
                           </div>
                         </TableCell>
 
@@ -1661,8 +1718,25 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                   {selectedInquiry.customer_name}
                 </h3>
                 <p className="text-xs text-jds-on-surface-variant">
-                  {selectedInquiry.city || 'Showroom Customer'} • {selectedInquiry.mobile_contact}
+                  {selectedInquiry.barangay ? `${(selectedInquiry.city || '').toLowerCase().includes('manila') && !(selectedInquiry.city || '').toLowerCase().includes('metro') ? '' : 'Brgy. '}${selectedInquiry.barangay.replace(/^brgy\.?\s*/i, '')}, ` : ''}{selectedInquiry.city || 'Showroom Customer'}{selectedInquiry.province ? `, ${selectedInquiry.province}` : ''} • {selectedInquiry.mobile_contact}
                 </p>
+                {selectedInquiry.facebook && (
+                  <div className="mt-2.5">
+                    <a
+                      href={selectedInquiry.facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1877F2]/10 hover:bg-[#1877F2]/20 text-[#1877F2] border border-[#1877F2]/30 transition-all shadow-sm"
+                    >
+                      <FaFacebook className="h-3.5 w-3.5 shrink-0 text-[#1877F2]" />
+                      <span className="truncate max-w-[200px]">
+                        {selectedInquiry.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//i, '')}
+                      </span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-[#1877F2] text-white rounded">Profile</span>
+                      <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
+                    </a>
+                  </div>
+                )}
               </div>
               <button
                 type="button"
@@ -1686,6 +1760,50 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                 {selectedInquiry.product_watt && <span>• {selectedInquiry.product_watt}W</span>}
                 <span>• {selectedInquiry.purpose_of_visitation || 'Consultation'}</span>
               </div>
+            </div>
+
+            {/* Customer Location & Address Details */}
+            <div className="p-3.5 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/20 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
+                  Customer Location & Address
+                </span>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-jds-surface border border-jds-outline-variant/30 text-jds-on-surface-variant">
+                  {selectedInquiry.province || 'Philippines'}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20 sm:col-span-3">
+                  <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">House / Street Address</span>
+                  <span className="font-semibold text-jds-on-surface truncate block">
+                    {selectedInquiry.street_address || (selectedInquiry.delivery_address ? selectedInquiry.delivery_address.split(',')[0] : 'Not Specified')}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
+                  <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">Barangay / District</span>
+                  <span className="font-semibold text-jds-on-surface truncate block">
+                    {selectedInquiry.barangay ? ((selectedInquiry.city || '').toLowerCase().includes('manila') && !(selectedInquiry.city || '').toLowerCase().includes('metro') ? selectedInquiry.barangay : `Brgy. ${selectedInquiry.barangay.replace(/^brgy\.?\s*/i, '')}`) : 'Not Specified'}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
+                  <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">City / Municipality</span>
+                  <span className="font-semibold text-jds-on-surface truncate block">
+                    {selectedInquiry.city || 'Showroom Customer'}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
+                  <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">Province</span>
+                  <span className="font-semibold text-jds-on-surface truncate block">
+                    {selectedInquiry.province || 'Metro Manila (NCR)'}
+                  </span>
+                </div>
+              </div>
+              {selectedInquiry.delivery_address && (
+                <div className="text-[11px] text-jds-on-surface-variant flex items-center gap-1.5 pt-1.5 border-t border-jds-outline-variant/10">
+                  <MapPin className="h-3.5 w-3.5 text-jds-primary shrink-0" />
+                  <span className="truncate">{selectedInquiry.delivery_address}</span>
+                </div>
+              )}
             </div>
 
             {/* Editable Fields Form */}
@@ -1934,32 +2052,75 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="Optional"
-                    value={newCustEmail}
-                    onChange={(e) => setNewCustEmail(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  placeholder="Optional (customer@example.com)"
+                  value={newCustEmail}
+                  onChange={(e) => setNewCustEmail(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                    City / Location
-                  </label>
+              <div>
+                <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                  Facebook Profile / Username
+                </label>
+                <div className="flex items-center rounded-xl border border-jds-outline-variant/40 bg-jds-surface transition-all overflow-hidden focus-within:border-jds-primary">
+                  <div className="flex items-center gap-1.5 pl-3 pr-2 py-2 bg-jds-surface-container-low border-r border-jds-outline-variant/30 text-jds-on-surface-variant select-none shrink-0">
+                    <FaFacebook className="h-3.5 w-3.5 text-[#1877F2] shrink-0" />
+                    <span className="text-xs font-mono text-jds-on-surface-variant font-semibold">facebook.com/</span>
+                  </div>
                   <input
                     type="text"
-                    placeholder="e.g. Imus, Cavite"
-                    value={newCustCity}
-                    onChange={(e) => setNewCustCity(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                    placeholder="username or profile ID (optional)"
+                    value={newCustFacebook}
+                    onChange={(e) => setNewCustFacebook(extractFacebookHandle(e.target.value))}
+                    className="w-full bg-transparent px-3 py-2 text-xs text-jds-on-surface outline-none placeholder:text-jds-on-surface-variant/50"
                   />
                 </div>
+              </div>
+
+              {/* Philippine Cascading Address Selector for Staff / Admin */}
+              <div className="p-3 rounded-xl bg-jds-surface-container-low/40 border border-jds-outline-variant/30 space-y-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant block">
+                  Customer Location & Address
+                </span>
+                <PhilippineAddressSelect
+                  provinceCode={newCustProvinceCode}
+                  provinceName={newCustProvince}
+                  cityCode={newCustCityCode}
+                  cityName={newCustCity}
+                  barangayCode={newCustBarangayCode}
+                  barangayName={newCustBarangay}
+                  streetAddress={newCustStreetAddress}
+                  errors={newLocationErrors}
+                  required={false}
+                  onLocationChange={({
+                    provinceCode: pCode,
+                    provinceName: pName,
+                    cityCode: cCode,
+                    cityName: cName,
+                    barangayCode: bCode,
+                    barangayName: bName,
+                    streetAddress: sAddress,
+                  }) => {
+                    setNewCustProvinceCode(pCode)
+                    setNewCustProvince(pName)
+                    setNewCustCityCode(cCode)
+                    setNewCustCity(cName)
+                    setNewCustBarangayCode(bCode)
+                    setNewCustBarangay(bName)
+                    if (sAddress !== undefined) {
+                      setNewCustStreetAddress(sAddress)
+                    }
+                    setNewLocationErrors({})
+                  }}
+                  variant="admin"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">

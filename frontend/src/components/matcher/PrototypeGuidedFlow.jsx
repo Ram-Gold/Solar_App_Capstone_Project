@@ -47,7 +47,7 @@ export const LOCATIONS = [
   },
 ]
 
-export const POWER_PRESETS = [100, 200, 300, 400, 500, 600, 800]
+export const POWER_PRESETS = [100, 200, 300, 400, 500, 600, 800, 1000]
 export const BUDGET_PRESETS = [
   { label: '₱1,500', value: 1500 },
   { label: '₱2,500', value: 2500 },

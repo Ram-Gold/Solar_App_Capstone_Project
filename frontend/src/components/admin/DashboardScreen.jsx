@@ -18,11 +18,14 @@ import {
   Upload,
   Image as ImageIcon,
   CheckCircle2,
+  LayoutGrid,
+  List,
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 import RecordSaleModal from './RecordSaleModal'
 import CategoryModal from './CategoryModal'
+import AdminProductCard from './AdminProductCard'
 import { fetchCategoriesWithCounts, DEFAULT_CATEGORIES } from '../../lib/categories'
 import {
   EDIT_FIELDS,
@@ -44,6 +47,7 @@ export default function DashboardScreen({ onNavigate }) {
   const [search, setSearch] = useState('')
   const [stockFilter, setStockFilter] = useState('all') // 'all' | 'out' | 'low' | 'in_stock'
   const [sortOrder, setSortOrder] = useState('stock_priority')
+  const [viewMode, setViewMode] = useState('cards') // 'cards' | 'table'
 
   // Toast feedback
   const [toast, setToast] = useState(null)
@@ -708,8 +712,8 @@ export default function DashboardScreen({ onNavigate }) {
             </div>
           </div>
 
-          {/* Sort Selector & Reset */}
-          <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end">
+          {/* Sort Selector, Reset & View Mode Toggle */}
+          <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end flex-wrap">
             <div className="flex items-center gap-2">
               <label htmlFor="dashboardSortOrder" className="text-label-sm font-bold text-jds-on-surface-variant uppercase tracking-wider whitespace-nowrap">
                 Sort:
@@ -742,24 +746,80 @@ export default function DashboardScreen({ onNavigate }) {
                 <span className="hidden sm:inline">Reset</span>
               </button>
             )}
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/30 p-0.5">
+              <button
+                type="button"
+                onClick={() => setViewMode('cards')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-label-sm font-bold transition-all cursor-pointer ${
+                  viewMode === 'cards'
+                    ? 'bg-jds-surface text-jds-primary shadow-xs border border-jds-outline-variant/30'
+                    : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+                }`}
+                title="Visual Card Grid View"
+                aria-label="Cards view"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                <span className="hidden sm:inline text-xs">Cards</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-label-sm font-bold transition-all cursor-pointer ${
+                  viewMode === 'table'
+                    ? 'bg-jds-surface text-jds-primary shadow-xs border border-jds-outline-variant/30'
+                    : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+                }`}
+                title="Data Table View"
+                aria-label="Table view"
+              >
+                <List className="h-4 w-4" />
+                <span className="hidden sm:inline text-xs">Table</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {filteredProducts.length === 0 ? (
-          <div className="px-6 py-12 text-center text-body-md text-jds-on-surface-variant space-y-3">
-            <p>No products match your selected filter criteria.</p>
+          <div className="px-6 py-16 text-center text-body-md text-jds-on-surface-variant space-y-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-jds-surface-container text-jds-on-surface-variant mx-auto">
+              <Package className="h-6 w-6" />
+            </div>
+            <p className="font-bold text-jds-on-surface">No products match your selected filter criteria.</p>
+            <p className="text-label-sm text-jds-on-surface-variant max-w-sm mx-auto text-center">
+              Try adjusting your search criteria, stock filters, or sorting order to view equipment.
+            </p>
             <button
               onClick={() => {
                 setSearch('')
                 setStockFilter('all')
                 setSortOrder('stock_priority')
               }}
-              className="text-label-md font-semibold text-jds-primary hover:underline cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-jds-outline-variant text-label-sm font-semibold text-jds-primary hover:bg-jds-primary/10 transition-colors cursor-pointer"
             >
-              Clear filters and view all products
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>Clear filters and view all products</span>
             </button>
           </div>
+        ) : viewMode === 'cards' ? (
+          /* Responsive Card Grid View */
+          <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredProducts.slice(0, 8).map((p) => (
+              <AdminProductCard
+                key={p.id}
+                product={p}
+                onOpenEdit={handleOpenEditProduct}
+                onOpenStockStepper={handleOpenStockStepper}
+                onOpenRecordSale={setSaleModalProduct}
+                onRequestDirectStockChange={handleRequestDirectStockChange}
+                onRequestDirectSaleChange={handleRequestDirectSaleChange}
+                showDelete={false}
+              />
+            ))}
+          </div>
         ) : (
+          /* Table View */
           <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-jds-surface-container-low/10">
@@ -774,7 +834,7 @@ export default function DashboardScreen({ onNavigate }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.slice(0, 10).map((p) => {
+                {filteredProducts.slice(0, 8).map((p) => {
                   const badge = getStockBadgeConfig(p)
                   const stockQty = badge.quantity
                   const salesQty = Number(p.sales || 0)
@@ -935,10 +995,10 @@ export default function DashboardScreen({ onNavigate }) {
           </div>
         )}
 
-        {/* Table Footer with Count and View All Link */}
+        {/* Table/Card Footer with Count and View All Link */}
         <div className="border-t border-jds-outline-variant/20 px-6 py-4 bg-jds-surface-container-low/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-label-md text-jds-on-surface-variant">
           <div>
-            Showing <span className="font-bold text-jds-on-surface">{Math.min(filteredProducts.length, 10)}</span> of{' '}
+            Showing <span className="font-bold text-jds-on-surface">{Math.min(filteredProducts.length, 8)}</span> of{' '}
             <span className="font-bold text-jds-on-surface">{filteredProducts.length}</span> matching products
             {filteredProducts.length !== totalProducts && (
               <span className="text-xs text-jds-on-surface-variant/70 ml-1.5">
@@ -946,7 +1006,7 @@ export default function DashboardScreen({ onNavigate }) {
               </span>
             )}
           </div>
-          {onNavigate && filteredProducts.length > 10 && (
+          {onNavigate && filteredProducts.length > 8 && (
             <button
               onClick={() => onNavigate('products')}
               className="inline-flex items-center gap-1.5 text-label-sm font-bold text-jds-primary hover:underline cursor-pointer"

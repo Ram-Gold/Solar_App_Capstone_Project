@@ -1,11 +1,25 @@
 import { supabase } from './supabaseClient'
 
 export const DEFAULT_CATEGORIES = [
+  'Aluminum Solar Street Light (Gray)',
   'Aviation Aluminum Solar Light',
   'Aviation Aluminum Solar Road Light',
   'Aviation Aluminum Solar Street Light',
+  'Eco COB Flood Light',
+  'Eco LED Flood Light',
+  'Electric Streetlight',
+  'Electric Streetlight Cobra',
   'Integrated Solar Street Light',
-  'Aluminum Solar Street Light',
+  'Integrated Solar Street Light (Warm White)',
+  'JD Star COB Floodlight',
+  'JDSTAR 220V LED Flood Light',
+  'JDSTAR Street Light',
+  'KKSKY Solar Floodlight',
+  'LW SO LED Outdoor Flood Light',
+  'Solar Flood Light HPC',
+  'Solar Flood Light UP39',
+  'Solar Flood Light UP39 (Warm White)',
+  'Solar Floodlight JDL',
   'Solar Streetlight',
 ]
 
