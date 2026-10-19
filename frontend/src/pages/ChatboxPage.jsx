@@ -15,15 +15,16 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChat } from '../context/ChatContext'
 import { Link } from 'react-router-dom'
-import MultiCriteriaMatchModal from '../components/MultiCriteriaMatchModal'
 import ChatHelpModal from '../components/ChatHelpModal'
 import { formatSessionDate } from '../lib/chatStorage'
 
 const quickFaqPills = [
   'What is your warranty policy?',
   'Where are your store branches in Quiapo and Cavite?',
-  'How much can I save on electricity bills?',
   'What are your pricing packages?',
+  'What are the installation & mounting requirements?',
+  'How much can I save on electricity bills?',
+  'How do I use the Product Matcher?',
 ]
 
 const SunPulse = ({ isLoading }) => {
@@ -85,20 +86,23 @@ export default function ChatboxPage() {
     selectOption,
     resetChat,
     isLoading,
-    products,
     sessions,
     loadSession,
     deleteSession,
   } = useChat()
   const [input, setInput] = useState('')
-  const [showMatcher, setShowMatcher] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const scrollRef = useRef(null)
+
+  const resetChatRef = useRef(resetChat)
+  useEffect(() => {
+    resetChatRef.current = resetChat
+  }, [resetChat])
 
   // When leaving the chat assistant, restart/reset the active conversation
   useEffect(() => {
     return () => {
-      resetChat()
+      resetChatRef.current?.()
     }
   }, [])
 
@@ -461,12 +465,6 @@ export default function ChatboxPage() {
         )}
       </div>
 
-      {/* Multi-Criteria Matching Modal */}
-      <MultiCriteriaMatchModal
-        isOpen={showMatcher}
-        onClose={() => setShowMatcher(false)}
-        products={products}
-      />
 
       {/* Assistant Help & Privacy Disclosure Modal */}
       <ChatHelpModal

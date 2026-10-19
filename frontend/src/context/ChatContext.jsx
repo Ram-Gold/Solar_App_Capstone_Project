@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabaseClient'
 import {
   DECISION_TREE,
   FALLBACK_PRODUCTS,
-  generateRecommendations,
   matchUserQuery,
   splitIntoSentenceSegments,
   stripEmojis,
@@ -40,7 +39,6 @@ export function ChatProvider({ children }) {
 
   // Auto-prune sessions older than 30 days periodically in background
   useEffect(() => {
-    setSessions(loadChatSessions())
     const interval = setInterval(() => {
       setSessions(loadChatSessions())
     }, 3600000) // check hourly
@@ -62,7 +60,10 @@ export function ChatProvider({ children }) {
         messages,
         criteria,
       })
-      setSessions(updated)
+      const timer = setTimeout(() => {
+        setSessions(updated)
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [messages, isLoading, sessionId, criteria])
 
@@ -285,11 +286,7 @@ export function ChatProvider({ children }) {
     let targetContent
     let targetOptions
 
-    if (option.next === 'GENERATE_RESULTS') {
-      const result = generateRecommendations(products, newCriteria)
-      targetContent = result.message
-      targetOptions = result.options
-    } else if (option.next && DECISION_TREE[option.next]) {
+    if (option.next && DECISION_TREE[option.next]) {
       const node = DECISION_TREE[option.next]
       if (option.next === 'ROOT') {
         setCriteria({})

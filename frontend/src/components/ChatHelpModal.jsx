@@ -61,10 +61,10 @@ export default function ChatHelpModal({ isOpen, onClose }) {
               <HiOutlineCpuChip className="text-jds-primary size-5 shrink-0 mt-0.5" />
               <div>
                 <h3 className="text-label-md font-bold text-jds-on-surface mb-1">
-                  Deterministic Decision System (Not AI)
+                  Technical Help & FAQ System (Not AI)
                 </h3>
                 <p>
-                  This consultation assistant is an automated, rule-based decision support system. It is <strong>NOT an artificial intelligence (AI) model or large language model (LLM)</strong>. All product recommendations, technical specs, and cost comparisons are deterministically computed based on verified JD Solar catalog data and engineering sizing formulas.
+                  This consultation assistant is an automated, rule-based Help and FAQ support system. It is <strong>NOT an artificial intelligence (AI) model or large language model (LLM)</strong>. For automated multi-criteria product matching and engineering calculations, please visit the dedicated Product Matcher. All product specifications, pricing packages, and branch guidelines are deterministically provided based on verified JD Solar catalog data.
                 </p>
               </div>
             </div>

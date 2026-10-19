@@ -1,6 +1,5 @@
 // frontend/src/lib/solarBotEngine.js
-// Client-side decision-tree engine for JD Solar Assistant
-import { matchSolarProducts } from './multiCriteriaMatcher.js'
+// Client-side decision-tree & technical FAQ engine for JD Solar Assistant
 
 export const FALLBACK_PRODUCTS = [
   { id: 1, name: "Aviation Aluminum Solar Light 200W", type: "Aviation Aluminum Solar Light", watt: 349, price_range: "1500-2500", waterproof_grade: "IP65", battery: "91000mAh Lithium Iron Phosphate", material: "Aviation Aluminum + Optical Lens" },
@@ -30,147 +29,107 @@ export const FALLBACK_PRODUCTS = [
 
 export const DECISION_TREE = {
   ROOT: {
-    message: `**Welcome to JD Solar Assistant!**
+    message: `**Welcome to JD Solar Technical Assistant & FAQ Desk!**
 
-How can I help power your lighting project today? Please select an option below:`,
+How can I help power your lighting project today? Please select an inquiry topic below or type your question:`,
     options: [
-      { label: 'Open Multi-Criteria Matcher', url: '/match' },
-      { label: 'Find the Right Solar Light', next: 'FIND_LOCATION' },
-      { label: 'Pricing & Packages', next: 'PRICING_INFO' },
-      { label: 'Quiapo & Cavite Branches', next: 'BRANCHES_INFO' },
-      { label: '1-Year Warranty & Service', next: 'WARRANTY_INFO' },
+      { label: 'Product Specifications Guide', next: 'SPECS_INFO' },
+      { label: 'Pricing & Commercial Packages', next: 'PRICING_INFO' },
+      { label: 'Stock Availability & Branches', next: 'BRANCHES_INFO' },
+      { label: 'Installation & Mounting Guide', next: 'INSTALLATION_INFO' },
+      { label: '1-Year Warranty & Post-Sale Service', next: 'WARRANTY_INFO' },
+      { label: 'Electricity Savings & ROI', next: 'SAVINGS_INFO' },
+      { label: 'Contact Sales & Inquiries', next: 'CONTACT_INFO' },
+      { label: 'Open Product Matcher', url: '/match' },
       { label: 'Browse Full Catalog', url: '/browse' },
     ],
   },
 
-  FIND_LOCATION: {
-    message: `### Step 1 of 3: Installation Area
-Where do you plan to install the solar lighting?`,
+  SPECS_INFO: {
+    message: `### Product Specifications & Hardware Standards
+
+JD Solar commercial and industrial lighting fixtures are manufactured according to strict quality and endurance benchmarks:
+
+* **Solar Photovoltaic Panels:** High-efficiency Monocrystalline silicon cells with 21%+ conversion efficiency for rapid battery charging even during overcast weather.
+* **Battery Chemistry:** Heavy-duty Lithium Iron Phosphate (LiFePO4) cells rated for over 2,000 deep discharge cycles (3 to 5+ years operational life).
+* **Housing & Optics:** Aviation-grade aluminum alloy and die-cast enclosures with optical polycarbonate lenses, engineered for thermal dissipation and wind resistance.
+* **Ingress Protection:** Certified IP65 and IP67 waterproof and dustproof ratings designed to withstand Philippine typhoons, continuous downpours, and coastal humidity.
+* **Intelligent Controller:** Dusk-to-dawn automated activation with dual-mode radar motion sensing and dimming to conserve energy during late night hours.
+
+For automated multi-criteria product matching tailored to your specific setup, use our dedicated Product Matcher.`,
     options: [
-      { label: 'Main Roads & Thoroughfares', next: 'FIND_POWER_ROAD', filter: { location: 'road' } },
-      { label: 'Subdivisions, Alleys & Compounds', next: 'FIND_POWER_STREET', filter: { location: 'street' } },
-      { label: 'Home, Gate, Garden & Perimeter', next: 'FIND_POWER_HOME', filter: { location: 'home' } },
-      { label: 'Commercial Lot, Warehouse & Parking', next: 'FIND_POWER_COMMERCIAL', filter: { location: 'commercial' } },
-      { label: 'Back to Main Menu', next: 'ROOT' },
-    ],
-  },
-
-  FIND_POWER_ROAD: {
-    message: `### Step 2 of 3: Light Output for Road
-Roadways typically require high lumen output and wide beam angles (pole heights 6m–9m). What power level do you prefer?`,
-    options: [
-      { label: '300W – 400W (Medium Road / 5-7m pole)', next: 'FIND_BUDGET', filter: { powerNeeds: 350, minWatt: 300, maxWatt: 400, type: 'Road' } },
-      { label: '500W – 600W (Heavy Duty / 7-9m pole)', next: 'FIND_BUDGET', filter: { powerNeeds: 550, minWatt: 500, maxWatt: 800, type: 'Road' } },
-      { label: 'Show All Road Lights', next: 'FIND_BUDGET', filter: { powerNeeds: 400, type: 'Road' } },
-      { label: 'Change Installation Area', next: 'FIND_LOCATION' },
-    ],
-  },
-
-  FIND_POWER_STREET: {
-    message: `### Step 2 of 3: Light Output for Subdivision / Street
-For neighborhood streets, alleys, and community pathways, which power level suits your project?`,
-    options: [
-      { label: '100W – 150W (Standard alleys & inner paths)', next: 'FIND_BUDGET', filter: { powerNeeds: 150, minWatt: 100, maxWatt: 150, type: 'Street' } },
-      { label: '200W – 300W (Subdivision main roads & intersections)', next: 'FIND_BUDGET', filter: { powerNeeds: 250, minWatt: 200, maxWatt: 300, type: 'Street' } },
-      { label: 'Show All Street Lights', next: 'FIND_BUDGET', filter: { powerNeeds: 250, type: 'Street' } },
-      { label: 'Change Installation Area', next: 'FIND_LOCATION' },
-    ],
-  },
-
-  FIND_POWER_HOME: {
-    message: `### Step 2 of 3: Residential Solar Lighting
-What area around your home or property are you lighting?`,
-    options: [
-      { label: 'Gate & Front Entrance (50W – 150W)', next: 'FIND_BUDGET', filter: { powerNeeds: 100, minWatt: 50, maxWatt: 150, type: 'Residential' } },
-      { label: 'Perimeter Fence & Wide Garden (200W – 350W)', next: 'FIND_BUDGET', filter: { powerNeeds: 250, minWatt: 200, maxWatt: 350, type: 'Residential' } },
-      { label: 'Show All Residential Outdoor Lights', next: 'FIND_BUDGET', filter: { powerNeeds: 150, type: 'Residential' } },
-      { label: 'Change Installation Area', next: 'FIND_LOCATION' },
-    ],
-  },
-
-  FIND_POWER_COMMERCIAL: {
-    message: `### Step 2 of 3: Commercial & Facility Lighting
-What is the lighting requirement for your facility?`,
-    options: [
-      { label: 'Parking Lots & Walkways (200W – 300W)', next: 'FIND_BUDGET', filter: { powerNeeds: 250, minWatt: 200, maxWatt: 300, type: 'Commercial' } },
-      { label: 'Heavy-Duty Yards, Viaducts & Warehouses (400W – 1000W)', next: 'FIND_BUDGET', filter: { powerNeeds: 600, minWatt: 400, maxWatt: 1000, type: 'Commercial' } },
-      { label: 'Show All Commercial Grade Lights', next: 'FIND_BUDGET', filter: { powerNeeds: 500, type: 'Commercial' } },
-      { label: 'Change Installation Area', next: 'FIND_LOCATION' },
-    ],
-  },
-
-  FIND_BUDGET: {
-    message: `### Step 3 of 3: Budget Range
-What is your target budget per unit?`,
-    options: [
-      { label: '₱1,000 – ₱2,000 (Economy / Best Value)', next: 'GENERATE_RESULTS', filter: { budget: 2000 } },
-      { label: '₱2,000 – ₱3,500 (Standard Quality)', next: 'GENERATE_RESULTS', filter: { budget: 3500 } },
-      { label: '₱3,500+ (Heavy Duty / Industrial)', next: 'GENERATE_RESULTS', filter: { budget: 5000 } },
-      { label: 'Any Budget (Show Best Matches)', next: 'GENERATE_RESULTS', filter: { budget: 'any' } },
-      { label: 'Back to Step 2', next: 'FIND_LOCATION' },
-    ],
-  },
-
-  PRICING_INFO: {
-    message: `### JD Solar Pricing Overview
-
-Our solar lighting packages offer premium commercial-grade hardware at direct trading rates:
-
-* **Entry & Residential (50W – 150W):** ₱1,000 to ₱2,000 per set
-* **Commercial & Subdivision (200W – 300W):** ₱1,500 to ₱3,500 per set
-* **Heavy-Duty Highway (400W – 800W):** ₱2,500 to ₱4,500+ per set
-
-> **LGU & Bulk Wholesale:** Special project discounts and terms are available for orders of 20+ units.
-
-All packages include **Aviation-grade aluminum body**, **Monocrystalline solar panel**, and **LiFePO4 Lithium battery**.`,
-    options: [
-      { label: 'Find Light Within My Budget', next: 'FIND_LOCATION' },
-      { label: 'Browse All Products', url: '/browse' },
-      { label: 'Contact Quiapo / Cavite Branch', next: 'BRANCHES_INFO' },
+      { label: 'Open Product Matcher', url: '/match' },
+      { label: 'Installation & Mounting Guide', next: 'INSTALLATION_INFO' },
+      { label: 'Pricing & Commercial Packages', next: 'PRICING_INFO' },
+      { label: '1-Year Warranty & Service', next: 'WARRANTY_INFO' },
       { label: 'Main Menu', next: 'ROOT' },
     ],
   },
 
-  SAVINGS_INFO: {
-    message: `### Zero Electricity Cost with JD Solar
+  PRICING_INFO: {
+    message: `### Pricing & Equipment Packages
 
-Switching conventional outdoor lighting to solar lights yields immediate savings:
+JD Solar delivers direct trading rates for single-unit retail, subdivision installations, and bulk LGU projects:
 
-| Lighting Type | Monthly Meralco Cost | 1-Year Cost | 3-Year Cost |
-|---|---|---|---|
-| **150W Grid Streetlight** (12 hrs/day) | ~₱650 / unit | ~₱7,800 | ~₱23,400 |
-| **JD Solar Street Light** | **₱0.00** | **₱0.00** | **₱0.00** |
+* **Entry & Residential (50W – 150W):** ₱1,000 to ₱2,000 per set
+* **Commercial & Subdivision (200W – 300W):** ₱1,500 to ₱3,500 per set
+* **Heavy-Duty Highway & Industrial (400W – 800W):** ₱2,500 to ₱4,500+ per set
 
-* **ROI Timeline:** A typical JD Solar unit pays for itself in less than **4 to 6 months**!
-* **Dusk-to-Dawn Radar Sensor:** Lights charge 6–8 hrs in sunlight and provide 10–12+ hrs of continuous night illumination.
-* **Typhoon & Weather Ready:** IP65 / IP67 certified waterproof construction.`,
+> **Project Procurement & Bulk Wholesale:** Tiered project discounts and customized supply contracts are available for orders of 20 or more units.
+
+All packages include complete fixture assembly, monocrystalline solar panel, built-in LiFePO4 battery pack, wireless remote controller, and mounting hardware.`,
     options: [
-      { label: 'Help Me Choose a Light', next: 'FIND_LOCATION' },
-      { label: 'Check Price Ranges', next: 'PRICING_INFO' },
+      { label: 'Stock Availability & Branches', next: 'BRANCHES_INFO' },
+      { label: 'Contact Sales Desk', next: 'CONTACT_INFO' },
+      { label: 'Open Product Matcher', url: '/match' },
+      { label: 'Browse Full Catalog', url: '/browse' },
       { label: 'Main Menu', next: 'ROOT' },
     ],
   },
 
   BRANCHES_INFO: {
-    message: `### JD Solar Branch Locations & Store Hours
+    message: `### Stock Availability & Branch Locations
 
-We operate two key hubs for store pickup, testing, and wholesale consultations:
+JD Solar maintains inventory across two strategic hubs in Metro Manila and Southern Luzon:
 
-#### 1. Quiapo Branch (Manila)
+#### 1. Quiapo Branch (Manila Showroom)
 * **Location:** Quiapo Commercial District, Manila
-* **Services:** Retail showroom, on-site testing, cash pickup, wholesale ordering.
-* **Hours:** Monday to Saturday: 8:00 AM – 5:30 PM
+* **Services:** Retail showroom, on-site live testing, immediate cash pickup, contractor consultations.
+* **Operating Hours:** Monday to Saturday: 8:00 AM – 5:30 PM
 
-#### 2. Cavite Hub
-* **Location:** Cavite Distribution Hub
-* **Services:** LGU project deliveries, bulk distribution, logistics dispatch.
-* **Hours:** Monday to Saturday: 8:00 AM – 5:00 PM
+#### 2. Cavite Hub (Logistics & Distribution)
+* **Location:** Cavite Distribution Center
+* **Services:** Bulk commercial dispatch, LGU project logistics, warranty diagnostic testing.
+* **Operating Hours:** Monday to Saturday: 8:00 AM – 5:00 PM
 
-Feel free to walk in or request a quote online!`,
+#### Stock Status
+Standard catalog models (100W–300W) are actively stocked for immediate retail and wholesale fulfillment. Heavy-duty units (400W–800W) are warehoused in Cavite for swift site dispatch.`,
     options: [
-      { label: 'Speak to Sales / Contact', next: 'CONTACT_INFO' },
-      { label: 'Find Solar Lights', next: 'FIND_LOCATION' },
-      { label: 'View Product Catalog', url: '/browse' },
+      { label: 'Contact Sales Desk', next: 'CONTACT_INFO' },
+      { label: '1-Year Warranty & Service', next: 'WARRANTY_INFO' },
+      { label: 'Browse Full Catalog', url: '/browse' },
+      { label: 'Main Menu', next: 'ROOT' },
+    ],
+  },
+
+  INSTALLATION_INFO: {
+    message: `### Installation & Mounting Guidelines
+
+Proper mounting ensures maximum illumination coverage and optimal daily battery charging:
+
+#### Recommended Pole Heights by Wattage
+* **50W – 150W:** 3 to 4 meters pole height (suitable for garden perimeters, gates, and residential alleys).
+* **200W – 300W:** 4 to 6 meters pole height (suitable for subdivision streets, compound driveways, and parking areas).
+* **400W – 800W:** 6 to 9 meters pole height (suitable for multi-lane thoroughfares, industrial lots, and logistics yards).
+
+#### Mounting Best Practices
+* **Solar Panel Orientation:** Face the solar panel directly South with a 10° to 15° tilt angle for consistent year-round solar absorption in the Philippines.
+* **Shading Clearance:** Ensure the installation point has unobstructed sunlight between 9:00 AM and 3:00 PM without tree canopies or roof overhang shadows.
+* **Hardware:** Heavy-duty clamp brackets and stainless fasteners are supplied with each fixture for secure pole or wall fastening.`,
+    options: [
+      { label: 'Product Specifications Guide', next: 'SPECS_INFO' },
+      { label: 'Open Product Matcher', url: '/match' },
+      { label: 'Contact Support Desk', next: 'CONTACT_INFO' },
       { label: 'Main Menu', next: 'ROOT' },
     ],
   },
@@ -178,15 +137,37 @@ Feel free to walk in or request a quote online!`,
   WARRANTY_INFO: {
     message: `### 1-Year Standard Warranty & Customer Guarantee
 
-Every JD Solar product is backed by our customer satisfaction commitment:
+Every JD Solar product is supported by our direct manufacturer warranty:
 
-* **12-Month Official Warranty:** Covers manufacturing defects, battery cell failures, and panel efficiency.
-* **IP65 / IP67 Weatherproof Construction:** Die-cast and aviation aluminum built to withstand heavy rains, typhoons, and coastal air.
-* **LiFePO4 Long-Life Batteries:** Rated for over 2,000 charge cycles (3–5+ years operating life).
-* **Replacement Support:** Direct technical diagnosis and parts replacement handled at our Quiapo and Cavite branches.`,
+* **12-Month Official Warranty:** Covers factory defects, internal controller malfunctions, solar panel degradation, and battery cell retention.
+* **Weatherproof Assurance:** IP65 and IP67 certified housings designed to withstand coastal saline air, heavy typhoons, and tropical heat.
+* **LiFePO4 Extended Durability:** High-grade lithium iron phosphate chemistry retains over 80% capacity after 2,000 complete charge-discharge cycles.
+* **Local After-Sales Service:** Technical diagnostics, spare parts, and replacement units are serviced directly through our Quiapo and Cavite service centers.`,
     options: [
-      { label: 'Browse Guaranteed Models', url: '/browse' },
-      { label: 'Visit Branch for Service', next: 'BRANCHES_INFO' },
+      { label: 'Stock Availability & Branches', next: 'BRANCHES_INFO' },
+      { label: 'Contact Support Desk', next: 'CONTACT_INFO' },
+      { label: 'Browse Full Catalog', url: '/browse' },
+      { label: 'Main Menu', next: 'ROOT' },
+    ],
+  },
+
+  SAVINGS_INFO: {
+    message: `### Zero Electricity Cost & Financial ROI
+
+Switching outdoor and community lighting to standalone solar fixtures eliminates recurrent grid power expenditures:
+
+| Lighting Specification | Monthly Grid Power Cost | 1-Year Cumulative Cost | 3-Year Cumulative Cost |
+|---|---|---|---|
+| **150W Grid Streetlight** (12 hrs/day) | ~₱650 / fixture | ~₱7,800 | ~₱23,400 |
+| **JD Solar Standalone Light** | **₱0.00** | **₱0.00** | **₱0.00** |
+
+* **Return on Investment (ROI):** Standalone fixtures typically recover their initial capital investment in **4 to 6 months**.
+* **Zero Trenching or Cabling:** No electrical permits, underground wiring, or monthly meter surcharges required.
+* **Typhoon Resilient:** Autonomous operation continues uninterrupted during city-wide electrical grid brownouts.`,
+    options: [
+      { label: 'Pricing & Packages', next: 'PRICING_INFO' },
+      { label: 'Open Product Matcher', url: '/match' },
+      { label: 'Stock Availability & Branches', next: 'BRANCHES_INFO' },
       { label: 'Main Menu', next: 'ROOT' },
     ],
   },
@@ -194,91 +175,42 @@ Every JD Solar product is backed by our customer satisfaction commitment:
   CONTACT_INFO: {
     message: `### Get in Touch with JD Solar
 
-We are ready to assist you with single-unit orders, community street lighting, or government / LGU procurement:
+Our sales and engineering consultants are available to assist with residential purchases, subdivision lighting plans, and government / LGU tenders:
 
-* **Branches:** Quiapo, Manila & Cavite Hub
-* **Phone / Hotline:** Contact our sales desk at **0917-XXX-XXXX**
-* **Email:** support@jdforsolar.com
-* **Walk-in Hours:** Mon–Sat, 8:00 AM to 5:00 PM
+* **Showroom & Pickup:** Quiapo Commercial District, Manila
+* **Logistics Distribution:** Cavite Hub
+* **Hotline / Sales Desk:** 0917-XXX-XXXX
+* **Email Inquiry:** support@jdforsolar.com
+* **Operating Hours:** Monday to Saturday, 8:00 AM – 5:30 PM
 
-You can also browse our online inventory and submit a quote directly!`,
+Formal technical quotations and bill of materials (BOM) are available upon request.`,
     options: [
-      { label: 'Browse Online Catalog', url: '/browse' },
-      { label: 'Start Product Recommendation', next: 'FIND_LOCATION' },
+      { label: 'Branch Details & Hours', next: 'BRANCHES_INFO' },
+      { label: 'Open Product Matcher', url: '/match' },
+      { label: 'Browse Full Catalog', url: '/browse' },
       { label: 'Main Menu', next: 'ROOT' },
     ],
   },
-}
 
-/**
- * Filter products from catalog based on decision tree criteria
- */
-export function filterProducts(products, criteria = {}) {
-  const list = products && products.length > 0 ? products : FALLBACK_PRODUCTS
+  PRODUCT_MATCHER_INFO: {
+    message: `### Product Matcher Consultation
 
-  return list.filter((p) => {
-    // Filter by type or location
-    if (criteria.type === 'Road' && !p.name.includes('Road') && !p.type?.includes('Road')) {
-      return false
-    }
-    if (criteria.type === 'Street' && !p.name.includes('Street') && !p.type?.includes('Street')) {
-      return false
-    }
-    if (criteria.type === 'Residential' && p.watt > 400) {
-      return false
-    }
+For automated product calculations and compatibility scoring across your specific project parameters, please use our dedicated **Product Matcher**.
 
-    // Filter by wattage
-    if (criteria.minWatt && p.watt < criteria.minWatt) return false
-    if (criteria.maxWatt && p.watt > criteria.maxWatt) return false
+The Product Matcher analyzes:
+1. **Target Installation Location** (Roadway, Subdivision, Residential, or Commercial Yard)
+2. **Power Requirements & Mounting Height**
+3. **Budget Brackets & Sensitivity Thresholds**
 
-    // Filter by budget
-    if (criteria.budget && criteria.budget !== 'any') {
-      if (!p.price_range?.includes(criteria.budget) && !p.price_range?.includes(criteria.budget.replace('-', ''))) {
-        // Soft match: if strictly filtering leaves nothing, keep close matches
-      }
-    }
-
-    return true
-  })
-}
-
-/**
- * Generate recommendation message text and cards using Multi-Criteria Decision Analysis
- */
-export function generateRecommendations(products, criteria = {}) {
-  const result = matchSolarProducts(products, criteria, { threshold: 0.65, limit: 4 })
-  const { matches, thresholdUsed, thresholdRelaxed } = result
-
-  let text = `### Multi-Criteria Product Recommendations\n\n`
-  if (thresholdRelaxed) {
-    text += `*Note: Evaluated against your Budget, Location, and Power Needs. Showing top compatible candidates closest to your target threshold:*\n\n`
-  } else {
-    text += `Evaluated against your requirements (**Budget, Location, and Power Needs**) with a **${Math.round(thresholdUsed * 100)}% compatibility threshold**:\n\n`
-  }
-
-  matches.forEach((item, index) => {
-    const p = item.product
-    text += `#### ${index + 1}. [${p.name}](/product/${p.id}) — **${item.matchPercentage}% Match**\n`
-    text += `* **Match Assessment:** ${item.explanation}\n`
-    text += `* **Power Output:** ${p.watt ? `${p.watt}W` : 'Standard'} (Power Fit: ${item.breakdown.powerScore}%)\n`
-    text += `* **Price Range:** ₱${p.price_range || 'Inquire for pricing'} (Budget Fit: ${item.breakdown.budgetScore}%)\n`
-    text += `* **Location Suitability:** Score: ${item.breakdown.locationScore}%\n`
-    text += `* **Waterproof Rating:** ${p.waterproof_grade || 'IP65'} Certified\n`
-    if (p.battery) text += `* **Battery Chemistry:** ${p.battery}\n`
-    text += `[View Full Product Specifications](/product/${p.id})\n\n`
-  })
-
-  text += `Need to explore more or compare models? Click below:`
-
-  const options = [
-    { label: 'Browse All Solar Lights', url: '/browse' },
-    { label: 'Adjust Multi-Criteria Requirements', next: 'FIND_LOCATION' },
-    { label: 'Visit a Branch', next: 'BRANCHES_INFO' },
-    { label: 'Main Menu', next: 'ROOT' },
-  ]
-
-  return { message: text, options, matches: matches.map((m) => m.product) }
+It produces an instant compatibility score and allows you to submit a finalized project dossier directly for fulfillment.`,
+    options: [
+      { label: 'Open Product Matcher', url: '/match' },
+      { label: 'Browse Full Catalog', url: '/browse' },
+      { label: 'Product Specifications Guide', next: 'SPECS_INFO' },
+      { label: 'Pricing & Commercial Packages', next: 'PRICING_INFO' },
+      { label: 'Main Menu', next: 'ROOT' },
+    ],
+  },
 }
 
 /**
@@ -293,124 +225,248 @@ export function stripEmojis(str) {
 }
 
 /**
- * Match user typed free-text to bot intent or product inquiry
+ * Match user typed free-text to bot intent, product inquiry, or FAQ response.
+ * The chatbot is dedicated to Help & FAQ assistance, while multi-criteria product
+ * matching is handled separately on the Product Matcher page (/match).
  */
 export function matchUserQuery(query, products = []) {
   const q = (query || '').toLowerCase().trim()
   const list = products.length > 0 ? products : FALLBACK_PRODUCTS
 
-  // Multi-criteria natural language extraction (Budget, Location, Power Needs)
-  const numBudgetMatch = q.match(/(?:budget|presyo|price|under|below|max)?\s*(?:₱|php)?\s*(\d{3,5})\s*(?:php|pesos)?/i)
-  const numWattMatch = q.match(/(\d{2,4})\s*w(?:att|atts)?/i)
-  const hasRoad = ['road', 'highway', 'daan'].some((w) => q.includes(w))
-  const hasStreet = ['street', 'subdivision', 'alley', 'eskinita'].some((w) => q.includes(w))
-  const hasHome = ['home', 'bahay', 'gate', 'garden', 'backyard', 'perimeter'].some((w) => q.includes(w))
-  const hasCommercial = ['commercial', 'warehouse', 'parking', 'lot'].some((w) => q.includes(w))
+  // 1. Handle incoming Product Matcher Assessment Dossier (from /match page)
+  if (
+    q.includes('assessment dossier') ||
+    q.includes('product matcher assessment') ||
+    q.includes('qualified models') ||
+    q.includes('sensitivity threshold')
+  ) {
+    return {
+      message: `### Product Matcher Assessment Review
 
-  const detectedCriteria = {}
-  if (numBudgetMatch && parseInt(numBudgetMatch[1], 10) >= 500) {
-    detectedCriteria.budget = parseInt(numBudgetMatch[1], 10)
-  }
-  if (numWattMatch) {
-    detectedCriteria.powerNeeds = parseInt(numWattMatch[1], 10)
-  }
-  if (hasRoad) detectedCriteria.location = 'road'
-  else if (hasStreet) detectedCriteria.location = 'street'
-  else if (hasHome) detectedCriteria.location = 'home'
-  else if (hasCommercial) detectedCriteria.location = 'commercial'
+Thank you for providing your project dossier from the Product Matcher. Here is our fulfillment and technical consultation review:
 
-  const criteriaCount = (detectedCriteria.budget ? 1 : 0) + (detectedCriteria.powerNeeds ? 1 : 0) + (detectedCriteria.location ? 1 : 0)
-  if (criteriaCount >= 2) {
-    return generateRecommendations(list, detectedCriteria)
+* **Stock Verification:** The evaluated models are regularly stocked at our Quiapo Showroom and Cavite Distribution Hub.
+* **Wholesale & Project Discounts:** For multi-unit orders (10+ sets), tiered project pricing and customized quotation terms apply.
+* **Logistics & Lead Time:** Store pickup is available same-day in Manila. Bulk regional freight dispatches typically take 1 to 3 business days.
+* **Mounting Hardware:** Standard clamp brackets and stainless fasteners are supplied with each luminaire.
+
+Would you like to speak to our sales desk, confirm branch visiting hours, or review warranty guidelines?`,
+      options: [
+        { label: 'Contact Sales Desk', next: 'CONTACT_INFO' },
+        { label: 'Branch Hours & Locations', next: 'BRANCHES_INFO' },
+        { label: '1-Year Warranty & Service', next: 'WARRANTY_INFO' },
+        { label: 'Browse Full Catalog', url: '/browse' },
+        { label: 'Main Menu', next: 'ROOT' },
+      ],
+    }
   }
 
-  // Check if user is asking about a specific product (e.g. from ProductInfoPage)
+  // 2. Direct product inquiry by name (e.g. from ProductInfoPage or typed name)
   const matchedProduct = list.find((p) => q.includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(q))
-  if (matchedProduct && (q.includes('tell me more') || q.includes('about') || q.includes('fit') || q.length > 10)) {
+  if (matchedProduct && (q.includes('tell me more') || q.includes('about') || q.includes('fit') || q.includes('spec') || q.length > 10)) {
     const p = matchedProduct
-    const text = `### About the [${p.name}](/product/${p.id})
+    const text = `### Technical Overview: [${p.name}](/product/${p.id})
 
-Here is what you need to know about this model:
+Here are the verified specifications for this model:
 
-* **Power Output:** ${p.watt ? `${p.watt} Watts` : 'Standard'}\n` +
-      `* **Estimated Price:** ₱${p.price_range || 'Inquire for price'}\n` +
-      `* **Waterproof Rating:** ${p.waterproof_grade || 'IP65'} (All-weather typhoon resistant)\n` +
-      `* **Housing:** ${p.material || 'Aviation Aluminum Alloy'}\n` +
-      (p.battery ? `* **Battery:** ${p.battery}\n` : '') +
-      (p.solar_panel ? `* **Solar Panel:** ${p.solar_panel}\n` : '') +
-      `\n**Why choose this model?**
-Zero electricity costs, automatic dusk-to-dawn operation, and guaranteed 1-year replacement warranty.`
+* **Power Output:** ${p.watt ? `${p.watt} Watts` : 'Standard Rating'}
+* **Estimated Investment:** ₱${p.price_range || 'Inquire for pricing'}
+* **Ingress Protection:** ${p.waterproof_grade || 'IP65'} Certified Weatherproof
+* **Housing Material:** ${p.material || 'Aviation Aluminum Alloy'}
+${p.battery ? `* **Battery Chemistry:** ${p.battery}\n` : ''}${p.solar_panel ? `* **Solar Panel:** ${p.solar_panel}\n` : ''}
+**Engineering Advantage:**
+Engineered for autonomous all-weather operation, automatic dusk-to-dawn radar illumination, zero grid utility cost, and covered by our 1-year replacement warranty.`
 
     return {
       message: text,
       options: [
-        { label: 'View Product Page', url: `/product/${p.id}` },
-        { label: 'Find Other Models', next: 'FIND_LOCATION' },
-        { label: 'Branch Inquiries', next: 'BRANCHES_INFO' },
-        { label: 'Main Menu', next: 'ROOT' },
-      ],
-    }
-  }
-
-  // Emoji inquiry handling
-  if (['emoji', 'emojis', 'emoticon', 'emoticons'].some((k) => q.includes(k))) {
-    return {
-      message: `JD Solar Assistant operates in a clean, text-only mode without emojis. I can guide you step-by-step to the right solar lighting products, provide pricing packages, or share branch details. How can I assist you?`,
-      options: [
-        { label: 'Find the Right Solar Light', next: 'FIND_LOCATION' },
+        { label: 'View Product Details', url: `/product/${p.id}` },
+        { label: 'Open Product Matcher', url: '/match' },
         { label: 'Pricing & Packages', next: 'PRICING_INFO' },
-        { label: 'Quiapo & Cavite Branches', next: 'BRANCHES_INFO' },
+        { label: 'Stock & Branch Inquiries', next: 'BRANCHES_INFO' },
         { label: 'Main Menu', next: 'ROOT' },
       ],
     }
   }
 
-  // Branch / Location keywords
-  if (['quiapo', 'cavite', 'branch', 'office', 'where', 'location', 'address', 'store'].some((k) => q.includes(k))) {
+  // 3. Product matcher / recommendation inquiries -> refer to the dedicated Product Matcher
+  if (
+    [
+      'matcher',
+      'match',
+      'recommend',
+      'recommendation',
+      'suggest',
+      'suggestion',
+      'choose',
+      'finder',
+      'find light',
+      'which light',
+      'selection',
+      'sizing',
+      'best light',
+    ].some((k) => q.includes(k))
+  ) {
+    return DECISION_TREE.PRODUCT_MATCHER_INFO
+  }
+
+  // 4. Installation & mounting keywords
+  if (
+    [
+      'install',
+      'installation',
+      'mount',
+      'mounting',
+      'pole',
+      'height',
+      'bracket',
+      'clamp',
+      'angle',
+      'tilt',
+      'sunlight',
+      'shade',
+    ].some((k) => q.includes(k))
+  ) {
+    return DECISION_TREE.INSTALLATION_INFO
+  }
+
+  // 5. Specifications & technical parameters
+  if (
+    [
+      'spec',
+      'specs',
+      'specification',
+      'specifications',
+      'lumens',
+      'lumen',
+      'battery',
+      'lifepo4',
+      'panel',
+      'monocrystalline',
+      'waterproof',
+      'ip65',
+      'ip67',
+      'led',
+      'controller',
+      'radar',
+    ].some((k) => q.includes(k))
+  ) {
+    return DECISION_TREE.SPECS_INFO
+  }
+
+  // 6. Branch / Location / Stock keywords
+  if (
+    [
+      'quiapo',
+      'cavite',
+      'branch',
+      'branches',
+      'office',
+      'where',
+      'location',
+      'address',
+      'store',
+      'stock',
+      'stocks',
+      'available',
+      'inventory',
+      'pickup',
+      'showroom',
+    ].some((k) => q.includes(k))
+  ) {
     return DECISION_TREE.BRANCHES_INFO
   }
 
-  // Pricing keywords
-  if (['price', 'cost', 'how much', 'presyo', 'mura', 'quote', 'budget', 'pricing'].some((k) => q.includes(k))) {
+  // 7. Pricing & quote keywords
+  if (
+    [
+      'price',
+      'prices',
+      'cost',
+      'costs',
+      'how much',
+      'presyo',
+      'mura',
+      'quote',
+      'budget',
+      'pricing',
+      'package',
+      'packages',
+      'wholesale',
+      'discount',
+    ].some((k) => q.includes(k))
+  ) {
     return DECISION_TREE.PRICING_INFO
   }
 
-  // Savings / Meralco keywords
-  if (['save', 'savings', 'meralco', 'electric', 'bill', 'kwh', 'roi'].some((k) => q.includes(k))) {
+  // 8. Electricity savings & ROI keywords
+  if (
+    ['save', 'savings', 'meralco', 'electric', 'electricity', 'bill', 'bills', 'kwh', 'roi', 'payback'].some((k) =>
+      q.includes(k)
+    )
+  ) {
     return DECISION_TREE.SAVINGS_INFO
   }
 
-  // Warranty keywords
-  if (['warranty', 'guarantee', 'sira', 'defect', 'repair', 'replace', 'after sales'].some((k) => q.includes(k))) {
+  // 9. Warranty & service keywords
+  if (
+    [
+      'warranty',
+      'guarantee',
+      'sira',
+      'defect',
+      'defects',
+      'repair',
+      'repairs',
+      'replace',
+      'replacement',
+      'after sales',
+      'service',
+    ].some((k) => q.includes(k))
+  ) {
     return DECISION_TREE.WARRANTY_INFO
   }
 
-  // Contact / Sales keywords
-  if (['contact', 'call', 'phone', 'email', 'talk', 'sales', 'order', 'buy', 'agent'].some((k) => q.includes(k))) {
+  // 10. Contact & sales inquiries
+  if (
+    ['contact', 'call', 'phone', 'email', 'talk', 'sales', 'order', 'buy', 'agent', 'hotline', 'inquire'].some((k) =>
+      q.includes(k)
+    )
+  ) {
     return DECISION_TREE.CONTACT_INFO
   }
 
-  // Product finder keywords
-  if (['recommend', 'find', 'suggest', 'help', 'light', 'street', 'road', 'search', 'choose'].some((k) => q.includes(k))) {
-    return DECISION_TREE.FIND_LOCATION
+  // 11. Clean text / emoji inquiry
+  if (['emoji', 'emojis', 'emoticon', 'emoticons'].some((k) => q.includes(k))) {
+    return {
+      message: `JD Solar Assistant operates strictly in text and icon format without emojis. How may I assist you with product specifications, pricing, store branches, or warranty guidelines?`,
+      options: [
+        { label: 'Product Specifications Guide', next: 'SPECS_INFO' },
+        { label: 'Pricing & Commercial Packages', next: 'PRICING_INFO' },
+        { label: 'Stock Availability & Branches', next: 'BRANCHES_INFO' },
+        { label: 'Main Menu', next: 'ROOT' },
+      ],
+    }
   }
 
-  // Greeting / Reset
-  if (['hi', 'hello', 'hey', 'start', 'restart', 'reset', 'menu'].some((k) => q === k || q.startsWith(k))) {
+  // 12. Greeting / reset keywords
+  if (['hi', 'hello', 'hey', 'start', 'restart', 'reset', 'menu', 'help'].some((k) => q === k || q.startsWith(k))) {
     return DECISION_TREE.ROOT
   }
 
-  // Default response for unhandled queries
+  // 13. Default Help & FAQ response for unhandled queries
   return {
-    message: `Thank you for asking! I'm the **JD Solar Assistant** bot.
+    message: `Thank you for your question. I am the **JD Solar Technical Assistant & FAQ Desk**.
 
-I can guide you step-by-step to the best solar light for your project, show pricing and equipment packages, or help you locate our Quiapo and Cavite branches.
+I can answer questions regarding product specifications, pricing packages, Quiapo and Cavite branches, installation heights, and warranty terms. For automated product matching, please open our dedicated Product Matcher.
 
-Please pick an option below to proceed:`,
+Please select an option below:`,
     options: [
-      { label: 'Find the Right Solar Light', next: 'FIND_LOCATION' },
-      { label: 'View Pricing & Packages', next: 'PRICING_INFO' },
-      { label: 'Branch Locations', next: 'BRANCHES_INFO' },
+      { label: 'Product Specifications Guide', next: 'SPECS_INFO' },
+      { label: 'Pricing & Packages', next: 'PRICING_INFO' },
+      { label: 'Stock Availability & Branches', next: 'BRANCHES_INFO' },
+      { label: 'Installation & Mounting Guide', next: 'INSTALLATION_INFO' },
+      { label: 'Open Product Matcher', url: '/match' },
       { label: 'Browse Full Catalog', url: '/browse' },
     ],
   }
@@ -431,7 +487,7 @@ export function splitIntoSentenceSegments(text) {
     const isLastPara = pIdx === paragraphs.length - 1
     const paraSuffix = isLastPara ? '' : '\n\n'
 
-    // If paragraph contains a markdown table (e.g. contains |---| or multiple table rows), keep whole table intact
+    // If paragraph contains a markdown table, keep whole table intact
     if (para.includes('|---|') || (para.trim().startsWith('|') && para.includes('\n|'))) {
       segments.push(para + paraSuffix)
       continue
