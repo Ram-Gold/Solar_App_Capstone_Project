@@ -1,6 +1,6 @@
 // frontend/src/lib/solarBotEngine.js
 // Client-side decision-tree engine for JD Solar Assistant
-import { matchSolarProducts } from './multiCriteriaMatcher'
+import { matchSolarProducts } from './multiCriteriaMatcher.js'
 
 export const FALLBACK_PRODUCTS = [
   { id: 1, name: "Aviation Aluminum Solar Light 200W", type: "Aviation Aluminum Solar Light", watt: 349, price_range: "1500-2500", waterproof_grade: "IP65", battery: "91000mAh Lithium Iron Phosphate", material: "Aviation Aluminum + Optical Lens" },

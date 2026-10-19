@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation, Link } from 'react-router-dom'
+import { HiOutlineChatBubbleLeftRight } from 'react-icons/hi2'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import LandingPage from './pages/LandingPage'
@@ -57,6 +58,21 @@ function AppLayout() {
         </Routes>
       </main>
       {showShell && !isDashboardRoute && !isPortalRoute && !isMatchRoute && !isChatRoute && <Footer />}
+
+      {/* Floating Solar FAQ Button at bottom right */}
+      {showShell && !isDashboardRoute && !isChatRoute && (
+        <Link
+          to="/chat"
+          className="fixed bottom-6 right-6 z-40 group flex items-center gap-2.5 px-4 py-3 bg-stone-900/95 hover:bg-stone-900 dark:bg-white/95 dark:hover:bg-white text-white dark:text-stone-900 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.22)] hover:shadow-[0_12px_36px_rgba(253,184,19,0.35)] hover:scale-105 active:scale-95 transition-all duration-200 border border-stone-800/80 dark:border-stone-200 backdrop-blur-md cursor-pointer"
+          aria-label="Solar FAQ & Technical Assistant"
+        >
+          <div className="relative flex items-center justify-center">
+            <HiOutlineChatBubbleLeftRight className="w-5 h-5 text-amber-400 dark:text-amber-600 transition-transform duration-200 group-hover:scale-110" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          </div>
+          <span className="text-xs font-bold tracking-wide">Solar FAQ</span>
+        </Link>
+      )}
     </div>
 
   )

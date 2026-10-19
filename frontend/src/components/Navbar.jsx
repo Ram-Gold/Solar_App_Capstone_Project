@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import { HiOutlineMagnifyingGlass, HiOutlineBars3, HiOutlineXMark } from 'react-icons/hi2'
 import jdSolarLogo from '../assets/jdsolarlogo.webp'
+import QuoteModal from './QuoteModal'
 
 const navLinks = [
   { to: '/', label: 'Home' },
@@ -18,6 +19,7 @@ export default function Navbar() {
   const { user, role, signOut } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
+  const [isInquireModalOpen, setIsInquireModalOpen] = useState(false)
 
   const isMatchPage = pathname.startsWith('/match')
 
@@ -132,12 +134,13 @@ export default function Navbar() {
               </button>
             )}
 
-            <Link
-              to="/chat"
-              className="bg-jds-primary text-jds-on-primary px-5 py-2 rounded-lg font-inter text-label-md font-bold hover:scale-[1.02] active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
+            <button
+              type="button"
+              onClick={() => setIsInquireModalOpen(true)}
+              className="bg-jds-primary text-jds-on-primary px-5 py-2 rounded-lg font-inter text-label-md font-bold hover:scale-[1.02] active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap cursor-pointer"
             >
-              Get Quote
-            </Link>
+              Inquire
+            </button>
           </div>
 
           {/* Hamburger button (lg:hidden) */}
@@ -227,13 +230,16 @@ export default function Navbar() {
                   </>
                 )}
 
-                <Link
-                  to="/chat"
-                  onClick={() => setIsOpen(false)}
-                  className="bg-jds-primary text-jds-on-primary text-center py-3 rounded-xl font-inter text-label-md font-bold shadow-md hover:shadow-lg transition-all"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false)
+                    setIsInquireModalOpen(true)
+                  }}
+                  className="bg-jds-primary text-jds-on-primary text-center py-3 rounded-xl font-inter text-label-md font-bold shadow-md hover:shadow-lg transition-all cursor-pointer w-full"
                 >
-                  Get Quote
-                </Link>
+                  Inquire
+                </button>
               </div>
             </div>
           </motion.div>
@@ -244,29 +250,47 @@ export default function Navbar() {
 
   if (isMatchPage) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-50 group/nav pointer-events-none">
-        {/* Invisible top hover trigger rail */}
-        <div className="absolute top-0 left-0 right-0 h-4 sm:h-5 pointer-events-auto" />
+      <>
+        <div className="fixed top-0 left-0 right-0 z-50 group/nav pointer-events-none">
+          {/* Invisible top hover trigger rail */}
+          <div className="absolute top-0 left-0 right-0 h-4 sm:h-5 pointer-events-auto" />
 
-        {/* Subtle indicator hint at top center when hidden */}
-        <div className="absolute top-1 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-neutral-400/30 dark:bg-neutral-600/40 pointer-events-none transition-opacity duration-300 group-hover/nav:opacity-0" />
+          {/* Subtle indicator hint at top center when hidden */}
+          <div className="absolute top-1 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-neutral-400/30 dark:bg-neutral-600/40 pointer-events-none transition-opacity duration-300 group-hover/nav:opacity-0" />
 
-        <header
-          className={`pointer-events-auto bg-jds-surface/95 backdrop-blur-xl border-b border-jds-outline-variant/20 shadow-md transition-all duration-300 ease-out transform ${
-            isOpen
-              ? 'translate-y-0 opacity-100'
-              : '-translate-y-full opacity-0 group-hover/nav:translate-y-0 group-hover/nav:opacity-100 group-focus-within/nav:translate-y-0 group-focus-within/nav:opacity-100'
-          }`}
-        >
-          {navContent}
-        </header>
-      </div>
+          <header
+            className={`pointer-events-auto bg-jds-surface/95 backdrop-blur-xl border-b border-jds-outline-variant/20 shadow-md transition-all duration-300 ease-out transform ${
+              isOpen
+                ? 'translate-y-0 opacity-100'
+                : '-translate-y-full opacity-0 group-hover/nav:translate-y-0 group-hover/nav:opacity-100 group-focus-within/nav:translate-y-0 group-focus-within/nav:opacity-100'
+            }`}
+          >
+            {navContent}
+          </header>
+        </div>
+
+        {/* General Consultation / Product Inquire Modal */}
+        <QuoteModal
+          isOpen={isInquireModalOpen}
+          onClose={() => setIsInquireModalOpen(false)}
+          initialMode="inquire"
+        />
+      </>
     )
   }
 
   return (
-    <header className="bg-jds-surface/95 backdrop-blur-xl sticky top-0 z-50 border-b border-jds-outline-variant/20 shadow-sm transition-colors duration-200">
-      {navContent}
-    </header>
+    <>
+      <header className="bg-jds-surface/95 backdrop-blur-xl sticky top-0 z-50 border-b border-jds-outline-variant/20 shadow-sm transition-colors duration-200">
+        {navContent}
+      </header>
+
+      {/* General Consultation / Product Inquire Modal */}
+      <QuoteModal
+        isOpen={isInquireModalOpen}
+        onClose={() => setIsInquireModalOpen(false)}
+        initialMode="inquire"
+      />
+    </>
   )
 }

@@ -235,9 +235,13 @@ export default function ProductInfoPage() {
                 </span>
               </div>
               <h1 className="text-headline-lg-mobile md:text-headline-xl text-jds-on-surface">{product.name}</h1>
-              {product.price_range && (
+              {product.price_range ? (
                 <div className="text-display-sm text-jds-primary font-bold my-1">
                   ₱{product.price_range}
+                </div>
+              ) : (
+                <div className="text-body-md font-semibold text-jds-on-surface-variant my-1">
+                  Inquire at Branch for Price (Quiapo / Cavite)
                 </div>
               )}
               <p className="text-body-lg text-jds-on-surface-variant italic">

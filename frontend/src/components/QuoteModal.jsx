@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 import {
@@ -234,7 +235,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
     const payload = {
       ticket_code: ticketCode,
       product_id: product?.id || null,
-      product_name: product?.name || 'Solar Street Light',
+      product_name: product?.name || (isReserve ? 'Solar Lighting Unit' : 'General Technical Consultation'),
       product_watt: product?.watt || null,
       product_price_range: product?.price_range || null,
       product_image_url: product?.image_url || null,
@@ -325,7 +326,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
 
   const minBusinessDateStr = getNextBusinessDay()
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
       <motion.div
         initial={{ opacity: 0, scale: 0.98, y: 10 }}
@@ -880,4 +881,10 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       </motion.div>
     </div>
   )
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body)
+  }
+
+  return modalContent
 }

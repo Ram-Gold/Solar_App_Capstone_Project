@@ -12,6 +12,8 @@ import {
   HiOutlineSparkles,
 } from 'react-icons/hi2'
 import MultiCriteriaMatchModal from '../components/MultiCriteriaMatchModal'
+import { useAuth } from '../context/AuthContext'
+import { getStockTier } from '../lib/inventoryUtils'
 
 const INITIAL_CATEGORIES = [
   'All Products',
@@ -91,8 +93,17 @@ export default function BrowsePage() {
     fetchCategories()
   }, [])
 
+  const { role } = useAuth()
+  const isPrivileged = role === 'admin' || role === 'staff'
+
   const filtered = products
     .filter(p => {
+      // Out of stock products shouldn't appear on the guest, only visible on staff and admin panels
+      if (!isPrivileged) {
+        const tier = getStockTier(p)
+        if (tier === 'out' || p.in_stock === false) return false
+      }
+
       const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase())
       const matchesCategory = activeCategory === 'All Products' || p.type === activeCategory
       
@@ -385,9 +396,13 @@ export default function BrowsePage() {
                           · {product.waterproof_grade || 'IP65'}
                         </span>
                       </div>
-                      {product.price_range && (
+                      {product.price_range ? (
                         <div className="text-jds-primary font-bold text-body-lg mt-1">
                           ₱{product.price_range}
+                        </div>
+                      ) : (
+                        <div className="text-jds-on-surface-variant font-medium text-label-sm mt-1">
+                          Inquire at Branch for Price
                         </div>
                       )}
                       {product.material && (

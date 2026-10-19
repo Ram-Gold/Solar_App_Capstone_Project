@@ -58,7 +58,7 @@ export const BUDGET_PRESETS = [
 
 // Helper to format price ranges cleanly without double currency symbols
 function formatPriceRange(raw) {
-  if (!raw) return 'Inquire for Quote'
+  if (!raw) return 'Inquire at Branch'
   const str = String(raw).trim()
   const cleaned = str.replace(/₱/g, '').trim()
   if (cleaned.includes('-')) {
@@ -87,6 +87,7 @@ export default function PrototypeGuidedFlow({
   criteria,
   onCriteriaChange,
   matchResult,
+  // eslint-disable-next-line no-unused-vars
   onConsultAssistant,
 }) {
   const [currentStep, setCurrentStep] = useState(1)
@@ -362,51 +363,27 @@ export default function PrototypeGuidedFlow({
                   </span>
                 </div>
 
-                {criteria.budget !== 'any' && (
-                  <div className="px-2 pt-2">
-                    <input
-                      type="range"
-                      min="1000"
-                      max="6000"
-                      step="250"
-                      value={criteria.budget}
-                      onChange={(e) =>
-                        onCriteriaChange({
-                          ...criteria,
-                          budget: Number(e.target.value),
-                        })
-                      }
-                      className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer accent-amber-500"
-                    />
-                    <div className="flex justify-between text-[11px] text-neutral-400 mt-2 font-medium">
-                      <span>₱1,000</span>
-                      <span>₱3,500</span>
-                      <span>₱6,000</span>
-                    </div>
+                {/* Tactile Slider */}
+                <div className="px-2 pt-2">
+                  <input
+                    type="range"
+                    min="1000"
+                    max="6000"
+                    step="250"
+                    value={criteria.budget === 'any' ? 3500 : criteria.budget}
+                    onChange={(e) =>
+                      onCriteriaChange({
+                        ...criteria,
+                        budget: Number(e.target.value),
+                      })
+                    }
+                    className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer accent-amber-500"
+                  />
+                  <div className="flex justify-between text-[11px] text-neutral-400 mt-2 font-medium">
+                    <span>₱1,000</span>
+                    <span>₱3,500</span>
+                    <span>₱6,000</span>
                   </div>
-                )}
-
-                {/* Budget Presets */}
-                <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2">
-                  {BUDGET_PRESETS.map((b) => (
-                    <button
-                      key={b.label}
-                      type="button"
-                      onClick={() =>
-                        onCriteriaChange({
-                          ...criteria,
-                          budget: b.value,
-                        })
-                      }
-                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 cursor-pointer ${
-                        criteria.budget === b.value
-                          ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-xs'
-                          : 'bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 border border-neutral-200/70 dark:border-neutral-700 hover:border-neutral-300'
-                      }`}
-                    >
-                      {b.label}
-                    </button>
-                  ))}
                 </div>
               </div>
 
@@ -484,6 +461,10 @@ export default function PrototypeGuidedFlow({
                             <ShieldCheck className="size-3.5 stroke-[2.2]" />
                             <span>Top Recommended Model</span>
                           </span>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                            <Check className="size-3 stroke-[2.5]" />
+                            <span>In Stock at Branch</span>
+                          </span>
                         </div>
 
                         <div className="text-right">
@@ -500,7 +481,10 @@ export default function PrototypeGuidedFlow({
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-5 items-center">
                         {/* Product Visual Box */}
                         <div className="md:col-span-5 flex flex-col items-center">
-                          <div className="w-full aspect-square max-w-[220px] rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/70 dark:border-neutral-700/60 p-4 flex items-center justify-center relative shadow-xs group">
+                          <Link
+                            to={`/product/${topMatch.product.id}`}
+                            className="w-full aspect-square max-w-[220px] rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/70 dark:border-neutral-700/60 p-4 flex items-center justify-center relative shadow-xs group cursor-pointer block"
+                          >
                             {topMatch.product.image_url ? (
                               <img
                                 src={topMatch.product.image_url}
@@ -517,7 +501,7 @@ export default function PrototypeGuidedFlow({
                             <div className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-md bg-neutral-900/85 text-white text-[11px] font-bold backdrop-blur-xs">
                               {topMatch.product.watt}W
                             </div>
-                          </div>
+                          </Link>
                         </div>
 
                         {/* Engineering Specs & Actions */}
@@ -526,9 +510,14 @@ export default function PrototypeGuidedFlow({
                             <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500 block mb-1">
                               {topMatch.product.type || 'Commercial Grade Solar Luminaire'}
                             </span>
-                            <h4 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
-                              {topMatch.product.name}
-                            </h4>
+                            <Link
+                              to={`/product/${topMatch.product.id}`}
+                              className="group block"
+                            >
+                              <h4 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                                {topMatch.product.name}
+                              </h4>
+                            </Link>
                           </div>
 
                           {/* 4-Item Key Technical Specs Grid */}
@@ -609,13 +598,14 @@ export default function PrototypeGuidedFlow({
                         {otherMatches.map((item) => {
                           const p = item.product
                           return (
-                            <div
+                            <Link
                               key={p.id}
-                              className="p-4 rounded-xl border border-neutral-200/80 dark:border-neutral-800 bg-white/70 dark:bg-neutral-850/40 hover:border-neutral-300 dark:hover:border-neutral-700 hover:shadow-xs transition-all flex flex-col justify-between group"
+                              to={`/product/${p.id}`}
+                              className="p-4 rounded-xl border border-neutral-200/80 dark:border-neutral-800 bg-white/70 dark:bg-neutral-850/40 hover:border-amber-400/80 dark:hover:border-amber-500/50 hover:shadow-md transition-all duration-200 flex flex-col justify-between group cursor-pointer block"
                             >
                               <div>
                                 <div className="flex items-start justify-between gap-2 mb-1.5">
-                                  <h6 className="text-xs font-semibold text-neutral-900 dark:text-white line-clamp-1 group-hover:text-amber-600 transition-colors">
+                                  <h6 className="text-xs font-semibold text-neutral-900 dark:text-white line-clamp-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                                     {p.name}
                                   </h6>
                                   <span className="text-xs font-bold text-neutral-900 dark:text-white shrink-0">
@@ -625,7 +615,7 @@ export default function PrototypeGuidedFlow({
                                 <div className="flex items-center gap-2 mb-2 text-[10px] text-neutral-400 font-medium">
                                   <span>{p.watt}W · {p.waterproof_grade || 'IP65'}</span>
                                 </div>
-                                <p className="text-[11px] text-neutral-500 line-clamp-2 leading-relaxed">
+                                <p className="text-[11px] text-neutral-500 dark:text-neutral-400 line-clamp-2 leading-relaxed">
                                   {item.explanation || item.reason || 'Compatible secondary recommendation.'}
                                 </p>
                               </div>
@@ -634,15 +624,12 @@ export default function PrototypeGuidedFlow({
                                 <span className="text-[10px] text-neutral-400 font-medium">
                                   Ready to dispatch
                                 </span>
-                                <Link
-                                  to={`/product/${p.id}`}
-                                  className="text-xs font-semibold text-neutral-900 dark:text-white hover:text-amber-600 dark:hover:text-amber-400 inline-flex items-center gap-1 cursor-pointer transition-colors"
-                                >
+                                <span className="text-xs font-semibold text-neutral-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 inline-flex items-center gap-1 transition-colors">
                                   <span>Inquire this</span>
-                                  <ArrowUpRight className="size-3" />
-                                </Link>
+                                  <ArrowUpRight className="size-3 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                                </span>
                               </div>
-                            </div>
+                            </Link>
                           )
                         })}
                       </div>
