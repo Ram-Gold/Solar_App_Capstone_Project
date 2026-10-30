@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import {
   ShieldCheck,
   ShieldAlert,
@@ -22,12 +22,14 @@ import {
   Lock,
   Mail,
   Check,
-  X
+  X,
+  Trash2
 } from 'lucide-react'
 import {
   fetchCustomerPortalData,
   getCustomerAuthStatus,
-  setCustomerPassword
+  setCustomerPassword,
+  deleteCustomerAccount
 } from '../lib/customerService'
 import { formatDate, formatRemainingText, getClaimStatusMeta } from '../lib/warrantyUtils'
 import FaultDiagnosticModal from '../components/FaultDiagnosticModal'
@@ -35,7 +37,8 @@ import { useAuth } from '../context/AuthContext'
 
 export default function CustomerPortalPage() {
   const [searchParams] = useSearchParams()
-  const { setCustomerSession } = useAuth()
+  const navigate = useNavigate()
+  const { setCustomerSession, signOut } = useAuth()
   const [token, setToken] = useState(() => {
     const urlToken = searchParams.get('token')
     if (urlToken) {
@@ -66,6 +69,11 @@ export default function CustomerPortalPage() {
   const [pwdLoading, setPwdLoading] = useState(false)
   const [pwdError, setPwdError] = useState(null)
   const [pwdSuccess, setPwdSuccess] = useState(null)
+
+  // Account Deletion States
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
 
   const loadData = async (activeToken) => {
     if (!activeToken) {
@@ -113,6 +121,30 @@ export default function CustomerPortalPage() {
 
   const handleClaimSubmitted = () => {
     if (token) loadData(token)
+  }
+
+  const handleConfirmDeleteAccount = async () => {
+    try {
+      setIsDeletingAccount(true)
+      setDeleteError(null)
+      await deleteCustomerAccount({
+        customerId: portalData?.customer?.id || null,
+        token,
+        email: authStatus.email
+      })
+      if (setCustomerSession) {
+        setCustomerSession(null)
+      }
+      if (signOut) {
+        await signOut()
+      }
+      navigate('/')
+    } catch (err) {
+      console.error('Failed to delete customer account:', err)
+      setDeleteError(err.message || 'Failed to delete your account. Please try again.')
+    } finally {
+      setIsDeletingAccount(false)
+    }
   }
 
   const handleSavePassword = async (e) => {
@@ -240,7 +272,7 @@ export default function CustomerPortalPage() {
 
   return (
     <div className="min-h-screen bg-jds-background pb-16">
-      
+
       {/* Top Banner & Customer Header */}
       <div className="bg-jds-surface border-b border-jds-outline-variant/30 px-4 py-6 md:px-8">
         <div className="max-w-4xl mx-auto space-y-4">
@@ -435,11 +467,10 @@ export default function CustomerPortalPage() {
                         ) : (
                           <div className="space-y-1.5">
                             <div
-                              className={`p-2.5 rounded-xl text-xs flex items-center justify-between border ${
-                                isActive
+                              className={`p-2.5 rounded-xl text-xs flex items-center justify-between border ${isActive
                                   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
                                   : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                              }`}
+                                }`}
                             >
                               <div className="flex items-center gap-1.5 font-semibold">
                                 {isActive ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
@@ -614,11 +645,10 @@ export default function CustomerPortalPage() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-jds-on-surface">Account Password & Security</h3>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                  authStatus.hasPassword
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${authStatus.hasPassword
                     ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                     : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                }`}>
+                  }`}>
                   {authStatus.hasPassword ? 'Password Enabled' : 'Token Only'}
                 </span>
               </div>
@@ -639,6 +669,33 @@ export default function CustomerPortalPage() {
             className="px-4 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 transition-all shrink-0 shadow-sm"
           >
             {authStatus.hasPassword ? 'Change Password' : 'Set Up Password'}
+          </button>
+        </div>
+
+        {/* Danger Zone: Delete Customer Account Card (Bottom of Page) */}
+        <div className="p-6 rounded-2xl bg-rose-500/5 border border-rose-500/30 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0 mt-0.5">
+              <Trash2 className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-rose-600 dark:text-rose-400">Delete Account</h3>
+              <p className="text-xs text-jds-on-surface-variant max-w-xl leading-relaxed">
+                Permanently remove your customer profile, portal access credentials, registered equipment units, and warranty claim history from the JD Solar platform.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteError(null)
+              setIsDeleteModalOpen(true)
+            }}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 transition-all shrink-0 shadow-sm cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete Account</span>
           </button>
         </div>
 
@@ -777,6 +834,70 @@ export default function CustomerPortalPage() {
           onClaimSubmitted={handleClaimSubmitted}
           initialMode={diagnosticMode}
         />
+      )}
+
+      {/* Delete Customer Account Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-jds-on-surface">
+                  Delete Your Account?
+                </h3>
+                <p className="text-xs text-jds-on-surface-variant truncate">
+                  {customer?.name} ({customer?.phone})
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400 space-y-1.5 leading-relaxed">
+              <p className="font-bold">Warning: This action cannot be undone.</p>
+              <p>
+                Deleting your account will permanently erase your customer profile, portal token, login credentials,{' '}
+                <strong>{purchases.length} registered unit(s)</strong> (including{' '}
+                <strong>{activeWarrantiesCount} active warrant{activeWarrantiesCount === 1 ? 'y' : 'ies'}</strong>),
+                and all associated warranty claim records from the database.
+              </p>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-500 font-semibold">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-jds-outline-variant/20">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteModalOpen(false)
+                  setDeleteError(null)
+                }}
+                disabled={isDeletingAccount}
+                className="px-4 py-2 rounded-xl bg-jds-surface-container/70 border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteAccount}
+                disabled={isDeletingAccount}
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-all disabled:opacity-60 shadow-sm cursor-pointer"
+              >
+                {isDeletingAccount ? (
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Yes, Permanently Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

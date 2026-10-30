@@ -63,8 +63,17 @@ export default function LoginPage() {
             return
           }
 
-          // Otherwise default to staff dashboard
-          navigate('/staff')
+          // Check staff table
+          const { data: staffRow } = await supabase.from('staff').select('id').eq('id', userId).maybeSingle()
+          if (staffRow) {
+            navigate('/staff')
+            return
+          }
+
+          // Account row does not exist in admins, customers, or staff (deleted account)
+          await supabase.auth.signOut()
+          setError('This account has been deleted or no longer has access to the platform.')
+          return
         } else {
           navigate('/admin')
         }
@@ -82,9 +91,9 @@ export default function LoginPage() {
       <header className="w-full">
         <nav className="flex justify-between items-center w-full px-4 md:px-10 py-8 max-w-[1200px] mx-auto">
           <Link to="/" className="flex items-center group" aria-label="JD Solar Home">
-            <img 
-              src={jdSolarLogo} 
-              alt="JD Solar" 
+            <img
+              src={jdSolarLogo}
+              alt="JD Solar"
               className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
             />
           </Link>

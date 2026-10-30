@@ -31,6 +31,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
+import { useAuth } from '../../context/AuthContext'
 import {
   fetchAllCustomers,
   updateCustomerProfile,
@@ -38,12 +39,14 @@ import {
   voidCustomerWarranty,
   unvoidCustomerWarranty,
   extendCustomerWarranty,
-  removeCustomerPurchase
+  removeCustomerPurchase,
+  deleteCustomerAccount
 } from '../../lib/customerService'
 import { formatDate, calculateExpiryDate } from '../../lib/warrantyUtils'
 import QRReceiptModal from './QRReceiptModal'
 
 export default function CustomersScreen({ onNavigate, onSelectCustomerForSale }) {
+  const { role } = useAuth()
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -91,6 +94,12 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
   const [removingPurchase, setRemovingPurchase] = useState(null)
   const [inlineConfirmRemoveId, setInlineConfirmRemoveId] = useState(null)
   const [isSubmittingRemoval, setIsSubmittingRemoval] = useState(false)
+
+  // Customer account deletion states (Admin only)
+  const [deletingCustomer, setDeletingCustomer] = useState(null)
+  const [isDeletingCustomer, setIsDeletingCustomer] = useState(false)
+  const [deleteCustomerError, setDeleteCustomerError] = useState(null)
+  const [customerActionBanner, setCustomerActionBanner] = useState(null)
 
   const [unitActionMessage, setUnitActionMessage] = useState(null)
 
@@ -162,6 +171,35 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
     setExtendingPurchase(null)
     setRemovingPurchase(null)
     setInlineConfirmRemoveId(null)
+    setDeletingCustomer(null)
+    setDeleteCustomerError(null)
+  }
+
+  // Handle Admin Delete Customer Account
+  const handleConfirmDeleteCustomer = async () => {
+    if (!deletingCustomer) return
+    try {
+      setIsDeletingCustomer(true)
+      setDeleteCustomerError(null)
+      await deleteCustomerAccount({
+        customerId: deletingCustomer.id,
+        token: deletingCustomer.access_token
+      })
+
+      const deletedName = deletingCustomer.full_name
+      setCustomers(prev => prev.filter(c => c.id !== deletingCustomer.id))
+      handleCloseCustomerModal()
+      setCustomerActionBanner({
+        type: 'success',
+        text: `Customer account "${deletedName}" and all associated equipment records were permanently deleted.`
+      })
+      setTimeout(() => setCustomerActionBanner(null), 5000)
+    } catch (err) {
+      console.error('Failed to delete customer account:', err)
+      setDeleteCustomerError(err.message || 'Failed to delete customer account.')
+    } finally {
+      setIsDeletingCustomer(false)
+    }
   }
 
   // Handle Void Warranty
@@ -538,6 +576,25 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
       </div>
 
       {/* KPI Cards */}
+      {customerActionBanner && (
+        <div
+          className={`p-4 rounded-xl border text-xs font-semibold flex items-center justify-between gap-3 ${
+            customerActionBanner.type === 'success'
+              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+              : 'bg-jds-error/10 text-jds-error border-jds-error/20'
+          }`}
+        >
+          <span>{customerActionBanner.text}</span>
+          <button
+            type="button"
+            onClick={() => setCustomerActionBanner(null)}
+            className="text-current opacity-70 hover:opacity-100"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-4 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-xs flex items-center justify-between">
           <div>
@@ -1235,6 +1292,32 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                   </div>
                 )}
               </div>
+
+              {/* 4. Admin-Only Danger Zone: Delete Customer Account */}
+              {role === 'admin' && (
+                <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="text-label-md font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <span>Delete Customer Account</span>
+                    </h3>
+                    <p className="text-xs text-jds-on-surface-variant leading-relaxed">
+                      Permanently delete this customer profile, portal access token, login credentials, and all registered equipment warranties from the database.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteCustomerError(null)
+                      setDeletingCustomer(selectedCustomer)
+                    }}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shrink-0 shadow-xs cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Customer</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}
@@ -1485,6 +1568,70 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
           purchases={activeCustomerForQr.purchases || []}
           qrUrl={activeCustomerForQr.qr_url}
         />
+      )}
+
+      {/* Delete Customer Account Confirmation Modal (Admin Only) */}
+      {deletingCustomer && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-body-md font-bold text-jds-on-surface truncate">
+                  Delete Customer Account?
+                </h3>
+                <p className="text-label-sm text-jds-on-surface-variant truncate">
+                  {deletingCustomer.full_name} ({deletingCustomer.phone_number})
+                </p>
+              </div>
+            </div>
+
+            <div className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 p-3.5 rounded-xl space-y-1.5 leading-relaxed">
+              <p className="font-bold">This action is permanent and cannot be undone.</p>
+              <p>
+                Deleting this customer will permanently remove their profile, portal credentials,{' '}
+                <strong>{deletingCustomer.total_purchases || 0} registered unit(s)</strong> (including{' '}
+                <strong>{deletingCustomer.active_warranties_count || 0} active warrant{deletingCustomer.active_warranties_count === 1 ? 'y' : 'ies'}</strong>),
+                and all associated warranty claim records from the database.
+              </p>
+            </div>
+
+            {deleteCustomerError && (
+              <div className="p-3 rounded-xl bg-jds-error/10 border border-jds-error/20 text-xs font-semibold text-jds-error">
+                {deleteCustomerError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-jds-outline-variant/20">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeletingCustomer(null)
+                  setDeleteCustomerError(null)
+                }}
+                disabled={isDeletingCustomer}
+                className="px-4 py-2 rounded-xl border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteCustomer}
+                disabled={isDeletingCustomer}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {isDeletingCustomer ? (
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Yes, Permanently Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

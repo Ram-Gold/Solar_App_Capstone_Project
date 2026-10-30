@@ -1,15 +1,24 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Trash2, AlertTriangle } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../context/AuthContext'
+import { deletePlatformUser } from '../../lib/customerService'
 import { Button } from '../ui/button'
 
 export default function ProfileScreen() {
-  const { user, role } = useAuth()
+  const { user, role, signOut } = useAuth()
+  const navigate = useNavigate()
   const [form, setForm] = useState({ full_name: '', phone: '', position: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+
+  // Self-deletion modal states
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const tableName = role === 'admin' ? 'admins' : 'staff'
 
@@ -55,6 +64,21 @@ export default function ProfileScreen() {
       setSuccess('Profile updated successfully.')
     }
     setSaving(false)
+  }
+
+  const handleConfirmDeleteOwnAccount = async () => {
+    if (!user?.id) return
+    try {
+      setIsDeleting(true)
+      setDeleteError('')
+      await deletePlatformUser({ targetUserId: user.id, table: tableName })
+      await signOut()
+      navigate('/')
+    } catch (err) {
+      console.error('Failed to delete account:', err)
+      setDeleteError(err.message || 'Failed to delete your account.')
+      setIsDeleting(false)
+    }
   }
 
   if (loading) {
@@ -144,7 +168,92 @@ export default function ProfileScreen() {
             </div>
           </form>
         </div>
+
+        {/* Danger Zone: Delete Own Account (Bottom of Profile Page) */}
+        <div className="mt-8 rounded-xl border border-rose-500/30 bg-rose-500/5 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+          <div className="space-y-1">
+            <h3 className="text-body-md font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>Delete Account</span>
+            </h3>
+            <p className="text-xs text-jds-on-surface-variant leading-relaxed max-w-md">
+              Permanently delete your {role === 'admin' ? 'administrator' : 'staff'} account from the JD Solar platform. Once deleted, your login credentials and dashboard access will be revoked immediately.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteError('')
+              setIsDeleteModalOpen(true)
+            }}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shrink-0 shadow-xs cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Delete Account</span>
+          </button>
+        </div>
       </div>
+
+      {/* Delete Own Account Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-body-md font-bold text-jds-on-surface truncate">
+                  Delete Your Account?
+                </h3>
+                <p className="text-label-sm text-jds-on-surface-variant truncate">
+                  {form.full_name || user?.email} ({role === 'admin' ? 'Administrator' : 'Staff Member'})
+                </p>
+              </div>
+            </div>
+
+            <div className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 p-3.5 rounded-xl space-y-1.5 leading-relaxed">
+              <p className="font-bold">This action is permanent and cannot be undone.</p>
+              <p>
+                Deleting your account will permanently erase your {role === 'admin' ? 'administrator' : 'staff'} profile and credentials from the database, and sign you out immediately.
+              </p>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-jds-error-container/10 border border-jds-error/20 text-xs font-semibold text-jds-error">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-jds-outline-variant/20">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteModalOpen(false)
+                  setDeleteError('')
+                }}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteOwnAccount}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {isDeleting ? (
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Yes, Permanently Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

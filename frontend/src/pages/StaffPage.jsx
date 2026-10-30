@@ -10,6 +10,7 @@ import RegisterSaleScreen from '../components/admin/RegisterSaleScreen'
 import WarrantyClaimsScreen from '../components/admin/WarrantyClaimsScreen'
 import CustomersScreen from '../components/admin/CustomersScreen'
 import InquiriesScreen from '../components/admin/InquiriesScreen'
+import ProfileScreen from '../components/admin/ProfileScreen'
 
 const screens = {
   dashboard: DashboardScreen,
@@ -24,6 +25,7 @@ const screens = {
   'add-product': AddProductScreen,
   orders: OrdersScreen,
   images: ImagesScreen,
+  profile: ProfileScreen,
 }
 
 export default function StaffPage() {

@@ -1038,5 +1038,206 @@ export async function removeCustomerPurchase({ purchaseId }) {
   return { success: true, error: null }
 }
 
+/**
+ * Helper to clear local storage credential mirrors for a deleted customer.
+ */
+function purgeCustomerLocalStorage({ token, email }) {
+  try {
+    if (token) {
+      const credRaw = localStorage.getItem(`jd_cust_cred_${token}`)
+      if (credRaw) {
+        try {
+          const parsed = JSON.parse(credRaw)
+          if (parsed?.email) {
+            localStorage.removeItem(`jd_cust_acc_${parsed.email.toLowerCase()}`)
+          }
+        } catch {
+          // ignore parse error
+        }
+      }
+      localStorage.removeItem(`jd_cust_cred_${token}`)
+
+      if (localStorage.getItem('jd_customer_token') === token) {
+        localStorage.removeItem('jd_customer_token')
+        localStorage.removeItem('jd_customer_email')
+      }
+    }
+    if (email) {
+      const cleanEmail = email.trim().toLowerCase()
+      localStorage.removeItem(`jd_cust_acc_${cleanEmail}`)
+      if (localStorage.getItem('jd_customer_email') === cleanEmail) {
+        localStorage.removeItem('jd_customer_email')
+      }
+    }
+  } catch (e) {
+    console.warn('Non-fatal error clearing customer localStorage:', e)
+  }
+}
+
+/**
+ * Permanently deletes a customer account and cascades to all linked credentials,
+ * registered units/warranties, and warranty claims.
+ * Supports customer self-deletion (by token) and Admin deletion (by customerId).
+ */
+export async function deleteCustomerAccount({ customerId = null, token = null, email = null }) {
+  if (!customerId && !token) {
+    throw new Error('Customer ID or access token is required to delete account.')
+  }
+
+  let resolvedId = customerId
+  let resolvedToken = token
+  let resolvedEmail = email
+
+  // Look up customer details before deletion for complete cleanup
+  try {
+    let query = supabase.from('customers').select('id, access_token')
+    if (resolvedId) {
+      query = query.eq('id', resolvedId)
+    } else {
+      query = query.eq('access_token', resolvedToken)
+    }
+    const { data: custRecord } = await query.maybeSingle()
+    if (custRecord) {
+      resolvedId = custRecord.id
+      resolvedToken = custRecord.access_token || resolvedToken
+    }
+  } catch (e) {
+    console.warn('Customer lookup prior to delete skipped:', e)
+  }
+
+  // 1. Try secure RPC first
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('delete_customer_account', {
+      p_token: token || null,
+      p_customer_id: customerId || null
+    })
+
+    if (!rpcError && rpcData) {
+      if (rpcData.success) {
+        purgeCustomerLocalStorage({ token: resolvedToken, email: resolvedEmail })
+        return { success: true, error: null }
+      } else if (rpcData.error) {
+        throw new Error(rpcData.error)
+      }
+    }
+  } catch (rpcErr) {
+    // Only rethrow explicit permission/validation errors from RPC
+    if (
+      rpcErr?.message &&
+      !rpcErr.message.includes('function') &&
+      !rpcErr.message.includes('schema cache') &&
+      !rpcErr.message.includes('Could not find')
+    ) {
+      throw rpcErr
+    }
+    console.warn('RPC delete_customer_account unavailable, using direct table deletion:', rpcErr)
+  }
+
+  // 2. Direct table deletion (ON DELETE CASCADE handles child tables automatically,
+  //    plus explicit child cleanup for defense in depth)
+  if (resolvedId) {
+    try {
+      const { data: purchases } = await supabase
+        .from('customer_purchases')
+        .select('id')
+        .eq('customer_id', resolvedId)
+
+      const purchaseIds = (purchases || []).map(p => p.id)
+      if (purchaseIds.length > 0) {
+        await supabase.from('warranty_claims').delete().in('purchase_id', purchaseIds)
+      }
+      await supabase.from('customer_purchases').delete().eq('customer_id', resolvedId)
+      await supabase.from('customer_passwords').delete().eq('customer_id', resolvedId)
+    } catch (childErr) {
+      console.warn('Child record pre-cleanup skipped (handled by ON DELETE CASCADE):', childErr)
+    }
+
+    const { error: deleteErr } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', resolvedId)
+
+    if (deleteErr) throw deleteErr
+  } else if (resolvedToken) {
+    const { error: deleteErr } = await supabase
+      .from('customers')
+      .delete()
+      .eq('access_token', resolvedToken)
+
+    if (deleteErr) throw deleteErr
+  }
+
+  purgeCustomerLocalStorage({ token: resolvedToken, email: resolvedEmail })
+  return { success: true, error: null }
+}
+
+/**
+ * Permanently deletes a platform user account (Staff or Admin).
+ * Enforces last-admin safeguard and cleans up both role tables and auth.users when RPC is available.
+ */
+export async function deletePlatformUser({ targetUserId, table = null }) {
+  if (!targetUserId) {
+    throw new Error('Target user ID is required.')
+  }
+
+  // 1. Check if target user is an Administrator and enforce last-admin safeguard
+  const isTargetAdmin = table === 'admins'
+  if (isTargetAdmin) {
+    const { count, error: countErr } = await supabase
+      .from('admins')
+      .select('id', { count: 'exact', head: true })
+
+    if (!countErr && typeof count === 'number' && count <= 1) {
+      throw new Error('Cannot delete the last remaining administrator account.')
+    }
+  }
+
+  // 2. Try secure RPC first (deletes from public.admins, public.staff, and auth.users)
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('delete_platform_user', {
+      p_target_user_id: targetUserId
+    })
+
+    if (!rpcError && rpcData) {
+      if (rpcData.success) {
+        return { success: true, error: null }
+      } else if (rpcData.error) {
+        throw new Error(rpcData.error)
+      }
+    }
+  } catch (rpcErr) {
+    if (
+      rpcErr?.message &&
+      !rpcErr.message.includes('function') &&
+      !rpcErr.message.includes('schema cache') &&
+      !rpcErr.message.includes('Could not find')
+    ) {
+      throw rpcErr
+    }
+    console.warn('RPC delete_platform_user unavailable, using direct table deletion:', rpcErr)
+  }
+
+  // 3. Direct table deletion fallback
+  if (table === 'admins' || table === 'staff') {
+    const { error } = await supabase
+      .from(table)
+      .delete()
+      .eq('id', targetUserId)
+
+    if (error) throw error
+  } else {
+    const [adminDel, staffDel] = await Promise.all([
+      supabase.from('admins').delete().eq('id', targetUserId),
+      supabase.from('staff').delete().eq('id', targetUserId)
+    ])
+    if (adminDel.error && staffDel.error) {
+      throw adminDel.error
+    }
+  }
+
+  return { success: true, error: null }
+}
+
+
 
 

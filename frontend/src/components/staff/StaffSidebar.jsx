@@ -8,6 +8,7 @@ import {
   QrCode,
   ShieldCheck,
   UserCheck,
+  UserCircle,
   CalendarDays,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -23,6 +24,7 @@ const mainLinks = [
   { id: 'products', label: 'Products', icon: Package },
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'images', label: 'Images', icon: ImageIcon },
+  { id: 'profile', label: 'Profile', icon: UserCircle },
 ]
 
 export default function StaffSidebar({ activeScreen, onNavigate, isOpen, onClose }) {
