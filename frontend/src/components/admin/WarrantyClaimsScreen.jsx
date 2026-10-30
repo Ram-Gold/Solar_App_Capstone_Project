@@ -396,9 +396,6 @@ export default function WarrantyClaimsScreen() {
             </span>
             <h1 className="text-2xl font-bold text-jds-on-surface">Warranty & Diagnostic Claims Board</h1>
           </div>
-          <p className="text-sm text-jds-on-surface-variant mt-1.5 leading-relaxed">
-            Visual Kanban triage for customer fault tickets. Drag and drop cards between columns to change statuses, or click any card for full diagnostic evidence and technician triage.
-          </p>
         </div>
 
         <div className="flex items-center gap-2 self-start md:self-auto">
@@ -508,7 +505,6 @@ export default function WarrantyClaimsScreen() {
               <Archive className="w-5 h-5 text-neutral-500" />
               <div>
                 <h2 className="text-sm font-bold text-jds-on-surface">Archived Warranty Tickets</h2>
-                <p className="text-xs text-jds-on-surface-variant">Concluded and archived tickets retained for warranty history and auditing.</p>
               </div>
             </div>
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-jds-surface border border-jds-outline-variant/30 text-jds-on-surface">
@@ -853,7 +849,7 @@ export default function WarrantyClaimsScreen() {
       {/* Customer Ticket Detail Modal (UI/UX Pro Max Tonal Layout) */}
       {activeModalClaim && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget && !modalSaving) handleCloseModal()
           }}

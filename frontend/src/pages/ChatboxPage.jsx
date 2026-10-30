@@ -19,12 +19,13 @@ import ChatHelpModal from '../components/ChatHelpModal'
 import { formatSessionDate } from '../lib/chatStorage'
 
 const quickFaqPills = [
-  'What is your warranty policy?',
+  'What is your 2-year warranty policy?',
+  'What voids the solar panel warranty?',
+  'How does the 1-time replacement work?',
   'Where are your store branches in Quiapo and Cavite?',
   'What are your pricing packages?',
   'What are the installation & mounting requirements?',
   'How much can I save on electricity bills?',
-  'How do I use the Product Matcher?',
 ]
 
 const SunPulse = ({ isLoading }) => {

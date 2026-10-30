@@ -512,9 +512,6 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
             </span>
             <h1 className="text-2xl font-bold text-jds-on-surface">Customers, QR & Access Tokens</h1>
           </div>
-          <p className="text-sm text-jds-on-surface-variant mt-1">
-            Directory of registered equipment owners, warranty tokens, and customer self-service QR credentials.
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -741,7 +738,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
       {/* Customer Detail & Management Modal */}
       {selectedCustomer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
           <div className="w-full max-w-2xl max-h-[90vh] bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
             {/* Modal Header */}
             <div className="p-5 border-b border-jds-outline-variant/30 flex items-center justify-between gap-3 bg-jds-surface-container-low/20 shrink-0">
@@ -1282,8 +1279,10 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                 <select
                   value={voidReasonPreset}
                   onChange={(e) => setVoidReasonPreset(e.target.value)}
-                  className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary"
+                  className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary cursor-pointer"
                 >
+                  <option value="Customer carelessness / Accidental drop fracture">Customer carelessness / Accidental drop fracture</option>
+                  <option value="1-Time warranty replacement entitlement fulfilled">1-Time warranty replacement entitlement fulfilled</option>
                   <option value="Broken warranty seal / Tampered">Broken warranty seal / Tampered</option>
                   <option value="Physical impact / Dropped casing">Physical impact / Dropped casing</option>
                   <option value="Water intrusion / Non-certified installation">Water intrusion / Non-certified installation</option>

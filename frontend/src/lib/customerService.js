@@ -82,7 +82,7 @@ export async function registerCustomerAndSale({
     product_id: item.productId,
     serial_number: (item.serialNumber || '').trim() || null,
     purchase_date: item.purchaseDate || new Date().toISOString().split('T')[0],
-    warranty_months: Number(item.warrantyMonths || 12),
+    warranty_months: Number(item.warrantyMonths || 24),
     branch_location: branchLocation
   }))
 
@@ -791,7 +791,7 @@ export async function addCustomerProductPurchase({
   customerId,
   productId,
   serialNumber = null,
-  warrantyMonths = 12,
+  warrantyMonths = 24,
   purchaseDate = null,
   branchLocation = 'Cavite'
 }) {
@@ -803,7 +803,7 @@ export async function addCustomerProductPurchase({
     product_id: productId,
     serial_number: (serialNumber || '').trim() || null,
     purchase_date: purchaseDate || new Date().toISOString().split('T')[0],
-    warranty_months: Number(warrantyMonths || 12),
+    warranty_months: Number(warrantyMonths || 24),
     branch_location: branchLocation || 'Cavite'
   }
 

@@ -1,0 +1,54 @@
+graph LR
+    customers["`**customers**
+    id : uuid PK
+    phone_number : text UK
+    access_token : uuid UK`"]
+
+    customer_passwords["`**customer_passwords**
+    id : uuid PK
+    customer_id : uuid FK UK
+    email : text UK`"]
+
+    customer_purchases["`**customer_purchases**
+    id : uuid PK
+    customer_id : uuid FK
+    product_id : bigint FK`"]
+
+    warranty_claims["`**warranty_claims**
+    id : uuid PK
+    purchase_id : uuid FK`"]
+
+    products["`**products**
+    id : integer PK
+    name : text UK
+    type : text`"]
+
+    categories["`**categories**
+    id : bigint PK
+    name : text UK`"]
+
+    quote_tickets["`**quote_tickets**
+    id : bigint PK
+    ticket_code : text UK
+    product_id : bigint FK`"]
+
+    orders["`**orders** (legacy)
+    id : bigint PK`"]
+
+    admins["`**admins**
+    id : uuid PK (auth.users)`"]
+
+    staff["`**staff**
+    id : uuid PK (auth.users)`"]
+
+    auth_users["`**auth.users**
+    Supabase Auth`"]
+
+    customers -- "1 : 0..1 authenticates via" --> customer_passwords
+    customers -- "1 : N owns" --> customer_purchases
+    products -- "1 : N sold as" --> customer_purchases
+    customer_purchases -- "1 : N covered by" --> warranty_claims
+    products -- "1 : N referenced in" --> quote_tickets
+    categories -. "1 : N soft link (name = type)" .-> products
+    auth_users -- "1 : 0..1 role" --> admins
+    auth_users -- "1 : 0..1 role" --> staff

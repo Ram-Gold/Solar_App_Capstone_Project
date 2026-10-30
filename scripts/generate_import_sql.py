@@ -2,8 +2,8 @@ import csv
 import re
 import os
 
-csv_file = '/home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/solar_database_full.csv'
-out_sql = '/home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/import_solar_products.sql'
+csv_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'solar_database_full.csv'))
+out_sql = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'docs', 'database', 'migrations', 'import_solar_products.sql'))
 
 SUPABASE_STORAGE_URL = 'https://gkrdwzbxpstpqpvqlwbt.supabase.co/storage/v1/object/public/product-images'
 

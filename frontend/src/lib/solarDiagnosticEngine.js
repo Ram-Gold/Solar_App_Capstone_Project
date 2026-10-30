@@ -339,7 +339,7 @@ Your solar panel is producing full rated power, but the internal **LiFePO4 batte
 
 #### Symptoms:
 * The battery charges to full voltage quickly, but drops steeply within 60–90 minutes under LED load.
-* If your unit was purchased within **1 Year**, this is covered under the **JD Solar Official Replacement Warranty**!
+* If your unit was purchased within **2 Years (24 Months)**, this is eligible for evaluation under the **JD Solar Official Replacement Warranty** (case-by-case assessment)!
 
 We recommend filing a warranty claim or bringing the unit to our **Quiapo or Cavite branch** for a battery pack refresh.`,
     remedySteps: [
@@ -492,7 +492,7 @@ Strobe-like flickering usually occurs when the battery voltage is right on the b
 
 JD Solar light heads feature high-density SMD LED matrices divided into parallel strings. If one quadrant or strip is completely dark while others are lit:
 * A single surface-mount diode in that series string has burned out or suffered solder joint failure.
-* This is a covered manufacturing defect under your **1-Year JD Solar Warranty**.`,
+* This is a covered manufacturing defect under your **2-Year JD Solar Warranty** (subject to bench inspection).`,
     remedySteps: [
       'Take a photo showing the dark LED cluster.',
       'Submit a warranty replacement claim for a luminaire swap.'
@@ -657,7 +657,7 @@ When an internal silicon wafer develops a micro-crack or persistent leaf shadow,
 
 Even if the light still temporarily operates with cracked glass, rain will penetrate the silicon layers within days, corroding silver grid lines and ruining the battery.
 
-Our branch stocks replacement aviation aluminum frame glass modules. Submit a ticket for quote or warranty evaluation.`,
+**Note on Warranty Policy:** Shattered tempered glass or dented frames resulting from drops, falls, or external impact are classified as external damage / customer carelessness and are disqualified from free warranty replacement. However, our Quiapo and Cavite branches stock replacement aviation aluminum frame glass modules for store servicing at standard shop parts rates.`,
     remedySteps: [
       'Take photos of the glass fracture.',
       'Submit claim for replacement panel glass module.'

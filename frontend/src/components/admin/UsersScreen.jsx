@@ -103,11 +103,8 @@ export default function UsersScreen() {
     <div className="max-w-[1200px] mx-auto space-y-10">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="space-y-1">
+        <div>
           <h1 className="text-headline-md font-bold text-jds-on-surface">User Management</h1>
-          <p className="text-body-md text-jds-on-surface-variant">
-            Manage staff members and administrators across the solar platform.
-          </p>
         </div>
         <Button
           onClick={() => { setError(''); setSuccess(''); setShowForm(!showForm) }}
@@ -150,7 +147,6 @@ export default function UsersScreen() {
               </div>
               <div>
                 <h3 className="text-body-lg font-bold text-jds-on-surface">Create New Account</h3>
-                <p className="text-label-sm text-jds-on-surface-variant">Register a new staff member or administrator</p>
               </div>
             </div>
             <Button variant="ghost" size="icon" onClick={() => setShowForm(false)} className="h-10 w-10 text-jds-on-surface-variant hover:bg-jds-surface-container-low">
@@ -225,7 +221,6 @@ export default function UsersScreen() {
           </div>
           <div>
             <h2 className="text-body-lg font-bold text-jds-on-surface">Staff Members</h2>
-            <p className="text-label-sm text-jds-on-surface-variant">Team members with product management access</p>
           </div>
         </div>
 
@@ -301,7 +296,6 @@ export default function UsersScreen() {
           </div>
           <div>
             <h2 className="text-body-lg font-bold text-jds-on-surface">Administrators</h2>
-            <p className="text-label-sm text-jds-on-surface-variant">Full-access accounts with administrative privileges</p>
           </div>
         </div>
 

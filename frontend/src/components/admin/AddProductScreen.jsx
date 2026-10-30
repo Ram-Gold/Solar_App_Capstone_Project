@@ -151,9 +151,8 @@ export default function AddProductScreen({ onNavigate }) {
         <Button variant="ghost" size="icon" onClick={() => onNavigate('products')} className="h-10 w-10 text-jds-on-surface-variant hover:bg-jds-surface-container-low">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="space-y-1">
+        <div>
           <h1 className="text-headline-md font-bold text-jds-on-surface">Add New Product</h1>
-          <p className="text-body-md text-jds-on-surface-variant">Expand the solar catalog with a new inventory item.</p>
         </div>
       </div>
 

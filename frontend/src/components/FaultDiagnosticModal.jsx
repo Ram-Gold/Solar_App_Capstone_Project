@@ -289,7 +289,7 @@ Customer completed troubleshooting steps and submitted for technician review.`
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 md:p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
       <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-4 md:my-8 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
@@ -386,7 +386,7 @@ Customer completed troubleshooting steps and submitted for technician review.`
                     ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
                     : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
                 }`}>
-                  {purchase.is_warranty_active ? '1-Year Warranty Active' : 'Warranty Expired'}
+                  {purchase.is_warranty_active ? `${purchase.warranty_months || 24}-Month Warranty Active` : 'Warranty Expired'}
                 </div>
               </div>
 
@@ -542,7 +542,7 @@ Customer completed troubleshooting steps and submitted for technician review.`
                   Warranty Diagnostic Claim Logged!
                 </h3>
                 <p className="text-xs text-jds-on-surface-variant max-w-sm mx-auto">
-                  Your diagnostic report has been filed with our Quiapo and Cavite service teams. Our technicians will inspect your claim against our 1-year product warranty.
+                  Your diagnostic report has been filed with our Quiapo and Cavite service teams. Our technicians will inspect your claim against our 2-year warranty and case-by-case assessment guidelines (1-time replacement entitlement).
                 </p>
                 {submittedClaimId && (
                   <div className="p-3 rounded-xl bg-jds-surface-container/60 border border-jds-outline-variant/30 font-mono text-xs text-jds-primary font-bold">
@@ -599,6 +599,17 @@ Customer completed troubleshooting steps and submitted for technician review.`
                     <span>{uploadError}</span>
                   </div>
                 )}
+
+                {/* Case Evaluation & 1-Time Replacement Notice */}
+                <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/25 text-[11px] text-jds-on-surface-variant space-y-1">
+                  <div className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    <span>Warranty Case Evaluation Policy</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    JD Solar evaluates claims case-by-case upon bench intake at Quiapo or Cavite. Internal defects are eligible for our <strong>1-time unit replacement entitlement</strong>. Physical drops, shattered glass, tampering, or damage from customer carelessness disqualify units from free replacement.
+                  </p>
+                </div>
 
                 {/* Step 1: Issue Category */}
                 <div className="space-y-2">

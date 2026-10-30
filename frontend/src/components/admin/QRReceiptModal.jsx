@@ -37,7 +37,7 @@ export default function QRReceiptModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
       {/* Container */}
       <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
         
@@ -49,7 +49,6 @@ export default function QRReceiptModal({
             </div>
             <div>
               <h2 className="text-lg font-bold text-jds-on-surface">Customer QR & Access Token</h2>
-              <p className="text-xs text-jds-on-surface-variant">Customer credentials for digital warranty access</p>
             </div>
           </div>
           <button

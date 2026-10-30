@@ -83,3 +83,82 @@ export function getInquiryStatusConfig(rawStatus) {
       }
   }
 }
+
+export const PURGE_RETENTION_RULES = {
+  COMPLETED_OR_CANCELLED_DAYS: 7,
+  STALE_PENDING_DAYS: 14
+}
+
+/**
+ * Parses the effective reference date of an inquiry (visit_date fallback to created_at or updated_at).
+ */
+export function getInquiryEffectiveDate(inquiry) {
+  if (!inquiry) return null
+  if (inquiry.visit_date) {
+    const parsed = new Date(inquiry.visit_date)
+    if (!isNaN(parsed.getTime())) return parsed
+  }
+  if (inquiry.created_at) {
+    const parsed = new Date(inquiry.created_at)
+    if (!isNaN(parsed.getTime())) return parsed
+  }
+  if (inquiry.updated_at) {
+    const parsed = new Date(inquiry.updated_at)
+    if (!isNaN(parsed.getTime())) return parsed
+  }
+  return null
+}
+
+/**
+ * Determines whether an inquiry is eligible for automated purging based on retention rules:
+ * - Completed or Cancelled older than 7 days
+ * - Pending older than 14 days past scheduled visit / creation date
+ */
+export function isEligibleForAutoPurge(inquiry, referenceDate = new Date()) {
+  if (!inquiry) return false
+  const status = normalizeInquiryStatus(inquiry.status)
+  const effDate = getInquiryEffectiveDate(inquiry)
+  if (!effDate) return false
+
+  const diffMs = referenceDate.getTime() - effDate.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if ((status === 'Completed' || status === 'Cancelled') && diffDays >= PURGE_RETENTION_RULES.COMPLETED_OR_CANCELLED_DAYS) {
+    return true
+  }
+
+  if (status === 'Pending' && diffDays >= PURGE_RETENTION_RULES.STALE_PENDING_DAYS) {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Partitions inquiries and returns summary breakdown of inactive records eligible for purge.
+ */
+export function getInactiveInquiriesSummary(inquiries = [], referenceDate = new Date()) {
+  const eligible = []
+  let completedCount = 0
+  let cancelledCount = 0
+  let pendingCount = 0
+
+  for (const item of inquiries) {
+    if (isEligibleForAutoPurge(item, referenceDate)) {
+      eligible.push(item)
+      const st = normalizeInquiryStatus(item.status)
+      if (st === 'Completed') completedCount++
+      else if (st === 'Cancelled') cancelledCount++
+      else if (st === 'Pending') pendingCount++
+    }
+  }
+
+  return {
+    eligible,
+    count: eligible.length,
+    completedCount,
+    cancelledCount,
+    pendingCount
+  }
+}
+

@@ -37,7 +37,7 @@ How can I help power your lighting project today? Please select an inquiry topic
       { label: 'Pricing & Commercial Packages', next: 'PRICING_INFO' },
       { label: 'Stock Availability & Branches', next: 'BRANCHES_INFO' },
       { label: 'Installation & Mounting Guide', next: 'INSTALLATION_INFO' },
-      { label: '1-Year Warranty & Post-Sale Service', next: 'WARRANTY_INFO' },
+      { label: '2-Year Warranty & Case Coverage Policy', next: 'WARRANTY_INFO' },
       { label: 'Electricity Savings & ROI', next: 'SAVINGS_INFO' },
       { label: 'Contact Sales & Inquiries', next: 'CONTACT_INFO' },
       { label: 'Open Product Matcher', url: '/match' },
@@ -61,7 +61,7 @@ For automated multi-criteria product matching tailored to your specific setup, u
       { label: 'Open Product Matcher', url: '/match' },
       { label: 'Installation & Mounting Guide', next: 'INSTALLATION_INFO' },
       { label: 'Pricing & Commercial Packages', next: 'PRICING_INFO' },
-      { label: '1-Year Warranty & Service', next: 'WARRANTY_INFO' },
+      { label: '2-Year Warranty & Policy', next: 'WARRANTY_INFO' },
       { label: 'Main Menu', next: 'ROOT' },
     ],
   },
@@ -106,7 +106,7 @@ JD Solar maintains inventory across two strategic hubs in Metro Manila and South
 Standard catalog models (100W–300W) are actively stocked for immediate retail and wholesale fulfillment. Heavy-duty units (400W–800W) are warehoused in Cavite for swift site dispatch.`,
     options: [
       { label: 'Contact Sales Desk', next: 'CONTACT_INFO' },
-      { label: '1-Year Warranty & Service', next: 'WARRANTY_INFO' },
+      { label: '2-Year Warranty & Policy', next: 'WARRANTY_INFO' },
       { label: 'Browse Full Catalog', url: '/browse' },
       { label: 'Main Menu', next: 'ROOT' },
     ],
@@ -135,18 +135,59 @@ Proper mounting ensures maximum illumination coverage and optimal daily battery 
   },
 
   WARRANTY_INFO: {
-    message: `### 1-Year Standard Warranty & Customer Guarantee
+    message: `### 2-Year Solar Panel Warranty & Case-by-Case Coverage Policy
 
-Every JD Solar product is supported by our direct manufacturer warranty:
+Every JD Solar panel and solar luminaire is backed by our official manufacturer warranty:
 
-* **12-Month Official Warranty:** Covers factory defects, internal controller malfunctions, solar panel degradation, and battery cell retention.
-* **Weatherproof Assurance:** IP65 and IP67 certified housings designed to withstand coastal saline air, heavy typhoons, and tropical heat.
-* **LiFePO4 Extended Durability:** High-grade lithium iron phosphate chemistry retains over 80% capacity after 2,000 complete charge-discharge cycles.
-* **Local After-Sales Service:** Technical diagnostics, spare parts, and replacement units are serviced directly through our Quiapo and Cavite service centers.`,
+* **24-Month Official Warranty:** Covers factory defects, internal controller malfunctions, premature battery capacity loss, and solar cell degradation under standard operating conditions.
+* **1-Time Replacement Entitlement:** Each registered unit is eligible for exactly one (1) unit replacement or major component assembly swap during its 2-year warranty term. Once a replacement claim is fulfilled, the warranty coverage for that unit is concluded.
+* **Case-by-Case Diagnostic Evaluation:** Warranty eligibility depends on the specific case scenario of the unit:
+  - **Covered Scenarios:** Internal circuit failure, diode burnout, BMS lockout, or manufacturing seal defect during normal outdoor operation.
+  - **Disqualified / Voided Scenarios:** Physical drops, shattered tempered glass, casing impact, customer carelessness, unauthorized disassembly, modified wiring, or water ingress from unsealed cable ports.
+* **Local After-Sales Servicing:** Even if a unit's warranty is voided or expired, non-warranty bench repairs and replacement parts (such as replacement glass or batteries) are available at our Quiapo Showroom and Cavite Logistics Hub.`,
     options: [
+      { label: 'Covered vs Voided Scenarios', next: 'WARRANTY_CASES' },
+      { label: '1-Time Replacement Rule', next: 'WARRANTY_REPLACEMENT_RULE' },
       { label: 'Stock Availability & Branches', next: 'BRANCHES_INFO' },
-      { label: 'Contact Support Desk', next: 'CONTACT_INFO' },
-      { label: 'Browse Full Catalog', url: '/browse' },
+      { label: 'Main Menu', next: 'ROOT' },
+    ],
+  },
+
+  WARRANTY_CASES: {
+    message: `### Technical Case Evaluation: Covered vs. Disqualified Scenarios
+
+To ensure transparency, JD Solar evaluates all warranty returns through a standard bench inspection:
+
+#### What Is Covered (Factory & Hardware Defects)
+* **Internal Controller Failure:** Solar dusk-to-dawn sensor or motion radar circuit stops triggering despite full solar charge.
+* **Rapid Battery Discharge:** LiFePO4 battery depletes in under 2 hours under standard load within 24 months of purchase.
+* **SMD LED Diode Burnout:** Dead LED segments or driver flickering with an intact housing and zero external trauma.
+* **Solar Panel Voltage Drop:** Photovoltaic output drops below threshold with zero surface fracture or impact burns.
+
+#### What Voids Warranty (Customer Carelessness & External Trauma)
+* **Physical Impact & Drops:** Shattered tempered glass, dented aluminum casing, or fractured mounting brackets from falls or blunt force.
+* **Unauthorized Tampering:** Broken warranty seals, opened battery compartments, or spliced factory wiring.
+* **Water Ingress From Improper Installation:** Water entry resulting from unfastened waterproof cable glands or unsealed ports.
+* **Electrical Overvoltage:** Connecting non-matching DC power supplies or unauthorized charging adapters.`,
+    options: [
+      { label: '1-Time Replacement Rule', next: 'WARRANTY_REPLACEMENT_RULE' },
+      { label: '2-Year Warranty Overview', next: 'WARRANTY_INFO' },
+      { label: 'Branch Inspection Locations', next: 'BRANCHES_INFO' },
+      { label: 'Main Menu', next: 'ROOT' },
+    ],
+  },
+
+  WARRANTY_REPLACEMENT_RULE: {
+    message: `### 1-Time Replacement Entitlement Policy
+
+#### How the Single-Use Replacement Operates:
+1. **One Full Replacement Per Unit:** During the 24-month (2-year) warranty term, each registered unit is entitled to one (1) complete unit replacement or major sub-assembly exchange.
+2. **Warranty Conclusion:** Once an authorized replacement unit is handed over to the customer, the original unit's warranty is recorded as fulfilled/concluded in our database.
+3. **Continuous Repair Support:** If your warranty has been used or voided, you can still access our self-service diagnostic tool and purchase affordable replacement parts (batteries, lenses, controllers) at our Quiapo and Cavite service desks at standard shop rates.`,
+    options: [
+      { label: 'Covered vs Voided Scenarios', next: 'WARRANTY_CASES' },
+      { label: '2-Year Warranty Overview', next: 'WARRANTY_INFO' },
+      { label: 'Contact Sales Desk', next: 'CONTACT_INFO' },
       { label: 'Main Menu', next: 'ROOT' },
     ],
   },
@@ -254,7 +295,7 @@ Would you like to speak to our sales desk, confirm branch visiting hours, or rev
       options: [
         { label: 'Contact Sales Desk', next: 'CONTACT_INFO' },
         { label: 'Branch Hours & Locations', next: 'BRANCHES_INFO' },
-        { label: '1-Year Warranty & Service', next: 'WARRANTY_INFO' },
+        { label: '2-Year Warranty & Policy', next: 'WARRANTY_INFO' },
         { label: 'Browse Full Catalog', url: '/browse' },
         { label: 'Main Menu', next: 'ROOT' },
       ],
@@ -275,7 +316,7 @@ Here are the verified specifications for this model:
 * **Housing Material:** ${p.material || 'Aviation Aluminum Alloy'}
 ${p.battery ? `* **Battery Chemistry:** ${p.battery}\n` : ''}${p.solar_panel ? `* **Solar Panel:** ${p.solar_panel}\n` : ''}
 **Engineering Advantage:**
-Engineered for autonomous all-weather operation, automatic dusk-to-dawn radar illumination, zero grid utility cost, and covered by our 1-year replacement warranty.`
+Engineered for autonomous all-weather operation, automatic dusk-to-dawn radar illumination, zero grid utility cost, and covered by our 2-year solar replacement warranty (case-by-case assessment).`
 
     return {
       message: text,
@@ -422,8 +463,31 @@ Engineered for autonomous all-weather operation, automatic dusk-to-dawn radar il
       'replacement',
       'after sales',
       'service',
+      '2 year',
+      '2-year',
+      '24 month',
+      'two years',
+      'dalawang taon',
+      'void',
+      'voided',
+      'careless',
+      'carelessness',
+      'nahulog',
+      'nabasag',
+      'basag',
+      'damage',
+      'damaged',
+      'one time',
+      '1 time',
+      'single use'
     ].some((k) => q.includes(k))
   ) {
+    if (['void', 'careless', 'carelessness', 'nahulog', 'nabasag', 'basag', 'damage', 'damaged', 'shattered'].some((k) => q.includes(k))) {
+      return DECISION_TREE.WARRANTY_CASES
+    }
+    if (['one time', '1 time', 'single use', 'limit', 'isang beses'].some((k) => q.includes(k))) {
+      return DECISION_TREE.WARRANTY_REPLACEMENT_RULE
+    }
     return DECISION_TREE.WARRANTY_INFO
   }
 

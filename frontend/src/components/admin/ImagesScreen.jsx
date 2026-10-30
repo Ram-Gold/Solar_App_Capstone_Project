@@ -201,7 +201,7 @@ export default function ImagesScreen() {
     <div className="max-w-[1300px] mx-auto space-y-8 pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
+        <div>
           <div className="flex items-center gap-3">
             <h1 className="text-headline-md font-bold text-jds-on-surface">Image Storage & Assets</h1>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-jds-primary/10 text-jds-primary border border-jds-primary/20">
@@ -209,9 +209,6 @@ export default function ImagesScreen() {
               {BUCKET_NAME}
             </span>
           </div>
-          <p className="text-body-md text-jds-on-surface-variant">
-            Upload solar product photos to Supabase Storage and easily copy links to attach them to your catalog.
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -520,7 +517,7 @@ export default function ImagesScreen() {
       {/* Enlarged Image Preview Modal */}
       {selectedImage && (
         <div 
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
           onClick={() => setSelectedImage(null)}
         >
           <div 

@@ -552,9 +552,8 @@ export default function DashboardScreen({ onNavigate }) {
         </div>
       )}
 
-      <div className="space-y-1">
+      <div>
         <h1 className="text-headline-md font-bold text-jds-on-surface">Inventory Dashboard</h1>
-        <p className="text-body-md text-jds-on-surface-variant">Strategic overview of solar product inventory and performance.</p>
       </div>
 
       {/* Critical Stock Alert Banner */}
@@ -641,9 +640,6 @@ export default function DashboardScreen({ onNavigate }) {
         <div className="border-b border-jds-outline-variant/30 px-6 py-5 bg-jds-surface-container-low/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-body-lg font-bold text-jds-on-surface">Product Inventory Overview</h2>
-            <p className="text-label-md text-jds-on-surface-variant">
-              Strategic inventory monitoring with lowest stock prioritization, sales tracking, and direct adjustments.
-            </p>
           </div>
           {onNavigate && (
             <button
@@ -1021,7 +1017,7 @@ export default function DashboardScreen({ onNavigate }) {
       {/* QUICK RESTOCK / STEPPER MODAL */}
       {quickRestockItem && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget && !updatingStock) {
               setQuickRestockItem(null)
@@ -1173,7 +1169,7 @@ export default function DashboardScreen({ onNavigate }) {
       {/* DIRECT BUTTON ADJUSTMENT CONFIRMATION MODAL */}
       {directConfirmAction && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget && !directConfirmLoading) {
               setDirectConfirmAction(null)
@@ -1258,7 +1254,7 @@ export default function DashboardScreen({ onNavigate }) {
       {/* FULL PRODUCT EDIT MODAL */}
       {editingProduct && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget && !savingProduct) {
               handleCloseEdit()

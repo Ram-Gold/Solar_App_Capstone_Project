@@ -697,16 +697,13 @@ export default function ProductsScreen({ onNavigate }) {
 
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="space-y-1">
+        <div>
           <div className="flex items-center gap-3">
             <h1 className="text-headline-md font-bold text-jds-on-surface">Solar Inventory Catalog</h1>
             <span className="rounded-full bg-jds-surface-container-high px-3 py-1 font-mono text-label-sm font-bold text-jds-on-surface-variant border border-jds-outline-variant/30">
               {products.length} models
             </span>
           </div>
-          <p className="text-body-md text-jds-on-surface-variant">
-            Operational control for stock quantities, sales records, and equipment specifications.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -1344,7 +1341,7 @@ export default function ProductsScreen({ onNavigate }) {
       {/* QUICK STOCK ADJUSTMENT CONFIRMATION MODAL */}
       {quickRestockItem && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget && !updatingStock) {
               setQuickRestockItem(null)
@@ -1544,7 +1541,7 @@ export default function ProductsScreen({ onNavigate }) {
       {/* DIRECT BUTTON ADJUSTMENT CONFIRMATION MODAL */}
       {directConfirmAction && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget && !directConfirmLoading) {
               setDirectConfirmAction(null)
@@ -1629,7 +1626,7 @@ export default function ProductsScreen({ onNavigate }) {
       {/* DELETE CONFIRMATION MODAL */}
       {productToDelete && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget && !deletingProduct) {
               setProductToDelete(null)
@@ -1722,7 +1719,7 @@ export default function ProductsScreen({ onNavigate }) {
       {/* EDIT PRODUCT SPECIFICATIONS MODAL */}
       {editingProduct && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget && !savingProduct && !showConfirmModal) {
               handleCloseEdit()

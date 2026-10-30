@@ -349,33 +349,6 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <motion.div
-          className="max-w-screen-2xl mx-auto bg-jd-primary rounded-[2rem] p-12 md:p-20 text-center relative overflow-hidden"
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="absolute inset-0 bg-white/5 pointer-events-none" />
-          <div className="relative z-10">
-            <h2 className="text-headline-lg-mobile md:text-headline-xl text-jd-on-primary mb-6 tracking-tight">
-              Ready to Power Your Future?
-            </h2>
-            <p className="text-white/80 max-w-xl mx-auto mb-10 text-body-lg">
-              Join hundreds of families in Quiapo and beyond who have made the switch to clean, affordable solar energy.
-            </p>
-            <Link
-              to="/chat"
-              className="inline-block bg-white text-jd-primary px-10 py-4 rounded-lg text-headline-md hover:bg-jd-surface-container-low transition-colors shadow-lg"
-            >
-              Get Your Free Quote
-            </Link>
-          </div>
-        </motion.div>
-      </section>
-
     </div>
   )
 }

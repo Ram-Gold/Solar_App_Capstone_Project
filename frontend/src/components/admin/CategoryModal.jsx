@@ -160,7 +160,7 @@ export default function CategoryModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
         className="w-full max-w-lg rounded-2xl bg-jds-surface border border-jds-outline-variant/30 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
         role="dialog"
@@ -177,9 +177,6 @@ export default function CategoryModal({
               <h2 id="category-modal-title" className="text-body-lg font-bold text-jds-on-surface">
                 Manage Categories
               </h2>
-              <p className="text-label-sm text-jds-on-surface-variant">
-                Add and manage solar product classifications
-              </p>
             </div>
           </div>
           <button

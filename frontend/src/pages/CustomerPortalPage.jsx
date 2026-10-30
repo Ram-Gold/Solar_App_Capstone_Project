@@ -15,7 +15,6 @@ import {
   ExternalLink,
   RefreshCw,
   Bookmark,
-  Store,
   ChevronRight,
   Info,
   Sparkles,
@@ -302,7 +301,39 @@ export default function CustomerPortalPage() {
 
       {/* Main Content Area */}
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-        
+
+        {/* Warranty Policy & Case Evaluation Overview Banner */}
+        <div className="p-4 md:p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-jds-outline-variant/20 pb-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div>
+                <h3 className="text-sm font-bold text-jds-on-surface">2-Year Solar Warranty & Case Evaluation Policy</h3>
+                <p className="text-xs text-jds-on-surface-variant">Default 24-Month Coverage • 1-Time Replacement Entitlement</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                24 Mos Solar Terms
+              </span>
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                1-Time Replacement
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs leading-relaxed text-jds-on-surface-variant">
+            <div className="p-3 rounded-xl bg-jds-surface-container/30 border border-jds-outline-variant/20 space-y-1">
+              <strong className="text-emerald-700 dark:text-emerald-400 font-semibold block">Covered Under Warranty (Case-by-Case):</strong>
+              <p>Manufacturing and factory defects, internal controller/sensor failure, abnormal battery loss, and solar cell degradation under standard operating conditions.</p>
+            </div>
+            <div className="p-3 rounded-xl bg-jds-surface-container/30 border border-jds-outline-variant/20 space-y-1">
+              <strong className="text-rose-700 dark:text-rose-400 font-semibold block">Disqualified / Voided Terms:</strong>
+              <p>Physical drops, shattered glass, blunt force casing trauma, customer carelessness, unauthorized disassembly, modified wiring, or water ingress from unsealed ports.</p>
+            </div>
+          </div>
+        </div>
+
         {/* SECTION 1: Registered Products & Warranties */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -323,6 +354,13 @@ export default function CustomerPortalPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {purchases.map((p) => {
                 const isActive = p.is_warranty_active
+                const linkedClaims = claims.filter(
+                  (c) => c.customer_purchase_id === p.id || c.customer_purchases?.id === p.id
+                )
+                const hasClaimedReplacement = linkedClaims.some(
+                  (c) => c.status === 'resolved' || c.status === 'approved'
+                )
+
                 return (
                   <div
                     key={p.id}
@@ -381,21 +419,41 @@ export default function CustomerPortalPage() {
                               <strong>Void Reason:</strong> {p.void_reason || 'Disqualified under warranty policy.'}
                             </div>
                           </div>
-                        ) : (
-                          <div
-                            className={`p-2.5 rounded-xl text-xs flex items-center justify-between border ${
-                              isActive
-                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                                : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5 font-semibold">
-                              {isActive ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
-                              <span>{isActive ? 'Active Warranty' : 'Expired'}</span>
+                        ) : hasClaimedReplacement ? (
+                          <div className="space-y-1.5">
+                            <div className="p-2.5 rounded-xl text-xs flex items-center justify-between border bg-amber-500/10 text-amber-600 border-amber-500/20">
+                              <div className="flex items-center gap-1.5 font-semibold">
+                                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                                <span>1-Time Replacement Fulfilled</span>
+                              </div>
+                              <span className="text-[11px] font-medium">Concluded</span>
                             </div>
-                            <span className="text-[11px] font-medium">
-                              {formatRemainingText(p.days_remaining)}
-                            </span>
+                            <div className="px-1 text-[11px] text-jds-on-surface-variant leading-tight">
+                              The 1-time replacement entitlement has been fulfilled. Shop repairs remain available at store branches.
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <div
+                              className={`p-2.5 rounded-xl text-xs flex items-center justify-between border ${
+                                isActive
+                                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                  : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 font-semibold">
+                                {isActive ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
+                                <span>{isActive ? 'Active (1 Replacement Available)' : 'Expired'}</span>
+                              </div>
+                              <span className="text-[11px] font-medium">
+                                {formatRemainingText(p.days_remaining)}
+                              </span>
+                            </div>
+                            {isActive && (
+                              <div className="px-1 text-[11px] text-jds-on-surface-variant leading-tight">
+                                Bench diagnostic applies upon intake. Drops or customer carelessness void coverage.
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -410,10 +468,12 @@ export default function CustomerPortalPage() {
                         </div>
                       </div>
 
-                      {p.is_voided ? (
+                      {p.is_voided || hasClaimedReplacement ? (
                         <div className="space-y-2.5">
                           <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
-                            This equipment's warranty is voided. You can still use our self-diagnostic troubleshooting guide or visit our Quiapo / Cavite branch for non-warranty shop servicing.
+                            {p.is_voided
+                              ? "This equipment's warranty is voided. You can still use our self-diagnostic troubleshooting guide or visit our Quiapo / Cavite branch for non-warranty shop servicing."
+                              : "This unit has utilized its 1-time warranty replacement entitlement. You can run self-diagnostics or bring the unit to our branch for shop repairs."}
                           </p>
                           <button
                             type="button"
@@ -465,7 +525,7 @@ export default function CustomerPortalPage() {
                     {/* Hardware & Coverage Summary Footer */}
                     <div className="flex items-center justify-between text-[11px] pt-1 border-t border-jds-outline-variant/20 text-jds-on-surface-variant">
                       <span>Serial #: <strong className="font-mono text-jds-on-surface">{p.serial_number || 'N/A'}</strong></span>
-                      <span>Warranty: <strong>{p.warranty_months || 12} Months</strong></span>
+                      <span>Warranty: <strong>{p.warranty_months ? `${p.warranty_months} Months (${Math.round(p.warranty_months / 12)} Yrs)` : '24 Months (2 Yrs)'}</strong></span>
                     </div>
                   </div>
                 )
@@ -582,31 +642,11 @@ export default function CustomerPortalPage() {
           </button>
         </div>
 
-        {/* Branch Support & Assistance Footer Card */}
-        <div className="p-6 rounded-2xl bg-jds-surface-container/40 border border-jds-outline-variant/30 text-xs space-y-3">
-          <div className="flex items-center gap-2 font-bold text-sm text-jds-on-surface">
-            <Store className="w-4 h-4 text-jds-primary" />
-            <span>JD Force Solar Store Support</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-jds-on-surface-variant">
-            <div className="space-y-1">
-              <strong className="text-jds-on-surface">Cavite Branch:</strong>
-              <div>General Trias, Cavite • Open Mon-Sat 8:00 AM - 5:00 PM</div>
-              <div>Hotline / Viber: 0917-XXX-XXXX</div>
-            </div>
-            <div className="space-y-1">
-              <strong className="text-jds-on-surface">Quiapo Manila Branch:</strong>
-              <div>Evangelista St., Quiapo, Manila • Open Mon-Sat 8:30 AM - 5:30 PM</div>
-              <div>Hotline / Viber: 0918-XXX-XXXX</div>
-            </div>
-          </div>
-        </div>
-
       </div>
 
       {/* Password Management Modal */}
       {isPasswordModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto">
           <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
             <div className="flex items-center justify-between border-b border-jds-outline-variant/20 pb-4">
               <div className="flex items-center gap-2.5">

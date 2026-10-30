@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   CalendarDays,
   Calendar as CalendarIcon,
@@ -28,13 +28,18 @@ import {
   ExternalLink,
   ShieldCheck,
   SlidersHorizontal,
-  ChevronDown
+  ChevronDown,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import {
   INQUIRY_STATUSES,
   normalizeInquiryStatus,
-  getInquiryStatusConfig
+  getInquiryStatusConfig,
+  getInactiveInquiriesSummary,
+  isEligibleForAutoPurge,
+  PURGE_RETENTION_RULES
 } from '../../lib/inquiryStatusUtils'
 import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
@@ -428,6 +433,45 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
   const [modalSuccess, setModalSuccess] = useState('')
   const [copiedCode, setCopiedCode] = useState(false)
 
+  // Single ticket deletion modal state
+  const [ticketToDelete, setTicketToDelete] = useState(null)
+  const [isDeletingTicket, setIsDeletingTicket] = useState(false)
+
+  // Bulk inactive purge modal state
+  const [isPurgeModalOpen, setIsPurgeModalOpen] = useState(false)
+  const [isPurging, setIsPurging] = useState(false)
+
+  // Real-time calendar clock state
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const calendarScrollRef = useRef(null)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 60000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Live time indicator positioning and metrics
+  const currentHour = currentTime.getHours()
+  const currentMinute = currentTime.getMinutes()
+  const currentMinutesOfDay = currentHour * 60 + currentMinute
+  const startOperatingMinutes = CALENDAR_START_HOUR * 60 // 7:00 AM = 420 min
+  const endOperatingMinutes = CALENDAR_END_HOUR * 60     // 8:00 PM = 1200 min
+  const isBeforeOperatingHours = currentMinutesOfDay < startOperatingMinutes
+  const isAfterOperatingHours = currentMinutesOfDay > endOperatingMinutes
+  const isOutOfOperatingHours = isBeforeOperatingHours || isAfterOperatingHours
+
+  const timeIndicatorTop = useMemo(() => {
+    if (isBeforeOperatingHours) return 0
+    if (isAfterOperatingHours) return TOTAL_CALENDAR_HEIGHT
+    return (currentMinutesOfDay - startOperatingMinutes) * PIXELS_PER_MINUTE
+  }, [currentMinutesOfDay, isBeforeOperatingHours, isAfterOperatingHours])
+
+  const formattedCurrentTime = useMemo(() => {
+    return formatMinutesToTime(currentMinutesOfDay)
+  }, [currentMinutesOfDay])
+
   // New inquiry walk-in modal
   const [isNewModalOpen, setIsNewModalOpen] = useState(false)
   const [newCustName, setNewCustName] = useState('')
@@ -462,7 +506,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
     setTimeout(() => setToastMsg(''), 4000)
   }
 
-  // Load inquiries from Supabase with localStorage backup
+  // Load inquiries from Supabase with localStorage backup and automated retention hygiene
   const loadInquiries = async () => {
     try {
       setLoading(true)
@@ -486,6 +530,40 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         console.error('LocalStorage read error:', storageErr)
       }
 
+      // Automated database hygiene: quietly purge expired records per retention rules
+      const eligibleOnLoad = fetched.filter((item) => isEligibleForAutoPurge(item))
+      if (eligibleOnLoad.length > 0) {
+        const eligibleIds = eligibleOnLoad.map((q) => q.id).filter(Boolean)
+        const eligibleCodes = new Set(eligibleOnLoad.map((q) => q.ticket_code))
+
+        if (eligibleIds.length > 0) {
+          supabase
+            .from('quote_tickets')
+            .delete()
+            .in('id', eligibleIds)
+            .then(({ error: delErr }) => {
+              if (!delErr) {
+                console.info(`Auto-purged ${eligibleIds.length} inactive inquiries from database.`)
+              }
+            })
+            .catch((e) => console.warn('Auto-purge error:', e))
+        }
+
+        try {
+          const local = JSON.parse(localStorage.getItem('jds_local_quotes') || '[]')
+          const sanitized = local.filter(
+            (q) => !eligibleCodes.has(q.ticket_code) && !eligibleIds.includes(q.id)
+          )
+          localStorage.setItem('jds_local_quotes', JSON.stringify(sanitized))
+        } catch (storageErr) {
+          console.warn('LocalStorage auto-purge sync note:', storageErr)
+        }
+
+        fetched = fetched.filter(
+          (q) => !eligibleCodes.has(q.ticket_code) && !eligibleIds.includes(q.id)
+        )
+      }
+
       setInquiries(fetched)
     } catch (err) {
       console.error('Failed to load inquiries from Supabase:', err)
@@ -498,6 +576,127 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
   useEffect(() => {
     loadInquiries()
   }, [])
+
+  // Inactive inquiries summary for manual cleanup button
+  const inactiveSummary = useMemo(() => {
+    return getInactiveInquiriesSummary(inquiries, currentTime)
+  }, [inquiries, currentTime])
+
+  // Confirm single inquiry deletion
+  const confirmDeleteInquiry = async () => {
+    if (!ticketToDelete) return
+    try {
+      setIsDeletingTicket(true)
+      if (ticketToDelete.id) {
+        const { error } = await supabase
+          .from('quote_tickets')
+          .delete()
+          .eq('id', ticketToDelete.id)
+
+        if (error) throw error
+      } else if (ticketToDelete.ticket_code) {
+        const { error } = await supabase
+          .from('quote_tickets')
+          .delete()
+          .eq('ticket_code', ticketToDelete.ticket_code)
+
+        if (error) throw error
+      }
+
+      // Sanitize LocalStorage
+      try {
+        const local = JSON.parse(localStorage.getItem('jds_local_quotes') || '[]')
+        const sanitized = local.filter(
+          (q) => q.id !== ticketToDelete.id && q.ticket_code !== ticketToDelete.ticket_code
+        )
+        localStorage.setItem('jds_local_quotes', JSON.stringify(sanitized))
+      } catch (storageErr) {
+        console.warn('LocalStorage delete cleanup error:', storageErr)
+      }
+
+      // Update state
+      setInquiries((prev) =>
+        prev.filter(
+          (q) => q.id !== ticketToDelete.id && q.ticket_code !== ticketToDelete.ticket_code
+        )
+      )
+
+      if (
+        selectedInquiry?.id === ticketToDelete.id ||
+        selectedInquiry?.ticket_code === ticketToDelete.ticket_code
+      ) {
+        handleCloseModal()
+      }
+
+      showToast(`Inquiry ${ticketToDelete.ticket_code} permanently deleted from database.`)
+      setTicketToDelete(null)
+    } catch (err) {
+      console.error('Failed to delete inquiry:', err)
+      showToast('Failed to delete inquiry from database.')
+    } finally {
+      setIsDeletingTicket(false)
+    }
+  }
+
+  // Execute bulk purge of eligible inactive inquiries
+  const executePurgeInactive = async () => {
+    if (inactiveSummary.count === 0) {
+      setIsPurgeModalOpen(false)
+      return
+    }
+
+    try {
+      setIsPurging(true)
+      const idsToPurge = inactiveSummary.eligible.map((q) => q.id).filter(Boolean)
+      const codesToPurge = new Set(inactiveSummary.eligible.map((q) => q.ticket_code))
+
+      // 1. Attempt Stored Procedure RPC first
+      let rpcSuccess = false
+      try {
+        const { error: rpcErr } = await supabase.rpc('purge_inactive_quote_tickets')
+        if (!rpcErr) {
+          rpcSuccess = true
+        }
+      } catch (rpcEx) {
+        console.info('RPC purge fallback:', rpcEx)
+      }
+
+      // 2. Direct delete fallback if needed
+      if (!rpcSuccess && idsToPurge.length > 0) {
+        const { error: delErr } = await supabase
+          .from('quote_tickets')
+          .delete()
+          .in('id', idsToPurge)
+        if (delErr) {
+          console.warn('Direct delete error:', delErr)
+        }
+      }
+
+      // 3. LocalStorage cleanup
+      try {
+        const local = JSON.parse(localStorage.getItem('jds_local_quotes') || '[]')
+        const sanitized = local.filter(
+          (q) => !codesToPurge.has(q.ticket_code) && !idsToPurge.includes(q.id)
+        )
+        localStorage.setItem('jds_local_quotes', JSON.stringify(sanitized))
+      } catch (storageErr) {
+        console.warn('LocalStorage purge error:', storageErr)
+      }
+
+      // 4. Update React state
+      setInquiries((prev) =>
+        prev.filter((q) => !codesToPurge.has(q.ticket_code) && !idsToPurge.includes(q.id))
+      )
+
+      showToast(`Successfully purged ${inactiveSummary.count} inactive inquiries from database.`)
+      setIsPurgeModalOpen(false)
+    } catch (err) {
+      console.error('Failed to purge inactive inquiries:', err)
+      showToast('Failed to purge inactive inquiries from database.')
+    } finally {
+      setIsPurging(false)
+    }
+  }
 
   // Today ISO helper
   const todayIso = useMemo(() => formatIsoDate(new Date()), [])
@@ -566,6 +765,23 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
   const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate])
   const monthDays = useMemo(() => getMonthDays(currentDate), [currentDate])
   const currentWeekDateStrings = useMemo(() => new Set(weekDates.map(d => formatIsoDate(d))), [weekDates])
+
+  // Auto-scroll calendar container to center around current time on load
+  useEffect(() => {
+    if (viewMode !== 'calendar' || !calendarScrollRef.current) return
+
+    let isTodayInView = false
+    if (calendarSubView === 'week') {
+      isTodayInView = weekDates.some((d) => formatIsoDate(d) === todayIso)
+    } else if (calendarSubView === 'day') {
+      isTodayInView = formatIsoDate(currentDate) === todayIso
+    }
+
+    if (isTodayInView) {
+      const targetScroll = Math.max(0, timeIndicatorTop - 200)
+      calendarScrollRef.current.scrollTo({ top: targetScroll, behavior: 'smooth' })
+    }
+  }, [calendarSubView, viewMode, currentDate, weekDates, todayIso, timeIndicatorTop])
 
   // Inquiries mapped by date for month view and daily lookups
   const inquiriesByDate = useMemo(() => {
@@ -959,7 +1175,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
     <div className="space-y-6 max-w-full overflow-x-hidden font-inter pb-12">
       {/* Toast Notification */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 bg-jds-on-surface text-jds-surface px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs font-semibold animate-in fade-in slide-in-from-bottom-2">
+        <div className="fixed bottom-6 right-6 z-[110] bg-jds-on-surface text-jds-surface px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs font-semibold animate-in fade-in slide-in-from-bottom-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMsg}</span>
           <button onClick={() => setToastMsg('')} className="p-1 hover:opacity-70 ml-2">
@@ -975,9 +1191,6 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             <CalendarDays className="w-6 h-6 text-jds-primary" />
             <span>Inquiries & Showroom Schedule</span>
           </h1>
-          <p className="text-xs text-jds-on-surface-variant mt-1">
-            Unified schedule and inquiry tracking for consultations, reservations, and customer pickups.
-          </p>
         </div>
 
         {/* View Switcher & Action Buttons */}
@@ -1020,6 +1233,26 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
+          </button>
+
+          {/* Clean Up Inactive Button */}
+          <button
+            type="button"
+            onClick={() => setIsPurgeModalOpen(true)}
+            className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+              inactiveSummary.count > 0
+                ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 hover:bg-amber-100'
+                : 'border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface hover:bg-jds-surface-container'
+            }`}
+            title="Purge obsolete and inactive inquiries from database"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <span>Clean Up Inactive</span>
+            {inactiveSummary.count > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-amber-600 text-white">
+                {inactiveSummary.count}
+              </span>
+            )}
           </button>
 
           {/* + New Inquiry Button */}
@@ -1218,7 +1451,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
           {/* 1. WEEK VIEW: Google Calendar Style Timeline */}
           {calendarSubView === 'week' && (
             <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl shadow-xs border border-jds-outline-variant/20 overflow-hidden">
-              <div className="overflow-x-auto max-h-[780px] overflow-y-auto">
+              <div ref={calendarScrollRef} className="overflow-x-auto max-h-[780px] overflow-y-auto">
                 <div className="min-w-[1050px] w-full">
                   {/* Calendar Grid Header: Days of Week (Fixed Width & Sticky) */}
                   <div className="sticky top-0 z-20 grid grid-cols-[80px_repeat(7,minmax(0,1fr))] border-b border-jds-outline-variant/30 bg-jds-surface shadow-xs">
@@ -1333,6 +1566,36 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                               )
                             })}
                           </div>
+
+                          {/* Real-time Current Time Indicator for Today */}
+                          {isToday && (
+                            <div
+                              style={{ top: `${timeIndicatorTop}px` }}
+                              className="absolute left-0 right-0 z-30 pointer-events-none flex items-center -translate-y-1/2"
+                            >
+                              <div
+                                className={`w-3 h-3 rounded-full ${
+                                  isOutOfOperatingHours
+                                    ? 'bg-amber-600 ring-2 ring-amber-300 dark:ring-amber-900'
+                                    : 'bg-red-500 ring-2 ring-red-200 dark:ring-red-950'
+                                } shadow-sm -ml-1.5 shrink-0`}
+                              />
+                              <div
+                                className={`h-[2px] flex-1 ${
+                                  isOutOfOperatingHours ? 'bg-amber-500/80' : 'bg-red-500/90'
+                                } shadow-xs`}
+                              />
+                              <span
+                                className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-extrabold tracking-tight text-white shadow-xs ml-1 whitespace-nowrap ${
+                                  isOutOfOperatingHours ? 'bg-amber-600' : 'bg-red-600'
+                                }`}
+                              >
+                                {isOutOfOperatingHours
+                                  ? `Outside Hours (${formattedCurrentTime})`
+                                  : formattedCurrentTime}
+                              </span>
+                            </div>
+                          )}
 
                           {/* Foreground Appointments Layer (Side-by-side Google Calendar stacking) */}
                           {dayLayouts.map((ticket) => {
@@ -1487,14 +1750,27 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl shadow-xs border border-jds-outline-variant/20 p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-jds-outline-variant/20 pb-3">
                 <div>
-                  <h3 className="text-base font-bold text-jds-on-surface">
-                    {currentDate.toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-jds-on-surface">
+                      {currentDate.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </h3>
+                    {formatIsoDate(currentDate) === todayIso && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-jds-primary/10 text-jds-primary border border-jds-primary/20">
+                        <Clock className="w-3 h-3" />
+                        <span>Current Time: {formattedCurrentTime}</span>
+                        {isOutOfOperatingHours && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                            Outside Operating Hours
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-jds-on-surface-variant">
                     {(inquiriesByDate[formatIsoDate(currentDate)] || []).length} appointments & inquiries scheduled
                   </p>
@@ -1514,14 +1790,27 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                   const dateStr = formatIsoDate(currentDate)
                   const slotKey = `${dateStr}_${hourObj.hour}`
                   const slotItems = inquiriesByDateAndHour[slotKey] || []
+                  const isCurrentHourSlot =
+                    formatIsoDate(currentDate) === todayIso &&
+                    currentHour === hourObj.hour &&
+                    !isOutOfOperatingHours
 
                   return (
                     <div
                       key={hourObj.hour}
-                      className="flex gap-4 p-3 rounded-xl border border-jds-outline-variant/20 bg-jds-surface-container-low/20"
+                      className={`flex gap-4 p-3 rounded-xl border transition-all ${
+                        isCurrentHourSlot
+                          ? 'border-jds-primary/40 ring-1 ring-jds-primary/30 bg-jds-primary/[0.03]'
+                          : 'border-jds-outline-variant/20 bg-jds-surface-container-low/20'
+                      }`}
                     >
-                      <div className="w-20 shrink-0 font-bold text-xs text-jds-on-surface-variant pt-1">
-                        {hourObj.label}
+                      <div className="w-24 shrink-0 font-bold text-xs text-jds-on-surface-variant pt-1 flex flex-col items-start gap-1">
+                        <span>{hourObj.label}</span>
+                        {isCurrentHourSlot && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-600 text-white shadow-2xs">
+                            NOW
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex-1 space-y-2">
@@ -1675,13 +1964,23 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                         </TableCell>
 
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenInquiry(q)}
-                            className="px-3 py-1.5 rounded-lg border border-jds-outline-variant/60 text-xs font-bold text-jds-on-surface hover:bg-jds-surface-container transition-colors"
-                          >
-                            Manage
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenInquiry(q)}
+                              className="px-3 py-1.5 rounded-lg border border-jds-outline-variant/60 text-xs font-bold text-jds-on-surface hover:bg-jds-surface-container transition-colors"
+                            >
+                              Manage
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTicketToDelete(q)}
+                              className="p-1.5 rounded-lg border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                              title="Delete inquiry"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     )
@@ -1695,8 +1994,13 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
 
       {/* DETAIL & EDIT MODAL */}
       {selectedInquiry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-5 max-h-[92vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !modalSaving) handleCloseModal()
+          }}
+        >
+          <div className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-5 max-h-[92vh] overflow-y-auto my-auto">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
               <div>
@@ -1940,17 +2244,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             </div>
 
             {/* Direct Contact Links */}
-            <div className="flex items-center gap-3 pt-2">
-              {selectedInquiry.mobile_contact && (
-                <a
-                  href={`tel:${selectedInquiry.mobile_contact}`}
-                  className="text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 px-3 py-2 rounded-xl flex items-center gap-1.5 hover:bg-emerald-100 transition-colors"
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                  <span>Call Customer</span>
-                </a>
-              )}
-              {selectedInquiry.email && (
+            {selectedInquiry.email && (
+              <div className="flex items-center gap-3 pt-2">
                 <a
                   href={`mailto:${selectedInquiry.email}`}
                   className="text-xs font-bold text-blue-700 bg-blue-50 dark:bg-blue-950/40 border border-blue-300 dark:border-blue-800 px-3 py-2 rounded-xl flex items-center gap-1.5 hover:bg-blue-100 transition-colors"
@@ -1958,18 +2253,28 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                   <Mail className="w-3.5 h-3.5" />
                   <span>Send Email</span>
                 </a>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Modal Actions */}
             <div className="flex items-center justify-between border-t border-jds-outline-variant/20 pt-4">
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="px-4 py-2 text-xs font-bold rounded-xl border border-jds-outline-variant/40 text-jds-on-surface hover:bg-jds-surface-container transition-colors"
-              >
-                Cancel
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 text-xs font-bold rounded-xl border border-jds-outline-variant/40 text-jds-on-surface hover:bg-jds-surface-container transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTicketToDelete(selectedInquiry)}
+                  className="px-3.5 py-2 text-xs font-bold rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Inquiry</span>
+                </button>
+              </div>
 
               <button
                 type="button"
@@ -1996,14 +2301,16 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
 
       {/* NEW INQUIRY / WALK-IN MODAL */}
       {isNewModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 max-h-[92vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !newCreating) setIsNewModalOpen(false)
+          }}
+        >
+          <div className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 max-h-[92vh] overflow-y-auto my-auto">
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-3">
               <div>
                 <h3 className="text-lg font-bold text-jds-on-surface">Log New Customer Inquiry</h3>
-                <p className="text-xs text-jds-on-surface-variant">
-                  Register walk-in customer appointments directly into the calendar and database.
-                </p>
               </div>
               <button
                 type="button"
@@ -2287,6 +2594,186 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE INQUIRY CONFIRMATION MODAL */}
+      {ticketToDelete && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isDeletingTicket) setTicketToDelete(null)
+          }}
+        >
+          <div className="bg-jds-surface rounded-2xl max-w-md w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 my-auto">
+            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+              <div className="p-2.5 rounded-full bg-rose-100 dark:bg-rose-950/50">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-jds-on-surface">Delete Inquiry Record</h3>
+                <p className="text-xs text-jds-on-surface-variant">Permanent database deletion</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-jds-on-surface-variant leading-relaxed">
+              Are you sure you want to permanently delete this inquiry? This action cannot be reversed and will remove the record from both the database and staff calendar.
+            </p>
+
+            <div className="p-3 rounded-xl bg-jds-surface-container-low/40 border border-jds-outline-variant/20 space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-jds-on-surface-variant font-medium">Ticket Code:</span>
+                <span className="font-mono font-bold text-jds-on-surface">{ticketToDelete.ticket_code}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-jds-on-surface-variant font-medium">Customer:</span>
+                <span className="font-bold text-jds-on-surface">{ticketToDelete.customer_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-jds-on-surface-variant font-medium">Schedule:</span>
+                <span className="text-jds-on-surface">
+                  {ticketToDelete.visit_date || ticketToDelete.effectiveDate} ({ticketToDelete.visit_time_slot || 'N/A'})
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-jds-on-surface-variant font-medium">Status:</span>
+                <span className="font-bold text-jds-on-surface">{ticketToDelete.status}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-jds-outline-variant/20">
+              <button
+                type="button"
+                onClick={() => setTicketToDelete(null)}
+                disabled={isDeletingTicket}
+                className="px-4 py-2 text-xs font-bold rounded-xl border border-jds-outline-variant/40 text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteInquiry}
+                disabled={isDeletingTicket}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                {isDeletingTicket ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BULK CLEAN UP INACTIVE INQUIRIES MODAL */}
+      {isPurgeModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isPurging) setIsPurgeModalOpen(false)
+          }}
+        >
+          <div className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 my-auto">
+            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
+              <div className="p-2.5 rounded-full bg-amber-100 dark:bg-amber-950/50">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-jds-on-surface">Clean Up Inactive Inquiries</h3>
+                <p className="text-xs text-jds-on-surface-variant">Automated database hygiene & maintenance</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-jds-surface-container-low/40 border border-jds-outline-variant/20 space-y-2 text-xs text-jds-on-surface-variant">
+              <p className="font-semibold text-jds-on-surface">Retention Policy Rules:</p>
+              <ul className="list-disc list-inside space-y-1 pl-1">
+                <li>Completed or Cancelled inquiries older than 7 days</li>
+                <li>Stale Pending inquiries older than 14 days without showroom visit or update</li>
+              </ul>
+            </div>
+
+            {inactiveSummary.count === 0 ? (
+              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300">
+                The database is already clean. No inquiries currently match the inactive retention rules.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-jds-on-surface">
+                  Found <span className="font-bold text-amber-600 dark:text-amber-400">{inactiveSummary.count}</span> inactive {inactiveSummary.count === 1 ? 'inquiry' : 'inquiries'} ready for permanent deletion:
+                </p>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-2.5 rounded-lg border border-jds-outline-variant/30 bg-jds-surface text-center">
+                    <div className="text-base font-bold text-jds-on-surface">{inactiveSummary.completedCount}</div>
+                    <div className="text-[10px] text-jds-on-surface-variant">Completed (&gt;7d)</div>
+                  </div>
+                  <div className="p-2.5 rounded-lg border border-jds-outline-variant/30 bg-jds-surface text-center">
+                    <div className="text-base font-bold text-jds-on-surface">{inactiveSummary.cancelledCount}</div>
+                    <div className="text-[10px] text-jds-on-surface-variant">Cancelled (&gt;7d)</div>
+                  </div>
+                  <div className="p-2.5 rounded-lg border border-jds-outline-variant/30 bg-jds-surface text-center">
+                    <div className="text-base font-bold text-jds-on-surface">{inactiveSummary.pendingCount}</div>
+                    <div className="text-[10px] text-jds-on-surface-variant">Stale Pending (&gt;14d)</div>
+                  </div>
+                </div>
+
+                <div className="max-h-40 overflow-y-auto rounded-xl border border-jds-outline-variant/20 divide-y divide-jds-outline-variant/15 text-xs">
+                  {inactiveSummary.eligible.slice(0, 10).map((item) => (
+                    <div key={item.id || item.ticket_code} className="p-2 flex items-center justify-between">
+                      <span className="font-mono font-bold text-jds-on-surface">{item.ticket_code}</span>
+                      <span className="text-jds-on-surface-variant truncate max-w-[150px]">{item.customer_name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-jds-outline-variant/30">{item.status}</span>
+                    </div>
+                  ))}
+                  {inactiveSummary.count > 10 && (
+                    <div className="p-2 text-center text-[10px] text-jds-on-surface-variant italic">
+                      ...and {inactiveSummary.count - 10} more records
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-jds-outline-variant/20">
+              <button
+                type="button"
+                onClick={() => setIsPurgeModalOpen(false)}
+                disabled={isPurging}
+                className="px-4 py-2 text-xs font-bold rounded-xl border border-jds-outline-variant/40 text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer"
+              >
+                {inactiveSummary.count === 0 ? 'Close' : 'Cancel'}
+              </button>
+
+              {inactiveSummary.count > 0 && (
+                <button
+                  type="button"
+                  onClick={executePurgeInactive}
+                  disabled={isPurging}
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-amber-600 hover:bg-amber-700 text-white transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  {isPurging ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Purging Records...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Confirm Purge ({inactiveSummary.count})</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

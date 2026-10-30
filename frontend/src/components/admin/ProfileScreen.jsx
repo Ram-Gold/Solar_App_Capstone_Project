@@ -63,9 +63,8 @@ export default function ProfileScreen() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-8">
-      <div className="space-y-1">
+      <div>
         <h1 className="text-headline-md font-bold text-jds-on-surface">Personal Profile</h1>
-        <p className="text-body-md text-jds-on-surface-variant">Manage your account information and administrative settings.</p>
       </div>
 
       <div className="max-w-2xl">

@@ -78,9 +78,8 @@ export default function OrdersScreen() {
   return (
     <div className="max-w-[1200px] mx-auto space-y-8">
       <div className="flex items-center justify-between">
-        <div className="space-y-1">
+        <div>
           <h1 className="text-headline-md font-bold text-jds-on-surface">Order Management</h1>
-          <p className="text-body-md text-jds-on-surface-variant">Track and fulfill customer solar installation orders.</p>
         </div>
         {role === 'admin' && (
           <Button onClick={() => { resetForm(); setShowForm(true) }} className="bg-jds-primary text-jds-on-primary hover:opacity-90 rounded-lg px-6 gap-2">

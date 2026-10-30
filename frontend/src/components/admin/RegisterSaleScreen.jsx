@@ -37,7 +37,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
     {
       productId: '',
       serialNumber: '',
-      warrantyMonths: 12,
+      warrantyMonths: 24,
       purchaseDate: new Date().toISOString().split('T')[0]
     }
   ])
@@ -65,7 +65,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
             {
               productId: String(data[0].id),
               serialNumber: '',
-              warrantyMonths: data[0].default_warranty_months || 12,
+              warrantyMonths: data[0].default_warranty_months || 24,
               purchaseDate: new Date().toISOString().split('T')[0]
             }
           ])
@@ -114,7 +114,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
       {
         productId: defaultProd ? String(defaultProd.id) : '',
         serialNumber: '',
-        warrantyMonths: defaultProd?.default_warranty_months || 12,
+        warrantyMonths: defaultProd?.default_warranty_months || 24,
         purchaseDate: new Date().toISOString().split('T')[0]
       }
     ])
@@ -190,7 +190,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
         {
           productId: String(catalogProducts[0].id),
           serialNumber: '',
-          warrantyMonths: catalogProducts[0].default_warranty_months || 12,
+          warrantyMonths: catalogProducts[0].default_warranty_months || 24,
           purchaseDate: new Date().toISOString().split('T')[0]
         }
       ])
@@ -210,9 +210,6 @@ export default function RegisterSaleScreen({ onNavigate }) {
             </span>
             <h1 className="text-2xl font-bold text-jds-on-surface">Register In-Store Sale</h1>
           </div>
-          <p className="text-sm text-jds-on-surface-variant mt-1">
-            Create on-the-spot customer profile, record purchased items, and generate warranty QR codes.
-          </p>
         </div>
 
         {/* Branch Selector */}
@@ -364,7 +361,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
                   >
                     <option value={6}>6 Months</option>
                     <option value={12}>1 Year (12 Mos)</option>
-                    <option value={24}>2 Years (24 Mos)</option>
+                    <option value={24}>2 Years (24 Mos) - Standard Solar</option>
                     <option value={36}>3 Years (36 Mos)</option>
                   </select>
                 </div>

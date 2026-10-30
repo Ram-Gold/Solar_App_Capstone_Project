@@ -103,7 +103,7 @@ export default function ProductInfoPage() {
       { label: 'SMD Lamp Beads', value: p.smd_lamp_beads, icon: HiOutlineCpuChip },
       { label: 'Lighting Time', value: p.lighting_time, icon: HiOutlineClock },
       { label: 'Size', value: p.size, icon: HiOutlineSquare2Stack },
-      { label: 'Warranty', value: p.warranty, icon: HiOutlineShieldCheck },
+      { label: 'Warranty', value: p.warranty || '2 Years (Case-by-case evaluation)', icon: HiOutlineShieldCheck },
       { label: 'Life Span', value: p.life_span, icon: HiOutlineCalendarDays },
       { label: 'Place of Use', value: p.place_of_use, icon: HiOutlineMapPin },
       { label: 'Availability', value: p.in_stock ? 'In Stock' : 'Out of Stock', icon: HiOutlineShieldCheck },
