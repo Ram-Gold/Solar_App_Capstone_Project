@@ -319,13 +319,13 @@ export default function UsersScreen() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
                           onClick={(e) => {
                             e.stopPropagation()
                             handleOpenDeleteConfirm(u, 'staff')
-                          }}
+                          }} 
                           className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
                           title="Delete staff account"
                         >
@@ -402,13 +402,13 @@ export default function UsersScreen() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
                           onClick={(e) => {
                             e.stopPropagation()
                             handleOpenDeleteConfirm(u, 'admins')
-                          }}
+                          }} 
                           className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
                           title="Delete administrator account"
                         >

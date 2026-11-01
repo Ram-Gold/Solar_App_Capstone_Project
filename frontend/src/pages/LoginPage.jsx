@@ -91,9 +91,9 @@ export default function LoginPage() {
       <header className="w-full">
         <nav className="flex justify-between items-center w-full px-4 md:px-10 py-8 max-w-[1200px] mx-auto">
           <Link to="/" className="flex items-center group" aria-label="JD Solar Home">
-            <img
-              src={jdSolarLogo}
-              alt="JD Solar"
+            <img 
+              src={jdSolarLogo} 
+              alt="JD Solar" 
               className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
             />
           </Link>

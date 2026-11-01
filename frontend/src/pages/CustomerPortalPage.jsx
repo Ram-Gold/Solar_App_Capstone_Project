@@ -272,7 +272,7 @@ export default function CustomerPortalPage() {
 
   return (
     <div className="min-h-screen bg-jds-background pb-16">
-
+      
       {/* Top Banner & Customer Header */}
       <div className="bg-jds-surface border-b border-jds-outline-variant/30 px-4 py-6 md:px-8">
         <div className="max-w-4xl mx-auto space-y-4">
@@ -467,10 +467,11 @@ export default function CustomerPortalPage() {
                         ) : (
                           <div className="space-y-1.5">
                             <div
-                              className={`p-2.5 rounded-xl text-xs flex items-center justify-between border ${isActive
+                              className={`p-2.5 rounded-xl text-xs flex items-center justify-between border ${
+                                isActive
                                   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
                                   : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                                }`}
+                              }`}
                             >
                               <div className="flex items-center gap-1.5 font-semibold">
                                 {isActive ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
@@ -645,10 +646,11 @@ export default function CustomerPortalPage() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-jds-on-surface">Account Password & Security</h3>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${authStatus.hasPassword
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                  authStatus.hasPassword
                     ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                     : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                  }`}>
+                }`}>
                   {authStatus.hasPassword ? 'Password Enabled' : 'Token Only'}
                 </span>
               </div>
