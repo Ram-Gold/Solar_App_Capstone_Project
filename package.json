@@ -9,5 +9,8 @@
     "build": "npm --prefix frontend install && npm run build --prefix frontend",
     "preview": "npm run preview --prefix frontend",
     "keepalive": "node scripts/keepalive.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.156.0"
   }
 }
