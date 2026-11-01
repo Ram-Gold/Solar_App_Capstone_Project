@@ -3,6 +3,8 @@
   "name": "solar-app-capstone-project",
   "main": "worker.js",
   "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "preview_urls": true,
   "assets": {
     "directory": "./frontend/dist",
     "binding": "ASSETS",
