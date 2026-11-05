@@ -39,6 +39,44 @@ const INITIAL_CATEGORIES = [
   'Solar Streetlight',
 ]
 
+const ITEMS_PER_PAGE = 16
+
+function ProductCardImage({ src, alt, priority = false }) {
+  const [loaded, setLoaded] = useState(false)
+  const [hasError, setHasError] = useState(false)
+
+  if (hasError) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-1.5 text-jds-on-surface-variant/40 p-4 text-center">
+        <HiOutlineBolt className="text-3xl" />
+        <span className="text-[11px] font-medium">Image unavailable</span>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {!loaded && (
+        <div className="absolute inset-0 bg-jds-surface-variant/70 animate-pulse flex items-center justify-center">
+          <HiOutlineBolt className="text-2xl text-jds-on-surface-variant/20 animate-bounce" />
+        </div>
+      )}
+      <img
+        src={src}
+        alt={alt}
+        loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={priority ? 'high' : 'auto'}
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        onError={() => setHasError(true)}
+        className={`w-full h-full object-cover transition-opacity duration-300 ${
+          loaded ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+    </>
+  )
+}
+
 export default function BrowsePage() {
   const [searchParams] = useSearchParams()
   const [products, setProducts] = useState([])
@@ -54,6 +92,11 @@ export default function BrowsePage() {
   const [maxPriceFilter, setMaxPriceFilter] = useState(50000)
   const [batteryFilter, setBatteryFilter] = useState('All')
   const [showMatcher, setShowMatcher] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE)
+
+  useEffect(() => {
+    setVisibleCount(ITEMS_PER_PAGE)
+  }, [search, activeCategory, sortBy, powerFilter, waterproofFilter, maxPriceFilter, batteryFilter])
 
   useEffect(() => {
     const query = searchParams.get('search')
@@ -144,6 +187,10 @@ export default function BrowsePage() {
       if (sortBy === 'name') return a.name.localeCompare(b.name)
       return b.id - a.id // newest
     })
+
+  const displayedProducts = filtered.slice(0, visibleCount)
+  const hasMore = visibleCount < filtered.length
+  const remainingCount = Math.max(0, filtered.length - visibleCount)
 
   return (
     <div className="jds-page-bg font-inter text-jds-on-surface min-h-screen">
@@ -329,7 +376,7 @@ export default function BrowsePage() {
           <div className="flex-grow">
             <div className="flex justify-between items-center mb-6">
               <p className="text-label-md text-jds-on-surface-variant">
-                Showing {loading ? '...' : filtered.length} products
+                Showing {loading ? '...' : `${Math.min(visibleCount, filtered.length)} of ${filtered.length}`} products
               </p>
               <select
                 className="bg-transparent border-none text-label-md text-jds-primary focus:ring-0 cursor-pointer"
@@ -355,70 +402,87 @@ export default function BrowsePage() {
                 ))}
               </div>
             ) : filtered.length > 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-              >
-                {filtered.map((product) => (
-                  <Link
-                    key={product.id}
-                    to={`/product/${product.id}`}
-                    className="bg-jds-surface-container-lowest flex flex-col border border-jds-outline-variant card-shadow rounded-lg p-4 cursor-pointer no-underline text-inherit"
-                  >
-                    <div className="aspect-square rounded-lg bg-jds-surface-variant mb-4 overflow-hidden relative flex items-center justify-center">
-                      {product.image_url ? (
-                        <img
-                          className="w-full h-full object-cover"
-                          src={product.image_url}
-                          alt={product.name}
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center gap-2 text-jds-on-surface-variant/40">
-                          <HiOutlineBolt className="text-4xl" />
-                          <span className="text-label-sm">{product.watt}W</span>
-                        </div>
-                      )}
-                      {product.waterproof_grade && (
-                        <span className="absolute top-2 left-2 bg-jds-secondary-container text-jds-on-secondary-container px-2 py-0.5 rounded text-[10px] font-bold uppercase">
-                          {product.waterproof_grade}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-grow mb-4">
-                      <h3 className="text-label-md text-jds-on-surface font-bold line-clamp-2">{product.name}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-jds-secondary font-bold text-label-md">
-                          {product.watt}W
-                        </span>
-                        <span className="text-jds-on-surface-variant text-label-sm">
-                          · {product.waterproof_grade || 'IP65'}
-                        </span>
-                      </div>
-                      {product.price_range ? (
-                        <div className="text-jds-primary font-bold text-body-lg mt-1">
-                          ₱{product.price_range}
-                        </div>
-                      ) : (
-                        <div className="text-jds-on-surface-variant font-medium text-label-sm mt-1">
-                          Inquire at Branch for Price
-                        </div>
-                      )}
-                      {product.material && (
-                        <p className="text-label-sm text-jds-on-surface-variant mt-1 truncate">
-                          {product.material}
-                        </p>
-                      )}
-                    </div>
-                    <div
-                      className="w-full border border-jds-secondary text-jds-secondary py-2 rounded text-label-md text-center block"
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.4 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                >
+                  {displayedProducts.map((product, index) => (
+                    <Link
+                      key={product.id}
+                      to={`/product/${product.id}`}
+                      className="bg-jds-surface-container-lowest flex flex-col border border-jds-outline-variant card-shadow rounded-lg p-4 cursor-pointer no-underline text-inherit"
                     >
-                      View Details
-                    </div>
-                  </Link>
-                ))}
-              </motion.div>
+                      <div className="aspect-square rounded-lg bg-jds-surface-variant mb-4 overflow-hidden relative flex items-center justify-center">
+                        {product.image_url ? (
+                          <ProductCardImage
+                            src={product.image_url}
+                            alt={product.name}
+                            priority={index < 4}
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center gap-2 text-jds-on-surface-variant/40">
+                            <HiOutlineBolt className="text-4xl" />
+                            <span className="text-label-sm">{product.watt}W</span>
+                          </div>
+                        )}
+                        {product.waterproof_grade && (
+                          <span className="absolute top-2 left-2 bg-jds-secondary-container text-jds-on-secondary-container px-2 py-0.5 rounded text-[10px] font-bold uppercase z-10">
+                            {product.waterproof_grade}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-grow mb-4">
+                        <h3 className="text-label-md text-jds-on-surface font-bold line-clamp-2">{product.name}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-jds-secondary font-bold text-label-md">
+                            {product.watt}W
+                          </span>
+                          <span className="text-jds-on-surface-variant text-label-sm">
+                            · {product.waterproof_grade || 'IP65'}
+                          </span>
+                        </div>
+                        {product.price_range ? (
+                          <div className="text-jds-primary font-bold text-body-lg mt-1">
+                            ₱{product.price_range}
+                          </div>
+                        ) : (
+                          <div className="text-jds-on-surface-variant font-medium text-label-sm mt-1">
+                            Inquire at Branch for Price
+                          </div>
+                        )}
+                        {product.material && (
+                          <p className="text-label-sm text-jds-on-surface-variant mt-1 truncate">
+                            {product.material}
+                          </p>
+                        )}
+                      </div>
+                      <div
+                        className="w-full border border-jds-secondary text-jds-secondary py-2 rounded text-label-md text-center block"
+                      >
+                        View Details
+                      </div>
+                    </Link>
+                  ))}
+                </motion.div>
+
+                {hasMore && (
+                  <div className="mt-10 flex flex-col items-center justify-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount((prev) => prev + ITEMS_PER_PAGE)}
+                      className="w-full sm:w-auto min-w-[280px] px-8 py-3.5 rounded-xl bg-jds-surface-container border border-jds-outline-variant hover:border-jds-primary/40 hover:bg-jds-surface-container-high text-jds-on-surface text-label-md font-bold transition-all shadow-xs active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span>Load More Products (+{Math.min(ITEMS_PER_PAGE, remainingCount)})</span>
+                    </button>
+                    <span className="text-xs text-jds-on-surface-variant font-medium">
+                      Showing {Math.min(visibleCount, filtered.length)} of {filtered.length} products
+                    </span>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center py-20 bg-jds-surface-container-high/30 rounded-lg border border-dashed border-jds-outline-variant">
                 <h3 className="text-headline-md mb-2">No products found</h3>
