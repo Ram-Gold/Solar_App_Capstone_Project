@@ -334,38 +334,6 @@ export default function CustomerPortalPage() {
       {/* Main Content Area */}
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
 
-        {/* Warranty Policy & Case Evaluation Overview Banner */}
-        <div className="p-4 md:p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-xs space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-jds-outline-variant/20 pb-3">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <div>
-                <h3 className="text-sm font-bold text-jds-on-surface">2-Year Solar Warranty & Case Evaluation Policy</h3>
-                <p className="text-xs text-jds-on-surface-variant">Default 24-Month Coverage • 1-Time Replacement Entitlement</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 self-start sm:self-auto">
-              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                24 Mos Solar Terms
-              </span>
-              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
-                1-Time Replacement
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs leading-relaxed text-jds-on-surface-variant">
-            <div className="p-3 rounded-xl bg-jds-surface-container/30 border border-jds-outline-variant/20 space-y-1">
-              <strong className="text-emerald-700 dark:text-emerald-400 font-semibold block">Covered Under Warranty (Case-by-Case):</strong>
-              <p>Manufacturing and factory defects, internal controller/sensor failure, abnormal battery loss, and solar cell degradation under standard operating conditions.</p>
-            </div>
-            <div className="p-3 rounded-xl bg-jds-surface-container/30 border border-jds-outline-variant/20 space-y-1">
-              <strong className="text-rose-700 dark:text-rose-400 font-semibold block">Disqualified / Voided Terms:</strong>
-              <p>Physical drops, shattered glass, blunt force casing trauma, customer carelessness, unauthorized disassembly, modified wiring, or water ingress from unsealed ports.</p>
-            </div>
-          </div>
-        </div>
-
         {/* SECTION 1: Registered Products & Warranties */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -564,6 +532,38 @@ export default function CustomerPortalPage() {
               })}
             </div>
           )}
+        </div>
+
+        {/* Warranty Policy & Case Evaluation Overview Banner */}
+        <div className="p-4 md:p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-jds-outline-variant/20 pb-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div>
+                <h3 className="text-sm font-bold text-jds-on-surface">2-Year Solar Warranty & Case Evaluation Policy</h3>
+                <p className="text-xs text-jds-on-surface-variant">Default 24-Month Coverage • 1-Time Replacement Entitlement</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                24 Mos Solar Terms
+              </span>
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                1-Time Replacement
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs leading-relaxed text-jds-on-surface-variant">
+            <div className="p-3 rounded-xl bg-jds-surface-container/30 border border-jds-outline-variant/20 space-y-1">
+              <strong className="text-emerald-700 dark:text-emerald-400 font-semibold block">Covered Under Warranty (Case-by-Case):</strong>
+              <p>Manufacturing and factory defects, internal controller/sensor failure, abnormal battery loss, and solar cell degradation under standard operating conditions.</p>
+            </div>
+            <div className="p-3 rounded-xl bg-jds-surface-container/30 border border-jds-outline-variant/20 space-y-1">
+              <strong className="text-rose-700 dark:text-rose-400 font-semibold block">Disqualified / Voided Terms:</strong>
+              <p>Physical drops, shattered glass, blunt force casing trauma, customer carelessness, unauthorized disassembly, modified wiring, or water ingress from unsealed ports.</p>
+            </div>
+          </div>
         </div>
 
         {/* SECTION 2: Active Claims & Status Tracker */}
