@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JD Solar - Diagnostic Decision Tree</title>
+  <title>JD Solar - Multi-Criteria Diagnostic Decision Tree</title>
   <style>
     :root {
       --bg: #ffffff;
       --text: #000000;
       --border: #000000;
-      --muted: #666666;
+      --muted: #555555;
+      --surface-alt: #f7f7f7;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
 
@@ -24,23 +25,25 @@
       background-color: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      padding: 48px 32px;
+      padding: 40px 28px;
       line-height: 1.5;
     }
 
     .container {
-      max-width: 1000px;
+      max-width: 1120px;
       margin: 0 auto;
     }
 
     /* Minimal Header */
     header {
       border-bottom: 2px solid var(--border);
-      padding-bottom: 16px;
-      margin-bottom: 40px;
+      padding-bottom: 14px;
+      margin-bottom: 32px;
       display: flex;
       justify-content: space-between;
       align-items: baseline;
+      flex-wrap: wrap;
+      gap: 12px;
     }
 
     h1 {
@@ -51,7 +54,7 @@
     }
 
     .header-meta {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: var(--muted);
       text-transform: uppercase;
     }
@@ -61,30 +64,67 @@
       font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       font-weight: 700;
       border-bottom: 1px solid var(--border);
       padding-bottom: 6px;
       display: flex;
       justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+
+    .filter-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-right: 4px;
+      font-weight: 700;
+    }
+
+    .btn-filter {
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      font-size: 0.66rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+
+    .btn-filter:hover,
+    .btn-filter.active {
+      background: #000000;
+      color: #ffffff;
     }
 
     /* =========================================================
-       CLEAN TREE OVERVIEW (COMPACT BUS & CLEAN PILLS)
+       1. MULTI-STAGE DECISION TREE TOPOLOGY MAP
        ========================================================= */
     .tree-map {
-      margin-bottom: 56px;
+      margin-bottom: 40px;
     }
 
-    /* Root node pill */
     .root-box {
       border: 1.5px solid var(--border);
-      padding: 10px 18px;
+      padding: 10px 20px;
       width: fit-content;
-      margin: 0 auto 24px auto;
+      margin: 0 auto 20px auto;
       text-align: center;
       cursor: pointer;
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 700;
       text-transform: uppercase;
       transition: all 0.1s;
@@ -96,12 +136,11 @@
       color: #ffffff;
     }
 
-    /* Clean horizontal bus wire */
     .bus-wire {
       height: 1px;
       background: var(--border);
       width: 100%;
-      margin: 0 0 24px 0;
+      margin: 0 0 20px 0;
       position: relative;
     }
 
@@ -115,20 +154,19 @@
       background: var(--border);
     }
 
-    /* 6 Branches minimal grid */
     .branches-grid {
       display: grid;
       grid-template-columns: repeat(6, 1fr);
-      gap: 16px;
+      gap: 12px;
     }
 
     .branch-card {
       border: 1px solid var(--border);
-      padding: 12px;
+      padding: 10px;
       background: #ffffff;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       transition: all 0.1s;
     }
 
@@ -138,12 +176,12 @@
     }
 
     .branch-title {
-      font-size: 0.72rem;
+      font-size: 0.70rem;
       font-weight: 700;
       text-transform: uppercase;
       cursor: pointer;
       line-height: 1.3;
-      padding-bottom: 6px;
+      padding-bottom: 5px;
       border-bottom: 1px solid var(--border);
     }
 
@@ -151,15 +189,53 @@
       text-decoration: underline;
     }
 
+    .stage-block {
+      border-bottom: 1px dashed #cccccc;
+      padding-bottom: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .stage-block-label {
+      font-size: 0.58rem;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .stage-pill {
+      font-size: 0.63rem;
+      padding: 3px 5px;
+      border: 1px dotted #888888;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface-alt);
+    }
+
+    .stage-pill:hover {
+      border-style: solid;
+      border-color: #000000;
+    }
+
+    .stage-pill.active {
+      background: #000000;
+      color: #ffffff;
+      border: 1px solid #000000;
+    }
+
     .branch-leaf-list {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
     }
 
     .leaf-tag {
-      font-size: 0.68rem;
-      padding: 4px 6px;
+      font-size: 0.65rem;
+      padding: 4px 5px;
       border: 1px solid transparent;
       cursor: pointer;
       display: flex;
@@ -167,6 +243,7 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      transition: all 0.1s;
     }
 
     .leaf-tag:hover {
@@ -179,13 +256,123 @@
       border-color: #000000;
     }
 
+    .leaf-tag.dimmed {
+      opacity: 0.22;
+    }
+
     /* =========================================================
-       CLEAN MOCK SYSTEM RUNNER (BELOW)
+       2. LIVE 4-PILLAR CRITERIA STATUS STRIP
        ========================================================= */
+    .pillars-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .pillar-box {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      background: #ffffff;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+
+    .pillar-box:hover {
+      background: var(--surface-alt);
+    }
+
+    .pillar-box.evaluated {
+      border-width: 1.5px;
+    }
+
+    .pillar-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      padding-bottom: 4px;
+      border-bottom: 1px dotted var(--border);
+    }
+
+    .pillar-status-badge {
+      font-size: 0.60rem;
+      padding: 1px 5px;
+      border: 1px solid var(--border);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .pillar-status-badge.invert {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    .pillar-obs {
+      font-size: 0.66rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* =========================================================
+       3. DUAL-MODE DIAGNOSTIC RUNNER (GUIDED AUDIT + MATRIX)
+       ========================================================= */
+    .runner-controls-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .mode-tabs {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-mode {
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      font-size: 0.70rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .btn-mode.active {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    .context-selector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+    }
+
+    .context-select {
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: #000000;
+      padding: 4px 8px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
     .runner-wrap {
       border: 1.5px solid var(--border);
-      padding: 32px;
-      margin-top: 24px;
+      padding: 28px;
       background: #ffffff;
     }
 
@@ -193,7 +380,9 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
       font-size: 0.72rem;
       text-transform: uppercase;
       color: var(--muted);
@@ -207,51 +396,114 @@
     }
 
     .runner-question {
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 700;
       text-transform: uppercase;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       letter-spacing: -0.01em;
     }
 
     .runner-subtext {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       color: var(--muted);
-      margin-bottom: 28px;
+      margin-bottom: 24px;
       line-height: 1.6;
       white-space: pre-line;
-      max-width: 800px;
+      max-width: 860px;
     }
 
-    /* Verdict Card */
+    /* Multi-Criteria Verdict Dossier Box */
     .verdict-box {
-      border: 1px solid var(--border);
-      padding: 18px;
-      margin-bottom: 28px;
-      background: #fafafa;
+      border: 1.5px solid var(--border);
+      padding: 20px;
+      margin-bottom: 24px;
+      background: var(--surface-alt);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
 
     .verdict-header {
       display: flex;
       justify-content: space-between;
-      font-size: 0.82rem;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 0.80rem;
       font-weight: 700;
       text-transform: uppercase;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1.5px solid var(--border);
       padding-bottom: 8px;
-      margin-bottom: 12px;
+    }
+
+    .scorecard-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .scorecard-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .scorecard-cell {
+      border: 1px solid var(--border);
+      background: #ffffff;
+      padding: 8px 10px;
+      font-size: 0.70rem;
+    }
+
+    .scorecard-cell-head {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .compound-box {
+      border: 1px dashed var(--border);
+      background: #ffffff;
+      padding: 10px 12px;
+      font-size: 0.72rem;
+    }
+
+    .compound-title {
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      font-size: 0.68rem;
     }
 
     .telemetry-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 16px;
-      font-size: 0.75rem;
+      gap: 14px;
+      font-size: 0.72rem;
       color: var(--muted);
+      border-top: 1px dotted var(--border);
+      padding-top: 10px;
     }
 
     .telemetry-row span strong {
       color: #000000;
+    }
+
+    .warranty-banner {
+      border: 1px solid var(--border);
+      background: #ffffff;
+      padding: 10px 12px;
+      font-size: 0.72rem;
+    }
+
+    .warranty-banner strong {
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 2px;
     }
 
     /* Choice Buttons */
@@ -260,7 +512,7 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
     .choices-list {
@@ -273,8 +525,8 @@
       background: #ffffff;
       color: #000000;
       border: 1px solid var(--border);
-      padding: 12px 16px;
-      font-size: 0.82rem;
+      padding: 11px 15px;
+      font-size: 0.80rem;
       font-family: inherit;
       cursor: pointer;
       text-align: left;
@@ -287,6 +539,84 @@
     .btn-choice:hover {
       background: #000000;
       color: #ffffff;
+    }
+
+    /* Direct Criteria Matrix Grid */
+    .matrix-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .matrix-section {
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      background: var(--surface-alt);
+    }
+
+    .matrix-section-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .matrix-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+
+    .btn-matrix-opt {
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid var(--border);
+      padding: 7px 10px;
+      font-size: 0.70rem;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-matrix-opt.active {
+      background: #000000;
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .matrix-preview-bar {
+      border: 1.5px solid var(--border);
+      padding: 14px 16px;
+      background: #ffffff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .btn-eval-now {
+      background: #000000;
+      color: #ffffff;
+      border: 1.5px solid #000000;
+      padding: 10px 18px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .btn-eval-now:hover {
+      background: #ffffff;
+      color: #000000;
     }
 
     .btn-reset {
@@ -305,33 +635,42 @@
       color: #000000;
     }
 
-    /* Minimal Footer */
     footer {
       margin-top: 48px;
       padding-top: 16px;
       border-top: 1px solid var(--border);
-      font-size: 0.72rem;
+      font-size: 0.70rem;
       color: var(--muted);
       display: flex;
       justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
       text-transform: uppercase;
     }
 
-    @media (max-width: 860px) {
+    @media (max-width: 920px) {
       .branches-grid {
         grid-template-columns: repeat(3, 1fr);
+      }
+      .pillars-strip {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .matrix-options,
+      .scorecard-grid {
+        grid-template-columns: 1fr;
       }
     }
 
     @media (max-width: 580px) {
-      .branches-grid {
+      .branches-grid,
+      .pillars-strip {
         grid-template-columns: 1fr;
       }
       body {
-        padding: 24px 16px;
+        padding: 20px 14px;
       }
       .runner-wrap {
-        padding: 20px;
+        padding: 18px;
       }
     }
   </style>
@@ -340,487 +679,1144 @@
 
   <div class="container">
     <header>
-      <h1>JD Solar • Diagnostic Decision Tree</h1>
-      <div class="header-meta">Off-Grid Luminaire Fault Triage</div>
+      <h1>JD Solar • Multi-Criteria Diagnostic Decision Tree</h1>
+      <div class="header-meta">4-Pillar Weighted Rule Inference Engine (30% Elec • 25% Phys • 25% Env • 20% Ctrl)</div>
     </header>
 
-    <!-- 1. CLEAN TREE MAP -->
+    <!-- 1. MULTI-STAGE ARCHITECTURE MAP -->
     <div class="tree-map">
       <div class="section-label">
-        <span>1. Architecture Map (Click any node to navigate)</span>
-        <span id="map-indicator">Position: ROOT</span>
+        <span>1. Multi-Criteria Tree Topology (Click any Stage or Verdict Node)</span>
+        <span id="map-indicator">Position: [ROOT] • Stage 0/3</span>
+      </div>
+
+      <!-- Protocol Filter Buttons -->
+      <div class="filter-bar">
+        <span class="filter-label">Filter Leaf Verdicts:</span>
+        <button class="btn-filter active" onclick="setFilter('ALL', this)">All Verdicts (20)</button>
+        <button class="btn-filter" onclick="setFilter('DIY', this)">DIY Maintenance (11)</button>
+        <button class="btn-filter" onclick="setFilter('CLAIM', this)">Warranty Claim (6)</button>
+        <button class="btn-filter" onclick="setFilter('VOID', this)">Impact Exclusion (1)</button>
+        <button class="btn-filter" onclick="setFilter('INFO', this)">Zero Defect / Info (2)</button>
+        <button class="btn-filter" onclick="setFilter('ELIM', this)">Priority Elimination (3)</button>
       </div>
 
       <!-- Root Node -->
       <div class="root-box active" id="pill-ROOT" onclick="selectNode('ROOT')">
-        Level 0: Equipment Triage Root
+        Level 0: Equipment &amp; Context Triage Root
       </div>
 
       <div class="bus-wire"></div>
 
-      <!-- 6 Branches -->
+      <!-- 6 Multi-Stage Branches -->
       <div class="branches-grid">
 
-        <!-- Col 1 -->
+        <!-- Col 1: No Power -->
         <div class="branch-card" id="card-SYMPTOM_NO_POWER">
           <div class="branch-title" onclick="selectNode('SYMPTOM_NO_POWER')">1. No Power</div>
+          <div class="stage-block">
+            <div class="stage-block-label">3-Stage Criteria Audit</div>
+            <div class="stage-pill" id="pill-SYMPTOM_NO_POWER" onclick="selectNode('SYMPTOM_NO_POWER')"><span>S1: Electrical</span><span>30%</span></div>
+            <div class="stage-pill" id="pill-CRIT_NP_PHYSICAL" onclick="selectNode('CRIT_NP_PHYSICAL')"><span>S2: Physical Seal</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-CRIT_NP_ENV" onclick="selectNode('CRIT_NP_ENV')"><span>S3: Env &amp; Age</span><span>45%</span></div>
+          </div>
+          <div class="stage-block-label">Leaf Verdicts</div>
           <div class="branch-leaf-list">
-            <div class="leaf-tag" id="pill-DIAG_OPEN_CIRCUIT" onclick="selectNode('DIAG_OPEN_CIRCUIT')"><span>FLT-PV-001</span> <span>DIY</span></div>
-            <div class="leaf-tag" id="pill-DIAG_BMS_LOCKOUT" onclick="selectNode('DIAG_BMS_LOCKOUT')"><span>FLT-BAT-002</span> <span>DIY</span></div>
-            <div class="leaf-tag" id="pill-DIAG_RAIN_DEPLETION" onclick="selectNode('DIAG_RAIN_DEPLETION')"><span>FLT-ENV-003</span> <span>INFO</span></div>
-            <div class="leaf-tag" id="pill-DIAG_SWITCH_DISENGAGED" onclick="selectNode('DIAG_SWITCH_DISENGAGED')"><span>FLT-PWR-004</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_OPEN_CIRCUIT" onclick="selectNode('DIAG_OPEN_CIRCUIT')"><span>FLT-PV-001</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_BMS_LOCKOUT" onclick="selectNode('DIAG_BMS_LOCKOUT')"><span>FLT-BAT-002</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="INFO" id="pill-DIAG_RAIN_DEPLETION" onclick="selectNode('DIAG_RAIN_DEPLETION')"><span>FLT-ENV-003</span> <span>INFO</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_SWITCH_DISENGAGED" onclick="selectNode('DIAG_SWITCH_DISENGAGED')"><span>FLT-PWR-004</span> <span>DIY</span></div>
           </div>
         </div>
 
-        <!-- Col 2 -->
+        <!-- Col 2: Short Runtime -->
         <div class="branch-card" id="card-SYMPTOM_SHORT_RUNTIME">
           <div class="branch-title" onclick="selectNode('SYMPTOM_SHORT_RUNTIME')">2. Short Run</div>
+          <div class="stage-block">
+            <div class="stage-block-label">3-Stage Criteria Audit</div>
+            <div class="stage-pill" id="pill-SYMPTOM_SHORT_RUNTIME" onclick="selectNode('SYMPTOM_SHORT_RUNTIME')"><span>S1: Harvest LED</span><span>30%</span></div>
+            <div class="stage-pill" id="pill-CRIT_SR_PHYSICAL" onclick="selectNode('CRIT_SR_PHYSICAL')"><span>S2: Glass &amp; Seal</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-CRIT_SR_ENV" onclick="selectNode('CRIT_SR_ENV')"><span>S3: Soil/Shade/Tilt</span><span>25%</span></div>
+          </div>
+          <div class="stage-block-label">Leaf Verdicts</div>
           <div class="branch-leaf-list">
-            <div class="leaf-tag" id="pill-DIAG_SOILING_LOSS" onclick="selectNode('DIAG_SOILING_LOSS')"><span>FLT-PV-005</span> <span>DIY</span></div>
-            <div class="leaf-tag" id="pill-DIAG_SHADING_LOSS" onclick="selectNode('DIAG_SHADING_LOSS')"><span>FLT-PV-006</span> <span>DIY</span></div>
-            <div class="leaf-tag" id="pill-DIAG_TILT_MISALIGNMENT" onclick="selectNode('DIAG_TILT_MISALIGNMENT')"><span>FLT-PV-007</span> <span>DIY</span></div>
-            <div class="leaf-tag" id="pill-DIAG_BATTERY_AGING" onclick="selectNode('DIAG_BATTERY_AGING')"><span>FLT-BAT-008</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_SOILING_LOSS" onclick="selectNode('DIAG_SOILING_LOSS')"><span>FLT-PV-005</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_SHADING_LOSS" onclick="selectNode('DIAG_SHADING_LOSS')"><span>FLT-PV-006</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_TILT_MISALIGNMENT" onclick="selectNode('DIAG_TILT_MISALIGNMENT')"><span>FLT-PV-007</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="CLAIM" id="pill-DIAG_BATTERY_AGING" onclick="selectNode('DIAG_BATTERY_AGING')"><span>FLT-BAT-008</span> <span>CLAIM</span></div>
           </div>
         </div>
 
-        <!-- Col 3 -->
+        <!-- Col 3: Dim / Flicker -->
         <div class="branch-card" id="card-SYMPTOM_DIM_FLICKER">
           <div class="branch-title" onclick="selectNode('SYMPTOM_DIM_FLICKER')">3. Dim/Flicker</div>
+          <div class="stage-block">
+            <div class="stage-block-label">3-Stage Criteria Audit</div>
+            <div class="stage-pill" id="pill-SYMPTOM_DIM_FLICKER" onclick="selectNode('SYMPTOM_DIM_FLICKER')"><span>S1: LED Pattern</span><span>30%</span></div>
+            <div class="stage-pill" id="pill-CRIT_DF_PHYSICAL" onclick="selectNode('CRIT_DF_PHYSICAL')"><span>S2: Lens Moisture</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-CRIT_DF_ENV" onclick="selectNode('CRIT_DF_ENV')"><span>S3: Irradiance</span><span>25%</span></div>
+          </div>
+          <div class="stage-block-label">Leaf Verdicts</div>
           <div class="branch-leaf-list">
-            <div class="leaf-tag" id="pill-DIAG_WATER_INGRESS" onclick="selectNode('DIAG_WATER_INGRESS')"><span>FLT-IP-009</span> <span>CLAIM</span></div>
-            <div class="leaf-tag" id="pill-DIAG_NORMAL_RADAR" onclick="selectNode('DIAG_NORMAL_RADAR')"><span>FLT-SET-010</span> <span>INFO</span></div>
-            <div class="leaf-tag" id="pill-DIAG_VOLTAGE_RIPPLE" onclick="selectNode('DIAG_VOLTAGE_RIPPLE')"><span>FLT-DRV-011</span> <span>CLAIM</span></div>
-            <div class="leaf-tag" id="pill-DIAG_LED_ARRAY_BURNOUT" onclick="selectNode('DIAG_LED_ARRAY_BURNOUT')"><span>FLT-LED-012</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" data-proto="CLAIM" data-elim="true" id="pill-DIAG_WATER_INGRESS" onclick="selectNode('DIAG_WATER_INGRESS')"><span>FLT-IP-009</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" data-proto="INFO" id="pill-DIAG_NORMAL_RADAR" onclick="selectNode('DIAG_NORMAL_RADAR')"><span>FLT-SET-010</span> <span>INFO</span></div>
+            <div class="leaf-tag" data-proto="CLAIM" id="pill-DIAG_VOLTAGE_RIPPLE" onclick="selectNode('DIAG_VOLTAGE_RIPPLE')"><span>FLT-DRV-011</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" data-proto="CLAIM" id="pill-DIAG_LED_ARRAY_BURNOUT" onclick="selectNode('DIAG_LED_ARRAY_BURNOUT')"><span>FLT-LED-012</span> <span>CLAIM</span></div>
           </div>
         </div>
 
-        <!-- Col 4 -->
+        <!-- Col 4: Daytime On -->
         <div class="branch-card" id="card-SYMPTOM_DAYTIME_ON">
           <div class="branch-title" onclick="selectNode('SYMPTOM_DAYTIME_ON')">4. Daytime On</div>
+          <div class="stage-block">
+            <div class="stage-block-label">3-Stage Criteria Audit</div>
+            <div class="stage-pill" id="pill-SYMPTOM_DAYTIME_ON" onclick="selectNode('SYMPTOM_DAYTIME_ON')"><span>S1: Photocell 5V</span><span>30%</span></div>
+            <div class="stage-pill" id="pill-CRIT_DO_PHYSICAL" onclick="selectNode('CRIT_DO_PHYSICAL')"><span>S2: Seal &amp; Plug</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-CRIT_DO_CONTROL" onclick="selectNode('CRIT_DO_CONTROL')"><span>S3: Remote Gate</span><span>20%</span></div>
+          </div>
+          <div class="stage-block-label">Leaf Verdicts</div>
           <div class="branch-leaf-list">
-            <div class="leaf-tag" id="pill-DIAG_PHOTOCELL_BLOCKED" onclick="selectNode('DIAG_PHOTOCELL_BLOCKED')"><span>FLT-SNS-013</span> <span>DIY</span></div>
-            <div class="leaf-tag" id="pill-DIAG_MOSFET_FAULT" onclick="selectNode('DIAG_MOSFET_FAULT')"><span>FLT-CTL-014</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_PHOTOCELL_BLOCKED" onclick="selectNode('DIAG_PHOTOCELL_BLOCKED')"><span>FLT-SNS-013</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="CLAIM" id="pill-DIAG_MOSFET_FAULT" onclick="selectNode('DIAG_MOSFET_FAULT')"><span>FLT-CTL-014</span> <span>CLAIM</span></div>
           </div>
         </div>
 
-        <!-- Col 5 -->
+        <!-- Col 5: Physical / Hotspot -->
         <div class="branch-card" id="card-SYMPTOM_PHYSICAL_HOTSPOT">
           <div class="branch-title" onclick="selectNode('SYMPTOM_PHYSICAL_HOTSPOT')">5. Damage/Heat</div>
+          <div class="stage-block">
+            <div class="stage-block-label">3-Stage Criteria Audit</div>
+            <div class="stage-pill" id="pill-SYMPTOM_PHYSICAL_HOTSPOT" onclick="selectNode('SYMPTOM_PHYSICAL_HOTSPOT')"><span>S1: Surface Audit</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-CRIT_PH_ELECTRICAL" onclick="selectNode('CRIT_PH_ELECTRICAL')"><span>S2: Continuity</span><span>30%</span></div>
+            <div class="stage-pill" id="pill-CRIT_PH_ENV" onclick="selectNode('CRIT_PH_ENV')"><span>S3: Site Exposure</span><span>25%</span></div>
+          </div>
+          <div class="stage-block-label">Leaf Verdicts</div>
           <div class="branch-leaf-list">
-            <div class="leaf-tag" id="pill-DIAG_THERMAL_HOTSPOT" onclick="selectNode('DIAG_THERMAL_HOTSPOT')"><span>FLT-PV-015</span> <span>CLAIM</span></div>
-            <div class="leaf-tag" id="pill-DIAG_GLASS_FRACTURE" onclick="selectNode('DIAG_GLASS_FRACTURE')"><span>FLT-EXT-016</span> <span>CLAIM</span></div>
-            <div class="leaf-tag" id="pill-DIAG_HARDWARE_MOUNT" onclick="selectNode('DIAG_HARDWARE_MOUNT')"><span>FLT-MNT-017</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="CLAIM" data-elim="true" id="pill-DIAG_THERMAL_HOTSPOT" onclick="selectNode('DIAG_THERMAL_HOTSPOT')"><span>FLT-PV-015</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" data-proto="VOID" data-elim="true" id="pill-DIAG_GLASS_FRACTURE" onclick="selectNode('DIAG_GLASS_FRACTURE')"><span>FLT-EXT-016</span> <span>VOID</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_HARDWARE_MOUNT" onclick="selectNode('DIAG_HARDWARE_MOUNT')"><span>FLT-MNT-017</span> <span>DIY</span></div>
           </div>
         </div>
 
-        <!-- Col 6 -->
+        <!-- Col 6: Sensor / Remote -->
         <div class="branch-card" id="card-SYMPTOM_SENSOR_REMOTE">
           <div class="branch-title" onclick="selectNode('SYMPTOM_SENSOR_REMOTE')">6. Sensor/Remote</div>
+          <div class="stage-block">
+            <div class="stage-block-label">3-Stage Criteria Audit</div>
+            <div class="stage-pill" id="pill-SYMPTOM_SENSOR_REMOTE" onclick="selectNode('SYMPTOM_SENSOR_REMOTE')"><span>S1: IR &amp; Radar</span><span>20%</span></div>
+            <div class="stage-pill" id="pill-CRIT_SRM_ELECTRICAL" onclick="selectNode('CRIT_SRM_ELECTRICAL')"><span>S2: Main Power</span><span>30%</span></div>
+            <div class="stage-pill" id="pill-CRIT_SRM_PHYSICAL" onclick="selectNode('CRIT_SRM_PHYSICAL')"><span>S3: Sensor Dome</span><span>25%</span></div>
+          </div>
+          <div class="stage-block-label">Leaf Verdicts</div>
           <div class="branch-leaf-list">
-            <div class="leaf-tag" id="pill-DIAG_REMOTE_BATTERIES" onclick="selectNode('DIAG_REMOTE_BATTERIES')"><span>FLT-RMT-018</span> <span>DIY</span></div>
-            <div class="leaf-tag" id="pill-DIAG_REMOTE_RANGE" onclick="selectNode('DIAG_REMOTE_RANGE')"><span>FLT-RMT-019</span> <span>DIY</span></div>
-            <div class="leaf-tag" id="pill-DIAG_RADAR_DIRT" onclick="selectNode('DIAG_RADAR_DIRT')"><span>FLT-SNS-020</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_REMOTE_BATTERIES" onclick="selectNode('DIAG_REMOTE_BATTERIES')"><span>FLT-RMT-018</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_REMOTE_RANGE" onclick="selectNode('DIAG_REMOTE_RANGE')"><span>FLT-RMT-019</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_RADAR_DIRT" onclick="selectNode('DIAG_RADAR_DIRT')"><span>FLT-SNS-020</span> <span>DIY</span></div>
           </div>
         </div>
 
       </div>
     </div>
 
-
-    <!-- 2. CLEAN RUNNER (MOCK DECISION ENGINE) -->
+    <!-- 2. LIVE 4-PILLAR CRITERIA STATUS STRIP -->
     <div class="section-label">
-      <span>2. Interactive Diagnostic Flow</span>
-      <button class="btn-reset" onclick="selectNode('ROOT')">Restart to Root</button>
+      <span>2. Live 4-Pillar Hardware Criteria Vector (Click any pillar to open Direct Matrix)</span>
+      <span id="criteria-progress-label">0/4 Pillars Verified</span>
     </div>
 
-    <div class="runner-wrap">
+    <div class="pillars-strip" id="pillars-strip"></div>
+
+    <!-- 3. DUAL-MODE INTERACTIVE ENGINE RUNNER -->
+    <div class="section-label">
+      <span>3. Interactive Multi-Criteria Diagnostic Engine</span>
+      <button class="btn-reset" onclick="resetEngine()">Reset Audit to Root</button>
+    </div>
+
+    <div class="runner-controls-bar">
+      <div class="mode-tabs">
+        <button class="btn-mode active" id="tab-guided" onclick="setRunnerMode('guided')">Mode A: Guided 3-Stage Audit</button>
+        <button class="btn-mode" id="tab-matrix" onclick="setRunnerMode('matrix')">Mode B: Direct Criteria Matrix</button>
+      </div>
+      <div class="context-selector">
+        <span>Equipment Context:</span>
+        <select class="context-select" id="ctx-select" onchange="onContextChange()">
+          <option value="SPLIT_ACTIVE">Split-Type Streetlight • 24-Mo Warranty Active</option>
+          <option value="AIO_ACTIVE">All-in-One Integrated • 24-Mo Warranty Active</option>
+          <option value="SPLIT_EXPIRED">Split-Type Streetlight • Warranty Expired (&gt;24 Mos)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- GUIDED AUDIT VIEW -->
+    <div class="runner-wrap" id="view-guided">
       <div class="runner-top-bar">
-        <div>Path: <span class="runner-path" id="run-path">ROOT</span></div>
-        <div id="run-stage">Symptom Selection</div>
+        <div>Audit Trail: <span class="runner-path" id="run-path">ROOT</span></div>
+        <div id="run-stage">Stage 0: Symptom Selection</div>
       </div>
 
-      <h2 class="runner-question" id="run-question">Select Observed Physical Symptom</h2>
-      <div class="runner-subtext" id="run-subtext">
-        Solar luminaires operate without cloud connectivity. Troubleshooting is guided by observed physical symptoms.
-      </div>
+      <h2 class="runner-question" id="run-question">Select Observed Symptom</h2>
+      <div class="runner-subtext" id="run-subtext"></div>
 
       <div id="run-verdict-slot"></div>
 
-      <div class="choices-title" id="run-choices-title">Select an option:</div>
+      <div class="choices-title" id="run-choices-title">Select Observation to Advance Criteria Audit:</div>
       <div class="choices-list" id="run-choices-list"></div>
     </div>
 
+    <!-- DIRECT CRITERIA MATRIX VIEW -->
+    <div class="runner-wrap" id="view-matrix" style="display: none;">
+      <div class="runner-top-bar">
+        <div>Mode: <span class="runner-path">DIRECT 5-VECTOR MULTI-CRITERIA MATRIX</span></div>
+        <div>Weighted Inference (Sum = 1.00)</div>
+      </div>
+
+      <div class="matrix-grid" id="matrix-grid-container"></div>
+
+      <div class="matrix-preview-bar" id="matrix-preview-bar"></div>
+    </div>
+
     <footer>
-      <div>JD Solar • Deterministic Expert Tree</div>
-      <div>Monochrome Clean Spec • Zero Emojis</div>
+      <div>JD Solar • Forward-Chaining Multi-Criteria Inference Engine</div>
+      <div>Strict Monochrome Spec • Zero Emojis</div>
     </footer>
   </div>
 
-
   <!-- SCRIPT -->
   <script>
+    const CRITERIA_PILLARS = [
+      { key: "electrical", label: "1. Electrical Continuity", weight: 0.30, weightLabel: "30%" },
+      { key: "physical", label: "2. Physical & IP Seal", weight: 0.25, weightLabel: "25%" },
+      { key: "environmental", label: "3. Environmental Exposure", weight: 0.25, weightLabel: "25%" },
+      { key: "control", label: "4. Control & Lifecycle", weight: 0.20, weightLabel: "20%" }
+    ];
+
+    const CRITERIA_OPTIONS = {
+      symptom: [
+        { value: "NO_POWER", label: "Light Does NOT Turn On at Night" },
+        { value: "SHORT_RUNTIME", label: "Shuts Off Prematurely (1–3 Hours)" },
+        { value: "DIM_FLICKER", label: "Dim Illumination or Flickering LEDs" },
+        { value: "DAYTIME_ON", label: "Light Stays ON During Bright Daytime" },
+        { value: "PHYSICAL_HOTSPOT", label: "Panel Heat / Broken Glass / Slack Mount" },
+        { value: "SENSOR_REMOTE", label: "Remote Control / Radar Sensor Unresponsive" }
+      ],
+      electrical: [
+        { value: "LED_BLINKING", label: "Charging LED Blinks Normally in Sun", status: "PASS" },
+        { value: "LED_DARK", label: "Charging LED Completely Dark (0V Open Loop)", status: "FAIL" },
+        { value: "LED_RIPPLE", label: "Rapid Strobe / Fluctuating Driver Current", status: "FAIL" },
+        { value: "LED_PARTIAL_DARK", label: "Half of LED Array Dark / String Open", status: "FAIL" },
+        { value: "DAY_BLIND_LOW_V", label: "Panel Shaded / Senses < 5.0V in Daytime", status: "WARNING" },
+        { value: "DAY_SUN_SHORT", label: "Panel in Full Sun (>15V) Yet Lamp Stays On", status: "FAIL" }
+      ],
+      physical: [
+        { value: "SEAL_INTACT", label: "Housing Sealed, Lens Dry & Glass Intact", status: "PASS" },
+        { value: "PLUG_LOOSE", label: "Waterproof Aviation Plug Loose / Unseated", status: "FAIL" },
+        { value: "WATER_INGRESS", label: "Condensation / Water Droplets Inside Lens", status: "FAIL" },
+        { value: "CELL_HOTSPOT", label: "Brown / Black Burned Spots on Solar Cells", status: "FAIL" },
+        { value: "GLASS_FRACTURE", label: "Cracked or Shattered Tempered Solar Glass", status: "FAIL" },
+        { value: "MOUNT_LOOSE", label: "Pole Bracket or Clamp Bolts Loosened", status: "WARNING" }
+      ],
+      environmental: [
+        { value: "CLEAR_SUN", label: "Unobstructed Direct Sun (4–6+ Peak Hours)", status: "PASS" },
+        { value: "MONSOON_OVERCAST", label: "2–3+ Consecutive Stormy / Overcast Days", status: "WARNING" },
+        { value: "HEAVY_SOILING", label: "Thick Road Dust, Exhaust Soot, or Droppings", status: "WARNING" },
+        { value: "PARTIAL_SHADING", label: "Tree Branches or Roof Eaves Cast Midday Shadow", status: "WARNING" },
+        { value: "FLAT_NORTH_TILT", label: "Panel Mounted Flat (0 deg) or Facing North", status: "WARNING" }
+      ],
+      control: [
+        { value: "AUTO_NORMAL", label: "Master Switch ON • Auto Mode • < 24 Months", status: "PASS" },
+        { value: "SWITCH_OFF", label: "Master Waterproof Push-Switch Disengaged", status: "WARNING" },
+        { value: "RADAR_STANDBY", label: "Radar Eco Mode (30% Standby / 100% Motion)", status: "PASS" },
+        { value: "AGED_CELLS", label: "In Service 2+ Years (Gradual Discharge Drop)", status: "FAIL" },
+        { value: "REMOTE_DEAD_BAT", label: "Remote Indicator Unlit (AAA Cells Depleted)", status: "WARNING" },
+        { value: "REMOTE_OUT_OF_RANGE", label: "Remote Blinks but Aimed > 6m or Off-Angle", status: "WARNING" },
+        { value: "RADAR_DISABLED", label: "Radar Induction Disabled or Dome Smudged", status: "WARNING" }
+      ]
+    };
+
+    const DIAGNOSTIC_RULES = [
+      { ruleId: "RULE-IP-009", nodeKey: "DIAG_WATER_INGRESS", priority: 100, match: { symptom: ["DIM_FLICKER", "NO_POWER", "SHORT_RUNTIME", "DAYTIME_ON", "PHYSICAL_HOTSPOT"], physical: ["WATER_INGRESS"] } },
+      { ruleId: "RULE-EXT-016", nodeKey: "DIAG_GLASS_FRACTURE", priority: 98, match: { symptom: ["PHYSICAL_HOTSPOT", "NO_POWER", "SHORT_RUNTIME", "DIM_FLICKER"], physical: ["GLASS_FRACTURE"] } },
+      { ruleId: "RULE-PV-015", nodeKey: "DIAG_THERMAL_HOTSPOT", priority: 96, match: { symptom: ["PHYSICAL_HOTSPOT", "SHORT_RUNTIME", "NO_POWER"], physical: ["CELL_HOTSPOT"] } },
+      { ruleId: "RULE-PWR-004", nodeKey: "DIAG_SWITCH_DISENGAGED", priority: 85, match: { symptom: ["NO_POWER"], control: ["SWITCH_OFF"] } },
+      { ruleId: "RULE-PV-001", nodeKey: "DIAG_OPEN_CIRCUIT", priority: 82, match: { symptom: ["NO_POWER", "SHORT_RUNTIME"], electrical: ["LED_DARK"], physical: ["PLUG_LOOSE", "SEAL_INTACT"] } },
+      { ruleId: "RULE-ENV-003", nodeKey: "DIAG_RAIN_DEPLETION", priority: 80, match: { symptom: ["NO_POWER", "SHORT_RUNTIME"], electrical: ["LED_BLINKING"], physical: ["SEAL_INTACT"], environmental: ["MONSOON_OVERCAST"], control: ["AUTO_NORMAL", "RADAR_STANDBY"] } },
+      { ruleId: "RULE-BAT-002", nodeKey: "DIAG_BMS_LOCKOUT", priority: 78, match: { symptom: ["NO_POWER"], electrical: ["LED_BLINKING"], physical: ["SEAL_INTACT"], environmental: ["CLEAR_SUN", "MONSOON_OVERCAST"], control: ["AUTO_NORMAL"] } },
+      { ruleId: "RULE-PV-005", nodeKey: "DIAG_SOILING_LOSS", priority: 76, match: { symptom: ["SHORT_RUNTIME", "DIM_FLICKER", "NO_POWER"], electrical: ["LED_BLINKING", "LED_DARK"], physical: ["SEAL_INTACT"], environmental: ["HEAVY_SOILING"] } },
+      { ruleId: "RULE-PV-006", nodeKey: "DIAG_SHADING_LOSS", priority: 75, match: { symptom: ["SHORT_RUNTIME", "NO_POWER"], electrical: ["LED_BLINKING", "DAY_BLIND_LOW_V"], physical: ["SEAL_INTACT"], environmental: ["PARTIAL_SHADING"] } },
+      { ruleId: "RULE-PV-007", nodeKey: "DIAG_TILT_MISALIGNMENT", priority: 74, match: { symptom: ["SHORT_RUNTIME"], electrical: ["LED_BLINKING"], physical: ["SEAL_INTACT"], environmental: ["FLAT_NORTH_TILT"] } },
+      { ruleId: "RULE-BAT-008", nodeKey: "DIAG_BATTERY_AGING", priority: 77, match: { symptom: ["SHORT_RUNTIME", "NO_POWER"], electrical: ["LED_BLINKING"], physical: ["SEAL_INTACT"], environmental: ["CLEAR_SUN"], control: ["AGED_CELLS", "AUTO_NORMAL"] } },
+      { ruleId: "RULE-SET-010", nodeKey: "DIAG_NORMAL_RADAR", priority: 80, match: { symptom: ["DIM_FLICKER", "SENSOR_REMOTE"], electrical: ["LED_BLINKING"], physical: ["SEAL_INTACT"], control: ["RADAR_STANDBY"] } },
+      { ruleId: "RULE-DRV-011", nodeKey: "DIAG_VOLTAGE_RIPPLE", priority: 79, match: { symptom: ["DIM_FLICKER"], electrical: ["LED_RIPPLE"], physical: ["SEAL_INTACT"] } },
+      { ruleId: "RULE-LED-012", nodeKey: "DIAG_LED_ARRAY_BURNOUT", priority: 81, match: { symptom: ["DIM_FLICKER"], electrical: ["LED_PARTIAL_DARK"], physical: ["SEAL_INTACT"] } },
+      { ruleId: "RULE-SNS-013", nodeKey: "DIAG_PHOTOCELL_BLOCKED", priority: 80, match: { symptom: ["DAYTIME_ON"], electrical: ["DAY_BLIND_LOW_V"], environmental: ["PARTIAL_SHADING", "HEAVY_SOILING", "CLEAR_SUN"] } },
+      { ruleId: "RULE-CTL-014", nodeKey: "DIAG_MOSFET_FAULT", priority: 84, match: { symptom: ["DAYTIME_ON"], electrical: ["DAY_SUN_SHORT", "LED_BLINKING"], environmental: ["CLEAR_SUN"] } },
+      { ruleId: "RULE-MNT-017", nodeKey: "DIAG_HARDWARE_MOUNT", priority: 75, match: { symptom: ["PHYSICAL_HOTSPOT", "SHORT_RUNTIME"], physical: ["MOUNT_LOOSE"] } },
+      { ruleId: "RULE-RMT-018", nodeKey: "DIAG_REMOTE_BATTERIES", priority: 82, match: { symptom: ["SENSOR_REMOTE"], control: ["REMOTE_DEAD_BAT"] } },
+      { ruleId: "RULE-RMT-019", nodeKey: "DIAG_REMOTE_RANGE", priority: 78, match: { symptom: ["SENSOR_REMOTE"], control: ["REMOTE_OUT_OF_RANGE"] } },
+      { ruleId: "RULE-SNS-020", nodeKey: "DIAG_RADAR_DIRT", priority: 77, match: { symptom: ["SENSOR_REMOTE", "DIM_FLICKER"], control: ["RADAR_DISABLED"] } }
+    ];
+
     const TREE_DATA = {
       ROOT: {
-        stage: "Symptom Selection",
+        stage: "Stage 0/3: Primary Symptom Selection",
         branchKey: null,
-        question: "Select Observed Physical Symptom",
-        subtext: "Because solar equipment operates as standalone units without remote cloud telemetry, triage begins with physical symptoms.",
+        question: "Select Observed Symptom to Start 3-Stage Criteria Audit",
+        subtext: "Standalone off-grid luminaires are evaluated across four weighted engineering criteria pillars: Electrical Continuity (30%), Physical & IP65 Seal (25%), Environmental Exposure (25%), and Control & Lifecycle (20%).",
         options: [
-          { label: "Light Does NOT Turn On at Night", next: "SYMPTOM_NO_POWER" },
-          { label: "Shuts Off Prematurely (Only 1–3 Hours)", next: "SYMPTOM_SHORT_RUNTIME" },
-          { label: "Dim Illumination or Flickering LEDs", next: "SYMPTOM_DIM_FLICKER" },
-          { label: "Light Stays ON During Bright Daytime", next: "SYMPTOM_DAYTIME_ON" },
-          { label: "Panel Heat / Broken Glass / Slack Bracket", next: "SYMPTOM_PHYSICAL_HOTSPOT" },
-          { label: "Remote Control / Radar Sensor Not Responding", next: "SYMPTOM_SENSOR_REMOTE" }
+          { label: "1. Light Does NOT Turn On at Night", next: "SYMPTOM_NO_POWER", patch: { symptom: "NO_POWER" } },
+          { label: "2. Shuts Off Prematurely (Only 1–3 Hours)", next: "SYMPTOM_SHORT_RUNTIME", patch: { symptom: "SHORT_RUNTIME" } },
+          { label: "3. Dim Illumination or Flickering LEDs", next: "SYMPTOM_DIM_FLICKER", patch: { symptom: "DIM_FLICKER" } },
+          { label: "4. Light Stays ON During Bright Daytime", next: "SYMPTOM_DAYTIME_ON", patch: { symptom: "DAYTIME_ON" } },
+          { label: "5. Panel Heat / Broken Glass / Slack Bracket", next: "SYMPTOM_PHYSICAL_HOTSPOT", patch: { symptom: "PHYSICAL_HOTSPOT" } },
+          { label: "6. Remote Control / Radar Sensor Not Responding", next: "SYMPTOM_SENSOR_REMOTE", patch: { symptom: "SENSOR_REMOTE" } }
         ]
       },
 
-      // BRANCH 1
+      // BRANCH 1: NO POWER (3 STAGES)
       SYMPTOM_NO_POWER: {
-        stage: "Physical Inspection (No Power)",
+        stage: "Stage 1/3: Electrical Continuity Criterion (30% Weight)",
         branchKey: "SYMPTOM_NO_POWER",
-        question: "Observe Charging LED & Master Switch",
-        subtext: "During midday sunlight (11 AM – 2 PM), inspect the small charging indicator LED:",
+        question: "Criterion 1/3: Midday Charging LED & Master Switch Check",
+        subtext: "During peak daylight hours (11:00 AM – 2:00 PM), inspect the charging indicator LED and master switch state:",
         options: [
-          { label: "Indicator LED is completely dark (No light at all)", next: "DIAG_OPEN_CIRCUIT" },
-          { label: "Indicator blinks in sun, but lamp stays off at dusk", next: "DIAG_BMS_LOCKOUT" },
-          { label: "We had 2–3 consecutive stormy or rainy days", next: "DIAG_RAIN_DEPLETION" },
-          { label: "Physical master toggle was not checked or toggled ON", next: "DIAG_SWITCH_DISENGAGED" },
-          { label: "Back to Root Menu", next: "ROOT" }
+          { label: "Charging LED is completely dark (0V Open Circuit)", next: "CRIT_NP_PHYSICAL", patch: { symptom: "NO_POWER", electrical: "LED_DARK", control: "AUTO_NORMAL" }, evalPillar: "electrical" },
+          { label: "Charging LED blinks normally in sun, but lamp stays off at dusk", next: "CRIT_NP_PHYSICAL", patch: { symptom: "NO_POWER", electrical: "LED_BLINKING", control: "AUTO_NORMAL" }, evalPillar: "electrical" },
+          { label: "Physical waterproof push-switch was not toggled ON", next: "CRIT_NP_PHYSICAL", patch: { symptom: "NO_POWER", electrical: "LED_BLINKING", control: "SWITCH_OFF" }, evalPillar: "electrical" },
+          { label: "Back to Root Symptom Menu", next: "ROOT" }
         ]
       },
+      CRIT_NP_PHYSICAL: {
+        stage: "Stage 2/3: Physical & IP65 Enclosure Criterion (25% Weight)",
+        branchKey: "SYMPTOM_NO_POWER",
+        question: "Criterion 2/3: Inspect Connector Collar, Lens & Glass Seal",
+        subtext: "Verify physical integrity to check for open connectors or priority elimination hazards (water ingress / glass fracture):",
+        options: [
+          { label: "Housing & lens are sealed, dry, and intact", next: "CRIT_NP_ENV", patch: { physical: "SEAL_INTACT" }, evalPillar: "physical" },
+          { label: "Waterproof aviation cable plug is loose or unseated", next: "CRIT_NP_ENV", patch: { physical: "PLUG_LOOSE" }, evalPillar: "physical" },
+          { label: "Water droplets or condensation visible inside optical lens", next: "CRIT_NP_ENV", patch: { physical: "WATER_INGRESS" }, evalPillar: "physical" },
+          { label: "Tempered solar glass is cracked or shattered from impact", next: "CRIT_NP_ENV", patch: { physical: "GLASS_FRACTURE" }, evalPillar: "physical" }
+        ]
+      },
+      CRIT_NP_ENV: {
+        stage: "Stage 3/3: Environmental & Lifecycle Criteria (45% Combined Weight)",
+        branchKey: "SYMPTOM_NO_POWER",
+        question: "Criterion 3/3: 72-Hour Weather History & Service Age",
+        subtext: "Complete the multi-criteria vector by selecting recent solar irradiance exposure and installation age:",
+        options: [
+          { label: "Clear direct sun (4–6+ hrs/day) • Unit under 24 months old", next: "EVALUATE_CRITERIA", patch: { environmental: "CLEAR_SUN" }, evalPillar: "environmental" },
+          { label: "2–3+ consecutive stormy, rainy, or heavy overcast days", next: "EVALUATE_CRITERIA", patch: { environmental: "MONSOON_OVERCAST" }, evalPillar: "environmental" },
+          { label: "Heavy road soot on glass or midday tree/roof shadow", next: "EVALUATE_CRITERIA", patch: { environmental: "HEAVY_SOILING" }, evalPillar: "environmental" },
+          { label: "Clear sun, but unit has been in service for 2+ years", next: "EVALUATE_CRITERIA", patch: { environmental: "CLEAR_SUN", control: "AGED_CELLS" }, evalPillar: "environmental" }
+        ]
+      },
+
+      // BRANCH 2: SHORT RUNTIME (3 STAGES)
+      SYMPTOM_SHORT_RUNTIME: {
+        stage: "Stage 1/3: Electrical Harvest Criterion (30% Weight)",
+        branchKey: "SYMPTOM_SHORT_RUNTIME",
+        question: "Criterion 1/3: Daytime Charging Indicator & Service Age",
+        subtext: "The luminaire ignites at dusk but cuts off after 1–3 hours. Check midday charging continuity and unit age:",
+        options: [
+          { label: "Charging LED blinks normally in sun • Under 24 months in service", next: "CRIT_SR_PHYSICAL", patch: { symptom: "SHORT_RUNTIME", electrical: "LED_BLINKING", control: "AUTO_NORMAL" }, evalPillar: "electrical" },
+          { label: "Charging LED blinks in sun • Unit in service 2+ years", next: "CRIT_SR_PHYSICAL", patch: { symptom: "SHORT_RUNTIME", electrical: "LED_BLINKING", control: "AGED_CELLS" }, evalPillar: "electrical" },
+          { label: "Charging LED is dark or weak even during bright midday sun", next: "CRIT_SR_PHYSICAL", patch: { symptom: "SHORT_RUNTIME", electrical: "LED_DARK", control: "AUTO_NORMAL" }, evalPillar: "electrical" },
+          { label: "Back to Root Symptom Menu", next: "ROOT" }
+        ]
+      },
+      CRIT_SR_PHYSICAL: {
+        stage: "Stage 2/3: Physical Panel & Seal Criterion (25% Weight)",
+        branchKey: "SYMPTOM_SHORT_RUNTIME",
+        question: "Criterion 2/3: Inspect Solar Wafer Surface & Optical Seal",
+        subtext: "Check the solar laminate and lens for physical degradation:",
+        options: [
+          { label: "Glass, silicon cells, and IP65 seal are completely intact and dry", next: "CRIT_SR_ENV", patch: { physical: "SEAL_INTACT" }, evalPillar: "physical" },
+          { label: "Brown/black burned discolorations on solar cells (Hotspot)", next: "CRIT_SR_ENV", patch: { physical: "CELL_HOTSPOT" }, evalPillar: "physical" },
+          { label: "Condensation or water droplets visible inside lens", next: "CRIT_SR_ENV", patch: { physical: "WATER_INGRESS" }, evalPillar: "physical" },
+          { label: "Aviation plug or pole bracket is loose", next: "CRIT_SR_ENV", patch: { physical: "PLUG_LOOSE" }, evalPillar: "physical" }
+        ]
+      },
+      CRIT_SR_ENV: {
+        stage: "Stage 3/3: Environmental Irradiance Criterion (25% Weight)",
+        branchKey: "SYMPTOM_SHORT_RUNTIME",
+        question: "Criterion 3/3: Inspect Soiling, Shadow Cone & Tilt Angle",
+        subtext: "Select the outdoor exposure condition between 9:30 AM and 3:30 PM:",
+        options: [
+          { label: "Thick dust, exhaust soot, or bird droppings on solar glass", next: "EVALUATE_CRITERIA", patch: { environmental: "HEAVY_SOILING" }, evalPillar: "environmental" },
+          { label: "Tree branches or building eaves cast partial midday shadow", next: "EVALUATE_CRITERIA", patch: { environmental: "PARTIAL_SHADING" }, evalPillar: "environmental" },
+          { label: "Panel mounted completely flat (0 deg) or facing North", next: "EVALUATE_CRITERIA", patch: { environmental: "FLAT_NORTH_TILT" }, evalPillar: "environmental" },
+          { label: "2–3+ consecutive rainy or overcast monsoon days", next: "EVALUATE_CRITERIA", patch: { environmental: "MONSOON_OVERCAST" }, evalPillar: "environmental" },
+          { label: "Clean glass, 15 deg South tilt, and full unobstructed sun", next: "EVALUATE_CRITERIA", patch: { environmental: "CLEAR_SUN" }, evalPillar: "environmental" }
+        ]
+      },
+
+      // BRANCH 3: DIM / FLICKER (3 STAGES)
+      SYMPTOM_DIM_FLICKER: {
+        stage: "Stage 1/3: Optical & Driver Regulation Criterion (30% Weight)",
+        branchKey: "SYMPTOM_DIM_FLICKER",
+        question: "Criterion 1/3: Observe LED Matrix Output Pattern",
+        subtext: "Identify the specific illumination anomaly across the SMD LED board:",
+        options: [
+          { label: "Rests at 30% dim standby, surges to 100% when motion passes", next: "CRIT_DF_PHYSICAL", patch: { symptom: "DIM_FLICKER", electrical: "LED_BLINKING", control: "RADAR_STANDBY" }, evalPillar: "electrical" },
+          { label: "Rapid strobe-like flickering when turned on", next: "CRIT_DF_PHYSICAL", patch: { symptom: "DIM_FLICKER", electrical: "LED_RIPPLE", control: "AUTO_NORMAL" }, evalPillar: "electrical" },
+          { label: "Half of the LED array is dark while the other half lights", next: "CRIT_DF_PHYSICAL", patch: { symptom: "DIM_FLICKER", electrical: "LED_PARTIAL_DARK", control: "AUTO_NORMAL" }, evalPillar: "electrical" },
+          { label: "Back to Root Symptom Menu", next: "ROOT" }
+        ]
+      },
+      CRIT_DF_PHYSICAL: {
+        stage: "Stage 2/3: Optical Cavity & Gasket Criterion (25% Weight)",
+        branchKey: "SYMPTOM_DIM_FLICKER",
+        question: "Criterion 2/3: Inspect Polycarbonate Lens for Moisture Ingress",
+        subtext: "Check whether water has breached the perimeter silicone seal:",
+        options: [
+          { label: "Optical lens is completely dry and IP65 gasket is intact", next: "CRIT_DF_ENV", patch: { physical: "SEAL_INTACT" }, evalPillar: "physical" },
+          { label: "Water droplets or fogging visible inside the optical lens", next: "CRIT_DF_ENV", patch: { physical: "WATER_INGRESS" }, evalPillar: "physical" },
+          { label: "Tempered solar panel glass is cracked or shattered", next: "CRIT_DF_ENV", patch: { physical: "GLASS_FRACTURE" }, evalPillar: "physical" }
+        ]
+      },
+      CRIT_DF_ENV: {
+        stage: "Stage 3/3: Environmental Harvest Criterion (25% Weight)",
+        branchKey: "SYMPTOM_DIM_FLICKER",
+        question: "Criterion 3/3: Verify Prior Daytime Charging Conditions",
+        subtext: "Select the environmental condition prior to the dim/flickering behavior:",
+        options: [
+          { label: "Clear sunny weather and clean panel surface", next: "EVALUATE_CRITERIA", patch: { environmental: "CLEAR_SUN" }, evalPillar: "environmental" },
+          { label: "2–3+ consecutive rainy or heavy overcast days", next: "EVALUATE_CRITERIA", patch: { environmental: "MONSOON_OVERCAST" }, evalPillar: "environmental" },
+          { label: "Heavy dust or soot layer coating the solar glass", next: "EVALUATE_CRITERIA", patch: { environmental: "HEAVY_SOILING" }, evalPillar: "environmental" }
+        ]
+      },
+
+      // BRANCH 4: DAYTIME ON (3 STAGES)
+      SYMPTOM_DAYTIME_ON: {
+        stage: "Stage 1/3: Photocell Threshold Criterion (30% Weight)",
+        branchKey: "SYMPTOM_DAYTIME_ON",
+        question: "Criterion 1/3: Check Daylight Panel Exposure (5.0V Cutoff)",
+        subtext: "Luminaires shut off daytime LED output when solar panel voltage rises above 5.0V DC:",
+        options: [
+          { label: "Panel is under deep awning, shade, or debris (< 5.0V sensed)", next: "CRIT_DO_PHYSICAL", patch: { symptom: "DAYTIME_ON", electrical: "DAY_BLIND_LOW_V", environmental: "PARTIAL_SHADING" }, evalPillar: "electrical" },
+          { label: "Panel is in blazing direct sun (>15V), yet LEDs stay lit", next: "CRIT_DO_PHYSICAL", patch: { symptom: "DAYTIME_ON", electrical: "DAY_SUN_SHORT", environmental: "CLEAR_SUN" }, evalPillar: "electrical" },
+          { label: "Back to Root Symptom Menu", next: "ROOT" }
+        ]
+      },
+      CRIT_DO_PHYSICAL: {
+        stage: "Stage 2/3: Physical Seal & Wiring Criterion (25% Weight)",
+        branchKey: "SYMPTOM_DAYTIME_ON",
+        question: "Criterion 2/3: Inspect Enclosure Seal & Aviation Plug",
+        subtext: "Verify whether moisture bridging or cable disconnection is present:",
+        options: [
+          { label: "Enclosure is dry, sealed, and connectors are properly seated", next: "CRIT_DO_CONTROL", patch: { physical: "SEAL_INTACT" }, evalPillar: "physical" },
+          { label: "Moisture or water droplets visible inside lens cavity", next: "CRIT_DO_CONTROL", patch: { physical: "WATER_INGRESS" }, evalPillar: "physical" }
+        ]
+      },
+      CRIT_DO_CONTROL: {
+        stage: "Stage 3/3: Controller Gate Verification (20% Weight)",
+        branchKey: "SYMPTOM_DAYTIME_ON",
+        question: "Criterion 3/3: Test Remote Control Override",
+        subtext: "Does the luminaire respond when pressing OFF or AUTO on the remote control?",
+        options: [
+          { label: "Unresponsive to remote OFF command (Locked on in full sun)", next: "EVALUATE_CRITERIA", patch: { control: "AUTO_NORMAL" }, evalPillar: "control" },
+          { label: "Shuts off normally once panel is exposed to open sky", next: "EVALUATE_CRITERIA", patch: { control: "AUTO_NORMAL" }, evalPillar: "control" }
+        ]
+      },
+
+      // BRANCH 5: PHYSICAL DAMAGE / HOTSPOT (3 STAGES)
+      SYMPTOM_PHYSICAL_HOTSPOT: {
+        stage: "Stage 1/3: Physical Surface & Structural Criterion (25% Weight)",
+        branchKey: "SYMPTOM_PHYSICAL_HOTSPOT",
+        question: "Criterion 1/3: Classify Visible Hardware Anomaly",
+        subtext: "Select the physical condition observed on the solar module or pole mount:",
+        options: [
+          { label: "Brown/black scorch marks or melted rings on solar cells (Hotspot)", next: "CRIT_PH_ELECTRICAL", patch: { symptom: "PHYSICAL_HOTSPOT", physical: "CELL_HOTSPOT" }, evalPillar: "physical" },
+          { label: "Spiderweb cracked or shattered tempered solar glass", next: "CRIT_PH_ELECTRICAL", patch: { symptom: "PHYSICAL_HOTSPOT", physical: "GLASS_FRACTURE" }, evalPillar: "physical" },
+          { label: "Pole bracket or stainless clamp bolts loosened by wind", next: "CRIT_PH_ELECTRICAL", patch: { symptom: "PHYSICAL_HOTSPOT", physical: "MOUNT_LOOSE" }, evalPillar: "physical" },
+          { label: "Back to Root Symptom Menu", next: "ROOT" }
+        ]
+      },
+      CRIT_PH_ELECTRICAL: {
+        stage: "Stage 2/3: Electrical Continuity Criterion (30% Weight)",
+        branchKey: "SYMPTOM_PHYSICAL_HOTSPOT",
+        question: "Criterion 2/3: Check Current Electrical Behavior",
+        subtext: "How is the unit behaving electrically under this physical condition?",
+        options: [
+          { label: "Charging LED still blinks and unit powers on at night", next: "CRIT_PH_ENV", patch: { electrical: "LED_BLINKING" }, evalPillar: "electrical" },
+          { label: "Charging LED is dark / unit no longer powers on", next: "CRIT_PH_ENV", patch: { electrical: "LED_DARK" }, evalPillar: "electrical" }
+        ]
+      },
+      CRIT_PH_ENV: {
+        stage: "Stage 3/3: Environmental Exposure Criterion (25% Weight)",
+        branchKey: "SYMPTOM_PHYSICAL_HOTSPOT",
+        question: "Criterion 3/3: Verify Site Exposure Context",
+        subtext: "Select the surrounding site environment:",
+        options: [
+          { label: "Direct open sunlight exposure", next: "EVALUATE_CRITERIA", patch: { environmental: "CLEAR_SUN", control: "AUTO_NORMAL" }, evalPillar: "environmental" },
+          { label: "Partial tree leaf shading or heavy road dust on panel", next: "EVALUATE_CRITERIA", patch: { environmental: "PARTIAL_SHADING", control: "AUTO_NORMAL" }, evalPillar: "environmental" },
+          { label: "Recent severe storm / high wind buffeting", next: "EVALUATE_CRITERIA", patch: { environmental: "MONSOON_OVERCAST", control: "AUTO_NORMAL" }, evalPillar: "environmental" }
+        ]
+      },
+
+      // BRANCH 6: SENSOR & REMOTE (3 STAGES)
+      SYMPTOM_SENSOR_REMOTE: {
+        stage: "Stage 1/3: Control & Sensor Criterion (20% Weight)",
+        branchKey: "SYMPTOM_SENSOR_REMOTE",
+        question: "Criterion 1/3: Inspect IR Remote & Microwave Radar Response",
+        subtext: "Select the control behavior observed:",
+        options: [
+          { label: "Remote red indicator LED does NOT light when buttons pressed", next: "CRIT_SRM_ELECTRICAL", patch: { symptom: "SENSOR_REMOTE", control: "REMOTE_DEAD_BAT" }, evalPillar: "control" },
+          { label: "Remote blinks, but lamp does not respond from > 6 meters", next: "CRIT_SRM_ELECTRICAL", patch: { symptom: "SENSOR_REMOTE", control: "REMOTE_OUT_OF_RANGE" }, evalPillar: "control" },
+          { label: "Radar sensor does not boost brightness when pedestrians pass", next: "CRIT_SRM_ELECTRICAL", patch: { symptom: "SENSOR_REMOTE", control: "RADAR_DISABLED" }, evalPillar: "control" },
+          { label: "Back to Root Symptom Menu", next: "ROOT" }
+        ]
+      },
+      CRIT_SRM_ELECTRICAL: {
+        stage: "Stage 2/3: Main Luminaire Power Criterion (30% Weight)",
+        branchKey: "SYMPTOM_SENSOR_REMOTE",
+        question: "Criterion 2/3: Verify Main Luminaire Night Operation",
+        subtext: "Does the main luminaire illuminate at dusk and blink its charging LED in daytime?",
+        options: [
+          { label: "Yes, main luminaire turns on at night and charges normally", next: "CRIT_SRM_PHYSICAL", patch: { electrical: "LED_BLINKING" }, evalPillar: "electrical" },
+          { label: "No, main luminaire is also completely dark at night", next: "CRIT_SRM_PHYSICAL", patch: { electrical: "LED_DARK" }, evalPillar: "electrical" }
+        ]
+      },
+      CRIT_SRM_PHYSICAL: {
+        stage: "Stage 3/3: Optical Receiver & Seal Criterion (25% Weight)",
+        branchKey: "SYMPTOM_SENSOR_REMOTE",
+        question: "Criterion 3/3: Inspect Sensor Dome & Optical Lens",
+        subtext: "Verify the physical state of the sensor dome and lens cavity:",
+        options: [
+          { label: "Sensor dome is dry and intact; standing within 5 meters", next: "EVALUATE_CRITERIA", patch: { physical: "SEAL_INTACT", environmental: "CLEAR_SUN" }, evalPillar: "physical" },
+          { label: "Water condensation visible inside optical lens", next: "EVALUATE_CRITERIA", patch: { physical: "WATER_INGRESS", environmental: "MONSOON_OVERCAST" }, evalPillar: "physical" }
+        ]
+      },
+
+      // 20 LEAF VERDICT NODES
       DIAG_OPEN_CIRCUIT: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_NO_POWER",
         faultCode: "FLT-PV-001",
         protocol: "DIY Fixable",
-        question: "Open Circuit or Loose Aviation Plug",
-        subtext: "The solar panel is not sending current to the battery pack.\n\nRemedy: Unscrew the waterproof aviation collar, align the internal keyway notch, press firmly, and hand-tighten clockwise.",
-        telemetry: { "PV Current": "0.0A", "Panel Voltage": "0.0V Open Loop", "Seal": "Loose" },
-        options: [{ label: "Fixed Connection (Resolved)", next: "ROOT" }, { label: "File Claim (Damaged Wire)", next: "ROOT" }]
+        claimRecommended: false,
+        defaultCriteria: { symptom: "NO_POWER", electrical: "LED_DARK", physical: "PLUG_LOOSE", environmental: "CLEAR_SUN", control: "AUTO_NORMAL" },
+        question: "PV Open Circuit / Aviation Plug Disconnection",
+        subtext: "Zero charging current is reaching the battery management board (0V continuity under daylight).\n\nRemedy (Split-Type): Unscrew the waterproof aviation collar, align the internal keyway notch, press pins firmly together, and tighten clockwise.\nRemedy (All-in-One Integrated): Hold external waterproof push-switch for 3–5 seconds; if charging LED remains dark in sun, file claim for internal bus inspection.",
+        telemetry: { "PV Current": "0.0A (Open Loop)", "Panel Voltage": "0.0V Continuity", "BMS State": "Idle / Disconnected", "Seal": "Check Connector Collar" },
+        options: [{ label: "Connection Restored (Return to Root)", next: "ROOT" }]
       },
       DIAG_BMS_LOCKOUT: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_NO_POWER",
         faultCode: "FLT-BAT-002",
-        protocol: "Self-Service (48H Sun-Soak)",
-        question: "LiFePO4 BMS Low-Voltage Cutoff Tripped",
-        subtext: "Panel produces voltage, but internal BMS tripped its safety cutoff below 2.5V/cell due to rain depletion.\n\nRemedy: Turn master switch OFF and sun-soak in full sun for 48 continuous hours to awaken cells.",
-        telemetry: { "PV Harvest": "Active", "Cell Voltage": "2.48V Cutoff", "BMS": "Sleep Mode" },
-        options: [{ label: "Awakened After Sun-Soak (Resolved)", next: "ROOT" }, { label: "File Warranty Claim", next: "ROOT" }]
+        protocol: "DIY Recovery (48H Sun-Soak)",
+        claimRecommended: true,
+        defaultCriteria: { symptom: "NO_POWER", electrical: "LED_BLINKING", physical: "SEAL_INTACT", environmental: "CLEAR_SUN", control: "AUTO_NORMAL" },
+        question: "LiFePO4 BMS Low-Voltage Sleep Lockout",
+        subtext: "Photovoltaic panel is harvesting normally (LED blinking) and enclosure is sealed, but the LiFePO4 BMS tripped its safety cutoff (< 2.50V/cell).\n\nRemedy: Switch lamp OFF via remote and leave in unobstructed sunlight for 48 hours to trickle-wake the BMS above 3.10V/cell.",
+        telemetry: { "PV Harvest": "100% Active (18.2V)", "Cell Voltage": "2.48V (Cutoff Tripped)", "BMS State": "Low-Voltage Sleep", "IP65 Seal": "Passed" },
+        options: [{ label: "Perform 48H Sun-Soak (Return to Root)", next: "ROOT" }]
       },
       DIAG_RAIN_DEPLETION: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_NO_POWER",
         faultCode: "FLT-ENV-003",
         protocol: "Zero Defect (Informational)",
-        question: "Weather-Induced Solar Deficit",
-        subtext: "Zero hardware defect detected. Monsoon cloud cover reduced solar harvest by 85%. Normal 12-hour lighting resumes after 1 full sunny day.",
-        telemetry: { "Harvest Deficit": "85%", "Hardware Status": "100% Healthy" },
-        options: [{ label: "Understood (Return to Menu)", next: "ROOT" }]
+        claimRecommended: false,
+        defaultCriteria: { symptom: "NO_POWER", electrical: "LED_BLINKING", physical: "SEAL_INTACT", environmental: "MONSOON_OVERCAST", control: "AUTO_NORMAL" },
+        question: "Monsoonal Solar Energy Deficit (Zero Hardware Defect)",
+        subtext: "Electrical continuity and physical enclosure passed all criteria. Consecutive monsoon rain reduced solar irradiance by up to 85%.\n\nRemedy: Switch remote control to RADAR (30% standby / 100% motion boost) to extend autonomy across 3 rainy nights.",
+        telemetry: { "Irradiance": "15% (Cloud Attenuation)", "Panel Voltage": "9.4V Diffuse", "Battery": "2.95V Reserve", "IP65 Seal": "Passed" },
+        options: [{ label: "Switched to Radar Eco Mode (Return to Root)", next: "ROOT" }]
       },
       DIAG_SWITCH_DISENGAGED: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_NO_POWER",
         faultCode: "FLT-PWR-004",
-        protocol: "DIY Fixable",
-        question: "Master Push Switch Disengaged",
-        subtext: "Luminaire physical toggle was left in shipping OFF mode.\n\nRemedy: Press rubber master button on rear bracket, or aim remote and press 'ON' for 3 seconds.",
-        telemetry: { "Switch State": "OFF", "Battery Reserve": "Nominal" },
-        options: [{ label: "Turned On (Resolved)", next: "ROOT" }, { label: "Still Dark (Inspect Indicator)", next: "SYMPTOM_NO_POWER" }]
-      },
-
-      // BRANCH 2
-      SYMPTOM_SHORT_RUNTIME: {
-        stage: "Physical Inspection (Short Runtime)",
-        branchKey: "SYMPTOM_SHORT_RUNTIME",
-        question: "Inspect Soiling, Shading & Angle",
-        subtext: "The lamp powers on at dusk but turns off after 1–3 hours:",
-        options: [
-          { label: "Heavy dust, road soot, or bird droppings on glass surface", next: "DIAG_SOILING_LOSS" },
-          { label: "Nearby tree branches or building roof cast midday shade", next: "DIAG_SHADING_LOSS" },
-          { label: "Panel mounted completely flat (0°) or facing North", next: "DIAG_TILT_MISALIGNMENT" },
-          { label: "Surface clean and sunny, but unit is 2+ years old", next: "DIAG_BATTERY_AGING" },
-          { label: "Back to Root Menu", next: "ROOT" }
-        ]
+        protocol: "DIY Activation",
+        claimRecommended: false,
+        defaultCriteria: { symptom: "NO_POWER", electrical: "LED_BLINKING", physical: "SEAL_INTACT", environmental: "CLEAR_SUN", control: "SWITCH_OFF" },
+        question: "Master Waterproof Push-Switch Disengaged",
+        subtext: "Units ship with the physical master push-switch in OFF position to prevent storage discharge.\n\nRemedy: Press and hold the rubber push-button on the luminaire housing for 3–5 seconds until the LED array flashes.",
+        telemetry: { "Switch State": "Open (OFF)", "Panel Voltage": "18.0V", "Battery Reserve": "3.28V Ready", "IP65 Seal": "Passed" },
+        options: [{ label: "Switch Engaged (Return to Root)", next: "ROOT" }]
       },
       DIAG_SOILING_LOSS: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_SHORT_RUNTIME",
         faultCode: "FLT-PV-005",
         protocol: "DIY Maintenance",
-        question: "Photovoltaic Soiling & Attenuation",
-        subtext: "Road soot is blocking 40% to 50% of sun photons.\n\nRemedy: Wipe tempered glass with soft damp microfiber cloth.",
-        telemetry: { "Transmission": "55% Attenuated", "Loss": "-45% Yield" },
-        options: [{ label: "Wiped Clean (Resolved)", next: "ROOT" }]
+        claimRecommended: false,
+        defaultCriteria: { symptom: "SHORT_RUNTIME", electrical: "LED_BLINKING", physical: "SEAL_INTACT", environmental: "HEAVY_SOILING", control: "AUTO_NORMAL" },
+        question: "Severe Photovoltaic Soiling & Optical Attenuation",
+        subtext: "Electrical and physical seal criteria passed, but road dust, soot, or bird droppings attenuate photon absorption by 30%–50%, capping daily SoC at ~40%.\n\nRemedy: Wash tempered glass early morning (<8:30 AM) when glass is cool using water and a soft microfiber cloth.",
+        telemetry: { "PV Transmission": "52% (-48% Soiling Loss)", "Panel Voltage": "13.8V", "Max Daily SoC": "~40% (3.08V)", "IP65 Seal": "Passed" },
+        options: [{ label: "Glass Wiped Clean (Return to Root)", next: "ROOT" }]
       },
       DIAG_SHADING_LOSS: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_SHORT_RUNTIME",
         faultCode: "FLT-PV-006",
-        protocol: "Site Adjustment",
-        question: "Bypass Diode Choke / Micro-Shading",
-        subtext: "Even a small branch shadow chokes the entire panel series string.\n\nRemedy: Trim tree branches or relocate outside the midday shadow cone.",
-        telemetry: { "Shadow Cone": "Severe Midday", "Daily Yield": "< 40%" },
-        options: [{ label: "Trimmed / Relocated (Resolved)", next: "ROOT" }]
+        protocol: "DIY Site Adjustment",
+        claimRecommended: false,
+        defaultCriteria: { symptom: "SHORT_RUNTIME", electrical: "LED_BLINKING", physical: "SEAL_INTACT", environmental: "PARTIAL_SHADING", control: "AUTO_NORMAL" },
+        question: "Midday Micro-Shading & Bypass Diode Choke",
+        subtext: "Because solar cells are wired in series strings, shading just 10%–15% of the panel between 10 AM and 3 PM chokes total current output by up to 70%.\n\nRemedy: Prune overhanging foliage or extend the mounting bracket arm clear of roof eaves.",
+        telemetry: { "PV Output": "38% (Series Choke)", "Panel Voltage": "11.5V Clamped", "Battery": "3.02V Undercharged", "IP65 Seal": "Passed" },
+        options: [{ label: "Sightline Cleared (Return to Root)", next: "ROOT" }]
       },
       DIAG_TILT_MISALIGNMENT: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_SHORT_RUNTIME",
         faultCode: "FLT-PV-007",
-        protocol: "Site Adjustment",
-        question: "Tilt & Azimuth Misalignment",
-        subtext: "Panels mounted flat collect pooling water; North-facing panels miss noon irradiance.\n\nRemedy: Angle bracket 10° to 15° facing true South.",
-        telemetry: { "Current Tilt": "0° Flat", "Optimal Tilt": "15° True South" },
-        options: [{ label: "Angle Adjusted (Resolved)", next: "ROOT" }]
+        protocol: "DIY Bracket Re-Angle",
+        claimRecommended: false,
+        defaultCriteria: { symptom: "SHORT_RUNTIME", electrical: "LED_BLINKING", physical: "SEAL_INTACT", environmental: "FLAT_NORTH_TILT", control: "AUTO_NORMAL" },
+        question: "Sub-Optimal Azimuth & Tilt Orientation",
+        subtext: "Flat (0 deg) panels trap rainwater mud rings, and North-facing panels lose 25%–35% of southern zenith irradiance in the Philippines (14 deg N).\n\nRemedy: Orient panel toward True South at a 12–15 degree tilt.",
+        telemetry: { "Angle Yield": "65% (-35% Loss)", "Panel Voltage": "14.8V", "Optimal Spec": "15 deg True South", "IP65 Seal": "Passed" },
+        options: [{ label: "Bracket Re-Angled (Return to Root)", next: "ROOT" }]
       },
       DIAG_BATTERY_AGING: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_SHORT_RUNTIME",
         faultCode: "FLT-BAT-008",
         protocol: "Warranty / Shop Service",
-        question: "LiFePO4 Cell Capacity Degradation",
-        subtext: "After 2+ years of nightly cycles, battery reached end-of-life.\n\nAction: Eligible for service shop cell replacement at Quiapo/Cavite branch.",
-        telemetry: { "Cycle Count": ">1,500", "Remaining Capacity": "35%" },
-        options: [{ label: "File Battery Service Claim", next: "ROOT" }]
-      },
-
-      // BRANCH 3
-      SYMPTOM_DIM_FLICKER: {
-        stage: "Physical Inspection (Dim / Flicker)",
-        branchKey: "SYMPTOM_DIM_FLICKER",
-        question: "Inspect Lens Condensation & LED Pattern",
-        subtext: "Observe the optical lens and LED behavior:",
-        options: [
-          { label: "Water droplets or condensation visible inside optical lens", next: "DIAG_WATER_INGRESS" },
-          { label: "Light rests at 30% dim, jumps to 100% on pedestrian motion", next: "DIAG_NORMAL_RADAR" },
-          { label: "Rapid strobe-like flickering when turned on", next: "DIAG_VOLTAGE_RIPPLE" },
-          { label: "Half of the LED panel is dark while the other half lights", next: "DIAG_LED_ARRAY_BURNOUT" },
-          { label: "Back to Root Menu", next: "ROOT" }
-        ]
+        claimRecommended: true,
+        defaultCriteria: { symptom: "SHORT_RUNTIME", electrical: "LED_BLINKING", physical: "SEAL_INTACT", environmental: "CLEAR_SUN", control: "AGED_CELLS" },
+        question: "LiFePO4 Battery Cell Capacity Degradation",
+        subtext: "With electrical continuity, physical seal, and solar exposure all verified healthy, the engine isolates the fault to elevated internal cell impedance (SOH < 40%).\n\nAction: Eligible for 1-time warranty replacement if within active 24-month window, or paid LiFePO4 pack refresh at Quiapo/Cavite.",
+        telemetry: { "PV Array": "96% Healthy (18.4V)", "Voltage Sag": "3.32V -> 2.60V in 90m", "Battery SOH": "< 40% Capacity", "IP65 Seal": "Passed" },
+        options: [{ label: "File Battery Service Claim (Return to Root)", next: "ROOT" }]
       },
       DIAG_WATER_INGRESS: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict (Priority Elimination Rule)",
         branchKey: "SYMPTOM_DIM_FLICKER",
         faultCode: "FLT-IP-009",
         protocol: "Critical • Warranty Claim",
-        question: "IP Seal Compromise & Moisture Ingress",
-        subtext: "Water has penetrated the optical cavity, risking driver corrosion.\n\nAction: Immediate intake for bench pressure testing and luminaire replacement.",
-        telemetry: { "Hermetic Seal": "Compromised", "Moisture": "Liquid Droplets" },
-        options: [{ label: "File Warranty Claim", next: "ROOT" }]
+        claimRecommended: true,
+        defaultCriteria: { symptom: "DIM_FLICKER", electrical: "LED_RIPPLE", physical: "WATER_INGRESS", environmental: "MONSOON_OVERCAST", control: "AUTO_NORMAL" },
+        question: "IP65 Gasket Breach & Internal Moisture Ingress",
+        subtext: "ELIMINATION CRITERION TRIGGERED (Priority 100): Visible condensation inside the optical cavity overrides standard triage. Moisture bridges LED driver traces and lithium terminals.\n\nAction: Power OFF immediately, photograph internal droplets, and submit for warranty replacement.",
+        telemetry: { "Hermetic Seal": "FAILED (Moisture Inside)", "Driver Risk": "Galvanic Corrosion", "BMS State": "Short-Circuit Hazard", "Priority": "100 (Elimination)" },
+        options: [{ label: "Submit Water Ingress Claim (Return to Root)", next: "ROOT" }]
       },
       DIAG_NORMAL_RADAR: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_DIM_FLICKER",
         faultCode: "FLT-SET-010",
         protocol: "Zero Defect (Informational)",
-        question: "Normal Radar Motion Dimming Mode",
-        subtext: "Factory induction energy-saving feature (30% standby, 100% on motion).\n\nRemedy: Press 'Always' or '2H/4H' on remote control if constant light is preferred.",
-        telemetry: { "Standby": "30% Eco", "Motion Boost": "100%" },
-        options: [{ label: "Mode Adjusted (Resolved)", next: "ROOT" }]
+        claimRecommended: false,
+        defaultCriteria: { symptom: "DIM_FLICKER", electrical: "LED_BLINKING", physical: "SEAL_INTACT", environmental: "CLEAR_SUN", control: "RADAR_STANDBY" },
+        question: "Normal Microwave Radar Eco-Dimming Mode",
+        subtext: "All 4 criteria pillars passed. The luminaire is operating in factory Radar Induction Mode (30% standby output, surging to 100% for 30s when motion is detected).\n\nRemedy: Press ALWAYS or 2H/4H on remote if constant 100% output is desired.",
+        telemetry: { "Standby Duty": "30% Eco Reserve", "Motion Surge": "100% Output", "Battery": "3.28V Healthy", "IP65 Seal": "Passed" },
+        options: [{ label: "Confirmed Normal Operation (Return to Root)", next: "ROOT" }]
       },
       DIAG_VOLTAGE_RIPPLE: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_DIM_FLICKER",
         faultCode: "FLT-DRV-011",
-        protocol: "Shop Repair Claim",
-        question: "LED Driver Ripple Voltage Strobe",
-        subtext: "Buck regulator filter capacitor breakdown causing rapid 60Hz flicker.\n\nAction: Driver module repair at service center.",
-        telemetry: { "Driver Ripple": "High Frequency", "Output": "Oscillating" },
-        options: [{ label: "File Service Claim", next: "ROOT" }]
+        protocol: "Warranty / Driver Service",
+        claimRecommended: true,
+        defaultCriteria: { symptom: "DIM_FLICKER", electrical: "LED_RIPPLE", physical: "SEAL_INTACT", environmental: "CLEAR_SUN", control: "AUTO_NORMAL" },
+        question: "Constant-Current LED Driver Ripple Oscillation",
+        subtext: "Rapid strobe flickering with a dry sealed lens indicates either boundary low-voltage oscillation or degraded buck-driver filter capacitors.\n\nAction: Charge OFF for 1 full sunny day; if strobe persists on full charge, file claim for driver board replacement.",
+        telemetry: { "Driver Output": "Current Oscillation", "Battery": "2.82V Boundary", "Enclosure": "Dry & Sealed", "IP65 Seal": "Passed" },
+        options: [{ label: "File Driver Service Claim (Return to Root)", next: "ROOT" }]
       },
       DIAG_LED_ARRAY_BURNOUT: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_DIM_FLICKER",
         faultCode: "FLT-LED-012",
         protocol: "Warranty Claim Intake",
-        question: "SMD LED Series String Burnout",
-        subtext: "One series circuit on aluminum board opened due to thermal burnout.\n\nAction: Luminaire head replacement under warranty.",
-        telemetry: { "Array": "50% Dark", "Continuity": "Open Circuit String" },
-        options: [{ label: "File Replacement Claim", next: "ROOT" }]
-      },
-
-      // BRANCH 4
-      SYMPTOM_DAYTIME_ON: {
-        stage: "Physical Inspection (Daytime On)",
-        branchKey: "SYMPTOM_DAYTIME_ON",
-        question: "Inspect Panel Face Obstruction",
-        subtext: "Fixture remains on during bright daylight hours:",
-        options: [
-          { label: "Cardboard, dead leaves, or dark debris covering panel", next: "DIAG_PHOTOCELL_BLOCKED" },
-          { label: "Panel surface completely clean and exposed to bright sun", next: "DIAG_MOSFET_FAULT" },
-          { label: "Back to Root Menu", next: "ROOT" }
-        ]
+        claimRecommended: true,
+        defaultCriteria: { symptom: "DIM_FLICKER", electrical: "LED_PARTIAL_DARK", physical: "SEAL_INTACT", environmental: "CLEAR_SUN", control: "AUTO_NORMAL" },
+        question: "Partial SMD LED Matrix String Burnout",
+        subtext: "One series-parallel SMD LED string on the aluminum MCPCB has failed open-circuit while the enclosure remains intact.\n\nAction: Photograph the dark LED quadrant and file a warranty claim for luminaire module swap.",
+        telemetry: { "LED Matrix": "Partial String Open", "PV Input": "18.0V Normal", "Battery": "3.25V Healthy", "IP65 Seal": "Passed" },
+        options: [{ label: "File LED Array Claim (Return to Root)", next: "ROOT" }]
       },
       DIAG_PHOTOCELL_BLOCKED: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_DAYTIME_ON",
         faultCode: "FLT-SNS-013",
-        protocol: "DIY Fixable",
-        question: "Photocell Voltage Sensor Blocked",
-        subtext: "Debris tricks controller voltage sensor into simulating dark night.\n\nRemedy: Clear mud or leaves from panel face.",
-        telemetry: { "Sensor Reading": "0.4V (Night)", "Actual Daylight": "100%" },
-        options: [{ label: "Cleared Debris (Resolved)", next: "ROOT" }]
+        protocol: "DIY Exposure Fix",
+        claimRecommended: false,
+        defaultCriteria: { symptom: "DAYTIME_ON", electrical: "DAY_BLIND_LOW_V", physical: "SEAL_INTACT", environmental: "PARTIAL_SHADING", control: "AUTO_NORMAL" },
+        question: "Photocell Daylight Voltage Threshold (< 5.0V) Not Reached",
+        subtext: "Deep awning shade or debris keeps solar panel voltage below the 5.0V DC daytime shutoff threshold, causing false night-mode operation.\n\nRemedy: Clear obstructions or relocate panel to open sky exposure.",
+        telemetry: { "Sensed Voltage": "1.4V (< 5.0V Cutoff)", "Controller": "False Night Trigger", "Battery": "Draining in Day", "IP65 Seal": "Passed" },
+        options: [{ label: "Cleared Panel Exposure (Return to Root)", next: "ROOT" }]
       },
       DIAG_MOSFET_FAULT: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_DAYTIME_ON",
         faultCode: "FLT-CTL-014",
         protocol: "Warranty Claim Intake",
-        question: "MOSFET Driver Short Circuit",
-        subtext: "Switching power MOSFET failed closed-short, permanently supplying LEDs.\n\nAction: Controller PCB board replacement under warranty.",
-        telemetry: { "MOSFET State": "Closed Short", "Gating": "Unresponsive" },
-        options: [{ label: "File Controller Claim", next: "ROOT" }]
-      },
-
-      // BRANCH 5
-      SYMPTOM_PHYSICAL_HOTSPOT: {
-        stage: "Physical Inspection (Damage)",
-        branchKey: "SYMPTOM_PHYSICAL_HOTSPOT",
-        question: "Inspect Physical Enclosure & Glass",
-        subtext: "Select observed hardware defect:",
-        options: [
-          { label: "Brown scorch marks or localized heating on solar wafer", next: "DIAG_THERMAL_HOTSPOT" },
-          { label: "Tempered front glass is cracked or shattered", next: "DIAG_GLASS_FRACTURE" },
-          { label: "Pole bracket hardware is loose or wobbling in wind", next: "DIAG_HARDWARE_MOUNT" },
-          { label: "Back to Root Menu", next: "ROOT" }
-        ]
+        claimRecommended: true,
+        defaultCriteria: { symptom: "DAYTIME_ON", electrical: "DAY_SUN_SHORT", physical: "SEAL_INTACT", environmental: "CLEAR_SUN", control: "AUTO_NORMAL" },
+        question: "Controller Load-Switching MOSFET Shorted Closed",
+        subtext: "Panel generates >15V in direct midday sun yet the LED array stays energized. The internal solid-state N-channel load MOSFET has failed short-circuit.\n\nAction: Submit warranty claim for controller PCB replacement.",
+        telemetry: { "Panel Voltage": "18.4V (Full Sun)", "Load MOSFET": "Shorted Closed", "Battery": "Simultaneous Drain", "IP65 Seal": "Passed" },
+        options: [{ label: "File Controller Claim (Return to Root)", next: "ROOT" }]
       },
       DIAG_THERMAL_HOTSPOT: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict (Priority Elimination Rule)",
         branchKey: "SYMPTOM_PHYSICAL_HOTSPOT",
         faultCode: "FLT-PV-015",
-        protocol: "Critical Safety Risk",
-        question: "Severe Photovoltaic Thermal Hotspot",
-        subtext: "Micro-crack dissipating current as heat (>95°C), risking wafer burn-through.\n\nAction: Immediate decommission and panel replacement under warranty.",
-        telemetry: { "Local Temp": ">95°C", "Wafer State": "Fractured" },
-        options: [{ label: "File Emergency Replacement", next: "ROOT" }]
+        protocol: "Critical • Warranty Claim",
+        claimRecommended: true,
+        defaultCriteria: { symptom: "PHYSICAL_HOTSPOT", electrical: "LED_DARK", physical: "CELL_HOTSPOT", environmental: "PARTIAL_SHADING", control: "AUTO_NORMAL" },
+        question: "Photovoltaic Silicon Cell Thermal Hotspot",
+        subtext: "ELIMINATION CRITERION TRIGGERED (Priority 96): Reverse-biased micro-cracked or shaded cell is dissipating concentrated heat (>110 deg C) and browning the EVA laminate.\n\nAction: Disconnect panel plug immediately and file warranty replacement claim.",
+        telemetry: { "Cell Temp": ">110 deg C Hotspot", "Panel Voltage": "11.8V Degraded", "EVA Laminate": "Browned / Scorched", "Priority": "96 (Elimination)" },
+        options: [{ label: "Submit Hotspot Claim (Return to Root)", next: "ROOT" }]
       },
       DIAG_GLASS_FRACTURE: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict (Warranty Exclusion Criterion)",
         branchKey: "SYMPTOM_PHYSICAL_HOTSPOT",
         faultCode: "FLT-EXT-016",
-        protocol: "Physical Damage Intake",
-        question: "Shattered Tempered Front Glass",
-        subtext: "Impact strike shattered hermetic glass seal.\n\nAction: Bench service inspection at service center.",
-        telemetry: { "Glass": "Shattered", "IP Rating": "Destroyed" },
-        options: [{ label: "File Service Claim", next: "ROOT" }]
+        protocol: "Warranty Void • Paid Shop Service",
+        claimRecommended: true,
+        defaultCriteria: { symptom: "PHYSICAL_HOTSPOT", electrical: "LED_BLINKING", physical: "GLASS_FRACTURE", environmental: "CLEAR_SUN", control: "AUTO_NORMAL" },
+        question: "Shattered Tempered Solar Glass (External Impact Exclusion)",
+        subtext: "EXCLUSION CRITERION TRIGGERED (Priority 98): Fractured tempered glass from external impact, falling debris, or drops voids free warranty replacement under JD Solar policy.\n\nAction: Paid replacement solar glass/panel modules are stocked at Quiapo and Cavite service desks.",
+        telemetry: { "Tempered Glass": "Fractured / Shattered", "IP65 Seal": "Destroyed", "Warranty Status": "Excluded (Impact)", "Priority": "98 (Elimination)" },
+        options: [{ label: "Request Paid Shop Module (Return to Root)", next: "ROOT" }]
       },
       DIAG_HARDWARE_MOUNT: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_PHYSICAL_HOTSPOT",
         faultCode: "FLT-MNT-017",
-        protocol: "DIY Fixable",
-        question: "Bracket Hardware Slack",
-        subtext: "Wind gusts loosened pole U-bolts.\n\nRemedy: Re-align toward South and torque M8/M10 flange nuts firmly with wrench.",
-        telemetry: { "Bolts": "Loose", "Alignment": "Shifted" },
-        options: [{ label: "Torqued Nuts (Resolved)", next: "ROOT" }]
-      },
-
-      // BRANCH 6
-      SYMPTOM_SENSOR_REMOTE: {
-        stage: "Physical Inspection (Controls)",
-        branchKey: "SYMPTOM_SENSOR_REMOTE",
-        question: "Inspect Remote Battery & Radar Dome",
-        subtext: "Troubleshoot remote handset or microwave detector responsiveness:",
-        options: [
-          { label: "Red indicator on remote control does NOT light when pressed", next: "DIAG_REMOTE_BATTERIES" },
-          { label: "Remote only works if standing right below fixture (within 1-2m)", next: "DIAG_REMOTE_RANGE" },
-          { label: "Radar sensor does not detect passing pedestrians or vehicles", next: "DIAG_RADAR_DIRT" },
-          { label: "Back to Root Menu", next: "ROOT" }
-        ]
+        protocol: "DIY Bolt Torque",
+        claimRecommended: false,
+        defaultCriteria: { symptom: "PHYSICAL_HOTSPOT", electrical: "LED_BLINKING", physical: "MOUNT_LOOSE", environmental: "MONSOON_OVERCAST", control: "AUTO_NORMAL" },
+        question: "Mechanical Pole Bracket Slack",
+        subtext: "Wind buffeting loosened U-clamp or knuckle bolts while electrical and IP65 seal criteria remain intact.\n\nRemedy: Re-align panel 12–15 deg True South and torque M8/M10 stainless bolts with a socket wrench.",
+        telemetry: { "Bracket Bolts": "Slack / Shifted", "PV Continuity": "100% Intact", "Battery": "3.28V Nominal", "IP65 Seal": "Passed" },
+        options: [{ label: "Bolts Torqued (Return to Root)", next: "ROOT" }]
       },
       DIAG_REMOTE_BATTERIES: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_SENSOR_REMOTE",
         faultCode: "FLT-RMT-018",
-        protocol: "DIY Fixable",
-        question: "Remote Handset Batteries Depleted",
-        subtext: "Handset AAA batteries have discharged.\n\nRemedy: Replace with two fresh 1.5V AAA alkaline cells.",
-        telemetry: { "Handset Voltage": "< 1.9V", "IR Beam": "None" },
-        options: [{ label: "Replaced Batteries (Resolved)", next: "ROOT" }]
+        protocol: "DIY 1-Min Fix",
+        claimRecommended: false,
+        defaultCriteria: { symptom: "SENSOR_REMOTE", electrical: "LED_BLINKING", physical: "SEAL_INTACT", environmental: "CLEAR_SUN", control: "REMOTE_DEAD_BAT" },
+        question: "Remote Handset AAA Batteries Depleted",
+        subtext: "Main luminaire power and seal are healthy, but the handheld IR transmitter lacks 3.0V DC.\n\nRemedy: Install two fresh 1.5V AAA alkaline batteries in the remote handset.",
+        telemetry: { "Handset Supply": "< 1.9V Depleted", "IR Emitter": "Inactive", "Luminaire": "100% Healthy", "IP65 Seal": "Passed" },
+        options: [{ label: "Replaced AAA Cells (Return to Root)", next: "ROOT" }]
       },
       DIAG_REMOTE_RANGE: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_SENSOR_REMOTE",
         faultCode: "FLT-RMT-019",
-        protocol: "Operational Scope",
-        question: "Infrared Range & Sightline Threshold",
-        subtext: "IR signals degrade beyond 8 meters or at extreme angles.\n\nRemedy: Stand within 5 to 7 meters and aim directly at optical dome.",
-        telemetry: { "Max Range": "7-8m", "Direct Angle": "Within 45°" },
-        options: [{ label: "Signal Received (Resolved)", next: "ROOT" }]
+        protocol: "DIY Aiming Technique",
+        claimRecommended: false,
+        defaultCriteria: { symptom: "SENSOR_REMOTE", electrical: "LED_BLINKING", physical: "SEAL_INTACT", environmental: "CLEAR_SUN", control: "REMOTE_OUT_OF_RANGE" },
+        question: "Infrared Line-of-Sight & Range Attenuation",
+        subtext: "The 940nm IR optical transmitter has an effective reception cone of 5 to 8 meters.\n\nRemedy: Stand within 4–6 meters directly beneath the luminaire and aim straight at the receiver dome.",
+        telemetry: { "Effective Range": "4m – 7m Cone", "IR Receiver": "Active Standby", "Luminaire": "100% Healthy", "IP65 Seal": "Passed" },
+        options: [{ label: "Signal Confirmed (Return to Root)", next: "ROOT" }]
       },
       DIAG_RADAR_DIRT: {
-        stage: "Diagnosis Verdict",
+        stage: "Multi-Criteria Verdict",
         branchKey: "SYMPTOM_SENSOR_REMOTE",
         faultCode: "FLT-SNS-020",
-        protocol: "DIY Maintenance",
-        question: "Radar Sensor Window Smudged / Inactive",
-        subtext: "Wipe microwave radar dome clean of road soot and press 'Induction' on remote.",
-        telemetry: { "Frequency": "5.8GHz Radar", "Dome": "Smudged" },
-        options: [{ label: "Induction Working (Resolved)", next: "ROOT" }]
+        protocol: "DIY Mode Reset",
+        claimRecommended: false,
+        defaultCriteria: { symptom: "SENSOR_REMOTE", electrical: "LED_BLINKING", physical: "SEAL_INTACT", environmental: "CLEAR_SUN", control: "RADAR_DISABLED" },
+        question: "Radar Induction Mode Disabled or Dome Fouled",
+        subtext: "Remote may be locked in ALWAYS constant mode or the sensor dome is smudged.\n\nRemedy: Press RADAR or AUTO on the remote (lamp flashes twice) and wipe the rounded sensor dome clean.",
+        telemetry: { "Radar Frequency": "5.8GHz Microwave", "Mode State": "Reset to AUTO/RADAR", "Luminaire": "100% Healthy", "IP65 Seal": "Passed" },
+        options: [{ label: "Radar Surge Restored (Return to Root)", next: "ROOT" }]
       }
     };
 
-    function selectNode(key) {
+    // Global Engine State
+    let currentRunnerMode = "guided"; // 'guided' | 'matrix'
+    let currentNodeKey = "ROOT";
+    let auditTrail = ["ROOT"];
+    let evaluatedPillars = [];
+    let criteriaState = {
+      symptom: "NO_POWER",
+      electrical: "LED_BLINKING",
+      physical: "SEAL_INTACT",
+      environmental: "CLEAR_SUN",
+      control: "AUTO_NORMAL"
+    };
+
+    function getOptionMeta(pillarKey, val) {
+      const list = CRITERIA_OPTIONS[pillarKey] || [];
+      return list.find(o => o.value === val) || { value: val, label: val, status: "PASS" };
+    }
+
+    function evaluateMultiCriteria(cState) {
+      let bestRule = DIAGNOSTIC_RULES[0];
+      let bestScore = -1;
+
+      for (const rule of DIAGNOSTIC_RULES) {
+        const m = rule.match;
+        const symMatch = !m.symptom || m.symptom.includes(cState.symptom);
+        if (!symMatch && rule.priority < 96) continue;
+
+        let weighted = 0;
+        for (const p of CRITERIA_PILLARS) {
+          const k = p.key;
+          const w = p.weight;
+          if (m[k]) {
+            if (m[k].includes(cState[k])) {
+              weighted += w;
+            } else if (getOptionMeta(k, cState[k]).status === "PASS") {
+              weighted += w * 0.35;
+            }
+          } else {
+            weighted += getOptionMeta(k, cState[k]).status === "PASS" ? w * 0.85 : w * 0.65;
+          }
+        }
+
+        let bonus = 0;
+        if (rule.priority >= 95 && m.physical && m.physical.includes(cState.physical)) {
+          bonus = 0.45;
+        } else if (symMatch) {
+          bonus = (rule.priority / 100) * 0.12;
+        }
+
+        const total = weighted + bonus;
+        if (total > bestScore) {
+          bestScore = total;
+          bestRule = rule;
+        }
+      }
+
+      const confidence = Math.min(99, Math.max(86, Math.round(Math.min(1, bestScore) * 96))) + "%";
+      const node = TREE_DATA[bestRule.nodeKey];
+      return { rule: bestRule, nodeKey: bestRule.nodeKey, node, confidence };
+    }
+
+    function detectCompounds(cState, primaryKey) {
+      const list = [];
+      if (cState.physical === "WATER_INGRESS" && primaryKey !== "DIAG_WATER_INGRESS") {
+        list.push("FLT-IP-009 (Moisture Ingress): Internal lens condensation detected alongside primary symptom—power OFF immediately.");
+      }
+      if (cState.physical === "GLASS_FRACTURE" && primaryKey !== "DIAG_GLASS_FRACTURE") {
+        list.push("FLT-EXT-016 (Glass Fracture): Cracked tempered glass compromises IP65 seal and excludes free warranty replacement.");
+      }
+      if (cState.physical === "PLUG_LOOSE" && primaryKey !== "DIAG_OPEN_CIRCUIT") {
+        list.push("FLT-PV-001 (Loose Aviation Plug): Unseated connector collar introduces intermittent charging dropout.");
+      }
+      if (cState.environmental === "MONSOON_OVERCAST" && primaryKey !== "DIAG_RAIN_DEPLETION") {
+        list.push("FLT-ENV-003 (Monsoon Deficit): Concurrent overcast weather reduced harvest by ~80%; switch remote to Radar Eco Mode.");
+      }
+      if (cState.environmental === "HEAVY_SOILING" && primaryKey !== "DIAG_SOILING_LOSS") {
+        list.push("FLT-PV-005 (Surface Soiling): Road soot/dust on glass is compounding battery undercharge (-35% to -50% harvest).");
+      }
+      if (cState.environmental === "PARTIAL_SHADING" && primaryKey !== "DIAG_SHADING_LOSS") {
+        list.push("FLT-PV-006 (Midday Shading): Tree or eave shadow between 10 AM and 3 PM chokes series string current.");
+      }
+      if (cState.environmental === "FLAT_NORTH_TILT" && primaryKey !== "DIAG_TILT_MISALIGNMENT") {
+        list.push("FLT-PV-007 (Tilt Misalignment): Flat 0 deg or North orientation reduces harvest and causes mud pooling.");
+      }
+      if (cState.control === "AGED_CELLS" && primaryKey !== "DIAG_BATTERY_AGING") {
+        list.push("FLT-BAT-008 (LiFePO4 Cell Aging): 2+ years of service cycle wear reduces nocturnal reserve capacity.");
+      }
+      return list;
+    }
+
+    function computeWarrantyVerdict(node, cState) {
+      const ctxVal = document.getElementById("ctx-select").value;
+      if (node.faultCode === "FLT-EXT-016" || cState.physical === "GLASS_FRACTURE") {
+        return {
+          title: "WARRANTY EXCLUDED • EXTERNAL IMPACT TRAUMA",
+          detail: "Shattered tempered glass from impact/drops is excluded from free replacement. Paid replacement solar modules are available at Quiapo & Cavite."
+        };
+      }
+      if (!node.claimRecommended) {
+        return {
+          title: "ZERO-DEFECT / FIELD MAINTENANCE RESOLUTION",
+          detail: "Multi-criteria audit confirms an environmental, control, or installation condition rather than an internal factory defect. No claim required."
+        };
+      }
+      if (ctxVal === "SPLIT_EXPIRED") {
+        return {
+          title: "OUT-OF-WARRANTY (>24 MONTHS) • PAID SHOP SERVICE ELIGIBLE",
+          detail: "Hardware fault verified, but 24-month warranty window has expired. Eligible for paid bench repair or battery refresh at Quiapo/Cavite."
+        };
+      }
+      return {
+        title: "QUALIFIED FOR 24-MONTH OFFICIAL WARRANTY INTAKE (1-TIME REPLACEMENT)",
+        detail: `Internal hardware fault (${node.faultCode}) verified with intact external glass under active 24-month coverage.`
+      };
+    }
+
+    function renderPillarsStrip() {
+      const container = document.getElementById("pillars-strip");
+      const countEl = document.getElementById("criteria-progress-label");
+      countEl.innerText = `${evaluatedPillars.length}/4 Pillars Verified`;
+
+      container.innerHTML = CRITERIA_PILLARS.map(p => {
+        const isEval = evaluatedPillars.includes(p.key);
+        const meta = getOptionMeta(p.key, criteriaState[p.key]);
+        const badgeText = isEval ? meta.status : "PENDING";
+        const invertClass = isEval && (meta.status === "FAIL" || meta.status === "WARNING") ? "invert" : "";
+        return `
+          <div class="pillar-box ${isEval ? 'evaluated' : ''}" onclick="setRunnerMode('matrix')">
+            <div class="pillar-top">
+              <span>${p.label} (${p.weightLabel})</span>
+              <span class="pillar-status-badge ${invertClass}">${badgeText}</span>
+            </div>
+            <div class="pillar-obs">${isEval ? meta.label : "Awaiting stage check..."}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function selectNode(key, optionObj = null) {
+      if (key === "ROOT") {
+        criteriaState = {
+          symptom: "NO_POWER",
+          electrical: "LED_BLINKING",
+          physical: "SEAL_INTACT",
+          environmental: "CLEAR_SUN",
+          control: "AUTO_NORMAL"
+        };
+        evaluatedPillars = [];
+        auditTrail = ["ROOT"];
+      } else {
+        if (optionObj && optionObj.patch) {
+          criteriaState = { ...criteriaState, ...optionObj.patch };
+        }
+        if (optionObj && optionObj.evalPillar && !evaluatedPillars.includes(optionObj.evalPillar)) {
+          evaluatedPillars.push(optionObj.evalPillar);
+        }
+      }
+
+      let ruleConfidence = "95%";
+      let activeRuleId = "DIRECT-INSPECT";
+
+      if (key === "EVALUATE_CRITERIA") {
+        const res = evaluateMultiCriteria(criteriaState);
+        key = res.nodeKey;
+        ruleConfidence = res.confidence;
+        activeRuleId = res.rule.ruleId;
+        evaluatedPillars = ["electrical", "physical", "environmental", "control"];
+      }
+
       const data = TREE_DATA[key] || TREE_DATA.ROOT;
+      currentNodeKey = key;
 
-      // 1. Update Map Highlights
-      document.querySelectorAll(".root-box, .leaf-tag, .branch-card").forEach(el => el.classList.remove("active"));
+      // If user clicked a leaf verdict pill directly from the top map, load its canonical criteria vector
+      if (data.faultCode && !optionObj && data.defaultCriteria) {
+        criteriaState = { ...data.defaultCriteria };
+        evaluatedPillars = ["electrical", "physical", "environmental", "control"];
+        const res = evaluateMultiCriteria(criteriaState);
+        ruleConfidence = res.confidence;
+        activeRuleId = res.rule.ruleId;
+        auditTrail = ["ROOT", data.branchKey, "3-STAGE-AUDIT", data.faultCode];
+      } else if (key !== "ROOT") {
+        if (!auditTrail.includes(data.faultCode || key)) {
+          auditTrail.push(data.faultCode || key);
+        }
+      }
 
+      // Update Map Highlights
+      document.querySelectorAll(".root-box, .leaf-tag, .stage-pill, .branch-card").forEach(el => el.classList.remove("active"));
       const pill = document.getElementById("pill-" + key);
       if (pill) pill.classList.add("active");
-
       if (data.branchKey) {
         const card = document.getElementById("card-" + data.branchKey);
         if (card) card.classList.add("active");
       }
 
-      document.getElementById("map-indicator").innerText = "Position: [" + (data.faultCode || key) + "]";
+      document.getElementById("map-indicator").innerText = `Position: [${data.faultCode || key}] • ${evaluatedPillars.length}/4 Criteria`;
 
-      // 2. Update Runner Below
-      document.getElementById("run-path").innerText = data.faultCode ? `ROOT → ${data.branchKey} → ${data.faultCode}` : key;
+      renderPillarsStrip();
+
+      // Switch to guided view when clicking map nodes
+      if (currentRunnerMode !== "guided") {
+        setRunnerMode("guided");
+      }
+
+      // Update Guided Runner UI
+      document.getElementById("run-path").innerText = auditTrail.join(" → ");
       document.getElementById("run-stage").innerText = data.stage;
       document.getElementById("run-question").innerText = data.question;
       document.getElementById("run-subtext").innerText = data.subtext;
 
-      // Verdict Card Slot
       const vSlot = document.getElementById("run-verdict-slot");
       vSlot.innerHTML = "";
+
       if (data.faultCode) {
-        let teleHtml = "";
-        if (data.telemetry) {
-          teleHtml = `<div class="telemetry-row">` + 
-            Object.entries(data.telemetry).map(([k, v]) => `<span><strong>${k}:</strong> ${v}</span>`).join(" • ") + 
-            `</div>`;
-        }
+        const scorecardHtml = CRITERIA_PILLARS.map(p => {
+          const meta = getOptionMeta(p.key, criteriaState[p.key]);
+          return `
+            <div class="scorecard-cell">
+              <div class="scorecard-cell-head">
+                <span>${p.label} (${p.weightLabel})</span>
+                <span>[${meta.status}]</span>
+              </div>
+              <div>${meta.label}</div>
+            </div>
+          `;
+        }).join("");
+
+        const compounds = detectCompounds(criteriaState, key);
+        const compoundHtml = compounds.length > 0 ? `
+          <div class="compound-box">
+            <div class="compound-title">Compound Contributing Criteria Detected (${compounds.length}):</div>
+            ${compounds.map(c => `<div>• ${c}</div>`).join("")}
+          </div>
+        ` : "";
+
+        const teleHtml = data.telemetry ? `
+          <div class="telemetry-row">
+            ${Object.entries(data.telemetry).map(([k, v]) => `<span><strong>${k}:</strong> ${v}</span>`).join(" • ")}
+          </div>
+        ` : "";
+
+        const warranty = computeWarrantyVerdict(data, criteriaState);
 
         vSlot.innerHTML = `
           <div class="verdict-box">
             <div class="verdict-header">
-              <span>Code: ${data.faultCode}</span>
-              <span>Protocol: ${data.protocol}</span>
+              <span>FAULT CODE: ${data.faultCode} (${activeRuleId})</span>
+              <span>CONFIDENCE: ${ruleConfidence} • ${data.protocol}</span>
+            </div>
+            <div>
+              <div class="scorecard-title">Evaluated 4-Pillar Multi-Criteria Scorecard:</div>
+              <div class="scorecard-grid">${scorecardHtml}</div>
+            </div>
+            ${compoundHtml}
+            <div class="warranty-banner">
+              <strong>Warranty Qualification Verdict: ${warranty.title}</strong>
+              <span>${warranty.detail}</span>
             </div>
             ${teleHtml}
           </div>
         `;
       }
 
-      // Choice buttons
-      const cSlot = document.getElementById("run-choices-list");
-      cSlot.innerHTML = "";
-      document.getElementById("run-choices-title").innerText = data.faultCode ? "Next Protocol Step:" : "Select an option:";
-
-      data.options.forEach(opt => {
-        const b = document.createElement("button");
-        b.className = "btn-choice";
-        b.innerHTML = `<span>${opt.label}</span> <span>→</span>`;
-        b.onclick = () => selectNode(opt.next);
-        cSlot.appendChild(b);
+      // Render Choices
+      const cList = document.getElementById("run-choices-list");
+      cList.innerHTML = "";
+      (data.options || []).forEach((opt, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "btn-choice";
+        btn.innerHTML = `<span>${opt.label}</span> <span>→</span>`;
+        btn.onclick = () => selectNode(opt.next, opt);
+        cList.appendChild(btn);
       });
     }
 
-    // Init
+    function renderMatrixView() {
+      const container = document.getElementById("matrix-grid-container");
+      const symptomHtml = `
+        <div class="matrix-section">
+          <div class="matrix-section-head">
+            <span>0. Primary Observed Symptom</span>
+            <span>Prerequisite Vector</span>
+          </div>
+          <div class="matrix-options">
+            ${CRITERIA_OPTIONS.symptom.map(opt => `
+              <button class="btn-matrix-opt ${criteriaState.symptom === opt.value ? 'active' : ''}" onclick="updateMatrixCriterion('symptom', '${opt.value}')">
+                <span>${opt.label}</span>
+                <span>[SYMPTOM]</span>
+              </button>
+            `).join("")}
+          </div>
+        </div>
+      `;
+
+      const pillarsHtml = CRITERIA_PILLARS.map(p => {
+        const opts = CRITERIA_OPTIONS[p.key] || [];
+        return `
+          <div class="matrix-section">
+            <div class="matrix-section-head">
+              <span>${p.label}</span>
+              <span>Weight: ${p.weightLabel}</span>
+            </div>
+            <div class="matrix-options">
+              ${opts.map(opt => `
+                <button class="btn-matrix-opt ${criteriaState[p.key] === opt.value ? 'active' : ''}" onclick="updateMatrixCriterion('${p.key}', '${opt.value}')">
+                  <span>${opt.label}</span>
+                  <span>[${opt.status}]</span>
+                </button>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      container.innerHTML = symptomHtml + pillarsHtml;
+
+      const preview = evaluateMultiCriteria(criteriaState);
+      const previewBar = document.getElementById("matrix-preview-bar");
+      previewBar.innerHTML = `
+        <div>
+          <div style="font-size: 0.68rem; color: var(--muted); text-transform: uppercase; font-weight: 700;">
+            Live Multi-Criteria Inference Match (${preview.confidence} Confidence • ${preview.rule.ruleId})
+          </div>
+          <div style="font-size: 0.88rem; font-weight: 700; text-transform: uppercase;">
+            ${preview.node.faultCode}: ${preview.node.question}
+          </div>
+        </div>
+        <button class="btn-eval-now" onclick="applyMatrixEvaluation()">Generate Full Verdict Dossier →</button>
+      `;
+    }
+
+    function updateMatrixCriterion(key, val) {
+      criteriaState[key] = val;
+      if (key !== "symptom" && !evaluatedPillars.includes(key)) {
+        evaluatedPillars.push(key);
+      }
+      renderPillarsStrip();
+      renderMatrixView();
+    }
+
+    function applyMatrixEvaluation() {
+      evaluatedPillars = ["electrical", "physical", "environmental", "control"];
+      auditTrail = ["ROOT", "CRITERIA_MATRIX"];
+      setRunnerMode("guided");
+      selectNode("EVALUATE_CRITERIA", { patch: criteriaState });
+    }
+
+    function setRunnerMode(mode) {
+      currentRunnerMode = mode;
+      document.getElementById("tab-guided").classList.toggle("active", mode === "guided");
+      document.getElementById("tab-matrix").classList.toggle("active", mode === "matrix");
+      document.getElementById("view-guided").style.display = mode === "guided" ? "block" : "none";
+      document.getElementById("view-matrix").style.display = mode === "matrix" ? "block" : "none";
+      if (mode === "matrix") {
+        evaluatedPillars = ["electrical", "physical", "environmental", "control"];
+        renderPillarsStrip();
+        renderMatrixView();
+      }
+    }
+
+    function onContextChange() {
+      if (currentNodeKey && TREE_DATA[currentNodeKey] && TREE_DATA[currentNodeKey].faultCode) {
+        selectNode(currentNodeKey);
+      }
+    }
+
+    function setFilter(proto, btnEl) {
+      document.querySelectorAll(".btn-filter").forEach(b => b.classList.remove("active"));
+      if (btnEl) btnEl.classList.add("active");
+
+      document.querySelectorAll(".leaf-tag").forEach(tag => {
+        if (proto === "ALL") {
+          tag.classList.remove("dimmed");
+        } else if (proto === "ELIM") {
+          tag.classList.toggle("dimmed", tag.getAttribute("data-elim") !== "true");
+        } else {
+          tag.classList.toggle("dimmed", tag.getAttribute("data-proto") !== proto);
+        }
+      });
+    }
+
+    function resetEngine() {
+      setRunnerMode("guided");
+      selectNode("ROOT");
+    }
+
+    // Initialize
     selectNode("ROOT");
   </script>
 </body>
