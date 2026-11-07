@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JD Solar - Diagnostic Decision Tree</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #000000;
+      --border: #000000;
+      --muted: #666666;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-mono);
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 48px 32px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    /* Minimal Header */
+    header {
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 16px;
+      margin-bottom: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .header-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    /* Section Headings */
+    .section-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 20px;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* =========================================================
+       CLEAN TREE OVERVIEW (COMPACT BUS & CLEAN PILLS)
+       ========================================================= */
+    .tree-map {
+      margin-bottom: 56px;
+    }
+
+    /* Root node pill */
+    .root-box {
+      border: 1.5px solid var(--border);
+      padding: 10px 18px;
+      width: fit-content;
+      margin: 0 auto 24px auto;
+      text-align: center;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      transition: all 0.1s;
+    }
+
+    .root-box:hover,
+    .root-box.active {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    /* Clean horizontal bus wire */
+    .bus-wire {
+      height: 1px;
+      background: var(--border);
+      width: 100%;
+      margin: 0 0 24px 0;
+      position: relative;
+    }
+
+    .bus-wire::before {
+      content: "";
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      width: 1px;
+      height: 12px;
+      background: var(--border);
+    }
+
+    /* 6 Branches minimal grid */
+    .branches-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 16px;
+    }
+
+    .branch-card {
+      border: 1px solid var(--border);
+      padding: 12px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all 0.1s;
+    }
+
+    .branch-card.active {
+      outline: 2px solid #000000;
+      outline-offset: 1px;
+    }
+
+    .branch-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+      line-height: 1.3;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .branch-title:hover {
+      text-decoration: underline;
+    }
+
+    .branch-leaf-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .leaf-tag {
+      font-size: 0.68rem;
+      padding: 4px 6px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .leaf-tag:hover {
+      border-color: var(--border);
+    }
+
+    .leaf-tag.active {
+      background: #000000;
+      color: #ffffff;
+      border-color: #000000;
+    }
+
+    /* =========================================================
+       CLEAN MOCK SYSTEM RUNNER (BELOW)
+       ========================================================= */
+    .runner-wrap {
+      border: 1.5px solid var(--border);
+      padding: 32px;
+      margin-top: 24px;
+      background: #ffffff;
+    }
+
+    .runner-top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px dashed var(--border);
+      padding-bottom: 10px;
+    }
+
+    .runner-path {
+      color: #000000;
+      font-weight: 700;
+    }
+
+    .runner-question {
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }
+
+    .runner-subtext {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 28px;
+      line-height: 1.6;
+      white-space: pre-line;
+      max-width: 800px;
+    }
+
+    /* Verdict Card */
+    .verdict-box {
+      border: 1px solid var(--border);
+      padding: 18px;
+      margin-bottom: 28px;
+      background: #fafafa;
+    }
+
+    .verdict-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+
+    .telemetry-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .telemetry-row span strong {
+      color: #000000;
+    }
+
+    /* Choice Buttons */
+    .choices-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    .choices-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .btn-choice {
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid var(--border);
+      padding: 12px 16px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.1s;
+    }
+
+    .btn-choice:hover {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    .btn-reset {
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+    }
+
+    .btn-reset:hover {
+      color: #000000;
+    }
+
+    /* Minimal Footer */
+    footer {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      font-size: 0.72rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 860px) {
+      .branches-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 580px) {
+      .branches-grid {
+        grid-template-columns: 1fr;
+      }
+      body {
+        padding: 24px 16px;
+      }
+      .runner-wrap {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>JD Solar • Diagnostic Decision Tree</h1>
+      <div class="header-meta">Off-Grid Luminaire Fault Triage</div>
+    </header>
+
+    <!-- 1. CLEAN TREE MAP -->
+    <div class="tree-map">
+      <div class="section-label">
+        <span>1. Architecture Map (Click any node to navigate)</span>
+        <span id="map-indicator">Position: ROOT</span>
+      </div>
+
+      <!-- Root Node -->
+      <div class="root-box active" id="pill-ROOT" onclick="selectNode('ROOT')">
+        Level 0: Equipment Triage Root
+      </div>
+
+      <div class="bus-wire"></div>
+
+      <!-- 6 Branches -->
+      <div class="branches-grid">
+
+        <!-- Col 1 -->
+        <div class="branch-card" id="card-SYMPTOM_NO_POWER">
+          <div class="branch-title" onclick="selectNode('SYMPTOM_NO_POWER')">1. No Power</div>
+          <div class="branch-leaf-list">
+            <div class="leaf-tag" id="pill-DIAG_OPEN_CIRCUIT" onclick="selectNode('DIAG_OPEN_CIRCUIT')"><span>FLT-PV-001</span> <span>DIY</span></div>
+            <div class="leaf-tag" id="pill-DIAG_BMS_LOCKOUT" onclick="selectNode('DIAG_BMS_LOCKOUT')"><span>FLT-BAT-002</span> <span>DIY</span></div>
+            <div class="leaf-tag" id="pill-DIAG_RAIN_DEPLETION" onclick="selectNode('DIAG_RAIN_DEPLETION')"><span>FLT-ENV-003</span> <span>INFO</span></div>
+            <div class="leaf-tag" id="pill-DIAG_SWITCH_DISENGAGED" onclick="selectNode('DIAG_SWITCH_DISENGAGED')"><span>FLT-PWR-004</span> <span>DIY</span></div>
+          </div>
+        </div>
+
+        <!-- Col 2 -->
+        <div class="branch-card" id="card-SYMPTOM_SHORT_RUNTIME">
+          <div class="branch-title" onclick="selectNode('SYMPTOM_SHORT_RUNTIME')">2. Short Run</div>
+          <div class="branch-leaf-list">
+            <div class="leaf-tag" id="pill-DIAG_SOILING_LOSS" onclick="selectNode('DIAG_SOILING_LOSS')"><span>FLT-PV-005</span> <span>DIY</span></div>
+            <div class="leaf-tag" id="pill-DIAG_SHADING_LOSS" onclick="selectNode('DIAG_SHADING_LOSS')"><span>FLT-PV-006</span> <span>DIY</span></div>
+            <div class="leaf-tag" id="pill-DIAG_TILT_MISALIGNMENT" onclick="selectNode('DIAG_TILT_MISALIGNMENT')"><span>FLT-PV-007</span> <span>DIY</span></div>
+            <div class="leaf-tag" id="pill-DIAG_BATTERY_AGING" onclick="selectNode('DIAG_BATTERY_AGING')"><span>FLT-BAT-008</span> <span>CLAIM</span></div>
+          </div>
+        </div>
+
+        <!-- Col 3 -->
+        <div class="branch-card" id="card-SYMPTOM_DIM_FLICKER">
+          <div class="branch-title" onclick="selectNode('SYMPTOM_DIM_FLICKER')">3. Dim/Flicker</div>
+          <div class="branch-leaf-list">
+            <div class="leaf-tag" id="pill-DIAG_WATER_INGRESS" onclick="selectNode('DIAG_WATER_INGRESS')"><span>FLT-IP-009</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" id="pill-DIAG_NORMAL_RADAR" onclick="selectNode('DIAG_NORMAL_RADAR')"><span>FLT-SET-010</span> <span>INFO</span></div>
+            <div class="leaf-tag" id="pill-DIAG_VOLTAGE_RIPPLE" onclick="selectNode('DIAG_VOLTAGE_RIPPLE')"><span>FLT-DRV-011</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" id="pill-DIAG_LED_ARRAY_BURNOUT" onclick="selectNode('DIAG_LED_ARRAY_BURNOUT')"><span>FLT-LED-012</span> <span>CLAIM</span></div>
+          </div>
+        </div>
+
+        <!-- Col 4 -->
+        <div class="branch-card" id="card-SYMPTOM_DAYTIME_ON">
+          <div class="branch-title" onclick="selectNode('SYMPTOM_DAYTIME_ON')">4. Daytime On</div>
+          <div class="branch-leaf-list">
+            <div class="leaf-tag" id="pill-DIAG_PHOTOCELL_BLOCKED" onclick="selectNode('DIAG_PHOTOCELL_BLOCKED')"><span>FLT-SNS-013</span> <span>DIY</span></div>
+            <div class="leaf-tag" id="pill-DIAG_MOSFET_FAULT" onclick="selectNode('DIAG_MOSFET_FAULT')"><span>FLT-CTL-014</span> <span>CLAIM</span></div>
+          </div>
+        </div>
+
+        <!-- Col 5 -->
+        <div class="branch-card" id="card-SYMPTOM_PHYSICAL_HOTSPOT">
+          <div class="branch-title" onclick="selectNode('SYMPTOM_PHYSICAL_HOTSPOT')">5. Damage/Heat</div>
+          <div class="branch-leaf-list">
+            <div class="leaf-tag" id="pill-DIAG_THERMAL_HOTSPOT" onclick="selectNode('DIAG_THERMAL_HOTSPOT')"><span>FLT-PV-015</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" id="pill-DIAG_GLASS_FRACTURE" onclick="selectNode('DIAG_GLASS_FRACTURE')"><span>FLT-EXT-016</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" id="pill-DIAG_HARDWARE_MOUNT" onclick="selectNode('DIAG_HARDWARE_MOUNT')"><span>FLT-MNT-017</span> <span>DIY</span></div>
+          </div>
+        </div>
+
+        <!-- Col 6 -->
+        <div class="branch-card" id="card-SYMPTOM_SENSOR_REMOTE">
+          <div class="branch-title" onclick="selectNode('SYMPTOM_SENSOR_REMOTE')">6. Sensor/Remote</div>
+          <div class="branch-leaf-list">
+            <div class="leaf-tag" id="pill-DIAG_REMOTE_BATTERIES" onclick="selectNode('DIAG_REMOTE_BATTERIES')"><span>FLT-RMT-018</span> <span>DIY</span></div>
+            <div class="leaf-tag" id="pill-DIAG_REMOTE_RANGE" onclick="selectNode('DIAG_REMOTE_RANGE')"><span>FLT-RMT-019</span> <span>DIY</span></div>
+            <div class="leaf-tag" id="pill-DIAG_RADAR_DIRT" onclick="selectNode('DIAG_RADAR_DIRT')"><span>FLT-SNS-020</span> <span>DIY</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- 2. CLEAN RUNNER (MOCK DECISION ENGINE) -->
+    <div class="section-label">
+      <span>2. Interactive Diagnostic Flow</span>
+      <button class="btn-reset" onclick="selectNode('ROOT')">Restart to Root</button>
+    </div>
+
+    <div class="runner-wrap">
+      <div class="runner-top-bar">
+        <div>Path: <span class="runner-path" id="run-path">ROOT</span></div>
+        <div id="run-stage">Symptom Selection</div>
+      </div>
+
+      <h2 class="runner-question" id="run-question">Select Observed Physical Symptom</h2>
+      <div class="runner-subtext" id="run-subtext">
+        Solar luminaires operate without cloud connectivity. Troubleshooting is guided by observed physical symptoms.
+      </div>
+
+      <div id="run-verdict-slot"></div>
+
+      <div class="choices-title" id="run-choices-title">Select an option:</div>
+      <div class="choices-list" id="run-choices-list"></div>
+    </div>
+
+    <footer>
+      <div>JD Solar • Deterministic Expert Tree</div>
+      <div>Monochrome Clean Spec • Zero Emojis</div>
+    </footer>
+  </div>
+
+
+  <!-- SCRIPT -->
+  <script>
+    const TREE_DATA = {
+      ROOT: {
+        stage: "Symptom Selection",
+        branchKey: null,
+        question: "Select Observed Physical Symptom",
+        subtext: "Because solar equipment operates as standalone units without remote cloud telemetry, triage begins with physical symptoms.",
+        options: [
+          { label: "Light Does NOT Turn On at Night", next: "SYMPTOM_NO_POWER" },
+          { label: "Shuts Off Prematurely (Only 1–3 Hours)", next: "SYMPTOM_SHORT_RUNTIME" },
+          { label: "Dim Illumination or Flickering LEDs", next: "SYMPTOM_DIM_FLICKER" },
+          { label: "Light Stays ON During Bright Daytime", next: "SYMPTOM_DAYTIME_ON" },
+          { label: "Panel Heat / Broken Glass / Slack Bracket", next: "SYMPTOM_PHYSICAL_HOTSPOT" },
+          { label: "Remote Control / Radar Sensor Not Responding", next: "SYMPTOM_SENSOR_REMOTE" }
+        ]
+      },
+
+      // BRANCH 1
+      SYMPTOM_NO_POWER: {
+        stage: "Physical Inspection (No Power)",
+        branchKey: "SYMPTOM_NO_POWER",
+        question: "Observe Charging LED & Master Switch",
+        subtext: "During midday sunlight (11 AM – 2 PM), inspect the small charging indicator LED:",
+        options: [
+          { label: "Indicator LED is completely dark (No light at all)", next: "DIAG_OPEN_CIRCUIT" },
+          { label: "Indicator blinks in sun, but lamp stays off at dusk", next: "DIAG_BMS_LOCKOUT" },
+          { label: "We had 2–3 consecutive stormy or rainy days", next: "DIAG_RAIN_DEPLETION" },
+          { label: "Physical master toggle was not checked or toggled ON", next: "DIAG_SWITCH_DISENGAGED" },
+          { label: "Back to Root Menu", next: "ROOT" }
+        ]
+      },
+      DIAG_OPEN_CIRCUIT: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_NO_POWER",
+        faultCode: "FLT-PV-001",
+        protocol: "DIY Fixable",
+        question: "Open Circuit or Loose Aviation Plug",
+        subtext: "The solar panel is not sending current to the battery pack.\n\nRemedy: Unscrew the waterproof aviation collar, align the internal keyway notch, press firmly, and hand-tighten clockwise.",
+        telemetry: { "PV Current": "0.0A", "Panel Voltage": "0.0V Open Loop", "Seal": "Loose" },
+        options: [{ label: "Fixed Connection (Resolved)", next: "ROOT" }, { label: "File Claim (Damaged Wire)", next: "ROOT" }]
+      },
+      DIAG_BMS_LOCKOUT: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_NO_POWER",
+        faultCode: "FLT-BAT-002",
+        protocol: "Self-Service (48H Sun-Soak)",
+        question: "LiFePO4 BMS Low-Voltage Cutoff Tripped",
+        subtext: "Panel produces voltage, but internal BMS tripped its safety cutoff below 2.5V/cell due to rain depletion.\n\nRemedy: Turn master switch OFF and sun-soak in full sun for 48 continuous hours to awaken cells.",
+        telemetry: { "PV Harvest": "Active", "Cell Voltage": "2.48V Cutoff", "BMS": "Sleep Mode" },
+        options: [{ label: "Awakened After Sun-Soak (Resolved)", next: "ROOT" }, { label: "File Warranty Claim", next: "ROOT" }]
+      },
+      DIAG_RAIN_DEPLETION: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_NO_POWER",
+        faultCode: "FLT-ENV-003",
+        protocol: "Zero Defect (Informational)",
+        question: "Weather-Induced Solar Deficit",
+        subtext: "Zero hardware defect detected. Monsoon cloud cover reduced solar harvest by 85%. Normal 12-hour lighting resumes after 1 full sunny day.",
+        telemetry: { "Harvest Deficit": "85%", "Hardware Status": "100% Healthy" },
+        options: [{ label: "Understood (Return to Menu)", next: "ROOT" }]
+      },
+      DIAG_SWITCH_DISENGAGED: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_NO_POWER",
+        faultCode: "FLT-PWR-004",
+        protocol: "DIY Fixable",
+        question: "Master Push Switch Disengaged",
+        subtext: "Luminaire physical toggle was left in shipping OFF mode.\n\nRemedy: Press rubber master button on rear bracket, or aim remote and press 'ON' for 3 seconds.",
+        telemetry: { "Switch State": "OFF", "Battery Reserve": "Nominal" },
+        options: [{ label: "Turned On (Resolved)", next: "ROOT" }, { label: "Still Dark (Inspect Indicator)", next: "SYMPTOM_NO_POWER" }]
+      },
+
+      // BRANCH 2
+      SYMPTOM_SHORT_RUNTIME: {
+        stage: "Physical Inspection (Short Runtime)",
+        branchKey: "SYMPTOM_SHORT_RUNTIME",
+        question: "Inspect Soiling, Shading & Angle",
+        subtext: "The lamp powers on at dusk but turns off after 1–3 hours:",
+        options: [
+          { label: "Heavy dust, road soot, or bird droppings on glass surface", next: "DIAG_SOILING_LOSS" },
+          { label: "Nearby tree branches or building roof cast midday shade", next: "DIAG_SHADING_LOSS" },
+          { label: "Panel mounted completely flat (0°) or facing North", next: "DIAG_TILT_MISALIGNMENT" },
+          { label: "Surface clean and sunny, but unit is 2+ years old", next: "DIAG_BATTERY_AGING" },
+          { label: "Back to Root Menu", next: "ROOT" }
+        ]
+      },
+      DIAG_SOILING_LOSS: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_SHORT_RUNTIME",
+        faultCode: "FLT-PV-005",
+        protocol: "DIY Maintenance",
+        question: "Photovoltaic Soiling & Attenuation",
+        subtext: "Road soot is blocking 40% to 50% of sun photons.\n\nRemedy: Wipe tempered glass with soft damp microfiber cloth.",
+        telemetry: { "Transmission": "55% Attenuated", "Loss": "-45% Yield" },
+        options: [{ label: "Wiped Clean (Resolved)", next: "ROOT" }]
+      },
+      DIAG_SHADING_LOSS: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_SHORT_RUNTIME",
+        faultCode: "FLT-PV-006",
+        protocol: "Site Adjustment",
+        question: "Bypass Diode Choke / Micro-Shading",
+        subtext: "Even a small branch shadow chokes the entire panel series string.\n\nRemedy: Trim tree branches or relocate outside the midday shadow cone.",
+        telemetry: { "Shadow Cone": "Severe Midday", "Daily Yield": "< 40%" },
+        options: [{ label: "Trimmed / Relocated (Resolved)", next: "ROOT" }]
+      },
+      DIAG_TILT_MISALIGNMENT: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_SHORT_RUNTIME",
+        faultCode: "FLT-PV-007",
+        protocol: "Site Adjustment",
+        question: "Tilt & Azimuth Misalignment",
+        subtext: "Panels mounted flat collect pooling water; North-facing panels miss noon irradiance.\n\nRemedy: Angle bracket 10° to 15° facing true South.",
+        telemetry: { "Current Tilt": "0° Flat", "Optimal Tilt": "15° True South" },
+        options: [{ label: "Angle Adjusted (Resolved)", next: "ROOT" }]
+      },
+      DIAG_BATTERY_AGING: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_SHORT_RUNTIME",
+        faultCode: "FLT-BAT-008",
+        protocol: "Warranty / Shop Service",
+        question: "LiFePO4 Cell Capacity Degradation",
+        subtext: "After 2+ years of nightly cycles, battery reached end-of-life.\n\nAction: Eligible for service shop cell replacement at Quiapo/Cavite branch.",
+        telemetry: { "Cycle Count": ">1,500", "Remaining Capacity": "35%" },
+        options: [{ label: "File Battery Service Claim", next: "ROOT" }]
+      },
+
+      // BRANCH 3
+      SYMPTOM_DIM_FLICKER: {
+        stage: "Physical Inspection (Dim / Flicker)",
+        branchKey: "SYMPTOM_DIM_FLICKER",
+        question: "Inspect Lens Condensation & LED Pattern",
+        subtext: "Observe the optical lens and LED behavior:",
+        options: [
+          { label: "Water droplets or condensation visible inside optical lens", next: "DIAG_WATER_INGRESS" },
+          { label: "Light rests at 30% dim, jumps to 100% on pedestrian motion", next: "DIAG_NORMAL_RADAR" },
+          { label: "Rapid strobe-like flickering when turned on", next: "DIAG_VOLTAGE_RIPPLE" },
+          { label: "Half of the LED panel is dark while the other half lights", next: "DIAG_LED_ARRAY_BURNOUT" },
+          { label: "Back to Root Menu", next: "ROOT" }
+        ]
+      },
+      DIAG_WATER_INGRESS: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_DIM_FLICKER",
+        faultCode: "FLT-IP-009",
+        protocol: "Critical • Warranty Claim",
+        question: "IP Seal Compromise & Moisture Ingress",
+        subtext: "Water has penetrated the optical cavity, risking driver corrosion.\n\nAction: Immediate intake for bench pressure testing and luminaire replacement.",
+        telemetry: { "Hermetic Seal": "Compromised", "Moisture": "Liquid Droplets" },
+        options: [{ label: "File Warranty Claim", next: "ROOT" }]
+      },
+      DIAG_NORMAL_RADAR: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_DIM_FLICKER",
+        faultCode: "FLT-SET-010",
+        protocol: "Zero Defect (Informational)",
+        question: "Normal Radar Motion Dimming Mode",
+        subtext: "Factory induction energy-saving feature (30% standby, 100% on motion).\n\nRemedy: Press 'Always' or '2H/4H' on remote control if constant light is preferred.",
+        telemetry: { "Standby": "30% Eco", "Motion Boost": "100%" },
+        options: [{ label: "Mode Adjusted (Resolved)", next: "ROOT" }]
+      },
+      DIAG_VOLTAGE_RIPPLE: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_DIM_FLICKER",
+        faultCode: "FLT-DRV-011",
+        protocol: "Shop Repair Claim",
+        question: "LED Driver Ripple Voltage Strobe",
+        subtext: "Buck regulator filter capacitor breakdown causing rapid 60Hz flicker.\n\nAction: Driver module repair at service center.",
+        telemetry: { "Driver Ripple": "High Frequency", "Output": "Oscillating" },
+        options: [{ label: "File Service Claim", next: "ROOT" }]
+      },
+      DIAG_LED_ARRAY_BURNOUT: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_DIM_FLICKER",
+        faultCode: "FLT-LED-012",
+        protocol: "Warranty Claim Intake",
+        question: "SMD LED Series String Burnout",
+        subtext: "One series circuit on aluminum board opened due to thermal burnout.\n\nAction: Luminaire head replacement under warranty.",
+        telemetry: { "Array": "50% Dark", "Continuity": "Open Circuit String" },
+        options: [{ label: "File Replacement Claim", next: "ROOT" }]
+      },
+
+      // BRANCH 4
+      SYMPTOM_DAYTIME_ON: {
+        stage: "Physical Inspection (Daytime On)",
+        branchKey: "SYMPTOM_DAYTIME_ON",
+        question: "Inspect Panel Face Obstruction",
+        subtext: "Fixture remains on during bright daylight hours:",
+        options: [
+          { label: "Cardboard, dead leaves, or dark debris covering panel", next: "DIAG_PHOTOCELL_BLOCKED" },
+          { label: "Panel surface completely clean and exposed to bright sun", next: "DIAG_MOSFET_FAULT" },
+          { label: "Back to Root Menu", next: "ROOT" }
+        ]
+      },
+      DIAG_PHOTOCELL_BLOCKED: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_DAYTIME_ON",
+        faultCode: "FLT-SNS-013",
+        protocol: "DIY Fixable",
+        question: "Photocell Voltage Sensor Blocked",
+        subtext: "Debris tricks controller voltage sensor into simulating dark night.\n\nRemedy: Clear mud or leaves from panel face.",
+        telemetry: { "Sensor Reading": "0.4V (Night)", "Actual Daylight": "100%" },
+        options: [{ label: "Cleared Debris (Resolved)", next: "ROOT" }]
+      },
+      DIAG_MOSFET_FAULT: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_DAYTIME_ON",
+        faultCode: "FLT-CTL-014",
+        protocol: "Warranty Claim Intake",
+        question: "MOSFET Driver Short Circuit",
+        subtext: "Switching power MOSFET failed closed-short, permanently supplying LEDs.\n\nAction: Controller PCB board replacement under warranty.",
+        telemetry: { "MOSFET State": "Closed Short", "Gating": "Unresponsive" },
+        options: [{ label: "File Controller Claim", next: "ROOT" }]
+      },
+
+      // BRANCH 5
+      SYMPTOM_PHYSICAL_HOTSPOT: {
+        stage: "Physical Inspection (Damage)",
+        branchKey: "SYMPTOM_PHYSICAL_HOTSPOT",
+        question: "Inspect Physical Enclosure & Glass",
+        subtext: "Select observed hardware defect:",
+        options: [
+          { label: "Brown scorch marks or localized heating on solar wafer", next: "DIAG_THERMAL_HOTSPOT" },
+          { label: "Tempered front glass is cracked or shattered", next: "DIAG_GLASS_FRACTURE" },
+          { label: "Pole bracket hardware is loose or wobbling in wind", next: "DIAG_HARDWARE_MOUNT" },
+          { label: "Back to Root Menu", next: "ROOT" }
+        ]
+      },
+      DIAG_THERMAL_HOTSPOT: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_PHYSICAL_HOTSPOT",
+        faultCode: "FLT-PV-015",
+        protocol: "Critical Safety Risk",
+        question: "Severe Photovoltaic Thermal Hotspot",
+        subtext: "Micro-crack dissipating current as heat (>95°C), risking wafer burn-through.\n\nAction: Immediate decommission and panel replacement under warranty.",
+        telemetry: { "Local Temp": ">95°C", "Wafer State": "Fractured" },
+        options: [{ label: "File Emergency Replacement", next: "ROOT" }]
+      },
+      DIAG_GLASS_FRACTURE: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_PHYSICAL_HOTSPOT",
+        faultCode: "FLT-EXT-016",
+        protocol: "Physical Damage Intake",
+        question: "Shattered Tempered Front Glass",
+        subtext: "Impact strike shattered hermetic glass seal.\n\nAction: Bench service inspection at service center.",
+        telemetry: { "Glass": "Shattered", "IP Rating": "Destroyed" },
+        options: [{ label: "File Service Claim", next: "ROOT" }]
+      },
+      DIAG_HARDWARE_MOUNT: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_PHYSICAL_HOTSPOT",
+        faultCode: "FLT-MNT-017",
+        protocol: "DIY Fixable",
+        question: "Bracket Hardware Slack",
+        subtext: "Wind gusts loosened pole U-bolts.\n\nRemedy: Re-align toward South and torque M8/M10 flange nuts firmly with wrench.",
+        telemetry: { "Bolts": "Loose", "Alignment": "Shifted" },
+        options: [{ label: "Torqued Nuts (Resolved)", next: "ROOT" }]
+      },
+
+      // BRANCH 6
+      SYMPTOM_SENSOR_REMOTE: {
+        stage: "Physical Inspection (Controls)",
+        branchKey: "SYMPTOM_SENSOR_REMOTE",
+        question: "Inspect Remote Battery & Radar Dome",
+        subtext: "Troubleshoot remote handset or microwave detector responsiveness:",
+        options: [
+          { label: "Red indicator on remote control does NOT light when pressed", next: "DIAG_REMOTE_BATTERIES" },
+          { label: "Remote only works if standing right below fixture (within 1-2m)", next: "DIAG_REMOTE_RANGE" },
+          { label: "Radar sensor does not detect passing pedestrians or vehicles", next: "DIAG_RADAR_DIRT" },
+          { label: "Back to Root Menu", next: "ROOT" }
+        ]
+      },
+      DIAG_REMOTE_BATTERIES: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_SENSOR_REMOTE",
+        faultCode: "FLT-RMT-018",
+        protocol: "DIY Fixable",
+        question: "Remote Handset Batteries Depleted",
+        subtext: "Handset AAA batteries have discharged.\n\nRemedy: Replace with two fresh 1.5V AAA alkaline cells.",
+        telemetry: { "Handset Voltage": "< 1.9V", "IR Beam": "None" },
+        options: [{ label: "Replaced Batteries (Resolved)", next: "ROOT" }]
+      },
+      DIAG_REMOTE_RANGE: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_SENSOR_REMOTE",
+        faultCode: "FLT-RMT-019",
+        protocol: "Operational Scope",
+        question: "Infrared Range & Sightline Threshold",
+        subtext: "IR signals degrade beyond 8 meters or at extreme angles.\n\nRemedy: Stand within 5 to 7 meters and aim directly at optical dome.",
+        telemetry: { "Max Range": "7-8m", "Direct Angle": "Within 45°" },
+        options: [{ label: "Signal Received (Resolved)", next: "ROOT" }]
+      },
+      DIAG_RADAR_DIRT: {
+        stage: "Diagnosis Verdict",
+        branchKey: "SYMPTOM_SENSOR_REMOTE",
+        faultCode: "FLT-SNS-020",
+        protocol: "DIY Maintenance",
+        question: "Radar Sensor Window Smudged / Inactive",
+        subtext: "Wipe microwave radar dome clean of road soot and press 'Induction' on remote.",
+        telemetry: { "Frequency": "5.8GHz Radar", "Dome": "Smudged" },
+        options: [{ label: "Induction Working (Resolved)", next: "ROOT" }]
+      }
+    };
+
+    function selectNode(key) {
+      const data = TREE_DATA[key] || TREE_DATA.ROOT;
+
+      // 1. Update Map Highlights
+      document.querySelectorAll(".root-box, .leaf-tag, .branch-card").forEach(el => el.classList.remove("active"));
+
+      const pill = document.getElementById("pill-" + key);
+      if (pill) pill.classList.add("active");
+
+      if (data.branchKey) {
+        const card = document.getElementById("card-" + data.branchKey);
+        if (card) card.classList.add("active");
+      }
+
+      document.getElementById("map-indicator").innerText = "Position: [" + (data.faultCode || key) + "]";
+
+      // 2. Update Runner Below
+      document.getElementById("run-path").innerText = data.faultCode ? `ROOT → ${data.branchKey} → ${data.faultCode}` : key;
+      document.getElementById("run-stage").innerText = data.stage;
+      document.getElementById("run-question").innerText = data.question;
+      document.getElementById("run-subtext").innerText = data.subtext;
+
+      // Verdict Card Slot
+      const vSlot = document.getElementById("run-verdict-slot");
+      vSlot.innerHTML = "";
+      if (data.faultCode) {
+        let teleHtml = "";
+        if (data.telemetry) {
+          teleHtml = `<div class="telemetry-row">` + 
+            Object.entries(data.telemetry).map(([k, v]) => `<span><strong>${k}:</strong> ${v}</span>`).join(" • ") + 
+            `</div>`;
+        }
+
+        vSlot.innerHTML = `
+          <div class="verdict-box">
+            <div class="verdict-header">
+              <span>Code: ${data.faultCode}</span>
+              <span>Protocol: ${data.protocol}</span>
+            </div>
+            ${teleHtml}
+          </div>
+        `;
+      }
+
+      // Choice buttons
+      const cSlot = document.getElementById("run-choices-list");
+      cSlot.innerHTML = "";
+      document.getElementById("run-choices-title").innerText = data.faultCode ? "Next Protocol Step:" : "Select an option:";
+
+      data.options.forEach(opt => {
+        const b = document.createElement("button");
+        b.className = "btn-choice";
+        b.innerHTML = `<span>${opt.label}</span> <span>→</span>`;
+        b.onclick = () => selectNode(opt.next);
+        cSlot.appendChild(b);
+      });
+    }
+
+    // Init
+    selectNode("ROOT");
+  </script>
+</body>
+</html>

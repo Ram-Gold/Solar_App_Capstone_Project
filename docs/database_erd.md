@@ -1,22 +1,22 @@
+# JD Solar Platform - Entity Relationship Diagram (ERD)
+
 ```erDiagram
-    AUTH_USERS ||--o| ADMINS : "is"
-    AUTH_USERS ||--o| STAFF : "is"
-    AUTH_USERS |o..o| CUSTOMERS : "logs in as"
-    CUSTOMERS ||--o| CUSTOMER_PASSWORDS : "authenticates"
-    CUSTOMERS ||--o{ CUSTOMER_PURCHASES : "owns"
-    PRODUCTS ||--o{ CUSTOMER_PURCHASES : "sold as"
-    CUSTOMER_PURCHASES ||--o{ WARRANTY_CLAIMS : "covers"
-    CATEGORIES ||..o{ PRODUCTS : "classifies"
-    PRODUCTS |o--o{ QUOTE_TICKETS : "inquired"
-    CUSTOMERS |o..o{ QUOTE_TICKETS : "submits"
-    PRODUCTS |o..o{ ORDERS : "ordered"
-    CUSTOMERS |o..o{ ORDERS : "places"
+    AUTH_USERS ||--o| ADMINS : "is (1:1 via id)"
+    AUTH_USERS ||--o| STAFF : "is (1:1 via id)"
+    
+    CUSTOMERS ||--o| CUSTOMER_PASSWORDS : "authenticates (1:1 via customer_id)"
+    CUSTOMERS ||--o{ CUSTOMER_PURCHASES : "owns (1:M via customer_id)"
+    PRODUCTS ||--o{ CUSTOMER_PURCHASES : "sold as (1:M via product_id)"
+    CUSTOMER_PURCHASES ||--o{ WARRANTY_CLAIMS : "covers (1:M via purchase_id)"
+    
+    PRODUCTS ||--o{ QUOTE_TICKETS : "inquired (1:M via product_id)"
+
     AUTH_USERS {
-        uuid id
-        text email
+        uuid id PK
+        text email UK
     }
     ADMINS {
-        uuid id
+        uuid id PK
         text full_name
         text email
         text phone
@@ -24,7 +24,7 @@
         timestamptz created_at
     }
     STAFF {
-        uuid id
+        uuid id PK
         text full_name
         text email
         text phone
@@ -32,13 +32,13 @@
         timestamptz created_at
     }
     CATEGORIES {
-        bigint id
-        text name
+        bigint id PK
+        text name UK
         timestamptz created_at
     }
     PRODUCTS {
-        integer id
-        text name
+        integer id PK
+        text name UK
         text type
         integer watt
         text size
@@ -46,6 +46,7 @@
         integer sales
         text battery
         boolean in_stock
+        integer stock_quantity
         text waterproof_grade
         text method_control
         text material
@@ -58,7 +59,6 @@
         text recommended_usage
         text ideal_location
         integer default_warranty_months
-        integer stock_quantity
         text beaming_angle
         text color_temperature
         text voltage
@@ -70,10 +70,10 @@
         text power_source
     }
     CUSTOMERS {
-        uuid id
-        text phone_number
+        uuid id PK
+        text phone_number UK
         text full_name
-        uuid access_token
+        uuid access_token UK
         text province
         text city
         text barangay
@@ -82,17 +82,17 @@
         timestamptz created_at
     }
     CUSTOMER_PASSWORDS {
-        uuid id
-        uuid customer_id
-        text email
+        uuid id PK
+        uuid customer_id FK
+        text email UK
         text password_hash
         timestamptz created_at
         timestamptz updated_at
     }
     CUSTOMER_PURCHASES {
-        uuid id
-        uuid customer_id
-        bigint product_id
+        uuid id PK
+        uuid customer_id FK
+        bigint product_id FK
         text serial_number
         date purchase_date
         integer warranty_months
@@ -104,20 +104,20 @@
         timestamptz created_at
     }
     WARRANTY_CLAIMS {
-        uuid id
-        uuid purchase_id
+        uuid id PK
+        uuid purchase_id FK
         text issue_category
         text description
-        text_array media_urls
+        json media_urls
         text status
         text staff_notes
         timestamptz created_at
         timestamptz updated_at
     }
     QUOTE_TICKETS {
-        bigint id
-        text ticket_code
-        bigint product_id
+        bigint id PK
+        text ticket_code UK
+        bigint product_id FK
         text product_name
         integer product_watt
         text product_price_range
@@ -146,13 +146,4 @@
         timestamptz created_at
         timestamptz updated_at
     }
-    ORDERS {
-        bigint id
-        text customer_name
-        text address
-        text product_name
-        integer quantity
-        numeric price
-        text status
-        timestamptz created_at
-    }```
+```
