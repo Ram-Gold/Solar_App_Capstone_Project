@@ -1,139 +1,68 @@
-# Solar Troubleshooting & Diagnostic Engine: Architecture & Explanation
+# Solar Multi-Criteria Troubleshooting & Diagnostic Engine: Architecture & Explanation
 
-This document explains the technical architecture, decision-tree structure, and domain principles behind the **Customer Troubleshooting & Diagnostic Assistant** in the JD Solar platform.
-
----
-
-## 1. What Is the Troubleshooting Engine? (In Plain English)
-
-### Why Isn't It an "Unpredictable AI"?
-Standalone solar equipment (streetlights, floodlights, commercial yard lights) has **no Wi-Fi, no Bluetooth, and no SIM card**. The computer cannot ping the light to see its battery health.
-
-Therefore, troubleshooting must rely on **observable physical symptoms**:
-- Does the little indicator blink under the sun?
-- Does the light die after 2 hours?
-- Is there condensation inside the glass?
-
-Instead of using a generative AI that might invent fake solar advice or hallucinate repair steps, the troubleshooting system is a **Deterministic Rule-Based Expert Decision Tree (Rule-Based Expert System)**.
+This document explains the technical architecture, multi-criteria evaluation model, and rule-based inference engine behind the **Customer Troubleshooting & Diagnostic System** in the JD Solar platform.
 
 ---
 
-## 2. Is It a Tree? How the Architecture Works
+## 1. Why Multi-Criteria Rule-Based Inference Instead of Static Branching?
 
-**Yes, it is literally a directed graph / decision tree!**
+Standalone off-grid solar equipment (streetlights, floodlights, commercial yard lights) has **no Wi-Fi, no Bluetooth, and no remote IoT telemetry**. Hardware fault isolation must therefore evaluate observable physical, electrical, and environmental conditions.
 
-In computer science, this is an **Expert Diagnostic Decision Tree**:
-1. **Root Node**: The broad observed symptom (What is broken?).
-2. **Branch Nodes (Triage Questions)**: Narrowing down physical clues (What does the indicator LED do? What is the weather?).
-3. **Leaf Nodes (Verdicts & Telemetry)**: Specific fault diagnosis, severity rating, DIY remedy steps, or warranty claim recommendations.
+Rather than relying on a shallow 1-step multiple-choice script or an unpredictable generative AI that could hallucinate unsafe battery instructions, JD Solar implements a **Forward-Chaining Multi-Criteria Rule-Based Expert System**.
+
+### The 4 Weighted Diagnostic Criteria Pillars (Sum = 1.00)
+
+Every hardware audit evaluates four objective criteria dimensions before rendering a verdict:
+
+| Criterion Pillar | Weight | Evaluated Parameters | Engineering Purpose |
+| :--- | :--- | :--- | :--- |
+| **1. Electrical Continuity** | **30%** (`0.30`) | Midday charging LED state, open/closed loop continuity, LED driver regulation, photocell voltage threshold. | Distinguishes PV open-circuit / connector faults from internal battery or controller failures. |
+| **2. Physical & IP Seal** | **25%** (`0.25`) | IP65/IP67 gasket integrity, optical lens condensation, tempered glass state, cell thermal hotspots, bracket torque. | Acts as an **elimination criterion**: water ingress (`FLT-IP-009`) or glass impact fracture (`FLT-EXT-016`) takes priority over standard runtime tests. |
+| **3. Environmental Exposure** | **25%** (`0.25`) | Monsoon / 72-hour cloud cover, road dust / exhaust soiling, midday tree/eave micro-shading, tilt & South azimuth. | Separates zero-defect seasonal irradiance deficits (`FLT-ENV-003`) from genuine hardware defects. |
+| **4. Control & Lifecycle** | **20%** (`0.20`) | Master waterproof switch state, IR remote / microwave radar duty cycle, service age (<24 mos vs 2+ years). | Identifies out-of-the-box switch disengagement, radar eco-dimming, or LiFePO4 cycle aging (`FLT-BAT-008`). |
+
+---
+
+## 2. Dual-Mode Diagnostic Architecture
 
 ### Code Implementation
-- **Data Model & Decision Tree**: [`frontend/src/lib/solarDiagnosticEngine.js`](file:///home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/frontend/src/lib/solarDiagnosticEngine.js)
-- **UI Modal Component**: [`frontend/src/components/FaultDiagnosticModal.jsx`](file:///home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/frontend/src/components/FaultDiagnosticModal.jsx)
-- **Customer Portal Entry Point**: [`frontend/src/pages/CustomerPortalPage.jsx`](file:///home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/frontend/src/pages/CustomerPortalPage.jsx) (Triggered via "Troubleshoot" or "Run Troubleshooting Guide" button on a purchased product).
+- **Multi-Criteria Engine & Rule Base**: [`frontend/src/lib/solarDiagnosticEngine.js`](file:///home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/frontend/src/lib/solarDiagnosticEngine.js)
+- **Diagnostic Modal & Criteria Matrix UI**: [`frontend/src/components/FaultDiagnosticModal.jsx`](file:///home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/frontend/src/components/FaultDiagnosticModal.jsx)
+- **Customer Portal Integration**: [`frontend/src/pages/CustomerPortalPage.jsx`](file:///home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/frontend/src/pages/CustomerPortalPage.jsx)
+
+The user interface inside [`FaultDiagnosticModal.jsx`](file:///home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/frontend/src/components/FaultDiagnosticModal.jsx) provides two synchronized modes:
+
+1. **Guided Multi-Criteria Audit (3-Stage Progressive Triage)**
+   - **Stage 0 (Symptom Selection)**: Identifies the primary failure mode (`NO_POWER`, `SHORT_RUNTIME`, `DIM_FLICKER`, `DAYTIME_ON`, `PHYSICAL_HOTSPOT`, `SENSOR_REMOTE`).
+   - **Stage 1 (Electrical Continuity Check — 30%)**: Collects daytime charging LED and circuit behavior.
+   - **Stage 2 (Physical & Enclosure Check — 25%)**: Verifies IP65 lens seal, glass integrity, and connector seating (adapting automatically between *All-in-One Integrated* and *Split-Type Modular* luminaires).
+   - **Stage 3 (Environmental & Control Context — 45%)**: Evaluates recent weather, shading/soiling, and service age, then triggers `evaluateDiagnosticCriteria()`.
+   - **Simulated AI Streaming**: Responses stream sentence-by-sentence via `splitIntoSentenceSegments()` for an organic consultative experience.
+
+2. **Direct Multi-Criteria Matrix Evaluator**
+   - Allows the customer or technician to directly configure all 5 state attributes (`symptom`, `electrical`, `physical`, `environmental`, `control`) in an interactive matrix and observe real-time rule inference, confidence scoring, and warranty eligibility.
 
 ---
 
-## 3. Visual Diagram of the Diagnostic Tree
+## 3. Multi-Criteria Rule Inference & Compound Factor Detection
 
 ```mermaid
-graph TD
-    ROOT["ROOT: Customer Selects Main Observed Symptom"]
+flowchart TD
+    INPUT["Collected Criteria Vector<br>{ symptom, electrical, physical, environmental, control }"]
+    CTX["Product & Warranty Context<br>(Form Factor: Integrated vs Split, Active 24-Mo Coverage)"]
+    ENGINE["evaluateDiagnosticCriteria()<br>Weighted Multi-Attribute Rule Matching + Priority Elimination Rules"]
 
-    %% Branches
-    ROOT --> B1["SYMPTOM_NO_POWER<br>Light Does NOT Turn On"]
-    ROOT --> B2["SYMPTOM_SHORT_RUNTIME<br>Shuts Off in 1-3 Hours"]
-    ROOT --> B3["SYMPTOM_DIM_FLICKER<br>Dim or Flickering LEDs"]
-    ROOT --> B4["SYMPTOM_DAYTIME_ON<br>Stays ON in Bright Sun"]
-    ROOT --> B5["SYMPTOM_PHYSICAL_HOTSPOT<br>Heat / Glass / Bracket"]
-    ROOT --> B6["SYMPTOM_SENSOR_REMOTE<br>Sensor / Remote No Response"]
+    INPUT --> ENGINE
+    CTX --> ENGINE
 
-    %% Branch 1 Outcomes
-    B1 --> D1A["DIAG_OPEN_CIRCUIT<br>FLT-PV-001: Loose Aviation Plug (DIY Fix)"]
-    B1 --> D1B["DIAG_BMS_LOCKOUT<br>FLT-BAT-002: BMS Low-Voltage Cutoff (Sun-Soak)"]
-    B1 --> D1C["DIAG_RAIN_DEPLETION<br>FLT-ENV-003: 3 Stormy Days (Zero Defect)"]
-    B1 --> D1D["DIAG_SWITCH_DISENGAGED<br>Master Switch OFF (DIY Fix)"]
-
-    %% Branch 2 Outcomes
-    B2 --> D2A["DIAG_SOILING_LOSS<br>FLT-PV-004: Dust / Soot on Glass (Wipe Clean)"]
-    B2 --> D2B["DIAG_SHADING_LOSS<br>FLT-PV-005: Tree / Roof Shadow (Trim / Relocate)"]
-    B2 --> D2C["DIAG_TILT_MISALIGNMENT<br>FLT-PV-006: Wrong Tilt / Flat (Angle 10-15° South)"]
-    B2 --> D2D["DIAG_BATTERY_AGING<br>FLT-BAT-007: Battery Worn Out (Warranty Claim)"]
-
-    %% Branch 3 Outcomes
-    B3 --> D3A["DIAG_WATER_INGRESS<br>FLT-IP-008: Water Inside Lens (Warranty Claim)"]
-    B3 --> D3B["DIAG_NORMAL_RADAR<br>Normal Radar Motion Dimming (Normal Behavior)"]
-    B3 --> D3C["DIAG_VOLTAGE_RIPPLE<br>LED Driver Ripple (Shop Repair)"]
-    B3 --> D3D["DIAG_LED_ARRAY_BURNOUT<br>SMD LED Burnout (Warranty Claim)"]
-
-    %% Seamless Handoff
-    D1A --> CLAIM["Handoff to Warranty Claim Form<br>(Pre-populates Fault Code, Telemetry & Notes)"]
-    D2D --> CLAIM
-    D3A --> CLAIM
+    ENGINE --> SCORECARD["4-Pillar Criteria Scorecard<br>(PASS / WARNING / FAIL per Dimension)"]
+    ENGINE --> COMPOUND["Compound Factor Detector<br>Flags Secondary Issues (e.g. Soiling + Monsoon)"]
+    ENGINE --> WARRANTY["Warranty Qualification Evaluator<br>(Covered Defect vs DIY vs Impact Exclusion)"]
+    ENGINE --> CLAIM["Smart Claim Handoff<br>Pre-populates Full Scorecard into Technician Ticket"]
 ```
 
----
-
-## 4. How the Customer Uses It on the Portal Page
-
-On [`CustomerPortalPage.jsx`](file:///home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/frontend/src/pages/CustomerPortalPage.jsx):
-
-1. **Product Identification**: The customer clicks **"Troubleshoot"** next to their registered purchase (e.g. *Integrated Solar Street Light 100W*).
-2. **Guided Decision Path**:
-   - The modal pops up and displays the product name and wattage.
-   - It prompts with 6 core symptom categories.
-3. **Step-by-Step Triage**:
-   - Customer picks: *"Light Does NOT Turn On at Night"*.
-   - Engine asks: *"During sunny midday hours, what does the small charging indicator LED do?"*
-   - Customer picks: *"Indicator LED is completely dark"*.
-4. **Instant Technical Verdict**:
-   - The engine reaches leaf node `DIAG_OPEN_CIRCUIT` (`FLT-PV-001`).
-   - Displays severity: `Mild • DIY Fixable`.
-   - Explains the issue: *The solar panel aviation plug has loosened or disconnected.*
-   - Gives clear DIY steps: Inspect the waterproof screw collar, align the guide notch, and tighten clockwise.
-5. **Smart Warranty Handoff (`transferToClaim`)**:
-   - If the user tries the fix and reports *"Cable Damaged: File Warranty Claim"*, the engine clicks over to the **Warranty Claim Form Tab**.
-   - It **automatically pre-populates** the technician report with:
-     - Exact Fault Code (`FLT-PV-001`)
-     - Severity and confidence percentage
-     - Telemetry estimates (0.0V open circuit, seal inspection)
-     - Complete diagnostic history so the shop technician doesn't make the customer repeat the story.
-
----
-
-## 5. Free-Text Keyword Matching (Natural Language Fallback)
-
-What if the customer types in the chat box instead of clicking buttons?
-
-In [`solarDiagnosticEngine.js`](file:///home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/frontend/src/lib/solarDiagnosticEngine.js), the function `matchDiagnosticFreeText(query, product)` runs deterministic keyword token matching:
-
-```javascript
-// Example from solarDiagnosticEngine.js
-if (['dead', 'off', 'wont turn on', 'dark', 'blackout', 'no light'].some(k => q.includes(k))) {
-  return DIAGNOSTIC_TREE.SYMPTOM_NO_POWER;
-}
-if (['die', 'early', 'short', 'few hours', 'shut off', 'drain', '1 hour', '2 hours'].some(k => q.includes(k))) {
-  return DIAGNOSTIC_TREE.SYMPTOM_SHORT_RUNTIME;
-}
-if (['dim', 'flicker', 'blink', 'half', 'weak', 'strobe', 'water', 'condens'].some(k => q.includes(k))) {
-  return DIAGNOSTIC_TREE.SYMPTOM_DIM_FLICKER;
-}
-```
-
-- If they type *"my light died after 2 hours"*, it matches `short` / `2 hours` and routes them straight to the **Short Runtime Triage Branch**!
-- If no keyword matches, it returns to the main diagnostic menu safely without crashing.
-
----
-
-## 6. How to Explain This in Your Capstone Presentation
-
-When defending or presenting this feature to panelists or professors:
-
-1. **"Why not use an external LLM API like ChatGPT?"**
-   - *Answer:* Solar luminaires are closed physical systems without network telemetry. An LLM can hallucinate false advice (like telling a user to open a sealed IP67 battery enclosure, which voids warranty and risks chemical fire). Our system uses a **Deterministic Rule-Based Expert Decision Tree**, ensuring $100\%$ consistent, manufacturer-compliant triage.
-
-2. **"What is the underlying data structure?"**
-   - *Answer:* It is a **Directed Decision Graph** where each node contains prompt copy, conditional choices (`options`), child node pointers (`next`), and leaf nodes containing standardized diagnostic fault codes (`FLT-PV-001`, `FLT-BAT-002`), severities, and DIY remediation steps.
-
-3. **"How does it reduce company costs and customer friction?"**
-   - *Answer:* Over $60\%$ of solar light returns are caused by simple user issues (loose aviation plug, tree shade, or 3 days of rain). The diagnostic assistant resolves these instantly via DIY triage, saving unnecessary transport to Quiapo/Cavite service centers. For genuine hardware defects, it pre-populates a structured technical claim report for the technician.
+### Key Capabilities of `evaluateDiagnosticCriteria()`
+- **Weighted Rule Scoring**: Matches observed criteria against all 20 industrial fault rules (`DIAGNOSTIC_RULES`), weighting each criterion by its pillar weight (`0.30`, `0.25`, `0.25`, `0.20`).
+- **Priority Elimination Rules**: Critical physical conditions such as internal moisture ingress (`FLT-IP-009`), shattered tempered glass (`FLT-EXT-016`), or cell thermal hotspots (`FLT-PV-015`) carry priority weights to immediately alert the user to safety or exclusion conditions.
+- **Compound Factor Detection (`detectCompoundFactors`)**: Real-world solar issues often involve multiple simultaneous factors (for example, a loose aviation plug *plus* heavy road soot on the glass). Instead of discarding secondary observations, the engine surfaces a **Compound Contributing Criteria** alert alongside the primary verdict.
+- **Automated Warranty Criteria Evaluation (`evaluateWarrantyCriteria`)**: Cross-references the diagnosed fault code and physical glass/seal state against the registered purchase's 24-month warranty status to determine whether the unit qualifies for the **1-Time Replacement Entitlement**, is a **Zero-Defect / DIY Maintenance** item, or is **Disqualified due to External Impact**.

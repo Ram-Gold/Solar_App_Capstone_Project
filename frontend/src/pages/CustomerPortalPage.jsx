@@ -1,21 +1,15 @@
-import React, { useState, useEffect } from 'react'
-import { useSearchParams, Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   ShieldCheck,
   ShieldAlert,
   ShieldX,
   Package,
-  Calendar,
   Phone,
-  User,
   Wrench,
   AlertTriangle,
   CheckCircle2,
-  Clock,
-  ExternalLink,
   RefreshCw,
-  Bookmark,
-  ChevronRight,
   Info,
   Sparkles,
   KeyRound,
@@ -490,7 +484,7 @@ export default function CustomerPortalPage() {
                       ) : (
                         <>
                           <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
-                            Follow step-by-step troubleshooting based on observed symptoms, or directly file a warranty claim for shop repair.
+                            Run a multi-criteria diagnostic audit across electrical, physical, and environmental checks, or directly file a warranty claim.
                           </p>
 
                           <div className="grid grid-cols-2 gap-2 pt-0.5">
