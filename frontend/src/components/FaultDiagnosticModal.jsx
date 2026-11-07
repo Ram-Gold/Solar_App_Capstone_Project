@@ -79,6 +79,53 @@ const STEPS = [
   { num: 5, label: 'Solution', short: 'Solution' },
 ]
 
+/**
+ * Strips markdown symbols (# headings, asterisks, backticks) leaving clean text.
+ */
+function cleanMarkdown(str) {
+  if (!str) return ''
+  return String(str)
+    .replace(/^#+\s*/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^[*-]\s+/gm, '')
+    .replace(/\*\*/g, '')
+    .trim()
+}
+
+/**
+ * Parses inline **bold** and `code` tokens and renders them as styled React elements
+ * instead of displaying literal markdown asterisks.
+ */
+function renderFormattedText(text) {
+  if (!text) return null
+  const cleaned = String(text)
+    .replace(/^#+\s*/gm, '')
+    .trim()
+
+  const parts = cleaned.split(/(\*\*[^*]+\*\*|`[^`]+`)/g)
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={index} className="font-semibold text-jds-on-surface">
+          {part.slice(2, -2)}
+        </strong>
+      )
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return (
+        <code key={index} className="px-1 py-0.5 rounded bg-jds-surface-container font-mono text-[11px] text-jds-primary font-semibold">
+          {part.slice(1, -1)}
+        </code>
+      )
+    }
+    // Clean any stray asterisks
+    const plain = part.replace(/\*\*/g, '')
+    return <span key={index}>{plain}</span>
+  })
+}
+
 function getQuestionTitle(nodeKey, node) {
   if (nodeKey === 'ROOT') {
     return 'What issue is your solar lighting unit experiencing?'
@@ -92,7 +139,7 @@ function getQuestionTitle(nodeKey, node) {
   if (nodeKey.includes('_ENV') || nodeKey.includes('_CONTROL')) {
     return 'Verify Sunlight Exposure & Environmental Factors'
   }
-  return node?.title || 'Solar Hardware Assessment'
+  return cleanMarkdown(node?.title) || 'Solar Hardware Assessment'
 }
 
 function getQuestionPrompt(nodeKey, node, product) {
@@ -109,10 +156,54 @@ function getQuestionPrompt(nodeKey, node, product) {
     return 'Assess recent weather patterns, tree shading, or roof overhang obstructions affecting daily battery harvesting over the past 72 hours.'
   }
   if (typeof node?.message === 'function') {
-    const raw = node.message(product)
-    return raw.replace(/^#+.*$/gm, '').replace(/\*\*/g, '').trim()
+    return cleanMarkdown(node.message(product))
   }
-  return String(node?.message || '').replace(/^#+.*$/gm, '').replace(/\*\*/g, '').trim()
+  return cleanMarkdown(node?.message)
+}
+
+function getDiagnosisSummary(node, product) {
+  if (!node) return ''
+  const raw = typeof node.message === 'function' ? node.message(product) : (node.message || '')
+  const lines = raw.split('\n').filter((l) => !l.trim().startsWith('#'))
+  const paragraphs = lines.join('\n').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
+  const narrative = paragraphs.filter(
+    (p) => !p.startsWith('*') && !p.startsWith('1.') && !p.toLowerCase().includes('probable root') && !p.toLowerCase().includes('remedy')
+  )
+  return narrative.join(' ') || paragraphs[0] || ''
+}
+
+function getDiagnosisRootCauses(node, product) {
+  if (!node) return []
+  const raw = typeof node.message === 'function' ? node.message(product) : (node.message || '')
+  const causes = []
+  const lines = raw.split('\n')
+  let inCausesSection = false
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    const lower = trimmed.toLowerCase()
+
+    if (
+      lower.includes('probable root cause') ||
+      lower.includes('why this criterion triggered') ||
+      lower.includes('immediate safety protocol') ||
+      lower.includes('why did this happen')
+    ) {
+      inCausesSection = true
+      continue
+    }
+
+    if (inCausesSection && trimmed.startsWith('#')) {
+      break
+    }
+
+    if (inCausesSection && (trimmed.startsWith('*') || /^\d+\./.test(trimmed))) {
+      const cleanLine = trimmed.replace(/^[*0-9.]+\s*/, '').trim()
+      if (cleanLine) causes.push(cleanLine)
+    }
+  }
+
+  return causes
 }
 
 export default function FaultDiagnosticModal({
@@ -236,23 +327,23 @@ export default function FaultDiagnosticModal({
     let prefill
     if (currentDiagnosis) {
       const scorecardLines = (currentDiagnosis.criteriaScorecard || [])
-        .map((c) => `- ${c.criterion} (${c.weightLabel}): [${c.status}] ${c.observation}`)
+        .map((c) => `- ${cleanMarkdown(c.criterion)} (${c.weightLabel}): [${c.status}] ${cleanMarkdown(c.observation)}`)
         .join('\n')
 
       const compoundLines =
         currentDiagnosis.compoundFactors && currentDiagnosis.compoundFactors.length > 0
           ? `\nCompound / Contributing Factors:\n` +
-            currentDiagnosis.compoundFactors.map((f) => `- ${f.code} (${f.title}): ${f.detail}`).join('\n') +
+            currentDiagnosis.compoundFactors.map((f) => `- ${f.code} (${f.title}): ${cleanMarkdown(f.detail)}`).join('\n') +
             '\n'
           : ''
 
       const warrantyLine = currentDiagnosis.warrantyEvaluation
-        ? `${currentDiagnosis.warrantyEvaluation.verdictLabel} — ${currentDiagnosis.warrantyEvaluation.policyReason}`
+        ? `${cleanMarkdown(currentDiagnosis.warrantyEvaluation.verdictLabel)} — ${cleanMarkdown(currentDiagnosis.warrantyEvaluation.policyReason)}`
         : 'Pending Technician Inspection'
 
       prefill = `[MULTI-CRITERIA DIAGNOSTIC TRIAGE REPORT]
 Fault Code: ${currentDiagnosis.faultCode || 'N/A'} (${currentDiagnosis.ruleId || 'RULE-MATCH'})
-Diagnosis: ${currentDiagnosis.title || 'Reported Hardware Fault'}
+Diagnosis: ${cleanMarkdown(currentDiagnosis.title) || 'Reported Hardware Fault'}
 Severity: ${currentDiagnosis.severityLabel || 'Standard Inspection'}
 Rule Confidence: ${currentDiagnosis.confidence || 'Multi-Criteria Verified'}
 Equipment Form Factor: ${productContext.formFactorLabel}
@@ -349,6 +440,8 @@ Customer requested technician bench evaluation.`
   const currentOptions = (currentNode.options || []).filter(
     (opt) => opt.next !== 'ROOT' && opt.action !== 'CLOSE'
   )
+
+  const rootCauses = isSolutionView ? getDiagnosisRootCauses(currentDiagnosis, purchase) : []
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm overflow-y-auto">
@@ -500,7 +593,7 @@ Customer requested technician bench evaluation.`
               {isSolutionView ? (
                 <div className="space-y-5 animate-in fade-in duration-200">
                   {/* Top Verdict Card */}
-                  <div className="p-5 rounded-2xl bg-jds-surface-container-low border border-jds-outline-variant/40 space-y-3 shadow-xs">
+                  <div className="p-5 rounded-2xl bg-jds-surface-container-low border border-jds-outline-variant/40 space-y-3.5 shadow-xs">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-jds-primary/10 text-jds-primary border border-jds-primary/20">
@@ -527,14 +620,29 @@ Customer requested technician bench evaluation.`
 
                     <div>
                       <h3 className="text-lg sm:text-xl font-bold text-jds-on-surface">
-                        {currentDiagnosis.title}
+                        {renderFormattedText(currentDiagnosis.title)}
                       </h3>
                       <p className="text-xs sm:text-sm text-jds-on-surface-variant mt-1.5 leading-relaxed">
-                        {typeof currentDiagnosis.message === 'function'
-                          ? currentDiagnosis.message(purchase).split('\n\n')[1] || currentDiagnosis.message(purchase)
-                          : currentDiagnosis.message}
+                        {renderFormattedText(getDiagnosisSummary(currentDiagnosis, purchase))}
                       </p>
                     </div>
+
+                    {/* Probable Root Causes */}
+                    {rootCauses.length > 0 && (
+                      <div className="pt-3 border-t border-jds-outline-variant/25 space-y-2">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant">
+                          Probable Contributing Factors
+                        </div>
+                        <ul className="space-y-1.5 text-xs text-jds-on-surface-variant">
+                          {rootCauses.map((cause, cIdx) => (
+                            <li key={cIdx} className="flex items-start gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-jds-primary shrink-0 mt-1.5" />
+                              <span className="leading-relaxed">{renderFormattedText(cause)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
 
                   {/* Step-by-Step DIY Remedy Card */}
@@ -554,7 +662,7 @@ Customer requested technician bench evaluation.`
                               {idx + 1}
                             </span>
                             <span className="text-xs sm:text-sm text-jds-on-surface leading-relaxed font-medium">
-                              {step}
+                              {renderFormattedText(step)}
                             </span>
                           </div>
                         ))}
@@ -573,25 +681,25 @@ Customer requested technician bench evaluation.`
                         <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/30">
                           <span className="text-jds-on-surface-variant block text-[10px]">PV Circuit:</span>
                           <strong className="text-jds-on-surface font-semibold truncate block">
-                            {currentDiagnosis.telemetry.pvEfficiency}
+                            {renderFormattedText(currentDiagnosis.telemetry.pvEfficiency)}
                           </strong>
                         </div>
                         <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/30">
                           <span className="text-jds-on-surface-variant block text-[10px]">Battery Voltage:</span>
                           <strong className="text-jds-on-surface font-semibold truncate block">
-                            {currentDiagnosis.telemetry.batteryVoltage}
+                            {renderFormattedText(currentDiagnosis.telemetry.batteryVoltage)}
                           </strong>
                         </div>
                         <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/30">
                           <span className="text-jds-on-surface-variant block text-[10px]">Controller / BMS:</span>
                           <strong className="text-jds-on-surface font-semibold truncate block">
-                            {currentDiagnosis.telemetry.bmsState}
+                            {renderFormattedText(currentDiagnosis.telemetry.bmsState)}
                           </strong>
                         </div>
                         <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/30">
                           <span className="text-jds-on-surface-variant block text-[10px]">IP Weather Seal:</span>
                           <strong className="text-jds-on-surface font-semibold truncate block">
-                            {currentDiagnosis.telemetry.ipIntegrity}
+                            {renderFormattedText(currentDiagnosis.telemetry.ipIntegrity)}
                           </strong>
                         </div>
                       </div>
@@ -611,10 +719,10 @@ Customer requested technician bench evaluation.`
                     >
                       <div className="font-bold flex items-center gap-1.5">
                         <ShieldCheck className="w-4 h-4 text-jds-primary shrink-0" />
-                        <span>Warranty Evaluation: {currentDiagnosis.warrantyEvaluation.verdictLabel}</span>
+                        <span>Warranty Evaluation: {renderFormattedText(currentDiagnosis.warrantyEvaluation.verdictLabel)}</span>
                       </div>
                       <p className="text-xs text-jds-on-surface-variant leading-relaxed pl-5">
-                        {currentDiagnosis.warrantyEvaluation.policyReason}
+                        {renderFormattedText(currentDiagnosis.warrantyEvaluation.policyReason)}
                       </p>
                     </div>
                   )}
@@ -624,7 +732,7 @@ Customer requested technician bench evaluation.`
                     <button
                       type="button"
                       onClick={handleReset}
-                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-jds-outline-variant/60 hover:bg-jds-surface-container text-xs font-semibold text-jds-on-surface flex items-center justify-center gap-1.5 transition-all"
+                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-jds-outline-variant/60 hover:bg-jds-surface-container text-xs font-semibold text-jds-on-surface flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>Troubleshoot Another Issue</span>
@@ -634,7 +742,7 @@ Customer requested technician bench evaluation.`
                       <button
                         type="button"
                         onClick={() => transferToClaim()}
-                        className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                        className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
                       >
                         <ShieldCheck className="w-4 h-4" />
                         <span>File Warranty Claim</span>
@@ -643,7 +751,7 @@ Customer requested technician bench evaluation.`
                       <button
                         type="button"
                         onClick={handleClose}
-                        className="px-4 py-2.5 rounded-xl bg-jds-surface-container hover:bg-jds-surface-container-high text-xs font-semibold text-jds-on-surface transition-all"
+                        className="px-4 py-2.5 rounded-xl bg-jds-surface-container hover:bg-jds-surface-container-high text-xs font-semibold text-jds-on-surface transition-all cursor-pointer"
                       >
                         Done
                       </button>
@@ -662,10 +770,10 @@ Customer requested technician bench evaluation.`
                       <span>Diagnostic Stage {currentStepNum} of 4</span>
                     </div>
                     <h3 className="text-lg sm:text-xl font-bold tracking-tight text-jds-on-surface">
-                      {getQuestionTitle(currentNodeKey, currentNode)}
+                      {renderFormattedText(getQuestionTitle(currentNodeKey, currentNode))}
                     </h3>
                     <p className="text-xs sm:text-sm text-jds-on-surface-variant leading-relaxed">
-                      {getQuestionPrompt(currentNodeKey, currentNode, purchase)}
+                      {renderFormattedText(getQuestionPrompt(currentNodeKey, currentNode, purchase))}
                     </p>
                   </div>
 
@@ -693,10 +801,10 @@ Customer requested technician bench evaluation.`
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="text-xs sm:text-sm font-bold text-jds-on-surface group-hover:text-jds-primary transition-colors leading-snug">
-                                {meta.label}
+                                {renderFormattedText(meta.label)}
                               </div>
                               <p className="text-[11px] text-jds-on-surface-variant mt-1 leading-relaxed line-clamp-2">
-                                {meta.desc}
+                                {renderFormattedText(meta.desc)}
                               </p>
                             </div>
                             <ChevronRight className="w-4 h-4 text-jds-on-surface-variant group-hover:text-jds-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
@@ -720,7 +828,7 @@ Customer requested technician bench evaluation.`
                             </div>
                             <div className="min-w-0">
                               <div className="text-xs sm:text-sm font-semibold text-jds-on-surface group-hover:text-jds-primary transition-colors leading-relaxed">
-                                {opt.label}
+                                {renderFormattedText(opt.label)}
                               </div>
                             </div>
                           </div>
@@ -736,7 +844,7 @@ Customer requested technician bench evaluation.`
                       <button
                         type="button"
                         onClick={handleBack}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer"
                       >
                         <ChevronLeft className="w-4 h-4" />
                         <span>Previous Question</span>
@@ -750,7 +858,7 @@ Customer requested technician bench evaluation.`
                     <button
                       type="button"
                       onClick={handleReset}
-                      className="inline-flex items-center gap-1 text-xs text-jds-on-surface-variant hover:text-jds-on-surface transition-colors"
+                      className="inline-flex items-center gap-1 text-xs text-jds-on-surface-variant hover:text-jds-on-surface transition-colors cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>Start Over</span>
@@ -790,7 +898,7 @@ Customer requested technician bench evaluation.`
                   <button
                     type="button"
                     onClick={handleClose}
-                    className="w-full py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-semibold text-xs hover:bg-jds-primary/90 transition-all shadow-sm"
+                    className="w-full py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-semibold text-xs hover:bg-jds-primary/90 transition-all shadow-sm cursor-pointer"
                   >
                     Return to Customer Dashboard
                   </button>
@@ -808,7 +916,7 @@ Customer requested technician bench evaluation.`
                         Diagnostic Wizard Report Pre-Populated ({currentDiagnosis.faultCode})
                       </strong>
                       <span className="text-[11px] text-jds-on-surface-variant block">
-                        Diagnosed as: <strong>{currentDiagnosis.title}</strong>. Your evaluated criteria and telemetry benchmarks have been attached below.
+                        Diagnosed as: <strong>{renderFormattedText(currentDiagnosis.title)}</strong>. Your evaluated criteria and telemetry benchmarks have been attached below.
                       </span>
                     </div>
                   </div>
@@ -874,7 +982,7 @@ Customer requested technician bench evaluation.`
                           key={cat.id}
                           type="button"
                           onClick={() => setCategory(cat.id)}
-                          className={`p-2.5 rounded-xl border text-left text-xs font-medium flex items-center gap-2 transition-all ${
+                          className={`p-2.5 rounded-xl border text-left text-xs font-medium flex items-center gap-2 transition-all cursor-pointer ${
                             isSelected
                               ? 'bg-jds-primary/10 border-jds-primary text-jds-primary shadow-sm'
                               : 'bg-jds-surface border-jds-outline-variant/40 text-jds-on-surface-variant hover:border-jds-outline-variant hover:text-jds-on-surface'
@@ -950,7 +1058,7 @@ Customer requested technician bench evaluation.`
                           <button
                             type="button"
                             onClick={() => handleRemoveFile(idx)}
-                            className="text-rose-500 hover:text-rose-600 p-1"
+                            className="text-rose-500 hover:text-rose-600 p-1 cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -965,14 +1073,14 @@ Customer requested technician bench evaluation.`
                   <button
                     type="button"
                     onClick={() => setActiveTab('wizard')}
-                    className="px-4 py-2 text-xs font-medium text-jds-on-surface-variant hover:text-jds-on-surface rounded-xl transition-colors"
+                    className="px-4 py-2 text-xs font-medium text-jds-on-surface-variant hover:text-jds-on-surface rounded-xl transition-colors cursor-pointer"
                   >
                     Back to Troubleshooter
                   </button>
                   <button
                     type="submit"
                     disabled={isUploading}
-                    className="px-5 py-2.5 text-xs font-semibold rounded-xl bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50"
+                    className="px-5 py-2.5 text-xs font-semibold rounded-xl bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
                   >
                     {isUploading ? (
                       <>
