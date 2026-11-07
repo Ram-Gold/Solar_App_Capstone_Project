@@ -1,6 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { useState } from 'react'
 import {
   X,
   ShieldCheck,
@@ -15,30 +13,21 @@ import {
   Battery,
   Radio,
   Eye,
-  RefreshCw,
-  Send,
-  Sparkles,
-  Wrench,
-  Check,
+  RotateCcw,
   ChevronRight,
-  SlidersHorizontal,
-  MessageSquare,
-  ClipboardCheck,
-  Layers,
+  ChevronLeft,
+  Wrench,
   Activity,
+  Layers,
 } from 'lucide-react'
 import { uploadEvidenceFile, submitWarrantyClaim } from '../lib/customerService'
 import {
   DIAGNOSTIC_TREE,
-  CRITERIA_PILLAR_META,
-  DIAGNOSTIC_CRITERIA_OPTIONS,
   DEFAULT_CRITERIA_STATE,
   analyzeProductContext,
   evaluateDiagnosticCriteria,
   enrichDiagnosisNode,
-  matchDiagnosticFreeText,
 } from '../lib/solarDiagnosticEngine'
-import { stripEmojis, splitIntoSentenceSegments } from '../lib/solarBotEngine'
 
 const ISSUE_CATEGORIES = [
   { id: 'No Power / Won\'t Turn On', label: 'No Power / Won\'t Turn On', icon: Zap },
@@ -49,26 +38,81 @@ const ISSUE_CATEGORIES = [
   { id: 'Physical / Water Ingress', label: 'Physical / Water Damage', icon: AlertTriangle },
 ]
 
-let nextDiagnosticMsgSeq = 1
-function createMsgId(prefix = 'msg') {
-  nextDiagnosticMsgSeq += 1
-  return `${prefix}-${nextDiagnosticMsgSeq}`
+const SYMPTOM_META = {
+  SYMPTOM_NO_POWER: {
+    icon: Zap,
+    label: 'Light Does NOT Turn On at Night',
+    desc: 'Fixture remains completely unlit after dusk despite daytime sun exposure.',
+  },
+  SYMPTOM_SHORT_RUNTIME: {
+    icon: Battery,
+    label: 'Shuts Off Prematurely (1–3 Hours)',
+    desc: 'Illuminates normally at dusk but depletes battery rapidly before morning.',
+  },
+  SYMPTOM_DIM_FLICKER: {
+    icon: Sun,
+    label: 'Dim Illumination or Flickering LEDs',
+    desc: 'Sub-nominal brightness, strobing LED modules, or partial array blackout.',
+  },
+  SYMPTOM_DAYTIME_ON: {
+    icon: Eye,
+    label: 'Light Stays ON During Bright Daytime',
+    desc: 'LEDs fail to power off in full sunlight, bypassing dusk-to-dawn sensor.',
+  },
+  SYMPTOM_PHYSICAL_HOTSPOT: {
+    icon: AlertTriangle,
+    label: 'Panel Heat / Discoloration / Broken Glass',
+    desc: 'Burned cell discoloration, shattered tempered glass, or loose mounting hardware.',
+  },
+  SYMPTOM_SENSOR_REMOTE: {
+    icon: Radio,
+    label: 'Remote Control / Radar Not Responding',
+    desc: 'Handheld infrared controller or radar microwave induction fails to trigger.',
+  },
 }
 
-function buildInitialRootMessage(purchase) {
-  const startNode = DIAGNOSTIC_TREE.ROOT
-  return {
-    id: 'msg-init',
-    role: 'bot',
-    nodeKey: 'ROOT',
-    content: stripEmojis(
-      typeof startNode.message === 'function' ? startNode.message(purchase) : startNode.message
-    ),
-    options: (startNode.options || []).map((o) => ({ ...o, label: stripEmojis(o.label) })),
-    diagnosis: null,
-    isStreaming: false,
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+const STEPS = [
+  { num: 1, label: 'Symptom', short: 'Symptom' },
+  { num: 2, label: 'Electrical', short: 'Electric' },
+  { num: 3, label: 'Enclosure', short: 'Seal' },
+  { num: 4, label: 'Environment', short: 'Sun' },
+  { num: 5, label: 'Solution', short: 'Solution' },
+]
+
+function getQuestionTitle(nodeKey, node) {
+  if (nodeKey === 'ROOT') {
+    return 'What issue is your solar lighting unit experiencing?'
   }
+  if (nodeKey.startsWith('SYMPTOM_')) {
+    return 'Check Electrical Continuity & Switch State'
+  }
+  if (nodeKey.includes('_PHYSICAL') || nodeKey.includes('_ELECTRICAL')) {
+    return 'Inspect Physical Enclosure & Cable Connection'
+  }
+  if (nodeKey.includes('_ENV') || nodeKey.includes('_CONTROL')) {
+    return 'Verify Sunlight Exposure & Environmental Factors'
+  }
+  return node?.title || 'Solar Hardware Assessment'
+}
+
+function getQuestionPrompt(nodeKey, node, product) {
+  if (nodeKey === 'ROOT') {
+    return `Select the primary physical symptom or behavior observed on your ${product?.product_name || 'equipment'}:`
+  }
+  if (nodeKey.startsWith('SYMPTOM_')) {
+    return 'During peak daylight hours (11:00 AM – 2:00 PM), observe the small charging indicator LED bead and verify whether the master push-button switch is toggled.'
+  }
+  if (nodeKey.includes('_PHYSICAL') || nodeKey.includes('_ELECTRICAL')) {
+    return 'Examine the optical polycarbonate lens, tempered solar glass, and waterproof rotary cable collar for loose connections or seal compromises.'
+  }
+  if (nodeKey.includes('_ENV') || nodeKey.includes('_CONTROL')) {
+    return 'Assess recent weather patterns, tree shading, or roof overhang obstructions affecting daily battery harvesting over the past 72 hours.'
+  }
+  if (typeof node?.message === 'function') {
+    const raw = node.message(product)
+    return raw.replace(/^#+.*$/gm, '').replace(/\*\*/g, '').trim()
+  }
+  return String(node?.message || '').replace(/^#+.*$/gm, '').replace(/\*\*/g, '').trim()
 }
 
 export default function FaultDiagnosticModal({
@@ -79,23 +123,12 @@ export default function FaultDiagnosticModal({
   onClaimSubmitted,
   initialMode = 'assistant', // 'assistant' | 'claim'
 }) {
-  const [activeTab, setActiveTab] = useState(initialMode === 'claim' ? 'claim' : 'assistant')
-  const [diagSubMode, setDiagSubMode] = useState('guided') // 'guided' | 'matrix'
+  const [activeTab, setActiveTab] = useState(initialMode === 'claim' ? 'claim' : 'wizard')
 
-  // === MULTI-CRITERIA STATE ===
+  // === WIZARD STATE (Simple question & multiple choices flow) ===
+  const [history, setHistory] = useState(['ROOT'])
   const [criteriaState, setCriteriaState] = useState(DEFAULT_CRITERIA_STATE)
-  const [evaluatedPillarKeys, setEvaluatedPillarKeys] = useState([])
-  const [stepStage, setStepStage] = useState(0) // 0=root, 1=crit1, 2=crit2, 3=crit3, 4=verdict
-
-  // === DIAGNOSTIC ASSISTANT CHAT STATE ===
-  const [messages, setMessages] = useState(() =>
-    purchase ? [buildInitialRootMessage(purchase)] : []
-  )
-  const [userInput, setUserInput] = useState('')
-  const [isStreaming, setIsStreaming] = useState(false)
   const [currentDiagnosis, setCurrentDiagnosis] = useState(null)
-  const chatScrollRef = useRef(null)
-  const streamTimersRef = useRef([])
 
   // === CLAIM FORM STATE ===
   const [category, setCategory] = useState(ISSUE_CATEGORIES[0].id)
@@ -106,131 +139,31 @@ export default function FaultDiagnosticModal({
   const [isSuccess, setIsSuccess] = useState(false)
   const [submittedClaimId, setSubmittedClaimId] = useState(null)
 
-  const clearStreamTimers = () => {
-    streamTimersRef.current.forEach((t) => clearTimeout(t))
-    streamTimersRef.current = []
-  }
-
-  useEffect(() => {
-    return () => clearStreamTimers()
-  }, [])
-
-  // Stream a bot response sentence-by-sentence per AGENTS.md rule
-  const appendStreamingBotMessage = ({
-    nodeKey,
-    rawContent,
-    options = [],
-    diagnosis = null,
-    thinkingDelay = 280,
-  }) => {
-    clearStreamTimers()
-    const cleanContent = stripEmojis(rawContent)
-    const cleanOptions = (options || []).map((o) => ({
-      ...o,
-      label: stripEmojis(o.label),
-    }))
-    const segments = splitIntoSentenceSegments(cleanContent)
-    const botId = createMsgId('bot')
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-
-    setIsStreaming(true)
-
-    const startTimer = setTimeout(() => {
-      if (!segments || segments.length <= 1) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: botId,
-            role: 'bot',
-            nodeKey,
-            content: cleanContent,
-            options: cleanOptions,
-            diagnosis,
-            isStreaming: false,
-            timestamp,
-          },
-        ])
-        setIsStreaming(false)
-        return
-      }
-
-      let currentContent = segments[0]
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: botId,
-          role: 'bot',
-          nodeKey,
-          content: currentContent,
-          options: [],
-          diagnosis: null,
-          isStreaming: true,
-          timestamp,
-        },
-      ])
-
-      segments.slice(1).forEach((seg, idx) => {
-        const isLast = idx === segments.length - 2
-        const segTimer = setTimeout(() => {
-          currentContent += seg
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === botId
-                ? {
-                    ...m,
-                    content: isLast ? cleanContent : currentContent,
-                    options: isLast ? cleanOptions : [],
-                    diagnosis: isLast ? diagnosis : null,
-                    isStreaming: !isLast,
-                  }
-                : m
-            )
-          )
-          if (isLast) {
-            setIsStreaming(false)
-          }
-        }, (idx + 1) * 75)
-        streamTimersRef.current.push(segTimer)
-      })
-    }, thinkingDelay)
-
-    streamTimersRef.current.push(startTimer)
-  }
-
-  // Initialize or reset assistant when modal opens or purchase changes
-  useEffect(() => {
-    if (!isOpen || !purchase) return
-
-    clearStreamTimers()
-    const initTimer = setTimeout(() => {
-      setActiveTab(initialMode === 'claim' ? 'claim' : 'assistant')
-      setDiagSubMode('guided')
-      setCriteriaState(DEFAULT_CRITERIA_STATE)
-      setEvaluatedPillarKeys([])
-      setStepStage(0)
-      setCurrentDiagnosis(null)
-      setIsStreaming(false)
-      setMessages([buildInitialRootMessage(purchase)])
-    }, 0)
-
-    return () => clearTimeout(initTimer)
-  }, [isOpen, purchase, initialMode])
-
-  // Auto-scroll chat
-  useEffect(() => {
-    if (activeTab === 'assistant' && chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
-    }
-  }, [messages, activeTab, diagSubMode, isStreaming])
-
   if (!isOpen || !purchase) return null
 
   const productContext = analyzeProductContext(purchase)
+  const currentNodeKey = history[history.length - 1]
+  const isSolutionView = currentNodeKey === 'SOLUTION' && currentDiagnosis !== null
+  const currentNode = DIAGNOSTIC_TREE[currentNodeKey] || DIAGNOSTIC_TREE.ROOT
 
-  // Handle selecting an option button in Guided Multi-Criteria Audit
+  // Determine current step index (1 to 5)
+  let currentStepNum = 1
+  if (isSolutionView) {
+    currentStepNum = 5
+  } else if (currentNodeKey === 'ROOT') {
+    currentStepNum = 1
+  } else if (currentNodeKey.startsWith('SYMPTOM_')) {
+    currentStepNum = 2
+  } else if (currentNodeKey.includes('_PHYSICAL') || currentNodeKey.includes('_ELECTRICAL')) {
+    currentStepNum = 3
+  } else if (currentNodeKey.includes('_ENV') || currentNodeKey.includes('_CONTROL')) {
+    currentStepNum = 4
+  } else {
+    currentStepNum = Math.min(5, Math.max(1, history.length))
+  }
+
+  // Handle selecting a multiple-choice option
   const handleSelectOption = (opt) => {
-    if (isStreaming) return
-
     if (opt.action === 'CLOSE') {
       handleClose()
       return
@@ -241,180 +174,58 @@ export default function FaultDiagnosticModal({
       return
     }
 
-    // Add user selection bubble
-    const userMsg = {
-      id: createMsgId('usr'),
-      role: 'user',
-      content: stripEmojis(opt.label),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    }
-    setMessages((prev) => [...prev, userMsg])
-
-    // If resetting to ROOT
     if (opt.next === 'ROOT') {
-      const rootNode = DIAGNOSTIC_TREE.ROOT
-      setCriteriaState(DEFAULT_CRITERIA_STATE)
-      setEvaluatedPillarKeys([])
-      setStepStage(0)
-      setCurrentDiagnosis(null)
-      appendStreamingBotMessage({
-        nodeKey: 'ROOT',
-        rawContent:
-          typeof rootNode.message === 'function' ? rootNode.message(purchase) : rootNode.message,
-        options: rootNode.options,
-        diagnosis: null,
-        thinkingDelay: 200,
-      })
+      handleReset()
       return
     }
 
-    // Merge criteriaPatch if present
-    let nextCriteria = { ...criteriaState }
-    let nextEvaluatedKeys = [...evaluatedPillarKeys]
+    // Merge criteria patch if present
+    const nextCriteria = opt.criteriaPatch ? { ...criteriaState, ...opt.criteriaPatch } : { ...criteriaState }
     if (opt.criteriaPatch) {
-      nextCriteria = { ...nextCriteria, ...opt.criteriaPatch }
       setCriteriaState(nextCriteria)
-      Object.keys(opt.criteriaPatch).forEach((k) => {
-        if (k !== 'symptom' && !nextEvaluatedKeys.includes(k)) {
-          nextEvaluatedKeys.push(k)
-        }
-      })
-      setEvaluatedPillarKeys(nextEvaluatedKeys)
     }
 
-    // If multi-criteria evaluation trigger reached
+    // Trigger criteria rule evaluation
     if (opt.next === 'EVALUATE_CRITERIA') {
-      setEvaluatedPillarKeys(['electrical', 'physical', 'environmental', 'control'])
-      setStepStage(4)
-      const evaluatedVerdict = evaluateDiagnosticCriteria(nextCriteria, purchase)
-      setCurrentDiagnosis(evaluatedVerdict)
-
-      const rawText =
-        typeof evaluatedVerdict.message === 'function'
-          ? evaluatedVerdict.message(purchase)
-          : evaluatedVerdict.message
-
-      appendStreamingBotMessage({
-        nodeKey: evaluatedVerdict.nodeKey,
-        rawContent: rawText,
-        options: evaluatedVerdict.options || [],
-        diagnosis: evaluatedVerdict,
-        thinkingDelay: 340,
-      })
+      const verdict = evaluateDiagnosticCriteria(nextCriteria, purchase)
+      setCurrentDiagnosis(verdict)
+      setHistory((prev) => [...prev, 'SOLUTION'])
       return
     }
 
-    const nextNode = DIAGNOSTIC_TREE[opt.next] || DIAGNOSTIC_TREE.ROOT
-    if (typeof nextNode.stepStage === 'number') {
-      setStepStage(nextNode.stepStage)
+    const nextNode = DIAGNOSTIC_TREE[opt.next]
+
+    // If next node is a leaf verdict node (has fault code)
+    if (nextNode && nextNode.faultCode) {
+      const enriched = enrichDiagnosisNode(opt.next, nextNode, purchase, nextCriteria)
+      setCurrentDiagnosis(enriched)
+      setHistory((prev) => [...prev, 'SOLUTION'])
+      return
     }
 
-    let enrichedDiag = null
-    if (nextNode.faultCode) {
-      enrichedDiag = enrichDiagnosisNode(opt.next, nextNode, purchase, nextCriteria)
-      setCurrentDiagnosis(enrichedDiag)
-      setEvaluatedPillarKeys(['electrical', 'physical', 'environmental', 'control'])
-      setStepStage(4)
+    // Advance to next question
+    if (nextNode) {
+      setHistory((prev) => [...prev, opt.next])
     }
-
-    const rawText =
-      typeof nextNode.message === 'function' ? nextNode.message(purchase) : nextNode.message
-
-    appendStreamingBotMessage({
-      nodeKey: opt.next,
-      rawContent: rawText,
-      options: nextNode.options || [],
-      diagnosis: enrichedDiag,
-      thinkingDelay: 260,
-    })
   }
 
-  // Handle evaluating directly from the Interactive Criteria Matrix
-  const handleRunMatrixEvaluation = () => {
-    setEvaluatedPillarKeys(['electrical', 'physical', 'environmental', 'control'])
-    setStepStage(4)
-    const evaluatedVerdict = evaluateDiagnosticCriteria(criteriaState, purchase)
-    setCurrentDiagnosis(evaluatedVerdict)
-    setDiagSubMode('guided')
-
-    const symptomObj = DIAGNOSTIC_CRITERIA_OPTIONS.symptom.find(
-      (s) => s.value === criteriaState.symptom
-    )
-    const userSummaryMsg = {
-      id: createMsgId('usr'),
-      role: 'user',
-      content: `Multi-Criteria Matrix Audit: ${symptomObj?.label || criteriaState.symptom}`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  // Step back to previous question
+  const handleBack = () => {
+    if (history.length <= 1) return
+    if (isSolutionView) {
+      setCurrentDiagnosis(null)
     }
-    setMessages((prev) => [...prev, userSummaryMsg])
-
-    const rawText =
-      typeof evaluatedVerdict.message === 'function'
-        ? evaluatedVerdict.message(purchase)
-        : evaluatedVerdict.message
-
-    appendStreamingBotMessage({
-      nodeKey: evaluatedVerdict.nodeKey,
-      rawContent: rawText,
-      options: evaluatedVerdict.options || [],
-      diagnosis: evaluatedVerdict,
-      thinkingDelay: 300,
-    })
+    setHistory((prev) => prev.slice(0, -1))
   }
 
-  // Handle free-text submit in assistant
-  const handleSendMessage = (e) => {
-    e.preventDefault()
-    if (isStreaming) return
-    const text = stripEmojis(userInput.trim())
-    if (!text) return
-
-    const userMsg = {
-      id: createMsgId('usr'),
-      role: 'user',
-      content: text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    }
-
-    setUserInput('')
-    setMessages((prev) => [...prev, userMsg])
-
-    const matchedNode = matchDiagnosticFreeText(text, purchase)
-
-    if (matchedNode.criteriaPatch) {
-      setCriteriaState((prev) => ({ ...prev, ...matchedNode.criteriaPatch }))
-    }
-    if (matchedNode.evaluatedCriteria) {
-      setCriteriaState(matchedNode.evaluatedCriteria)
-      setEvaluatedPillarKeys(['electrical', 'physical', 'environmental', 'control'])
-      setStepStage(4)
-    } else if (typeof matchedNode.stepStage === 'number') {
-      setStepStage(matchedNode.stepStage)
-    }
-
-    let diagObj = null
-    if (matchedNode.faultCode) {
-      diagObj = matchedNode.criteriaScorecard
-        ? matchedNode
-        : enrichDiagnosisNode(matchedNode.nodeKey || 'CUSTOM', matchedNode, purchase, criteriaState)
-      setCurrentDiagnosis(diagObj)
-    }
-
-    const rawText =
-      typeof matchedNode.message === 'function'
-        ? matchedNode.message(purchase)
-        : matchedNode.message
-
-    appendStreamingBotMessage({
-      nodeKey: matchedNode.nodeKey || 'MATCHED',
-      rawContent: rawText,
-      options: matchedNode.options || [],
-      diagnosis: diagObj,
-      thinkingDelay: 320,
-    })
+  // Reset wizard back to question 1
+  const handleReset = () => {
+    setHistory(['ROOT'])
+    setCriteriaState(DEFAULT_CRITERIA_STATE)
+    setCurrentDiagnosis(null)
   }
 
-  // Transfer multi-criteria diagnostic summary into the warranty claim form
+  // Transfer diagnostic summary into the warranty claim form
   const transferToClaim = (suggestedCategory) => {
     if (suggestedCategory) {
       setCategory(suggestedCategory)
@@ -425,36 +236,31 @@ export default function FaultDiagnosticModal({
     let prefill
     if (currentDiagnosis) {
       const scorecardLines = (currentDiagnosis.criteriaScorecard || [])
-        .map(
-          (c) =>
-            `- ${c.criterion} (${c.weightLabel}): [${c.status}] ${c.observation}`
-        )
+        .map((c) => `- ${c.criterion} (${c.weightLabel}): [${c.status}] ${c.observation}`)
         .join('\n')
 
       const compoundLines =
         currentDiagnosis.compoundFactors && currentDiagnosis.compoundFactors.length > 0
-          ? `\nCompound / Secondary Factors Detected:\n` +
-            currentDiagnosis.compoundFactors
-              .map((f) => `- ${f.code} (${f.title}): ${f.detail}`)
-              .join('\n') +
+          ? `\nCompound / Contributing Factors:\n` +
+            currentDiagnosis.compoundFactors.map((f) => `- ${f.code} (${f.title}): ${f.detail}`).join('\n') +
             '\n'
           : ''
 
       const warrantyLine = currentDiagnosis.warrantyEvaluation
         ? `${currentDiagnosis.warrantyEvaluation.verdictLabel} — ${currentDiagnosis.warrantyEvaluation.policyReason}`
-        : 'Pending Bench Verification'
+        : 'Pending Technician Inspection'
 
       prefill = `[MULTI-CRITERIA DIAGNOSTIC TRIAGE REPORT]
 Fault Code: ${currentDiagnosis.faultCode || 'N/A'} (${currentDiagnosis.ruleId || 'RULE-MATCH'})
 Diagnosis: ${currentDiagnosis.title || 'Reported Hardware Fault'}
 Severity: ${currentDiagnosis.severityLabel || 'Standard Inspection'}
-Rule Match Confidence: ${currentDiagnosis.confidence || 'Multi-Criteria Verified'}
+Rule Confidence: ${currentDiagnosis.confidence || 'Multi-Criteria Verified'}
 Equipment Form Factor: ${productContext.formFactorLabel}
 
-Evaluated 4-Pillar Diagnostic Criteria Scorecard:
-${scorecardLines || '- Standard symptom triage completed'}
+Evaluated 4-Pillar Scorecard:
+${scorecardLines || '- Standard physical triage completed'}
 ${compoundLines}
-Estimated Telemetry State:
+Telemetry State:
 - PV Circuit: ${currentDiagnosis.telemetry?.pvEfficiency || 'Nominal'} (${currentDiagnosis.telemetry?.panelVoltage || 'Nominal'})
 - Battery State: ${currentDiagnosis.telemetry?.batteryVoltage || 'Nominal'}
 - Controller / BMS: ${currentDiagnosis.telemetry?.bmsState || 'Nominal'}
@@ -473,24 +279,7 @@ Customer requested technician bench evaluation.`
     setActiveTab('claim')
   }
 
-  // Reset chat and criteria back to initial state
-  const handleResetChat = () => {
-    clearStreamTimers()
-    setCriteriaState(DEFAULT_CRITERIA_STATE)
-    setEvaluatedPillarKeys([])
-    setStepStage(0)
-    setCurrentDiagnosis(null)
-    setIsStreaming(false)
-    setDiagSubMode('guided')
-    setMessages([
-      {
-        ...buildInitialRootMessage(purchase),
-        id: createMsgId('msg'),
-      },
-    ])
-  }
-
-  // === CLAIM SUBMISSION HANDLERS ===
+  // File upload handlers for claim form
   const handleFileChange = (e) => {
     setUploadError('')
     const selected = Array.from(e.target.files || [])
@@ -547,84 +336,86 @@ Customer requested technician bench evaluation.`
   }
 
   const handleClose = () => {
-    clearStreamTimers()
     setIsSuccess(false)
     setSubmittedClaimId(null)
     setDescription('')
     setFiles([])
     setUploadError('')
+    handleReset()
     onClose()
   }
 
-  // Compute live preview evaluation for the Criteria Matrix mode
-  const matrixPreviewVerdict = evaluateDiagnosticCriteria(criteriaState, purchase)
+  // Filter out meta navigation options (like 'Back' or 'Restart' which we handle in the wizard bar)
+  const currentOptions = (currentNode.options || []).filter(
+    (opt) => opt.next !== 'ROOT' && opt.action !== 'CLOSE'
+  )
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2.5 sm:p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-2 sm:my-6 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-3 sm:my-6 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="p-3.5 md:p-4 border-b border-jds-outline-variant/30 flex items-center justify-between bg-jds-surface-container-low shrink-0">
+        <div className="p-4 border-b border-jds-outline-variant/30 flex items-center justify-between bg-jds-surface-container-low shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-jds-primary/10 flex items-center justify-center text-jds-primary shadow-sm shrink-0">
-              <Wrench className="w-4 h-4 md:w-5 md:h-5" />
+            <div className="w-10 h-10 rounded-xl bg-jds-primary/10 flex items-center justify-center text-jds-primary shadow-sm shrink-0">
+              <Wrench className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm md:text-base font-bold text-jds-on-surface truncate">
-                  Multi-Criteria Hardware Diagnostic
+                <h2 className="text-base font-bold text-jds-on-surface truncate">
+                  Solar Troubleshooting Guide
                 </h2>
                 <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-jds-primary/10 text-jds-primary border border-jds-primary/20">
-                  Rule-Based Engine
+                  Deterministic Rule-Based
                 </span>
               </div>
-              <p className="text-[11px] text-jds-on-surface-variant truncate">
+              <p className="text-xs text-jds-on-surface-variant truncate">
                 Unit: <strong className="text-jds-on-surface font-semibold">{purchase.product_name}</strong> • {productContext.formFactorLabel}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
-            {activeTab === 'assistant' && (
+            {activeTab === 'wizard' && (
               <button
                 type="button"
-                onClick={handleResetChat}
-                title="Reset Multi-Criteria Audit"
-                className="p-1.5 text-jds-on-surface-variant hover:text-jds-primary rounded-lg hover:bg-jds-surface-container transition-colors"
+                onClick={handleReset}
+                title="Restart Troubleshooter"
+                className="p-2 text-jds-on-surface-variant hover:text-jds-primary rounded-xl hover:bg-jds-surface-container transition-colors"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RotateCcw className="w-4 h-4" />
               </button>
             )}
             <button
               type="button"
               onClick={handleClose}
-              className="p-1.5 text-jds-on-surface-variant hover:text-jds-on-surface rounded-lg hover:bg-jds-surface-container transition-colors"
+              className="p-2 text-jds-on-surface-variant hover:text-jds-on-surface rounded-xl hover:bg-jds-surface-container transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Tab Toggle Navigation */}
-        <div className="flex flex-wrap items-center justify-between border-b border-jds-outline-variant/30 bg-jds-surface-container/30 px-3.5 py-2 shrink-0 gap-2">
-          <div className="flex items-center gap-1.5">
+        {/* Tab Switcher */}
+        <div className="flex items-center justify-between border-b border-jds-outline-variant/30 bg-jds-surface-container/30 px-4 py-2 shrink-0 gap-2">
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setActiveTab('assistant')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'assistant'
+              onClick={() => setActiveTab('wizard')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'wizard'
                   ? 'bg-jds-primary text-jds-on-primary shadow-sm'
                   : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Diagnostic Engine</span>
+              <Wrench className="w-3.5 h-3.5" />
+              <span>Troubleshooting Wizard</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('claim')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'claim'
                   ? 'bg-jds-primary text-jds-on-primary shadow-sm'
                   : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
@@ -638,542 +429,336 @@ Customer requested technician bench evaluation.`
             </button>
           </div>
 
-          {/* Sub-mode switch between Guided Audit and Direct Criteria Matrix */}
-          {activeTab === 'assistant' && (
-            <div className="inline-flex items-center rounded-xl bg-jds-surface-container p-0.5 border border-jds-outline-variant/40 text-[11px]">
-              <button
-                type="button"
-                onClick={() => setDiagSubMode('guided')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-semibold transition-all ${
-                  diagSubMode === 'guided'
-                    ? 'bg-jds-surface text-jds-primary shadow-2xs'
-                    : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                }`}
-              >
-                <MessageSquare className="w-3 h-3" />
-                <span>Guided Audit</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDiagSubMode('matrix')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-semibold transition-all ${
-                  diagSubMode === 'matrix'
-                    ? 'bg-jds-surface text-jds-primary shadow-2xs'
-                    : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                }`}
-              >
-                <SlidersHorizontal className="w-3 h-3" />
-                <span>Criteria Matrix</span>
-              </button>
-            </div>
-          )}
+          <div className="text-[11px] text-jds-on-surface-variant hidden sm:block">
+            {purchase.is_warranty_active ? (
+              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Warranty Active</span>
+            ) : (
+              <span className="text-amber-600 dark:text-amber-400 font-semibold">Post-Warranty Servicing</span>
+            )}
+          </div>
         </div>
 
         {/* ========================================================= */}
-        {/* TAB 1: MULTI-CRITERIA DIAGNOSTIC ENGINE */}
+        {/* TAB 1: PRODUCT MATCHER-STYLE MULTIPLE CHOICE WIZARD */}
         {/* ========================================================= */}
-        {activeTab === 'assistant' && (
-          <div className="flex flex-col flex-1 min-h-0 bg-jds-surface">
+        {activeTab === 'wizard' && (
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-jds-surface flex flex-col justify-between">
             
-            {/* Live 4-Pillar Criteria Status Bar */}
-            <div className="px-3.5 py-2.5 bg-jds-surface-container-low/70 border-b border-jds-outline-variant/30 shrink-0 space-y-2">
-              <div className="flex items-center justify-between text-[11px]">
-                <div className="flex items-center gap-1.5 font-bold text-jds-on-surface">
-                  <Layers className="w-3.5 h-3.5 text-jds-primary" />
-                  <span>4-Pillar Hardware Evaluation Criteria</span>
-                </div>
-                <span className="text-[10px] font-medium text-jds-on-surface-variant">
-                  {stepStage === 4
-                    ? '4/4 Criteria Evaluated • Verdict Ready'
-                    : stepStage > 0
-                    ? `Audit Stage ${stepStage} of 3`
-                    : 'Select symptom or open Criteria Matrix'}
-                </span>
-              </div>
+            <div className="space-y-6">
+              {/* Stepper (Minimal Linear Progress Bar like Product Matcher) */}
+              <div className="max-w-md mx-auto px-2 select-none" aria-label={`Step ${currentStepNum} of ${STEPS.length}`}>
+                <div className="relative">
+                  {/* Base Track Line */}
+                  <div className="absolute top-2.5 left-[10%] right-[10%] h-[2px] -translate-y-1/2 bg-neutral-200 dark:bg-neutral-800 z-0">
+                    <div
+                      className="h-full bg-jds-primary transition-all duration-300 ease-out"
+                      style={{
+                        width: `${((currentStepNum - 1) / (STEPS.length - 1)) * 100}%`,
+                      }}
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                {CRITERIA_PILLAR_META.map((pillar) => {
-                  const isEvaluated = evaluatedPillarKeys.includes(pillar.key) || stepStage === 4
-                  const selectedOpt = (DIAGNOSTIC_CRITERIA_OPTIONS[pillar.key] || []).find(
-                    (o) => o.value === criteriaState[pillar.key]
-                  )
-                  const status = selectedOpt?.status || 'PASS'
+                  {/* Step Markers */}
+                  <div className="grid grid-cols-5 relative z-10">
+                    {STEPS.map((s) => {
+                      const isCompleted = currentStepNum > s.num
+                      const isCurrent = currentStepNum === s.num
 
-                  return (
-                    <button
-                      key={pillar.key}
-                      type="button"
-                      onClick={() => setDiagSubMode(diagSubMode === 'matrix' ? 'guided' : 'matrix')}
-                      title={`${pillar.label}: ${selectedOpt?.label || ''}`}
-                      className={`p-1.5 rounded-lg border text-left transition-all ${
-                        isEvaluated
-                          ? status === 'FAIL'
-                            ? 'bg-rose-500/10 border-rose-500/30 text-jds-on-surface'
-                            : status === 'WARNING'
-                            ? 'bg-amber-500/10 border-amber-500/30 text-jds-on-surface'
-                            : 'bg-emerald-500/10 border-emerald-500/30 text-jds-on-surface'
-                          : 'bg-jds-surface/80 border-jds-outline-variant/30 text-jds-on-surface-variant hover:border-jds-primary/40'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1 text-[10px] font-bold">
-                        <span className="truncate">{pillar.label}</span>
-                        <span className="text-[9px] font-mono opacity-75 shrink-0">{pillar.weightLabel}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-1 mt-0.5">
-                        <span className="text-[9px] truncate opacity-85">
-                          {isEvaluated ? selectedOpt?.label : 'Pending check'}
-                        </span>
-                        {isEvaluated && (
+                      return (
+                        <div key={s.num} className="flex flex-col items-center">
+                          <div className="h-5 flex items-center justify-center">
+                            {isCurrent ? (
+                              <div className="size-[18px] rounded-full border-2 border-jds-primary bg-jds-surface flex items-center justify-center shadow-xs">
+                                <div className="size-2 rounded-full bg-jds-primary" />
+                              </div>
+                            ) : isCompleted ? (
+                              <div className="size-2.5 rounded-full bg-jds-primary" />
+                            ) : (
+                              <div className="size-2.5 rounded-full bg-neutral-400 dark:bg-neutral-600" />
+                            )}
+                          </div>
                           <span
-                            className={`text-[8px] font-bold px-1 rounded uppercase shrink-0 ${
-                              status === 'FAIL'
-                                ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400'
-                                : status === 'WARNING'
-                                ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
-                                : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                            className={`mt-1.5 text-[11px] text-center transition-colors truncate max-w-full px-0.5 ${
+                              isCurrent
+                                ? 'text-jds-on-surface font-semibold'
+                                : 'text-jds-on-surface-variant/70'
                             }`}
                           >
-                            {status}
+                            <span className="hidden sm:inline">{s.label}</span>
+                            <span className="sm:hidden">{s.short}</span>
                           </span>
-                        )}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* SUB-MODE A: INTERACTIVE MULTI-CRITERIA MATRIX EVALUATOR */}
-            {diagSubMode === 'matrix' ? (
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
-                <div className="p-3 rounded-xl bg-jds-primary/10 border border-jds-primary/25 flex items-start justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <div className="font-bold text-jds-on-surface flex items-center gap-1.5">
-                      <SlidersHorizontal className="w-3.5 h-3.5 text-jds-primary" />
-                      <span>Direct Multi-Criteria Rule Matrix</span>
-                    </div>
-                    <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
-                      Configure the observed symptom and all four weighted physical/electrical criteria below. The inference engine evaluates compound rules and elimination criteria in real time.
-                    </p>
-                  </div>
-                </div>
-
-                {/* 0. Primary Symptom Selector */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-jds-on-surface uppercase tracking-wider flex items-center justify-between">
-                    <span>Primary Observed Symptom</span>
-                    <span className="text-[10px] font-mono text-jds-primary">Prerequisite Vector</span>
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {DIAGNOSTIC_CRITERIA_OPTIONS.symptom.map((opt) => {
-                      const active = criteriaState.symptom === opt.value
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() =>
-                            setCriteriaState((prev) => ({ ...prev, symptom: opt.value }))
-                          }
-                          className={`p-2 rounded-xl border text-left text-[11px] font-medium transition-all flex items-center justify-between gap-2 ${
-                            active
-                              ? 'bg-jds-primary text-jds-on-primary border-jds-primary shadow-xs font-semibold'
-                              : 'bg-jds-surface-container-low border-jds-outline-variant/40 text-jds-on-surface hover:border-jds-primary/50'
-                          }`}
-                        >
-                          <span className="truncate">{opt.label}</span>
-                          {active && <Check className="w-3.5 h-3.5 shrink-0" />}
-                        </button>
+                        </div>
                       )
                     })}
                   </div>
                 </div>
-
-                {/* 1 to 4: Weighted Criteria Pillars */}
-                {CRITERIA_PILLAR_META.map((pillar) => {
-                  const options = DIAGNOSTIC_CRITERIA_OPTIONS[pillar.key] || []
-                  return (
-                    <div
-                      key={pillar.key}
-                      className="p-3 rounded-xl bg-jds-surface-container-low border border-jds-outline-variant/30 space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-xs font-bold text-jds-on-surface">
-                            {pillar.shortLabel} — {pillar.label}
-                          </div>
-                          <div className="text-[10px] text-jds-on-surface-variant">
-                            {pillar.description}
-                          </div>
-                        </div>
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-jds-surface border border-jds-outline-variant/40 text-jds-primary">
-                          Weight: {pillar.weightLabel}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-1.5 pt-1">
-                        {options.map((opt) => {
-                          const isSelected = criteriaState[pillar.key] === opt.value
-                          return (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() =>
-                                setCriteriaState((prev) => ({
-                                  ...prev,
-                                  [pillar.key]: opt.value,
-                                }))
-                              }
-                              className={`px-3 py-2 rounded-lg border text-left text-[11px] transition-all flex items-center justify-between gap-2 ${
-                                isSelected
-                                  ? 'bg-jds-primary/12 border-jds-primary text-jds-on-surface font-semibold shadow-2xs'
-                                  : 'bg-jds-surface border-jds-outline-variant/30 text-jds-on-surface-variant hover:text-jds-on-surface hover:border-jds-outline-variant'
-                              }`}
-                            >
-                              <span>{opt.label}</span>
-                              <span
-                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${
-                                  opt.status === 'FAIL'
-                                    ? 'bg-rose-500/15 text-rose-500'
-                                    : opt.status === 'WARNING'
-                                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                                    : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                                }`}
-                              >
-                                {opt.status}
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-
-                {/* Live Rule Inference Preview Bar */}
-                <div className="p-3.5 rounded-xl bg-jds-surface-container border border-jds-primary/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <div className="text-[10px] font-mono uppercase text-jds-primary font-bold">
-                      Live Rule Inference Match: {matrixPreviewVerdict.faultCode} ({matrixPreviewVerdict.confidence})
-                    </div>
-                    <div className="text-xs font-bold text-jds-on-surface">
-                      {matrixPreviewVerdict.title}
-                    </div>
-                    <div className="text-[11px] text-jds-on-surface-variant">
-                      {matrixPreviewVerdict.warrantyEvaluation?.verdictLabel}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleRunMatrixEvaluation}
-                    className="px-4 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-bold hover:bg-jds-primary/90 transition-all shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <ClipboardCheck className="w-4 h-4" />
-                    <span>Generate Full Diagnostic Verdict</span>
-                  </button>
-                </div>
               </div>
-            ) : (
-              /* SUB-MODE B: GUIDED CONVERSATIONAL MULTI-CRITERIA AUDIT */
-              <>
-                <div
-                  ref={chatScrollRef}
-                  className="flex-1 overflow-y-auto p-3.5 sm:p-4 space-y-4 text-xs"
-                >
-                  {/* Product Context Banner */}
-                  <div className="p-3 rounded-xl bg-jds-surface-container/40 border border-jds-outline-variant/30 flex flex-wrap items-center justify-between gap-2 text-[11px] text-jds-on-surface-variant">
-                    <div className="space-y-0.5">
-                      <div className="font-bold text-jds-on-surface">{purchase.product_name}</div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        {purchase.serial_number && (
-                          <span>
-                            S/N: <strong className="font-mono text-jds-on-surface">{purchase.serial_number}</strong>
+
+              {/* ========================================================= */}
+              {/* FINAL SOLUTION VIEW */}
+              {/* ========================================================= */}
+              {isSolutionView ? (
+                <div className="space-y-5 animate-in fade-in duration-200">
+                  {/* Top Verdict Card */}
+                  <div className="p-5 rounded-2xl bg-jds-surface-container-low border border-jds-outline-variant/40 space-y-3 shadow-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-jds-primary/10 text-jds-primary border border-jds-primary/20">
+                          {currentDiagnosis.faultCode || 'FAULT-RESOLVED'}
+                        </span>
+                        {currentDiagnosis.confidence && (
+                          <span className="text-[11px] font-semibold text-jds-on-surface-variant">
+                            {currentDiagnosis.confidence} Rule Confidence
                           </span>
                         )}
-                        <span>
-                          Branch: <strong className="text-jds-on-surface">{purchase.branch_location || 'Cavite'}</strong>
-                        </span>
                       </div>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
+                          currentDiagnosis.severity === 'critical'
+                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                            : currentDiagnosis.severity === 'moderate'
+                            ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                            : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                        }`}
+                      >
+                        {currentDiagnosis.severityLabel}
+                      </span>
                     </div>
-                    <div
-                      className={`px-2.5 py-1 rounded-full font-semibold border text-[10px] ${
-                        purchase.is_warranty_active
-                          ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                          : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                      }`}
-                    >
-                      {purchase.is_warranty_active
-                        ? `${purchase.warranty_months || 24}-Month Warranty Active`
-                        : 'Warranty Expired'}
+
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-bold text-jds-on-surface">
+                        {currentDiagnosis.title}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-jds-on-surface-variant mt-1.5 leading-relaxed">
+                        {typeof currentDiagnosis.message === 'function'
+                          ? currentDiagnosis.message(purchase).split('\n\n')[1] || currentDiagnosis.message(purchase)
+                          : currentDiagnosis.message}
+                      </p>
                     </div>
                   </div>
 
-                  {messages.map((msg, idx) => {
-                    const isBot = msg.role === 'bot'
-                    const isLatestBot = isBot && idx === messages.length - 1
-
-                    return (
-                      <div
-                        key={msg.id || idx}
-                        className={`flex flex-col ${isBot ? 'items-start' : 'items-end'} space-y-1`}
-                      >
-                        <div
-                          className={`max-w-[95%] sm:max-w-[88%] rounded-2xl p-3.5 sm:p-4 text-xs ${
-                            isBot
-                              ? 'bg-jds-surface-container-low text-jds-on-surface border border-jds-outline-variant/40 rounded-tl-sm shadow-sm'
-                              : 'bg-jds-primary text-jds-on-primary rounded-tr-sm shadow-sm'
-                          }`}
-                        >
-                          {/* Markdown Text */}
-                          <div className="prose prose-sm max-w-none text-xs leading-relaxed prose-headings:font-bold prose-headings:text-jds-on-surface prose-headings:text-xs prose-headings:my-1.5 prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-table:my-2 prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                          </div>
-
-                          {/* Multi-Criteria Diagnostic Scorecard & Verdict Box */}
-                          {isBot && msg.diagnosis && msg.diagnosis.telemetry && (
-                            <div className="mt-3.5 p-3.5 rounded-xl bg-jds-surface border border-jds-outline-variant/40 space-y-3.5">
-                              {/* Verdict Header */}
-                              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-jds-outline-variant/25">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-mono font-bold text-jds-primary text-[11px]">
-                                    CODE: {msg.diagnosis.faultCode}
-                                  </span>
-                                  {msg.diagnosis.confidence && (
-                                    <span className="px-2 py-0.5 rounded-md bg-jds-primary/10 text-jds-primary font-mono text-[10px] font-bold">
-                                      {msg.diagnosis.confidence} Rule Confidence
-                                    </span>
-                                  )}
-                                </div>
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                    msg.diagnosis.severity === 'critical'
-                                      ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                                      : msg.diagnosis.severity === 'moderate'
-                                      ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
-                                      : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                                  }`}
-                                >
-                                  {msg.diagnosis.severityLabel}
-                                </span>
-                              </div>
-
-                              {/* 4-Pillar Evaluated Criteria Scorecard */}
-                              {msg.diagnosis.criteriaScorecard && (
-                                <div className="space-y-1.5">
-                                  <div className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant flex items-center justify-between">
-                                    <span className="flex items-center gap-1">
-                                      <ClipboardCheck className="w-3.5 h-3.5 text-jds-primary" />
-                                      Evaluated Multi-Criteria Scorecard
-                                    </span>
-                                    <span>Weighted Matrix</span>
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                    {msg.diagnosis.criteriaScorecard.map((item) => (
-                                      <div
-                                        key={item.key}
-                                        className="p-2 rounded-lg bg-jds-surface-container/40 border border-jds-outline-variant/25 flex flex-col justify-between gap-1"
-                                      >
-                                        <div className="flex items-center justify-between gap-1">
-                                          <span className="text-[10px] font-bold text-jds-on-surface">
-                                            {item.criterion}{' '}
-                                            <span className="font-mono text-[9px] text-jds-on-surface-variant">
-                                              ({item.weightLabel})
-                                            </span>
-                                          </span>
-                                          <span
-                                            className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase ${
-                                              item.status === 'FAIL'
-                                                ? 'bg-rose-500/15 text-rose-500'
-                                                : item.status === 'WARNING'
-                                                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                                                : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                                            }`}
-                                          >
-                                            {item.status}
-                                          </span>
-                                        </div>
-                                        <div className="text-[10px] text-jds-on-surface-variant leading-snug">
-                                          {item.observation}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Compound / Secondary Factors Alert */}
-                              {msg.diagnosis.compoundFactors &&
-                                msg.diagnosis.compoundFactors.length > 0 && (
-                                  <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 space-y-1">
-                                    <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                                      Compound Contributing Criteria Detected
-                                    </div>
-                                    {msg.diagnosis.compoundFactors.map((cf, cfIdx) => (
-                                      <div
-                                        key={cfIdx}
-                                        className="text-[10px] text-jds-on-surface leading-relaxed"
-                                      >
-                                        <strong>
-                                          {cf.code} ({cf.title}):
-                                        </strong>{' '}
-                                        {cf.detail}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-
-                              {/* Technical Telemetry Benchmarks Grid */}
-                              <div className="space-y-1.5">
-                                <div className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant flex items-center gap-1">
-                                  <Activity className="w-3.5 h-3.5 text-jds-primary" />
-                                  <span>Inferred Hardware Telemetry State</span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-                                  <div className="p-2 rounded-lg bg-jds-surface-container/50 border border-jds-outline-variant/20">
-                                    <span className="text-jds-on-surface-variant block">
-                                      PV Circuit / Irradiance:
-                                    </span>
-                                    <strong className="text-jds-on-surface font-semibold">
-                                      {msg.diagnosis.telemetry.pvEfficiency}
-                                    </strong>
-                                  </div>
-                                  <div className="p-2 rounded-lg bg-jds-surface-container/50 border border-jds-outline-variant/20">
-                                    <span className="text-jds-on-surface-variant block">
-                                      Battery Terminal:
-                                    </span>
-                                    <strong className="text-jds-on-surface font-semibold">
-                                      {msg.diagnosis.telemetry.batteryVoltage}
-                                    </strong>
-                                  </div>
-                                  <div className="p-2 rounded-lg bg-jds-surface-container/50 border border-jds-outline-variant/20">
-                                    <span className="text-jds-on-surface-variant block">
-                                      Controller / BMS:
-                                    </span>
-                                    <strong className="text-jds-on-surface font-semibold">
-                                      {msg.diagnosis.telemetry.bmsState}
-                                    </strong>
-                                  </div>
-                                  <div className="p-2 rounded-lg bg-jds-surface-container/50 border border-jds-outline-variant/20">
-                                    <span className="text-jds-on-surface-variant block">
-                                      Enclosure Seal:
-                                    </span>
-                                    <strong className="text-jds-on-surface font-semibold">
-                                      {msg.diagnosis.telemetry.ipIntegrity}
-                                    </strong>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Warranty Qualification Criteria Verdict */}
-                              {msg.diagnosis.warrantyEvaluation && (
-                                <div
-                                  className={`p-2.5 rounded-lg border text-[10px] space-y-0.5 ${
-                                    msg.diagnosis.warrantyEvaluation.eligible
-                                      ? 'bg-emerald-500/10 border-emerald-500/25 text-jds-on-surface'
-                                      : msg.diagnosis.warrantyEvaluation.status ===
-                                        'DISQUALIFIED_IMPACT'
-                                      ? 'bg-rose-500/10 border-rose-500/25 text-jds-on-surface'
-                                      : 'bg-jds-surface-container/60 border-jds-outline-variant/30 text-jds-on-surface'
-                                  }`}
-                                >
-                                  <div className="font-bold flex items-center gap-1.5">
-                                    <ShieldCheck className="w-3.5 h-3.5 text-jds-primary shrink-0" />
-                                    <span>
-                                      Warranty Criteria Verdict:{' '}
-                                      {msg.diagnosis.warrantyEvaluation.verdictLabel}
-                                    </span>
-                                  </div>
-                                  <p className="text-jds-on-surface-variant leading-relaxed pl-5">
-                                    {msg.diagnosis.warrantyEvaluation.policyReason}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Interactive Option Buttons */}
-                          {isBot && !msg.isStreaming && msg.options && msg.options.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-3 pt-2.5 border-t border-jds-outline-variant/30">
-                              {msg.options.map((opt, optIdx) => {
-                                const isClaimBtn = opt.next === 'TRANSFER_TO_CLAIM'
-                                return (
-                                  <button
-                                    key={optIdx}
-                                    type="button"
-                                    onClick={() => handleSelectOption(opt)}
-                                    disabled={!isLatestBot || isStreaming}
-                                    className={`text-left inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                                      !isLatestBot
-                                        ? 'bg-jds-surface-container/50 text-jds-on-surface-variant/60 border border-transparent cursor-default'
-                                        : isClaimBtn
-                                        ? 'bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 shadow-sm active:scale-95 cursor-pointer'
-                                        : 'bg-jds-surface hover:bg-jds-primary/10 text-jds-on-surface border border-jds-outline-variant/60 hover:border-jds-primary shadow-xs active:scale-95 cursor-pointer'
-                                    }`}
-                                  >
-                                    <span>{opt.label}</span>
-                                    {isLatestBot && <ChevronRight className="w-3.5 h-3.5 shrink-0" />}
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-
-                        <span className="text-[10px] text-jds-on-surface-variant/60 px-1">
-                          {msg.timestamp}
-                        </span>
+                  {/* Step-by-Step DIY Remedy Card */}
+                  {currentDiagnosis.remedySteps && currentDiagnosis.remedySteps.length > 0 && (
+                    <div className="p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 space-y-3">
+                      <div className="flex items-center gap-2 text-xs font-bold text-jds-on-surface uppercase tracking-wider">
+                        <Wrench className="w-4 h-4 text-jds-primary" />
+                        <span>Recommended Solution & Action Steps</span>
                       </div>
-                    )
-                  })}
-
-                  {isStreaming && (
-                    <div className="flex items-center gap-2 text-[11px] text-jds-on-surface-variant px-2">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-jds-primary" />
-                      <span>Evaluating diagnostic criteria rules...</span>
+                      <div className="space-y-2">
+                        {currentDiagnosis.remedySteps.map((step, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3 rounded-xl bg-jds-surface-container/40 border border-jds-outline-variant/30 flex items-start gap-3"
+                          >
+                            <span className="w-6 h-6 rounded-full bg-jds-primary/10 text-jds-primary font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                              {idx + 1}
+                            </span>
+                            <span className="text-xs sm:text-sm text-jds-on-surface leading-relaxed font-medium">
+                              {step}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
+
+                  {/* Telemetry Benchmarks */}
+                  {currentDiagnosis.telemetry && (
+                    <div className="p-4 rounded-xl bg-jds-surface-container-low/50 border border-jds-outline-variant/30 space-y-2">
+                      <div className="text-[11px] font-bold text-jds-on-surface uppercase tracking-wider flex items-center gap-1.5">
+                        <Activity className="w-3.5 h-3.5 text-jds-primary" />
+                        <span>Inferred Hardware Telemetry Benchmarks</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                        <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/30">
+                          <span className="text-jds-on-surface-variant block text-[10px]">PV Circuit:</span>
+                          <strong className="text-jds-on-surface font-semibold truncate block">
+                            {currentDiagnosis.telemetry.pvEfficiency}
+                          </strong>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/30">
+                          <span className="text-jds-on-surface-variant block text-[10px]">Battery Voltage:</span>
+                          <strong className="text-jds-on-surface font-semibold truncate block">
+                            {currentDiagnosis.telemetry.batteryVoltage}
+                          </strong>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/30">
+                          <span className="text-jds-on-surface-variant block text-[10px]">Controller / BMS:</span>
+                          <strong className="text-jds-on-surface font-semibold truncate block">
+                            {currentDiagnosis.telemetry.bmsState}
+                          </strong>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/30">
+                          <span className="text-jds-on-surface-variant block text-[10px]">IP Weather Seal:</span>
+                          <strong className="text-jds-on-surface font-semibold truncate block">
+                            {currentDiagnosis.telemetry.ipIntegrity}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Warranty Evaluation Banner */}
+                  {currentDiagnosis.warrantyEvaluation && (
+                    <div
+                      className={`p-3.5 rounded-xl border text-xs space-y-1 ${
+                        currentDiagnosis.warrantyEvaluation.eligible
+                          ? 'bg-emerald-500/10 border-emerald-500/25 text-jds-on-surface'
+                          : currentDiagnosis.warrantyEvaluation.status === 'DISQUALIFIED_IMPACT'
+                          ? 'bg-rose-500/10 border-rose-500/25 text-jds-on-surface'
+                          : 'bg-jds-surface-container/60 border-jds-outline-variant/30 text-jds-on-surface'
+                      }`}
+                    >
+                      <div className="font-bold flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-jds-primary shrink-0" />
+                        <span>Warranty Evaluation: {currentDiagnosis.warrantyEvaluation.verdictLabel}</span>
+                      </div>
+                      <p className="text-xs text-jds-on-surface-variant leading-relaxed pl-5">
+                        {currentDiagnosis.warrantyEvaluation.policyReason}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-jds-outline-variant/60 hover:bg-jds-surface-container text-xs font-semibold text-jds-on-surface flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Troubleshoot Another Issue</span>
+                    </button>
+
+                    <div className="w-full sm:w-auto flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => transferToClaim()}
+                        className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>File Warranty Claim</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleClose}
+                        className="px-4 py-2.5 rounded-xl bg-jds-surface-container hover:bg-jds-surface-container-high text-xs font-semibold text-jds-on-surface transition-all"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              ) : (
+                /* ========================================================= */
+                /* QUESTION & MULTIPLE CHOICES VIEW */
+                /* ========================================================= */
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  {/* Question Header */}
+                  <div className="text-center max-w-xl mx-auto space-y-2">
+                    <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-jds-primary/10 text-jds-primary text-[11px] font-semibold tracking-wide uppercase">
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Diagnostic Stage {currentStepNum} of 4</span>
+                    </div>
+                    <h3 className="text-lg sm:text-xl font-bold tracking-tight text-jds-on-surface">
+                      {getQuestionTitle(currentNodeKey, currentNode)}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-jds-on-surface-variant leading-relaxed">
+                      {getQuestionPrompt(currentNodeKey, currentNode, purchase)}
+                    </p>
+                  </div>
 
-                {/* Bottom Input & Quick Actions */}
-                <div className="p-3 border-t border-jds-outline-variant/30 bg-jds-surface-container-low/50 shrink-0">
-                  <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={userInput}
-                      onChange={(e) => setUserInput(e.target.value)}
-                      placeholder="Describe compound symptoms (e.g. 'water inside lens and flickering', 'dies after 2 hours in rain')..."
-                      className="flex-1 bg-jds-surface rounded-xl px-3.5 py-2 text-xs text-jds-on-surface border border-jds-outline-variant/50 focus:border-jds-primary focus:outline-none placeholder:text-jds-on-surface-variant/50 transition-colors"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!userInput.trim() || isStreaming}
-                      className="p-2.5 bg-jds-primary text-jds-on-primary rounded-xl disabled:opacity-40 hover:bg-jds-primary/90 transition-colors shadow-sm"
-                      aria-label="Send"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                    </button>
-                  </form>
+                  {/* Multiple Choices */}
+                  {currentNodeKey === 'ROOT' ? (
+                    /* Step 1: 6 Primary Symptom Cards with Rich Icons */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {currentOptions.map((opt) => {
+                        const meta = SYMPTOM_META[opt.next] || {
+                          icon: AlertTriangle,
+                          label: opt.label,
+                          desc: 'Reported hardware symptom',
+                        }
+                        const Icon = meta.icon
 
-                  <div className="flex items-center justify-between mt-2 px-1 text-[10px] text-jds-on-surface-variant">
+                        return (
+                          <button
+                            key={opt.next}
+                            type="button"
+                            onClick={() => handleSelectOption(opt)}
+                            className="p-4 rounded-2xl border border-jds-outline-variant/50 bg-jds-surface hover:border-jds-primary hover:bg-jds-primary/5 transition-all text-left group flex items-start gap-3.5 shadow-2xs hover:shadow-sm active:scale-[0.99] cursor-pointer"
+                          >
+                            <div className="w-10 h-10 rounded-xl bg-jds-surface-container group-hover:bg-jds-primary/10 group-hover:text-jds-primary text-jds-on-surface-variant flex items-center justify-center shrink-0 transition-colors">
+                              <Icon className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs sm:text-sm font-bold text-jds-on-surface group-hover:text-jds-primary transition-colors leading-snug">
+                                {meta.label}
+                              </div>
+                              <p className="text-[11px] text-jds-on-surface-variant mt-1 leading-relaxed line-clamp-2">
+                                {meta.desc}
+                              </p>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-jds-on-surface-variant group-hover:text-jds-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    /* Subsequent Steps: Clean Multiple Choice Tiles */
+                    <div className="grid grid-cols-1 gap-2.5">
+                      {currentOptions.map((opt, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleSelectOption(opt)}
+                          className="w-full p-4 rounded-xl border border-jds-outline-variant/40 bg-jds-surface hover:border-jds-primary hover:bg-jds-primary/5 transition-all text-left group flex items-center justify-between gap-3.5 shadow-2xs hover:shadow-xs active:scale-[0.99] cursor-pointer"
+                        >
+                          <div className="flex items-start gap-3.5 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-jds-surface-container group-hover:bg-jds-primary/10 group-hover:text-jds-primary text-jds-on-surface-variant font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+                              {String.fromCharCode(65 + idx)}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs sm:text-sm font-semibold text-jds-on-surface group-hover:text-jds-primary transition-colors leading-relaxed">
+                                {opt.label}
+                              </div>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-jds-on-surface-variant group-hover:text-jds-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Wizard Bottom Controls */}
+                  <div className="pt-4 border-t border-jds-outline-variant/30 flex items-center justify-between">
+                    {history.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={handleBack}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span>Previous Question</span>
+                      </button>
+                    ) : (
+                      <div className="text-[11px] text-jds-on-surface-variant">
+                        Select a symptom to begin hardware triage
+                      </div>
+                    )}
+
                     <button
                       type="button"
-                      onClick={() => setDiagSubMode('matrix')}
-                      className="hover:underline text-jds-on-surface font-semibold flex items-center gap-1"
+                      onClick={handleReset}
+                      className="inline-flex items-center gap-1 text-xs text-jds-on-surface-variant hover:text-jds-on-surface transition-colors"
                     >
-                      <SlidersHorizontal className="w-3 h-3 text-jds-primary" />
-                      <span>Open Direct Criteria Matrix</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => transferToClaim()}
-                      className="hover:underline text-jds-primary font-semibold flex items-center gap-1"
-                    >
-                      <span>Transfer Criteria to Warranty Claim</span>
-                      <ChevronRight className="w-3 h-3" />
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Start Over</span>
                     </button>
                   </div>
                 </div>
-              </>
-            )}
+              )}
+            </div>
 
           </div>
         )}
@@ -1191,10 +776,10 @@ Customer requested technician bench evaluation.`
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <h3 className="text-lg font-bold text-jds-on-surface">
-                  Warranty Diagnostic Claim Logged
+                  Warranty Claim Submitted Successfully
                 </h3>
-                <p className="text-xs text-jds-on-surface-variant max-w-sm mx-auto">
-                  Your multi-criteria diagnostic report has been filed with our Quiapo and Cavite service teams. Our technicians will inspect your unit against our 24-month warranty and case-by-case assessment guidelines.
+                <p className="text-xs text-jds-on-surface-variant max-w-sm mx-auto leading-relaxed">
+                  Your diagnostic report has been filed with our service center. Our technicians at Quiapo and Cavite will evaluate your unit under our 24-month warranty guidelines.
                 </p>
                 {submittedClaimId && (
                   <div className="p-3 rounded-xl bg-jds-surface-container/60 border border-jds-outline-variant/30 font-mono text-xs text-jds-primary font-bold">
@@ -1214,16 +799,16 @@ Customer requested technician bench evaluation.`
             ) : (
               <form onSubmit={handleSubmitClaim} className="space-y-4">
                 
-                {/* Multi-Criteria Handoff Banner */}
+                {/* Handoff Banner from Diagnostic Wizard */}
                 {currentDiagnosis && (
                   <div className="p-3.5 rounded-xl bg-jds-primary/10 border border-jds-primary/30 text-xs flex items-start gap-2.5">
-                    <Sparkles className="w-4 h-4 text-jds-primary shrink-0 mt-0.5" />
+                    <Wrench className="w-4 h-4 text-jds-primary shrink-0 mt-0.5" />
                     <div className="space-y-1">
                       <strong className="text-jds-on-surface block font-semibold">
-                        Multi-Criteria Scorecard Pre-Populated ({currentDiagnosis.faultCode})
+                        Diagnostic Wizard Report Pre-Populated ({currentDiagnosis.faultCode})
                       </strong>
                       <span className="text-[11px] text-jds-on-surface-variant block">
-                        Diagnosed as: <strong>{currentDiagnosis.title}</strong> ({currentDiagnosis.confidence} Rule Match). All 4 evaluated criteria pillars and telemetry estimates have been attached below.
+                        Diagnosed as: <strong>{currentDiagnosis.title}</strong>. Your evaluated criteria and telemetry benchmarks have been attached below.
                       </span>
                     </div>
                   </div>
@@ -1271,7 +856,7 @@ Customer requested technician bench evaluation.`
                     <span>Warranty Case Evaluation Policy</span>
                   </div>
                   <p className="leading-relaxed">
-                    JD Solar evaluates claims case-by-case upon bench intake at Quiapo or Cavite. Internal defects are eligible for our <strong>1-time unit replacement entitlement</strong>. Physical drops, shattered glass, tampering, or damage from customer carelessness disqualify units from free replacement.
+                    JD Solar evaluates claims case-by-case upon bench intake at Quiapo or Cavite. Internal hardware defects are eligible for our <strong>1-time unit replacement entitlement</strong>. Physical drops, shattered glass, or unsealed ports disqualify units from free replacement.
                   </p>
                 </div>
 
@@ -1311,14 +896,14 @@ Customer requested technician bench evaluation.`
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-jds-on-surface">
-                      2. Diagnostic Criteria Report & Fault Description *
+                      2. Diagnostic Report & Fault Description *
                     </label>
                     <span className="text-[10px] text-jds-on-surface-variant">Editable</span>
                   </div>
                   <textarea
                     required
                     rows={5}
-                    placeholder="Describe the observed hardware criteria and failure symptoms..."
+                    placeholder="Describe the observed hardware failure symptoms..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     className="w-full bg-jds-surface-container/30 border border-jds-outline-variant/50 rounded-xl p-3 text-xs text-jds-on-surface placeholder:text-jds-on-surface-variant/40 focus:outline-none focus:border-jds-primary transition-colors resize-none font-sans"
@@ -1348,7 +933,7 @@ Customer requested technician bench evaluation.`
                       Click to upload photos of indicator LED, panel surface, or lens
                     </div>
                     <div className="text-[10px] text-jds-on-surface-variant mt-0.5">
-                      Visual evidence accelerates bench verification at Quiapo & Cavite.
+                      Visual evidence accelerates bench inspection at Quiapo & Cavite.
                     </div>
                   </div>
 
@@ -1379,10 +964,10 @@ Customer requested technician bench evaluation.`
                 <div className="pt-2 flex items-center justify-end gap-3 border-t border-jds-outline-variant/20">
                   <button
                     type="button"
-                    onClick={() => setActiveTab('assistant')}
+                    onClick={() => setActiveTab('wizard')}
                     className="px-4 py-2 text-xs font-medium text-jds-on-surface-variant hover:text-jds-on-surface rounded-xl transition-colors"
                   >
-                    Back to Diagnostic Engine
+                    Back to Troubleshooter
                   </button>
                   <button
                     type="submit"
