@@ -161,8 +161,9 @@ export default function ProfileScreen() {
                 <div className="flex items-center justify-between text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">
                   <label>Contact Number</label>
                   {form.phone && (
-                    <span className={`text-[10px] font-mono lowercase ${form.phone.length === 11 && isValidPhone(form.phone) ? 'text-emerald-500 font-bold' : 'text-jds-on-surface-variant/60'
-                      }`}>
+                    <span className={`text-[10px] font-mono lowercase ${
+                      form.phone.length === 11 && isValidPhone(form.phone) ? 'text-emerald-500 font-bold' : 'text-jds-on-surface-variant/60'
+                    }`}>
                       {form.phone.length}/11 digits
                     </span>
                   )}

@@ -267,7 +267,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-
+        
         {/* CARD 1: Customer Information */}
         <div className="p-6 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
@@ -292,12 +292,13 @@ export default function RegisterSaleScreen({ onNavigate }) {
                 <label htmlFor="reg-sale-phone">Mobile Phone Number *</label>
                 <div className="flex items-center gap-2">
                   {isSearchingPhone && <span className="text-[11px] text-jds-primary animate-pulse">Checking records...</span>}
-                  <span className={`text-[11px] font-mono font-medium ${phoneNumber.length === 11 && isValidPhone(phoneNumber)
+                  <span className={`text-[11px] font-mono font-medium ${
+                    phoneNumber.length === 11 && isValidPhone(phoneNumber)
                       ? 'text-emerald-500'
                       : phoneTouched && phoneNumber.length > 0 && !isValidPhone(phoneNumber)
                         ? 'text-jds-error'
                         : 'text-jds-on-surface-variant/60'
-                    }`}>
+                  }`}>
                     {phoneNumber.length}/11 digits
                   </span>
                 </div>
@@ -315,12 +316,13 @@ export default function RegisterSaleScreen({ onNavigate }) {
                   value={phoneNumber}
                   onChange={handlePhoneChange}
                   onBlur={handlePhoneBlur}
-                  className={`w-full bg-jds-surface-container/40 border rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none transition-colors font-mono ${phoneTouched && phoneNumber && !isValidPhone(phoneNumber)
+                  className={`w-full bg-jds-surface-container/40 border rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none transition-colors font-mono ${
+                    phoneTouched && phoneNumber && !isValidPhone(phoneNumber)
                       ? 'border-jds-error focus:border-jds-error bg-jds-error/5'
                       : phoneNumber.length === 11 && isValidPhone(phoneNumber)
                         ? 'border-emerald-500/50 focus:border-emerald-500'
                         : 'border-jds-outline-variant/50 focus:border-jds-primary'
-                    }`}
+                  }`}
                 />
               </div>
               {phoneTouched && phoneNumber && !isValidPhone(phoneNumber) && (
