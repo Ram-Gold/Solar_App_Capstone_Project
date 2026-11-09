@@ -1,11 +1,12 @@
 import { supabase } from './supabaseClient'
 import { calculateExpiryDate } from './warrantyUtils'
+import { sanitizeText, sanitizePhone, isValidPhone, sanitizeSerialNumber, sanitizeNumber } from './sanitize.js'
 
 /**
  * Searches for an existing customer by phone number.
  */
 export async function searchCustomerByPhone(rawPhone) {
-  const phone = (rawPhone || '').trim()
+  const phone = sanitizePhone(rawPhone) || (rawPhone || '').trim()
   if (!phone) return { customer: null, error: null }
 
   try {
@@ -36,17 +37,19 @@ export async function registerCustomerAndSale({
   branchLocation = 'Cavite',
   items = [] // [{ productId, serialNumber, warrantyMonths, purchaseDate }]
 }) {
-  const phone = (phoneNumber || '').trim()
-  const name = (fullName || '').trim()
+  const phone = sanitizePhone(phoneNumber)
+  const name = sanitizeText(fullName, { maxLength: 100 })
+  const branch = sanitizeText(branchLocation, { maxLength: 50 }) || 'Cavite'
 
   if (!phone) throw new Error('Phone number is required.')
+  if (!isValidPhone(phone)) throw new Error('A valid 11-digit Philippine mobile number starting with 09 is required.')
   if (!name) throw new Error('Customer name is required.')
   if (!items || items.length === 0) throw new Error('At least one purchased item is required.')
 
   // 1. Find or create customer
   let customer = null
   const { customer: existingCust, error: findErr } = await searchCustomerByPhone(phone)
-  
+
   if (findErr) throw findErr
 
   if (existingCust) {
@@ -80,10 +83,10 @@ export async function registerCustomerAndSale({
   const purchasesToInsert = items.map(item => ({
     customer_id: customer.id,
     product_id: item.productId,
-    serial_number: (item.serialNumber || '').trim() || null,
+    serial_number: item.serialNumber ? sanitizeSerialNumber(item.serialNumber, 64) : null,
     purchase_date: item.purchaseDate || new Date().toISOString().split('T')[0],
-    warranty_months: Number(item.warrantyMonths || 24),
-    branch_location: branchLocation
+    warranty_months: sanitizeNumber(item.warrantyMonths, { min: 1, max: 360, integer: true, fallback: 24 }),
+    branch_location: branch
   }))
 
   const { data: createdPurchases, error: insertPurchasesErr } = await supabase
@@ -282,7 +285,7 @@ export async function uploadEvidenceFile(file) {
     const { data: fallbackData, error: fallbackErr } = await supabase.storage
       .from('product-images')
       .upload(`evidence/${fileName}`, file)
-    
+
     if (fallbackErr) throw uploadError
     const { data: publicUrlData } = supabase.storage
       .from('product-images')
@@ -312,13 +315,16 @@ export async function submitWarrantyClaim({
   if (!issueCategory) throw new Error('Issue category is required.')
   if (!description) throw new Error('Description is required.')
 
+  const cleanCategory = sanitizeText(issueCategory, { maxLength: 100 })
+  const cleanDescription = sanitizeText(description, { maxLength: 2000, allowMultiline: true })
+
   // 1. Try secure RPC
   try {
     const { data: rpcResult, error: rpcErr } = await supabase.rpc('submit_warranty_claim', {
       p_token: token,
       p_purchase_id: purchaseId,
-      p_category: issueCategory,
-      p_description: description,
+      p_category: cleanCategory,
+      p_description: cleanDescription,
       p_media_urls: mediaUrls
     })
 
@@ -334,8 +340,8 @@ export async function submitWarrantyClaim({
     .from('warranty_claims')
     .insert({
       purchase_id: purchaseId,
-      issue_category: issueCategory,
-      description,
+      issue_category: cleanCategory,
+      description: cleanDescription,
       media_urls: mediaUrls,
       status: 'pending'
     })
@@ -742,11 +748,17 @@ export async function updateCustomerProfile(customerId, { fullName, phoneNumber,
   if (!customerId) throw new Error('Customer ID is required.')
 
   const updates = {}
-  if (fullName !== undefined) updates.full_name = fullName.trim()
-  if (phoneNumber !== undefined) updates.phone_number = phoneNumber.trim()
-  if (province !== undefined) updates.province = province ? province.trim() : null
-  if (city !== undefined) updates.city = city ? city.trim() : null
-  if (barangay !== undefined) updates.barangay = barangay ? barangay.trim() : null
+  if (fullName !== undefined) updates.full_name = sanitizeText(fullName, { maxLength: 100 })
+  if (phoneNumber !== undefined) {
+    const cleaned = sanitizePhone(phoneNumber)
+    if (cleaned && !isValidPhone(cleaned)) {
+      throw new Error('Valid 11-digit mobile number starting with 09 is required.')
+    }
+    updates.phone_number = cleaned
+  }
+  if (province !== undefined) updates.province = province ? sanitizeText(province, { maxLength: 100 }) : null
+  if (city !== undefined) updates.city = city ? sanitizeText(city, { maxLength: 100 }) : null
+  if (barangay !== undefined) updates.barangay = barangay ? sanitizeText(barangay, { maxLength: 100 }) : null
 
   try {
     const { data, error } = await supabase
@@ -850,7 +862,7 @@ export async function voidCustomerWarranty({ purchaseId, reason = 'Administrativ
   if (!purchaseId) throw new Error('Purchase ID is required.')
 
   const nowIso = new Date().toISOString()
-  
+
   // Try updating with is_voided and void_reason
   const { data, error } = await supabase
     .from('customer_purchases')
@@ -873,10 +885,10 @@ export async function voidCustomerWarranty({ purchaseId, reason = 'Administrativ
         .eq('id', purchaseId)
         .select()
       if (fallback.error) throw fallback.error
-      return { 
-        data: fallback.data, 
-        warning: 'Please run warranty_void_migration.sql in Supabase to track explicit void reasons.', 
-        error: null 
+      return {
+        data: fallback.data,
+        warning: 'Please run warranty_void_migration.sql in Supabase to track explicit void reasons.',
+        error: null
       }
     }
     throw error
@@ -932,11 +944,11 @@ export async function extendCustomerWarranty({ purchaseId, additionalMonths = 12
 
   if (fetchErr || !current) throw (fetchErr || new Error('Purchase record not found.'))
 
-  const baseExpiry = current.warranty_expires_at 
-    ? new Date(current.warranty_expires_at) 
+  const baseExpiry = current.warranty_expires_at
+    ? new Date(current.warranty_expires_at)
     : new Date(calculateExpiryDate(current.purchase_date, current.warranty_months || 12))
   const now = new Date()
-  
+
   // If already expired, extend from today; if still active, add to existing expiration date
   const startFrom = baseExpiry > now ? baseExpiry : now
   const newExpiry = new Date(startFrom)

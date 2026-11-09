@@ -4,6 +4,7 @@ import { Button } from '../ui/button'
 import { ArrowLeft, Upload, Image as ImageIcon, X, Link2, Check, Plus } from 'lucide-react'
 import CategoryModal from './CategoryModal'
 import { fetchCategoriesWithCounts, DEFAULT_CATEGORIES } from '../../lib/categories'
+import { sanitizeText, sanitizeNumber } from '../../lib/sanitize.js'
 
 
 export default function AddProductScreen({ onNavigate }) {
@@ -102,30 +103,37 @@ export default function AddProductScreen({ onNavigate }) {
     setError('')
     setSaving(true)
 
+    const cleanName = sanitizeText(form.name, { maxLength: 200 })
+    if (!cleanName) {
+      setError('Product name is required.')
+      setSaving(false)
+      return
+    }
+
     const stockQty = form.stock_quantity !== '' && form.stock_quantity !== null && form.stock_quantity !== undefined
-      ? Math.max(0, Number(form.stock_quantity))
+      ? sanitizeNumber(form.stock_quantity, { min: 0, integer: true, fallback: 0 })
       : (form.in_stock ? 15 : 0)
     const inStock = stockQty > 0
 
     const payload = {
-      name: form.name,
-      type: form.type,
-      watt: Number(form.watt) || null,
-      waterproof_grade: form.waterproof_grade || null,
-      method_control: form.method_control || null,
-      material: form.material || null,
-      solar_panel: form.solar_panel || null,
-      battery: form.battery || null,
-      charging_time: form.charging_time || null,
-      charging_type: form.charging_type || null,
-      smd_lamp_beads: form.smd_lamp_beads || null,
-      lighting_time: form.lighting_time || null,
-      price_range: form.price_range || null,
-      size: form.size || null,
+      name: cleanName,
+      type: sanitizeText(form.type, { maxLength: 100 }),
+      watt: form.watt ? sanitizeNumber(form.watt, { min: 0, fallback: null }) : null,
+      waterproof_grade: form.waterproof_grade ? sanitizeText(form.waterproof_grade, { maxLength: 50 }) : null,
+      method_control: form.method_control ? sanitizeText(form.method_control, { maxLength: 100 }) : null,
+      material: form.material ? sanitizeText(form.material, { maxLength: 100 }) : null,
+      solar_panel: form.solar_panel ? sanitizeText(form.solar_panel, { maxLength: 200 }) : null,
+      battery: form.battery ? sanitizeText(form.battery, { maxLength: 200 }) : null,
+      charging_time: form.charging_time ? sanitizeText(form.charging_time, { maxLength: 100 }) : null,
+      charging_type: form.charging_type ? sanitizeText(form.charging_type, { maxLength: 100 }) : null,
+      smd_lamp_beads: form.smd_lamp_beads ? sanitizeText(form.smd_lamp_beads, { maxLength: 100 }) : null,
+      lighting_time: form.lighting_time ? sanitizeText(form.lighting_time, { maxLength: 100 }) : null,
+      price_range: form.price_range ? sanitizeText(form.price_range, { maxLength: 100 }) : null,
+      size: form.size ? sanitizeText(form.size, { maxLength: 100 }) : null,
       stock_quantity: stockQty,
       in_stock: inStock,
-      sales: Number(form.sales) || 0,
-      image_url: form.image_url || null,
+      sales: sanitizeNumber(form.sales, { min: 0, integer: true, fallback: 0 }),
+      image_url: form.image_url ? form.image_url.trim() : null,
     }
 
     let { error: insertError } = await supabase.from('products').insert([payload])

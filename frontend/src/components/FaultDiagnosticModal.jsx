@@ -21,6 +21,7 @@ import {
   Layers,
 } from 'lucide-react'
 import { uploadEvidenceFile, submitWarrantyClaim } from '../lib/customerService'
+import { sanitizeText } from '../lib/sanitize.js'
 import {
   DIAGNOSTIC_TREE,
   DEFAULT_CRITERIA_STATE,
@@ -411,7 +412,7 @@ Customer requested technician bench evaluation.`
         token: customerToken,
         purchaseId: purchase.id,
         issueCategory: category,
-        description,
+        description: sanitizeText(description, { maxLength: 2000, allowMultiline: true }),
         mediaUrls: uploadedUrls,
       })
 

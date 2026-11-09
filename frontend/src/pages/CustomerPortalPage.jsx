@@ -26,6 +26,7 @@ import {
   deleteCustomerAccount
 } from '../lib/customerService'
 import { formatDate, formatRemainingText, getClaimStatusMeta } from '../lib/warrantyUtils'
+import { sanitizeEmail, sanitizeText } from '../lib/sanitize.js'
 import FaultDiagnosticModal from '../components/FaultDiagnosticModal'
 import { useAuth } from '../context/AuthContext'
 
@@ -146,7 +147,8 @@ export default function CustomerPortalPage() {
     setPwdError(null)
     setPwdSuccess(null)
 
-    if (!pwdEmail.trim() || !pwdEmail.includes('@')) {
+    const cleanEmail = sanitizeEmail(pwdEmail)
+    if (!cleanEmail || !cleanEmail.includes('@')) {
       setPwdError('Please enter a valid email address.')
       return
     }
@@ -163,15 +165,15 @@ export default function CustomerPortalPage() {
       setPwdLoading(true)
       const res = await setCustomerPassword({
         token,
-        email: pwdEmail.trim(),
+        email: cleanEmail,
         password: pwdNew,
         currentPassword: authStatus.hasPassword ? pwdCurrent : null
       })
 
       setPwdSuccess(res.message || 'Account password updated successfully.')
-      setAuthStatus({ hasPassword: true, email: pwdEmail.trim().toLowerCase() })
+      setAuthStatus({ hasPassword: true, email: cleanEmail })
       if (setCustomerSession) {
-        setCustomerSession(token, pwdEmail.trim().toLowerCase())
+        setCustomerSession(token, cleanEmail)
       }
       setPwdNew('')
       setPwdConfirm('')

@@ -17,10 +17,12 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { searchCustomerByPhone, registerCustomerAndSale } from '../../lib/customerService'
+import { sanitizePhone, isValidPhone, sanitizeText, sanitizeSerialNumber, sanitizeNumber } from '../../lib/sanitize.js'
 import QRReceiptModal from './QRReceiptModal'
 
 export default function RegisterSaleScreen({ onNavigate }) {
   const [phoneNumber, setPhoneNumber] = useState('')
+  const [phoneTouched, setPhoneTouched] = useState(false)
 
   const [fullName, setFullName] = useState('')
   const [branchLocation, setBranchLocation] = useState('Cavite')
@@ -125,10 +127,34 @@ export default function RegisterSaleScreen({ onNavigate }) {
     setItems(prev => prev.filter((_, i) => i !== index))
   }
 
+  const handlePhoneChange = (e) => {
+    const raw = e.target.value
+    const sanitized = sanitizePhone(raw)
+    setPhoneNumber(sanitized)
+    if (errorMessage) setErrorMessage('')
+  }
+
+  const handlePhoneBlur = () => {
+    setPhoneTouched(true)
+  }
+
+  const handleFullNameChange = (e) => {
+    const raw = e.target.value
+    const sanitized = sanitizeText(raw, { maxLength: 100 })
+    setFullName(sanitized)
+    if (errorMessage) setErrorMessage('')
+  }
+
   const handleItemChange = (index, field, value) => {
     setItems(prev => {
       const updated = [...prev]
-      updated[index] = { ...updated[index], [field]: value }
+      let val = value
+      if (field === 'serialNumber') {
+        val = sanitizeSerialNumber(value, 64)
+      } else if (field === 'warrantyMonths') {
+        val = sanitizeNumber(value, { min: 1, max: 360, integer: true, fallback: 24 })
+      }
+      updated[index] = { ...updated[index], [field]: val }
 
       // If product changed, update default warranty months
       if (field === 'productId') {
@@ -145,9 +171,14 @@ export default function RegisterSaleScreen({ onNavigate }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setErrorMessage('')
+    setPhoneTouched(true)
 
-    if (!phoneNumber.trim()) {
-      setErrorMessage('Please enter the customer phone number.')
+    if (!phoneNumber) {
+      setErrorMessage('Please enter the customer mobile phone number.')
+      return
+    }
+    if (!isValidPhone(phoneNumber)) {
+      setErrorMessage('Please enter a valid 11-digit Philippine mobile phone number starting with 09 (e.g. 09171234567).')
       return
     }
     if (!fullName.trim()) {
@@ -236,7 +267,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        
+
         {/* CARD 1: Customer Information */}
         <div className="p-6 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
@@ -257,36 +288,64 @@ export default function RegisterSaleScreen({ onNavigate }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Phone */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-jds-on-surface-variant flex items-center justify-between">
-                <span>Mobile Phone Number *</span>
-                {isSearchingPhone && <span className="text-[11px] text-jds-primary animate-pulse">Checking records...</span>}
-              </label>
+              <div className="flex items-center justify-between text-xs font-semibold text-jds-on-surface-variant">
+                <label htmlFor="reg-sale-phone">Mobile Phone Number *</label>
+                <div className="flex items-center gap-2">
+                  {isSearchingPhone && <span className="text-[11px] text-jds-primary animate-pulse">Checking records...</span>}
+                  <span className={`text-[11px] font-mono font-medium ${phoneNumber.length === 11 && isValidPhone(phoneNumber)
+                      ? 'text-emerald-500'
+                      : phoneTouched && phoneNumber.length > 0 && !isValidPhone(phoneNumber)
+                        ? 'text-jds-error'
+                        : 'text-jds-on-surface-variant/60'
+                    }`}>
+                    {phoneNumber.length}/11 digits
+                  </span>
+                </div>
+              </div>
               <div className="relative">
                 <Phone className="w-4 h-4 text-jds-on-surface-variant absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  id="reg-sale-phone"
                   type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={11}
                   required
-                  placeholder="e.g. 09171234567"
+                  placeholder="09171234567"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="w-full bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors font-mono"
+                  onChange={handlePhoneChange}
+                  onBlur={handlePhoneBlur}
+                  className={`w-full bg-jds-surface-container/40 border rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none transition-colors font-mono ${phoneTouched && phoneNumber && !isValidPhone(phoneNumber)
+                      ? 'border-jds-error focus:border-jds-error bg-jds-error/5'
+                      : phoneNumber.length === 11 && isValidPhone(phoneNumber)
+                        ? 'border-emerald-500/50 focus:border-emerald-500'
+                        : 'border-jds-outline-variant/50 focus:border-jds-primary'
+                    }`}
                 />
               </div>
+              {phoneTouched && phoneNumber && !isValidPhone(phoneNumber) && (
+                <p className="text-[11px] font-medium text-jds-error flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  Must be an 11-digit Philippine mobile number starting with 09 (e.g. 09171234567).
+                </p>
+              )}
             </div>
 
             {/* Name */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-jds-on-surface-variant">
+              <label htmlFor="reg-sale-name" className="text-xs font-semibold text-jds-on-surface-variant">
                 Customer Full Name *
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-jds-on-surface-variant absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  id="reg-sale-name"
                   type="text"
+                  maxLength={100}
                   required
                   placeholder="e.g. Maria Santos"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={handleFullNameChange}
                   className="w-full bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors"
                 />
               </div>

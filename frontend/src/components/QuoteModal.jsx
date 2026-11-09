@@ -17,6 +17,7 @@ import {
 import { FaFacebook, FaInstagram } from 'react-icons/fa'
 import { getInquiryStatusConfig, normalizeInquiryStatus } from '../lib/inquiryStatusUtils'
 import { normalizePhMobile, isValidPhMobile } from '../lib/phoneUtils'
+import { sanitizeText, sanitizeEmail } from '../lib/sanitize.js'
 import PhilippineAddressSelect from './ui/PhilippineAddressSelect'
 import { formatFullAddress } from '../lib/philippineAddresses'
 import { extractFacebookHandle, formatFacebookUrl } from '../lib/facebookUtils'
@@ -240,15 +241,15 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       product_price_range: product?.price_range || null,
       product_image_url: product?.image_url || null,
       quantity: Number(quantity) || 1,
-      customer_name: customerName.trim(),
+      customer_name: sanitizeText(customerName, { maxLength: 100 }),
       mobile_contact: mobileContact.trim(),
-      email: email.trim() || null,
-      province: province.trim(),
-      city: city.trim(),
-      barangay: barangay.trim(),
-      street_address: streetAddress.trim(),
+      email: email.trim() ? sanitizeEmail(email) : null,
+      province: sanitizeText(province, { maxLength: 100 }),
+      city: sanitizeText(city, { maxLength: 100 }),
+      barangay: sanitizeText(barangay, { maxLength: 100 }),
+      street_address: sanitizeText(streetAddress, { maxLength: 200 }),
       facebook: formatFacebookUrl(facebook),
-      instagram: instagram.trim() || null,
+      instagram: instagram.trim() ? sanitizeText(instagram, { maxLength: 100 }) : null,
       purpose_of_visitation: effectivePurpose,
       will_visit: true,
       store_branch: selectedBranch,

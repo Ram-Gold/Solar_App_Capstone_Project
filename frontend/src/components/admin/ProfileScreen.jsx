@@ -4,6 +4,7 @@ import { Trash2, AlertTriangle } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../context/AuthContext'
 import { deletePlatformUser } from '../../lib/customerService'
+import { sanitizeText, sanitizePhone, isValidPhone } from '../../lib/sanitize.js'
 import { Button } from '../ui/button'
 
 export default function ProfileScreen() {
@@ -47,14 +48,29 @@ export default function ProfileScreen() {
     e.preventDefault()
     setError('')
     setSuccess('')
+
+    const cleanName = sanitizeText(form.full_name, { maxLength: 100 })
+    const cleanPhone = form.phone ? sanitizePhone(form.phone) : null
+    const cleanPosition = sanitizeText(form.position, { maxLength: 100 })
+
+    if (!cleanName) {
+      setError('Full name is required.')
+      return
+    }
+
+    if (cleanPhone && !isValidPhone(cleanPhone)) {
+      setError('Contact number must be an 11-digit Philippine mobile number starting with 09 (e.g. 09171234567).')
+      return
+    }
+
     setSaving(true)
 
     const { error: updateError } = await supabase
       .from(tableName)
       .update({
-        full_name: form.full_name,
-        phone: form.phone,
-        position: form.position,
+        full_name: cleanName,
+        phone: cleanPhone,
+        position: cleanPosition,
       })
       .eq('id', user.id)
 
@@ -133,28 +149,42 @@ export default function ProfileScreen() {
               <div className="space-y-1.5">
                 <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Full Name</label>
                 <input
+                  maxLength={100}
                   value={form.full_name}
-                  onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                  onChange={(e) => setForm({ ...form, full_name: sanitizeText(e.target.value, { maxLength: 100 }) })}
                   className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
                   placeholder="e.g. Maria Clara"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Contact Number</label>
+                <div className="flex items-center justify-between text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">
+                  <label>Contact Number</label>
+                  {form.phone && (
+                    <span className={`text-[10px] font-mono lowercase ${form.phone.length === 11 && isValidPhone(form.phone) ? 'text-emerald-500 font-bold' : 'text-jds-on-surface-variant/60'
+                      }`}>
+                      {form.phone.length}/11 digits
+                    </span>
+                  )}
+                </div>
                 <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={11}
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
-                  placeholder="+63 9XX XXX XXXX"
+                  onChange={(e) => setForm({ ...form, phone: sanitizePhone(e.target.value) })}
+                  className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all font-mono"
+                  placeholder="09171234567"
                 />
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
                 <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Position / Title</label>
                 <input
+                  maxLength={100}
                   value={form.position}
-                  onChange={(e) => setForm({ ...form, position: e.target.value })}
+                  onChange={(e) => setForm({ ...form, position: sanitizeText(e.target.value, { maxLength: 100 }) })}
                   className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
                   placeholder="e.g. Solar Technician"
                 />

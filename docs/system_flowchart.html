@@ -1,0 +1,2165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JD Solar System Flowchart - Architecture & Semantic Role Flows</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #050505;
+      --border: #111111;
+      --border-light: #e0e0e0;
+      --border-dashed: #888888;
+      --surface: #ffffff;
+      --surface-subtle: #f8f8f8;
+      --surface-hover: #eeeeee;
+      --surface-active: #e2e2e2;
+      --muted: #555555;
+      --active-fill: #111111;
+      --active-text: #ffffff;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --grid-size: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    /* Top Sticky Navigation Bar */
+    header {
+      border-bottom: 2px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand-title {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-badge {
+      font-size: 0.68rem;
+      padding: 2px 6px;
+      border: 1px solid var(--border);
+      text-transform: uppercase;
+      font-weight: 600;
+      background: var(--surface-subtle);
+    }
+
+    .mode-indicator {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border: 1.5px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .mode-indicator.view-mode {
+      background: #ffffff;
+      color: #000000;
+    }
+
+    .mode-indicator.edit-mode {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    .controls-group {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 5px 10px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background: var(--surface-hover);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary {
+      background: var(--active-fill);
+      color: var(--active-text);
+    }
+
+    .btn-primary:hover {
+      background: #2a2a2a;
+    }
+
+    .btn-toggled {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    /* Role Switcher Tabs */
+    .tab-bar {
+      display: flex;
+      align-items: center;
+      border-bottom: 1.5px solid var(--border);
+      background: var(--surface-subtle);
+      padding: 0 20px;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 10px 16px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(0,0,0,0.03);
+    }
+
+    .tab-btn.active {
+      color: var(--text);
+      border-bottom-color: var(--border);
+      background: var(--surface);
+      font-weight: 700;
+    }
+
+    .tab-count {
+      font-size: 0.65rem;
+      padding: 1px 5px;
+      border: 1px solid currentColor;
+      border-radius: 2px;
+    }
+
+    /* Edit Mode Floating Sub-Bar */
+    .edit-subbar {
+      background: #f0f0f0;
+      border-bottom: 1px solid var(--border);
+      padding: 6px 20px;
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+    }
+
+    .edit-subbar.active {
+      display: flex;
+    }
+
+    .edit-subbar-hint {
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Main Container & Layout */
+    .workspace {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 95px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .canvas-area {
+      flex: 1;
+      overflow: auto;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--bg);
+      position: relative;
+    }
+
+    /* Snap Grid pattern in Edit Mode */
+    .canvas-area.edit-grid {
+      background-image: 
+        radial-gradient(circle, rgba(0, 0, 0, 0.10) 1.2px, transparent 1.2px);
+      background-size: var(--grid-size) var(--grid-size);
+      background-position: 0 0;
+    }
+
+    /* Resize Handle on Node in Edit Mode */
+    .resize-handle {
+      cursor: nwse-resize;
+    }
+    .resize-handle rect {
+      stroke: #000000;
+      stroke-width: 1px;
+      fill: #ffffff;
+      transition: fill 0.15s ease;
+    }
+    .resize-handle:hover rect {
+      fill: #000000;
+    }
+    .resize-handle:hover path {
+      stroke: #ffffff;
+    }
+
+    .canvas-wrapper {
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    /* Diagram Metadata Header */
+    .flow-meta {
+      width: 100%;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1.5px solid var(--border-light);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .flow-title {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .flow-desc {
+      font-size: 0.8rem;
+      color: var(--muted);
+      max-width: 650px;
+      margin-top: 2px;
+    }
+
+    /* Semantic Shapes Legend */
+    .semantic-legend {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-symbol {
+      width: 12px;
+      height: 12px;
+      border: 1.2px solid var(--border);
+      display: inline-block;
+      background: #ffffff;
+    }
+
+    .legend-terminal { border-radius: 6px; }
+    .legend-process { border-radius: 0; }
+    .legend-decision { transform: rotate(45deg); width: 9px; height: 9px; margin: 0 2px; }
+    .legend-database { border-style: dashed; }
+    .legend-document { border-bottom: none; border-radius: 2px 2px 4px 4px; }
+    .legend-io { transform: skewX(-20deg); width: 11px; }
+
+    /* SVG Canvas Styles */
+    svg.flow-svg {
+      background: transparent;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* SVG Flowchart Nodes */
+    .flow-node {
+      cursor: pointer;
+    }
+
+    .flow-node.draggable {
+      cursor: move;
+    }
+
+    .flow-node shape-element,
+    .flow-node rect,
+    .flow-node polygon,
+    .flow-node path,
+    .flow-node ellipse {
+      stroke: #000000;
+      stroke-width: 1.6px;
+      fill: #ffffff;
+      transition: stroke-width 0.15s ease, fill 0.15s ease;
+    }
+
+    .flow-node:hover rect,
+    .flow-node:hover polygon,
+    .flow-node:hover path,
+    .flow-node:hover ellipse {
+      stroke-width: 2.2px;
+      fill: #f6f6f6;
+    }
+
+    .flow-node.selected rect,
+    .flow-node.selected polygon,
+    .flow-node.selected path,
+    .flow-node.selected ellipse {
+      stroke-width: 2.5px;
+      fill: #050505 !important;
+    }
+
+    .flow-node text {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      fill: #000000;
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .flow-node text.subtext {
+      font-size: 9.5px;
+      font-weight: 400;
+      fill: #555555;
+    }
+
+    .flow-node.selected text {
+      fill: #ffffff !important;
+    }
+
+    .flow-node.selected text.subtext {
+      fill: #cccccc !important;
+    }
+
+    /* Snap Handles on Node */
+    .port-circle {
+      fill: #ffffff;
+      stroke: #000000;
+      stroke-width: 1.5px;
+      cursor: crosshair;
+      display: none;
+    }
+
+    .edit-mode-active .port-circle {
+      display: block;
+    }
+
+    .port-circle:hover {
+      fill: #000000;
+    }
+
+    /* Flow Lines / Edges */
+    .flow-edge {
+      stroke: #000000;
+      stroke-width: 1.5px;
+      fill: none;
+      cursor: pointer;
+    }
+
+    .flow-edge.selected {
+      stroke-width: 3px;
+    }
+
+    .flow-edge-hitbox {
+      stroke: transparent;
+      stroke-width: 14px;
+      fill: none;
+      cursor: pointer;
+    }
+
+    .flow-edge-hitbox:hover + .flow-edge {
+      stroke-width: 2.5px;
+    }
+
+    .edge-text-bg {
+      fill: #ffffff;
+      stroke: #ffffff;
+      stroke-width: 3px;
+    }
+
+    .edge-text {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      fill: #000000;
+      text-anchor: middle;
+      dominant-baseline: central;
+      cursor: pointer;
+    }
+
+    /* Floating Node Edit Toolbar */
+    .node-toolbar {
+      position: absolute;
+      background: #ffffff;
+      border: 1.5px solid var(--border);
+      padding: 6px 8px;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+    }
+
+    .node-toolbar.active {
+      display: flex;
+    }
+
+    .node-toolbar select,
+    .node-toolbar input {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      border: 1px solid var(--border);
+      padding: 3px 6px;
+      background: #ffffff;
+      outline: none;
+    }
+
+    /* Side Inspector Panel */
+    .inspector-panel {
+      width: 360px;
+      border-left: 2px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow-y: auto;
+      transition: width 0.2s ease, transform 0.2s ease;
+      z-index: 20;
+    }
+
+    .inspector-panel.collapsed {
+      transform: translateX(100%);
+      width: 0;
+      border-left: none;
+    }
+
+    .inspector-header {
+      padding: 12px 16px;
+      border-bottom: 1.5px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface-subtle);
+    }
+
+    .inspector-title {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .close-btn {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+
+    .inspector-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      font-size: 0.8rem;
+    }
+
+    .field-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field-label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .field-input,
+    .field-select,
+    .field-textarea {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      padding: 6px 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      outline: none;
+      width: 100%;
+    }
+
+    .field-textarea {
+      resize: vertical;
+      min-height: 50px;
+    }
+
+    .field-value {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      padding: 6px 8px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-light);
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .field-tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      padding: 2px 5px;
+      background: var(--surface);
+    }
+
+    /* Modal for Line Edit / Import */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-box {
+      background: #ffffff;
+      border: 2px solid var(--border);
+      padding: 20px;
+      max-width: 440px;
+      width: 90%;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .modal-title {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    /* Hidden Canvas for PNG export */
+    #export-canvas {
+      display: none;
+    }
+
+    /* Print Styles */
+    @media print {
+      header, .tab-bar, .edit-subbar, .inspector-panel, .controls-group, .node-toolbar {
+        display: none !important;
+      }
+      body {
+        background: #ffffff;
+        color: #000000;
+        padding: 0;
+      }
+      .workspace {
+        height: auto;
+        overflow: visible;
+      }
+      .canvas-area {
+        padding: 10px;
+        overflow: visible;
+      }
+      svg.flow-svg {
+        max-width: 100% !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Sticky Navigation Bar -->
+  <header>
+    <div class="brand-title">
+      <span>JD SOLAR PLATFORM</span>
+      <span class="brand-badge">System Flow Architecture</span>
+      <div class="mode-indicator view-mode" id="mode-badge">VIEW MODE</div>
+    </div>
+    
+    <div class="controls-group">
+      <button class="btn btn-primary" id="btn-toggle-mode" title="Toggle between Viewing and Direct Canvas Editing">
+        Edit Mode
+      </button>
+      <button class="btn" id="btn-reset-positions-header" title="Reset all block positions and dimensions to original default coordinates">
+        Reset Positions
+      </button>
+      <button class="btn" id="btn-center-view-header" title="Center canvas view">
+        Center View
+      </button>
+      <button class="btn" id="btn-export-role-png" title="Download High-Resolution PNG for active diagram">
+        Export Role (PNG)
+      </button>
+      <button class="btn" id="btn-export-full-png" title="Download Full 4-Role System Diagram as High-Resolution PNG">
+        Export Full System (PNG)
+      </button>
+      <button class="btn" id="btn-toggle-inspector" title="Toggle Endpoint Specification Inspector">
+        Inspector
+      </button>
+    </div>
+  </header>
+
+  <!-- Role Navigation Tabs -->
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-role="admin">
+      <span>Admin View</span>
+      <span class="tab-count" id="count-admin">Nodes</span>
+    </button>
+    <button class="tab-btn" data-role="staff">
+      <span>Staff View</span>
+      <span class="tab-count" id="count-staff">Nodes</span>
+    </button>
+    <button class="tab-btn" data-role="customer">
+      <span>Customer View</span>
+      <span class="tab-count" id="count-customer">Nodes</span>
+    </button>
+    <button class="tab-btn" data-role="visitor">
+      <span>Public User / Visitor</span>
+      <span class="tab-count" id="count-visitor">Nodes</span>
+    </button>
+  </nav>
+
+  <!-- Edit Mode Floating Sub-Bar -->
+  <div class="edit-subbar" id="edit-subbar">
+    <div class="controls-group">
+      <button class="btn" id="btn-add-node" title="Add New Semantic Block to Active Flow">+ Add Block</button>
+      <button class="btn" id="btn-add-edge" title="Connect Two Nodes with a Line">+ Connect Line</button>
+      <button class="btn" id="btn-reset-positions-subbar" title="Reset all block positions and dimensions to original default coordinates">Reset Positions</button>
+      <button class="btn" id="btn-reset-layout" title="Reset Current Role Diagram to Default Architecture">Reset Layout</button>
+      <button class="btn" id="btn-center-view-subbar" title="Scroll canvas to top-center">Center View</button>
+      <button class="btn" id="btn-export-json" title="Export Current Flowchart Layout as JSON">Export JSON</button>
+      <button class="btn" id="btn-import-json" title="Import Flowchart Layout from JSON">Import JSON</button>
+    </div>
+    <div class="edit-subbar-hint">
+      <span>Drag blocks to move with 20px grid snapping &bull; Double-click block to edit text inline &bull; Click line to edit label or style</span>
+    </div>
+  </div>
+
+  <!-- Main Interactive Area -->
+  <div class="workspace">
+    <main class="canvas-area" id="canvas-area">
+      <div class="canvas-wrapper" id="canvas-wrapper">
+        <div class="flow-meta">
+          <div>
+            <h1 class="flow-title" id="diagram-title">System Role Flowchart</h1>
+            <p class="flow-desc" id="diagram-desc">Role operational flowchart with ISO semantic notation and dynamic path routing.</p>
+          </div>
+          <div class="semantic-legend">
+            <div class="legend-item"><span class="legend-symbol legend-terminal"></span> Terminal (Start/End)</div>
+            <div class="legend-item"><span class="legend-symbol legend-process"></span> Process</div>
+            <div class="legend-item"><span class="legend-symbol legend-decision"></span> Decision</div>
+            <div class="legend-item"><span class="legend-symbol legend-database"></span> Database Store</div>
+            <div class="legend-item"><span class="legend-symbol legend-document"></span> Document / Receipt</div>
+            <div class="legend-item"><span class="legend-symbol legend-io"></span> Data Input / Output</div>
+          </div>
+        </div>
+
+        <!-- SVG Host -->
+        <div id="svg-host"></div>
+
+        <!-- Node Context Toolbar in Edit Mode -->
+        <div class="node-toolbar" id="node-toolbar">
+          <label style="font-weight:700;">Shape:</label>
+          <select id="toolbar-shape-select">
+            <option value="terminal">Terminal (Pill)</option>
+            <option value="process">Process (Rectangle)</option>
+            <option value="decision">Decision (Diamond)</option>
+            <option value="database">Database (Cylinder)</option>
+            <option value="document">Document (Wavy)</option>
+            <option value="io">Data I/O (Parallelogram)</option>
+            <option value="subroutine">Subroutine (Double-wall)</option>
+          </select>
+          <label style="font-weight:700; margin-left:4px;">W:</label>
+          <input type="number" id="toolbar-width" style="width:58px;" min="60" step="20" title="Width (px)" />
+          <label style="font-weight:700;">H:</label>
+          <input type="number" id="toolbar-height" style="width:54px;" min="30" step="20" title="Height (px)" />
+          <button class="btn" id="btn-toolbar-del-node" style="color:#d00;">Delete</button>
+          <button class="btn" id="btn-toolbar-close">&times;</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Side Detail Inspector Panel -->
+    <aside class="inspector-panel" id="inspector">
+      <div class="inspector-header">
+        <span class="inspector-title">Specification Inspector</span>
+        <button class="close-btn" id="btn-close-inspector" title="Close Panel">&times;</button>
+      </div>
+      <div class="inspector-body" id="inspector-content">
+        <p style="color: var(--muted); font-style: italic;">
+          Select any node or connecting line in the diagram to inspect and edit its technical parameters, database queries, and system state transitions.
+        </p>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Line Edit Modal -->
+  <div class="modal-backdrop" id="line-modal">
+    <div class="modal-box">
+      <div class="modal-title">Edit Connecting Line</div>
+      <div class="field-row">
+        <label class="field-label">Line Label (Condition / Action)</label>
+        <input type="text" id="line-modal-label" class="field-input" placeholder="e.g. Yes / No / 401 Unauthorized" />
+      </div>
+      <div class="field-row">
+        <label class="field-label">Routing Style</label>
+        <select id="line-modal-style" class="field-select">
+          <option value="orthogonal">Orthogonal Stepped (Right-angle)</option>
+          <option value="straight">Direct Straight Line</option>
+        </select>
+      </div>
+      <div style="display:flex; justify-content:space-between; gap:10px; margin-top:8px;">
+        <button class="btn" id="btn-line-modal-delete" style="color:#d00;">Delete Line</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" id="btn-line-modal-cancel">Cancel</button>
+          <button class="btn btn-primary" id="btn-line-modal-save">Save Line</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JSON Import Modal -->
+  <div class="modal-backdrop" id="json-modal">
+    <div class="modal-box">
+      <div class="modal-title">Import Flowchart Layout JSON</div>
+      <div class="field-row">
+        <label class="field-label">Paste JSON Content</label>
+        <textarea id="json-modal-text" class="field-textarea" style="height:140px;" placeholder="Paste exported JSON here..."></textarea>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+        <button class="btn" id="btn-json-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-json-apply">Apply Layout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden canvas for high-resolution PNG rendering -->
+  <canvas id="export-canvas"></canvas>
+
+  <script>
+    // --- Master Semantic Default Datasets (Pure ISO Flowcharts) ---
+    const defaultFlowcharts = {
+      admin: {
+        width: 1060,
+        height: 980,
+        title: "Role: System Administrator (POV Flowchart)",
+        desc: "Comprehensive operational endpoint workflow starting from authentication, command hub, catalog and user management, through transactions and warranty handling.",
+        nodes: [
+          { id: "ADM-START", title: "START: Admin Session", subtext: "/login", type: "terminal", x: 440, y: 40, width: 180, height: 40, route: "/login", desc: "Administrator initiates secure access sequence from browser.", inputs: "Email, Password", db: "auth.users", outcome: "Credentials submitted for cryptographic validation." },
+          { id: "ADM-AUTH", title: "Authenticate &", subtext: "Role == 'admin'?", type: "decision", x: 440, y: 120, width: 180, height: 80, route: "/login -> AuthContext", desc: "Supabase Auth validates JWT session and queries `admins` table.", inputs: "Bearer Token", db: "admins (select where email = auth.email)", outcome: "If valid -> route to /admin; If rejected -> 401 redirect." },
+          { id: "ADM-AUTH-REJ", title: "401 Unauthorized", subtext: "Redirect /login", type: "process", x: 740, y: 140, width: 140, height: 40, route: "/login", desc: "Session rejected due to invalid credentials or insufficient role privileges.", inputs: "none", db: "auth error logged", outcome: "User returned to login screen." },
+          { id: "ADM-HUB", title: "ADMIN DASHBOARD HUB", subtext: "/admin (Main Control)", type: "subroutine", x: 400, y: 240, width: 260, height: 50, route: "/admin", desc: "Primary administrative command center routing to 9 distinct administrative endpoints.", inputs: "Sidebar screen selection", db: "Aggregated metric counts", outcome: "Loads selected subsystem view." },
+          
+          // 9 Endpoints
+          { id: "ADM-PROD", title: "Products Catalog", subtext: "Add / Edit Product", type: "process", x: 20, y: 360, width: 130, height: 56, route: "/admin -> ProductsScreen", desc: "Manage catalog hardware, add products, adjust pricing and stock levels.", inputs: "name, brand, price, stock, specs", db: "products (insert, update, delete)", outcome: "Updated product listing." },
+          { id: "ADM-PROD-DB", title: "DB: products", subtext: "Insert / Update Spec", type: "database", x: 20, y: 460, width: 130, height: 54, route: "Supabase DB", desc: "Hardware inventory records and technical specifications.", inputs: "Product record payload", db: "products table", outcome: "Data committed." },
+          
+          { id: "ADM-USER", title: "Generate Users", subtext: "Create Staff / Admin", type: "process", x: 170, y: 360, width: 130, height: 56, route: "/admin -> UsersScreen", desc: "Provision operational accounts and assign roles or deactivate staff.", inputs: "email, role, full_name, phone", db: "staff / admins", outcome: "Platform credentials issued." },
+          { id: "ADM-USER-DB", title: "DB: staff / admins", subtext: "Provision New User", type: "database", x: 170, y: 460, width: 130, height: 54, route: "Supabase DB", desc: "Role based operator tables.", inputs: "User profile payload", db: "admins & staff tables", outcome: "User created." },
+          
+          { id: "ADM-IMG", title: "Images Storage", subtext: "Upload Equipment Photos", type: "process", x: 320, y: 360, width: 130, height: 56, route: "/admin -> ImagesScreen", desc: "Upload and manage equipment photos in cloud object storage.", inputs: "File binary (png, webp, jpeg)", db: "Storage: product-images bucket", outcome: "Public media URL generated." },
+          { id: "ADM-IMG-DB", title: "Storage: Media", subtext: "product-images", type: "database", x: 320, y: 460, width: 130, height: 54, route: "Supabase Storage", desc: "Cloud asset storage bucket.", inputs: "Media file", db: "Supabase Storage S3 API", outcome: "Asset stored." },
+
+          { id: "ADM-SALE", title: "Register Sale", subtext: "Assign Serial & Warranty", type: "process", x: 470, y: 360, width: 130, height: 56, route: "/admin -> RegisterSaleScreen", desc: "Register verified point-of-sale equipment transaction and warranty duration.", inputs: "customer_id, items array, serials", db: "sales & customer_products", outcome: "Transaction recorded." },
+          { id: "ADM-SALE-DOC", title: "QR Access Receipt", subtext: "Cryptographic Token", type: "document", x: 470, y: 460, width: 130, height: 54, route: "Printable QR Receipt", desc: "Digital ownership certificate and tamper-proof access token.", inputs: "token_id, sale_id", db: "warranty_tokens table", outcome: "Client ownership verified." },
+
+          { id: "ADM-CUST", title: "Customers & Tokens", subtext: "Hardware Ownership", type: "process", x: 620, y: 360, width: 130, height: 56, route: "/admin -> CustomersScreen", desc: "Query customer accounts, view registered hardware, re-issue portal tokens.", inputs: "customer_id, contact info", db: "customers table", outcome: "Customer details updated." },
+          
+          { id: "ADM-CLAIM", title: "Warranty Claims", subtext: "Review Diagnostics", type: "process", x: 770, y: 360, width: 130, height: 56, route: "/admin -> WarrantyClaimsScreen", desc: "Adjudicate customer warranty claims, examine symptoms and approve repair.", inputs: "claim_id, status (approved/rejected)", db: "warranty_claims table", outcome: "Claim status updated." },
+          { id: "ADM-CLAIM-DB", title: "DB: claims", subtext: "Status: Approved", type: "database", x: 770, y: 460, width: 130, height: 54, route: "Supabase DB", desc: "Warranty claim records and RMA lifecycle status.", inputs: "Status update payload", db: "warranty_claims table", outcome: "RMA ticket resolved." },
+
+          { id: "ADM-INQ", title: "Inquiries & Calendar", subtext: "Site Visit Bookings", type: "process", x: 920, y: 360, width: 130, height: 56, route: "/admin -> InquiriesScreen", desc: "Manage consultation bookings, site evaluations, and quotation requests.", inputs: "inquiry_id, slot confirmation", db: "inquiries table", outcome: "Timetable updated." },
+          
+          // Loop and Termination
+          { id: "ADM-LOOP", title: "Another Admin", subtext: "Operation?", type: "decision", x: 440, y: 640, width: 180, height: 76, route: "/admin", desc: "Determine whether operator performs additional administrative tasks.", inputs: "Operator choice", db: "none", outcome: "Loop to hub or proceed to logout." },
+          { id: "ADM-END", title: "END: Admin Session", subtext: "Sign Out / Invalidate JWT", type: "terminal", x: 440, y: 780, width: 180, height: 40, route: "/login -> Sign Out", desc: "Terminates active administrative session and purges auth tokens.", inputs: "Sign out action", db: "auth.signOut()", outcome: "Session ended." }
+        ],
+        edges: [
+          { id: "e1", from: "ADM-START", to: "ADM-AUTH", label: "", style: "orthogonal" },
+          { id: "e2", from: "ADM-AUTH", to: "ADM-HUB", label: "Yes", style: "orthogonal" },
+          { id: "e3", from: "ADM-AUTH", to: "ADM-AUTH-REJ", label: "No (401)", style: "orthogonal" },
+          { id: "e4", from: "ADM-AUTH-REJ", to: "ADM-START", label: "Retry", style: "orthogonal" },
+          
+          { id: "e5", from: "ADM-HUB", to: "ADM-PROD", label: "Catalog", style: "orthogonal" },
+          { id: "e6", from: "ADM-PROD", to: "ADM-PROD-DB", label: "Save", style: "orthogonal" },
+          { id: "e7", from: "ADM-PROD-DB", to: "ADM-LOOP", label: "", style: "orthogonal" },
+
+          { id: "e8", from: "ADM-HUB", to: "ADM-USER", label: "Users", style: "orthogonal" },
+          { id: "e9", from: "ADM-USER", to: "ADM-USER-DB", label: "Insert", style: "orthogonal" },
+          { id: "e10", from: "ADM-USER-DB", to: "ADM-LOOP", label: "", style: "orthogonal" },
+
+          { id: "e11", from: "ADM-HUB", to: "ADM-IMG", label: "Media", style: "orthogonal" },
+          { id: "e12", from: "ADM-IMG", to: "ADM-IMG-DB", label: "Upload", style: "orthogonal" },
+          { id: "e13", from: "ADM-IMG-DB", to: "ADM-LOOP", label: "", style: "orthogonal" },
+
+          { id: "e14", from: "ADM-HUB", to: "ADM-SALE", label: "Sale", style: "orthogonal" },
+          { id: "e15", from: "ADM-SALE", to: "ADM-SALE-DOC", label: "Generate", style: "orthogonal" },
+          { id: "e16", from: "ADM-SALE-DOC", to: "ADM-LOOP", label: "", style: "orthogonal" },
+
+          { id: "e17", from: "ADM-HUB", to: "ADM-CUST", label: "Customers", style: "orthogonal" },
+          { id: "e18", from: "ADM-CUST", to: "ADM-LOOP", label: "", style: "orthogonal" },
+
+          { id: "e19", from: "ADM-HUB", to: "ADM-CLAIM", label: "Claims", style: "orthogonal" },
+          { id: "e20", from: "ADM-CLAIM", to: "ADM-CLAIM-DB", label: "Adjudicate", style: "orthogonal" },
+          { id: "e21", from: "ADM-CLAIM-DB", to: "ADM-LOOP", label: "", style: "orthogonal" },
+
+          { id: "e22", from: "ADM-HUB", to: "ADM-INQ", label: "Schedule", style: "orthogonal" },
+          { id: "e23", from: "ADM-INQ", to: "ADM-LOOP", label: "", style: "orthogonal" },
+
+          { id: "e24", from: "ADM-LOOP", to: "ADM-HUB", label: "Yes (More Tasks)", style: "orthogonal" },
+          { id: "e25", from: "ADM-LOOP", to: "ADM-END", label: "No (Sign Out)", style: "orthogonal" }
+        ]
+      },
+
+      staff: {
+        width: 960,
+        height: 900,
+        title: "Role: Staff Member (POV Flowchart)",
+        desc: "Frontline operational workflow focusing on sales registration, QR receipt issuance, claim triage, and customer scheduling.",
+        nodes: [
+          { id: "STF-START", title: "START: Staff Session", subtext: "/login", type: "terminal", x: 390, y: 40, width: 180, height: 40, route: "/login", desc: "Staff member initiates login.", inputs: "Staff Credentials", db: "auth.users", outcome: "Authentication requested." },
+          { id: "STF-AUTH", title: "Authenticate &", subtext: "Role == 'staff'?", type: "decision", x: 390, y: 120, width: 180, height: 80, route: "/login", desc: "Check role assignment in `staff` table.", inputs: "JWT", db: "staff table", outcome: "Grants access to operational desk." },
+          { id: "STF-REJ", title: "Access Denied", subtext: "Return /login", type: "process", x: 680, y: 140, width: 130, height: 40, route: "/login", desc: "Rejection on invalid credentials.", inputs: "none", db: "none", outcome: "Redirected to login." },
+          { id: "STF-HUB", title: "STAFF OPERATIONS DESK", subtext: "/staff (Operational)", type: "subroutine", x: 350, y: 240, width: 260, height: 50, route: "/staff", desc: "Frontline staff operations hub.", inputs: "Action select", db: "Daily counters", outcome: "Loads operational view." },
+
+          { id: "STF-SALE", title: "Register Sale", subtext: "Assign Warranty", type: "process", x: 40, y: 360, width: 140, height: 56, route: "/staff -> RegisterSaleScreen", desc: "Process point-of-sale purchase.", inputs: "customer, serials", db: "sales & customer_products", outcome: "Sale registered." },
+          { id: "STF-DOC", title: "QR Access Receipt", subtext: "Print / Hand Customer", type: "document", x: 40, y: 460, width: 140, height: 54, route: "Print Receipt", desc: "Printed or digital QR receipt issued to customer.", inputs: "token_id", db: "warranty_tokens", outcome: "Customer receives ownership proof." },
+
+          { id: "STF-CUST", title: "Customers & Tokens", subtext: "Lookup Equipment", type: "process", x: 230, y: 360, width: 140, height: 56, route: "/staff -> CustomersScreen", desc: "Lookup customer purchase records and warranty validities.", inputs: "customer search", db: "customers", outcome: "Customer verified." },
+
+          { id: "STF-CLAIM", title: "Review Claims", subtext: "Diagnostic Triage", type: "process", x: 420, y: 360, width: 140, height: 56, route: "/staff -> WarrantyClaimsScreen", desc: "Examine photo evidence of equipment malfunctions.", inputs: "claim_id, status", db: "warranty_claims", outcome: "Claim triaged." },
+
+          { id: "STF-INQ", title: "Confirm Inquiries", subtext: "Appointment Calendar", type: "process", x: 610, y: 360, width: 140, height: 56, route: "/staff -> InquiriesScreen", desc: "Schedule site inspections and consultations.", inputs: "time_slot, confirmation", db: "inquiries", outcome: "Site visit booked." },
+
+          { id: "STF-PROD", title: "Inventory Check", subtext: "Product Specs", type: "process", x: 800, y: 360, width: 140, height: 56, route: "/staff -> ProductsScreen", desc: "Verify live stock availability.", inputs: "search filter", db: "products (read-only)", outcome: "Stock confirmed." },
+
+          { id: "STF-LOOP", title: "Another Staff", subtext: "Action?", type: "decision", x: 390, y: 620, width: 180, height: 76, route: "/staff", desc: "Check if staff member has further tasks.", inputs: "Staff choice", db: "none", outcome: "Loop or logout." },
+          { id: "STF-END", title: "END: Staff Session", subtext: "Sign Out", type: "terminal", x: 390, y: 760, width: 180, height: 40, route: "/login", desc: "Terminates staff workstation session.", inputs: "Sign out", db: "auth.signOut()", outcome: "Staff logged out." }
+        ],
+        edges: [
+          { id: "se1", from: "STF-START", to: "STF-AUTH", label: "", style: "orthogonal" },
+          { id: "se2", from: "STF-AUTH", to: "STF-HUB", label: "Yes", style: "orthogonal" },
+          { id: "se3", from: "STF-AUTH", to: "STF-REJ", label: "No", style: "orthogonal" },
+          { id: "se4", from: "STF-REJ", to: "STF-START", label: "Retry", style: "orthogonal" },
+
+          { id: "se5", from: "STF-HUB", to: "STF-SALE", label: "Sale", style: "orthogonal" },
+          { id: "se6", from: "STF-SALE", to: "STF-DOC", label: "Issue", style: "orthogonal" },
+          { id: "se7", from: "STF-DOC", to: "STF-LOOP", label: "", style: "orthogonal" },
+
+          { id: "se8", from: "STF-HUB", to: "STF-CUST", label: "Lookup", style: "orthogonal" },
+          { id: "se9", from: "STF-CUST", to: "STF-LOOP", label: "", style: "orthogonal" },
+
+          { id: "se10", from: "STF-HUB", to: "STF-CLAIM", label: "Claims", style: "orthogonal" },
+          { id: "se11", from: "STF-CLAIM", to: "STF-LOOP", label: "", style: "orthogonal" },
+
+          { id: "se12", from: "STF-HUB", to: "STF-INQ", label: "Calendar", style: "orthogonal" },
+          { id: "se13", from: "STF-INQ", to: "STF-LOOP", label: "", style: "orthogonal" },
+
+          { id: "se14", from: "STF-HUB", to: "STF-PROD", label: "Stock", style: "orthogonal" },
+          { id: "se15", from: "STF-PROD", to: "STF-LOOP", label: "", style: "orthogonal" },
+
+          { id: "se16", from: "STF-LOOP", to: "STF-HUB", label: "Yes (Back to Hub)", style: "orthogonal" },
+          { id: "se17", from: "STF-LOOP", to: "STF-END", label: "No (Sign Out)", style: "orthogonal" }
+        ]
+      },
+
+      customer: {
+        width: 900,
+        height: 880,
+        title: "Role: Hardware Customer (POV Flowchart)",
+        desc: "Customer self-service portal: authenticate via QR token or credentials, track registered solar equipment, file warranty claims, and download receipts.",
+        nodes: [
+          { id: "CUS-START", title: "Scan QR Receipt or", subtext: "Input Access Token", type: "io", x: 360, y: 40, width: 180, height: 46, route: "/portal or QR Code", desc: "Customer inputs token or scans QR code on purchase receipt.", inputs: "Access Token", db: "warranty_tokens", outcome: "Token submitted." },
+          { id: "CUS-AUTH", title: "Token Valid &", subtext: "Active?", type: "decision", x: 360, y: 120, width: 180, height: 80, route: "/portal", desc: "System verifies cryptographic validity and expiration.", inputs: "Token string", db: "warranty_tokens table", outcome: "Unlocks customer portal." },
+          { id: "CUS-REJ", title: "Invalid Token", subtext: "Contact Support", type: "process", x: 640, y: 140, width: 130, height: 40, route: "/portal", desc: "Token not found or expired.", inputs: "none", db: "none", outcome: "Error displayed." },
+          { id: "CUS-PORT", title: "CUSTOMER PORTAL HUB", subtext: "/portal (My Solar Equipment)", type: "subroutine", x: 320, y: 240, width: 260, height: 50, route: "/portal", desc: "Central customer self-service center.", inputs: "Tab selection", db: "customer_products", outcome: "Portal loaded." },
+
+          { id: "CUS-EQP", title: "My Equipment", subtext: "Active Warranties", type: "process", x: 40, y: 360, width: 140, height: 56, route: "/portal -> Equipment", desc: "List registered equipment, serial numbers, and coverage dates.", inputs: "none", db: "customer_products", outcome: "Equipment view displayed." },
+
+          { id: "CUS-CLAIM-IO", title: "Input Symptoms &", subtext: "Attach Error Photos", type: "io", x: 230, y: 360, width: 150, height: 56, route: "/portal -> New Claim", desc: "Customer inputs equipment symptoms and photo proof of malfunction.", inputs: "product_id, symptoms, photos", db: "none (client input)", outcome: "Payload ready." },
+          { id: "CUS-CLAIM-DB", title: "DB: warranty_claims", subtext: "Status: Pending Review", type: "database", x: 230, y: 460, width: 150, height: 54, route: "Supabase DB", desc: "Creates formal warranty repair ticket.", inputs: "Claim payload", db: "warranty_claims (insert)", outcome: "Ticket submitted to staff queue." },
+
+          { id: "CUS-DOC", title: "Digital QR Receipt", subtext: "Download PDF / PNG", type: "document", x: 430, y: 360, width: 140, height: 56, route: "/portal -> Receipt Modal", desc: "Render and download tamper-proof QR proof of equipment purchase.", inputs: "none", db: "sales & warranty_tokens", outcome: "Receipt downloaded." },
+
+          { id: "CUS-INQ", title: "Track Inquiries", subtext: "Site Visit Schedule", type: "process", x: 620, y: 360, width: 140, height: 56, route: "/portal -> Inquiries", desc: "View scheduled consultation times and assigned engineer.", inputs: "none", db: "inquiries table", outcome: "Schedule verified." },
+
+          { id: "CUS-PROF-IO", title: "Update Address &", subtext: "Contact Telephone", type: "io", x: 800, y: 360, width: 140, height: 56, route: "/portal -> Settings", desc: "Update dispatch installation location and contact phone number.", inputs: "address, city, phone", db: "customers table", outcome: "Profile updated." },
+
+          { id: "CUS-LOOP", title: "Another Portal", subtext: "Action?", type: "decision", x: 360, y: 620, width: 180, height: 76, route: "/portal", desc: "Check if customer needs more actions.", inputs: "Customer choice", db: "none", outcome: "Loop or exit." },
+          { id: "CUS-END", title: "END: Customer Session", subtext: "Sign Out / Close Portal", type: "terminal", x: 360, y: 760, width: 180, height: 40, route: "/portal", desc: "Customer logs out or closes browser.", inputs: "Sign out", db: "Session token cleared", outcome: "Session concluded." }
+        ],
+        edges: [
+          { id: "ce1", from: "CUS-START", to: "CUS-AUTH", label: "", style: "orthogonal" },
+          { id: "ce2", from: "CUS-AUTH", to: "CUS-PORT", label: "Valid", style: "orthogonal" },
+          { id: "ce3", from: "CUS-AUTH", to: "CUS-REJ", label: "Invalid", style: "orthogonal" },
+          { id: "ce4", from: "CUS-REJ", to: "CUS-START", label: "Retry", style: "orthogonal" },
+
+          { id: "ce5", from: "CUS-PORT", to: "CUS-EQP", label: "Hardware", style: "orthogonal" },
+          { id: "ce6", from: "CUS-EQP", to: "CUS-LOOP", label: "", style: "orthogonal" },
+
+          { id: "ce7", from: "CUS-PORT", to: "CUS-CLAIM-IO", label: "File RMA", style: "orthogonal" },
+          { id: "ce8", from: "CUS-CLAIM-IO", to: "CUS-CLAIM-DB", label: "Submit", style: "orthogonal" },
+          { id: "ce9", from: "CUS-CLAIM-DB", to: "CUS-LOOP", label: "", style: "orthogonal" },
+
+          { id: "ce10", from: "CUS-PORT", to: "CUS-DOC", label: "Receipt", style: "orthogonal" },
+          { id: "ce11", from: "CUS-DOC", to: "CUS-LOOP", label: "", style: "orthogonal" },
+
+          { id: "ce12", from: "CUS-PORT", to: "CUS-INQ", label: "Inquiries", style: "orthogonal" },
+          { id: "ce13", from: "CUS-INQ", to: "CUS-LOOP", label: "", style: "orthogonal" },
+
+          { id: "ce14", from: "CUS-PORT", to: "CUS-PROF-IO", label: "Address", style: "orthogonal" },
+          { id: "ce15", from: "CUS-PROF-IO", to: "CUS-LOOP", label: "", style: "orthogonal" },
+
+          { id: "ce16", from: "CUS-LOOP", to: "CUS-PORT", label: "Yes (Back to Portal)", style: "orthogonal" },
+          { id: "ce17", from: "CUS-LOOP", to: "CUS-END", label: "No (Sign Out)", style: "orthogonal" }
+        ]
+      },
+
+      visitor: {
+        width: 920,
+        height: 880,
+        title: "Role: Public Visitor / Prospect (POV Flowchart)",
+        desc: "Public discovery journey: browse catalog with consultative 'Inquire this' triggers, sizing calculations, automated diagnostic troubleshooting, and consultation scheduling.",
+        nodes: [
+          { id: "VIS-START", title: "START: Public Visit", subtext: "Arrive at Web Domain", type: "terminal", x: 370, y: 40, width: 180, height: 40, route: "/", desc: "Visitor opens the JD Solar web application.", inputs: "HTTP GET /", db: "none", outcome: "Landing page rendered." },
+          { id: "VIS-LAND", title: "LANDING DISCOVERY HUB", subtext: "/ (Hero, Specs & Navigation)", type: "subroutine", x: 330, y: 120, width: 260, height: 50, route: "/", desc: "Public gateway to catalog, calculator, AI chatbot, and login portals.", inputs: "User clicks", db: "Featured hardware", outcome: "Branches user intent." },
+
+          { id: "VIS-CAT", title: "Browse Catalog", subtext: "'Inquire this' CTA", type: "process", x: 40, y: 240, width: 140, height: 56, route: "/browse -> /product/:id", desc: "Review technical datasheets, warranty specifications, and consultative quotation triggers.", inputs: "filters, search keywords", db: "products (read-only)", outcome: "Hardware specs displayed." },
+
+          { id: "VIS-WIZ-IO", title: "Input Sizing Params", subtext: "kWh Consumption & Roof", type: "io", x: 230, y: 240, width: 150, height: 56, route: "/match (Solar Matcher)", desc: "User inputs monthly electric bill/kWh, roof orientation, and backup hours.", inputs: "monthly_kwh, roof_type, backup_hours", db: "Algorithm engine", outcome: "Calculates recommended kW size." },
+
+          { id: "VIS-CHAT", title: "Solar Assistant", subtext: "Diagnostic Decision Tree", type: "process", x: 420, y: 240, width: 150, height: 56, route: "/chat (ChatboxPage)", desc: "Interactive troubleshooting decision tree for common solar inverter and panel faults.", inputs: "symptom selections", db: "solarDiagnosticEngine.js", outcome: "Technical resolution advised." },
+
+          { id: "VIS-INQ-IO", title: "Input Consultation Info", subtext: "Name, Location, Time Slot", type: "io", x: 610, y: 240, width: 150, height: 56, route: "Inquire Now Modal", desc: "Visitor requests site feasibility survey or commercial quotation.", inputs: "name, email, phone, preferred_date, slot", db: "none (client form)", outcome: "Form verified." },
+          { id: "VIS-INQ-DB", title: "DB: inquiries", subtext: "Status: Pending", type: "database", x: 610, y: 340, width: 150, height: 54, route: "Supabase DB", desc: "Stores consultation inquiry into database for staff attention.", inputs: "Inquiry record", db: "inquiries table", outcome: "Lead queued for staff call." },
+
+          { id: "VIS-LOGIN", title: "Portal Login Gateway", subtext: "Switch to Customer / Staff", type: "process", x: 800, y: 240, width: 140, height: 56, route: "/login or /portal", desc: "Visitor navigates to authenticated portal access point.", inputs: "Credentials", db: "auth routing", outcome: "Transitions role to Customer or Staff." },
+
+          { id: "VIS-DEC", title: "Continue Exploring", subtext: "or Leave Site?", type: "decision", x: 370, y: 580, width: 180, height: 76, route: "/", desc: "Visitor chooses whether to continue browsing or exit.", inputs: "User choice", db: "none", outcome: "Branch loop or end." },
+          { id: "VIS-END", title: "END: Visitor Exit", subtext: "Close Browser", type: "terminal", x: 370, y: 740, width: 180, height: 40, route: "Window Close", desc: "Visitor concludes exploration.", inputs: "Exit", db: "Anonymous analytics", outcome: "Visit finished." }
+        ],
+        edges: [
+          { id: "ve1", from: "VIS-START", to: "VIS-LAND", label: "", style: "orthogonal" },
+          
+          { id: "ve2", from: "VIS-LAND", to: "VIS-CAT", label: "Catalog", style: "orthogonal" },
+          { id: "ve3", from: "VIS-CAT", to: "VIS-DEC", label: "", style: "orthogonal" },
+
+          { id: "ve4", from: "VIS-LAND", to: "VIS-WIZ-IO", label: "Sizing", style: "orthogonal" },
+          { id: "ve5", from: "VIS-WIZ-IO", to: "VIS-DEC", label: "", style: "orthogonal" },
+
+          { id: "ve6", from: "VIS-LAND", to: "VIS-CHAT", label: "Support", style: "orthogonal" },
+          { id: "ve7", from: "VIS-CHAT", to: "VIS-DEC", label: "", style: "orthogonal" },
+
+          { id: "ve8", from: "VIS-LAND", to: "VIS-INQ-IO", label: "Book Site Visit", style: "orthogonal" },
+          { id: "ve9", from: "VIS-INQ-IO", to: "VIS-INQ-DB", label: "Submit", style: "orthogonal" },
+          { id: "ve10", from: "VIS-INQ-DB", to: "VIS-DEC", label: "", style: "orthogonal" },
+
+          { id: "ve11", from: "VIS-LAND", to: "VIS-LOGIN", label: "Login", style: "orthogonal" },
+          { id: "ve12", from: "VIS-LOGIN", to: "VIS-DEC", label: "", style: "orthogonal" },
+
+          { id: "ve13", from: "VIS-DEC", to: "VIS-LAND", label: "Yes (Keep Browsing)", style: "orthogonal" },
+          { id: "ve14", from: "VIS-DEC", to: "VIS-END", label: "No (Exit)", style: "orthogonal" }
+        ]
+      }
+    };
+
+    // --- State Storage & LocalStorage Handling ---
+    const STORAGE_KEY = "jd_solar_flowcharts_v2";
+
+    function loadFlowchartsData() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          return JSON.parse(saved);
+        }
+      } catch (e) {
+        console.error("Error reading saved layout:", e);
+      }
+      return JSON.parse(JSON.stringify(defaultFlowcharts));
+    }
+
+    let flowchartsData = loadFlowchartsData();
+
+    function persistFlowchartsData() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(flowchartsData));
+      } catch (e) {
+        console.error("Error saving layout:", e);
+      }
+      updateCounts();
+    }
+
+    function updateCounts() {
+      Object.keys(defaultFlowcharts).forEach(r => {
+        const el = document.getElementById(`count-${r}`);
+        if (el && flowchartsData[r]) {
+          el.textContent = `${flowchartsData[r].nodes.length} Nodes`;
+        }
+      });
+    }
+
+    // Current State
+    let currentRole = "admin";
+    let isEditMode = false;
+    let selectedNodeId = null;
+    let selectedEdgeId = null;
+    let isAddingEdge = false;
+    let edgeSourceNodeId = null;
+
+    // Dragging and Resizing state
+    let isDraggingNode = false;
+    let dragNodeId = null;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let nodeOrigX = 0;
+    let nodeOrigY = 0;
+
+    let isResizingNode = false;
+    let resizeNodeId = null;
+    let resizeStartX = 0;
+    let resizeStartY = 0;
+    let nodeOrigW = 0;
+    let nodeOrigH = 0;
+
+    // DOM Elements
+    const diagramTitle = document.getElementById("diagram-title");
+    const diagramDesc = document.getElementById("diagram-desc");
+    const svgHost = document.getElementById("svg-host");
+    const canvasArea = document.getElementById("canvas-area");
+    const editSubbar = document.getElementById("edit-subbar");
+    const modeBadge = document.getElementById("mode-badge");
+    const btnToggleMode = document.getElementById("btn-toggle-mode");
+    const inspector = document.getElementById("inspector");
+    const inspectorContent = document.getElementById("inspector-content");
+    const nodeToolbar = document.getElementById("node-toolbar");
+    const toolbarShapeSelect = document.getElementById("toolbar-shape-select");
+    const toolbarWidthInput = document.getElementById("toolbar-width");
+    const toolbarHeightInput = document.getElementById("toolbar-height");
+
+    // Line Modal Elements
+    const lineModal = document.getElementById("line-modal");
+    const lineModalLabel = document.getElementById("line-modal-label");
+    const lineModalStyle = document.getElementById("line-modal-style");
+    let editingEdgeRef = null;
+
+    // --- SVG Shape Rendering Helpers (Semantic ISO Shapes) ---
+    function renderSemanticShape(type, width, height) {
+      if (type === "terminal") {
+        // Pill / Stadium
+        const r = Math.min(width, height) / 2;
+        return `<rect x="0" y="0" width="${width}" height="${height}" rx="${r}" ry="${r}" />`;
+      } else if (type === "decision") {
+        // Diamond
+        const hw = width / 2;
+        const hh = height / 2;
+        return `<polygon points="${hw},0 ${width},${hh} ${hw},${height} 0,${hh}" />`;
+      } else if (type === "database") {
+        // Cylinder
+        const rx = width / 2;
+        const ry = 8;
+        return `
+          <ellipse cx="${rx}" cy="${ry}" rx="${rx}" ry="${ry}" stroke-dasharray="none" />
+          <path d="M 0 ${ry} L 0 ${height - ry} A ${rx} ${ry} 0 0 0 ${width} ${height - ry} L ${width} ${ry}" stroke-dasharray="none" />
+          <path d="M 0 ${height - ry} A ${rx} ${ry} 0 0 1 ${width} ${height - ry}" stroke-dasharray="2,2" />
+        `;
+      } else if (type === "document") {
+        // Wavy-bottom Document
+        const hWave = height - 12;
+        const w25 = width * 0.25;
+        const w50 = width * 0.50;
+        const w75 = width * 0.75;
+        return `
+          <path d="M 0 0 L ${width} 0 L ${width} ${hWave} 
+                   C ${w75} ${hWave + 8}, ${w75} ${hWave - 8}, ${w50} ${hWave} 
+                   C ${w25} ${hWave + 8}, ${w25} ${hWave - 8}, 0 ${hWave} Z" />
+        `;
+      } else if (type === "io") {
+        // Parallelogram (Data Input / Output)
+        const slant = 16;
+        return `<polygon points="${slant},0 ${width},0 ${width - slant},${height} 0,${height}" />`;
+      } else if (type === "subroutine") {
+        // Double-walled Process Box
+        const inset = 10;
+        return `
+          <rect x="0" y="0" width="${width}" height="${height}" />
+          <line x1="${inset}" y1="0" x2="${inset}" y2="${height}" />
+          <line x1="${width - inset}" y1="0" x2="${width - inset}" y2="${height}" />
+        `;
+      } else {
+        // Standard Process Rectangle
+        return `<rect x="0" y="0" width="${width}" height="${height}" />`;
+      }
+    }
+
+    // --- Dynamic Orthogonal Line Router ---
+    function computeNodePorts(node) {
+      return {
+        top: { x: node.x + node.width / 2, y: node.y },
+        bottom: { x: node.x + node.width / 2, y: node.y + node.height },
+        left: { x: node.x, y: node.y + node.height / 2 },
+        right: { x: node.x + node.width, y: node.y + node.height / 2 }
+      };
+    }
+
+    function computeEdgePath(fromNode, toNode, style = "orthogonal") {
+      const fromPorts = computeNodePorts(fromNode);
+      const toPorts = computeNodePorts(toNode);
+
+      // Automatic best port selection based on relative positions
+      const dx = (toNode.x + toNode.width / 2) - (fromNode.x + fromNode.width / 2);
+      const dy = (toNode.y + toNode.height / 2) - (fromNode.y + fromNode.height / 2);
+
+      let p1, p2;
+
+      if (Math.abs(dy) >= Math.abs(dx)) {
+        // Primarily vertical
+        if (dy >= 0) {
+          p1 = fromPorts.bottom;
+          p2 = toPorts.top;
+        } else {
+          p1 = fromPorts.top;
+          p2 = toPorts.bottom;
+        }
+      } else {
+        // Primarily horizontal
+        if (dx >= 0) {
+          p1 = fromPorts.right;
+          p2 = toPorts.left;
+        } else {
+          p1 = fromPorts.left;
+          p2 = toPorts.right;
+        }
+      }
+
+      if (style === "straight") {
+        return {
+          d: `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`,
+          midX: (p1.x + p2.x) / 2,
+          midY: (p1.y + p2.y) / 2
+        };
+      }
+
+      // Orthogonal Stepped Path
+      let d = "";
+      let midX = (p1.x + p2.x) / 2;
+      let midY = (p1.y + p2.y) / 2;
+
+      if (Math.abs(dy) >= Math.abs(dx)) {
+        // Vertical step
+        midY = (p1.y + p2.y) / 2;
+        d = `M ${p1.x} ${p1.y} L ${p1.x} ${midY} L ${p2.x} ${midY} L ${p2.x} ${p2.y}`;
+      } else {
+        // Horizontal step
+        midX = (p1.x + p2.x) / 2;
+        d = `M ${p1.x} ${p1.y} L ${midX} ${p1.y} L ${midX} ${p2.y} L ${p2.x} ${p2.y}`;
+      }
+
+      return { d, midX, midY };
+    }
+
+    // --- Main SVG Generator ---
+    function renderCurrentRoleSvg() {
+      const data = flowchartsData[currentRole];
+      if (!data) return;
+
+      diagramTitle.textContent = data.title;
+      diagramDesc.textContent = data.desc;
+
+      const nodeMap = {};
+      data.nodes.forEach(n => { nodeMap[n.id] = n; });
+
+      // Compute dynamic bounding box to fit canvas
+      let maxX = 900;
+      let maxY = 850;
+      data.nodes.forEach(n => {
+        if (n.x + n.width + 40 > maxX) maxX = n.x + n.width + 40;
+        if (n.y + n.height + 60 > maxY) maxY = n.y + n.height + 60;
+      });
+
+      let svgHtml = `
+      <svg id="active-flowchart-svg" class="flow-svg ${isEditMode ? 'edit-mode-active' : ''}" 
+           width="${maxX}" height="${maxY}" viewBox="0 0 ${maxX} ${maxY}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#000000" />
+          </marker>
+        </defs>
+
+        <!-- Connecting Lines Layer -->
+        <g id="layer-edges">
+      `;
+
+      data.edges.forEach(edge => {
+        const fromNode = nodeMap[edge.from];
+        const toNode = nodeMap[edge.to];
+        if (!fromNode || !toNode) return;
+
+        const pathInfo = computeEdgePath(fromNode, toNode, edge.style || "orthogonal");
+        const isSelected = edge.id === selectedEdgeId;
+
+        svgHtml += `
+          <g class="flow-edge-group" data-edge-id="${edge.id}">
+            <path d="${pathInfo.d}" class="flow-edge-hitbox" />
+            <path d="${pathInfo.d}" class="flow-edge ${isSelected ? 'selected' : ''}" marker-end="url(#arrow)" />
+        `;
+
+        if (edge.label && edge.label.trim().length > 0) {
+          const labelWidth = Math.max(34, edge.label.length * 6.5);
+          svgHtml += `
+            <rect x="${pathInfo.midX - labelWidth/2}" y="${pathInfo.midY - 8}" width="${labelWidth}" height="16" class="edge-text-bg" />
+            <text x="${pathInfo.midX}" y="${pathInfo.midY}" class="edge-text">${edge.label}</text>
+          `;
+        }
+
+        svgHtml += `</g>`;
+      });
+
+      svgHtml += `
+        </g>
+        <!-- Nodes Layer -->
+        <g id="layer-nodes">
+      `;
+
+      data.nodes.forEach(node => {
+        const isSelected = node.id === selectedNodeId;
+        const shapeSvg = renderSemanticShape(node.type, node.width, node.height);
+        const textY = node.subtext && node.subtext.trim().length > 0 ? (node.height / 2 - 6) : (node.height / 2);
+        const subtextY = node.height / 2 + 8;
+
+        svgHtml += `
+          <g class="flow-node ${isEditMode ? 'draggable' : ''} ${isSelected ? 'selected' : ''}" 
+             id="node-${node.id}" data-id="${node.id}" transform="translate(${node.x}, ${node.y})">
+            ${shapeSvg}
+            <text x="${node.width / 2}" y="${textY}">${escapeXml(node.title)}</text>
+        `;
+
+        if (node.subtext && node.subtext.trim().length > 0) {
+          svgHtml += `<text x="${node.width / 2}" y="${subtextY}" class="subtext">${escapeXml(node.subtext)}</text>`;
+        }
+
+        // Snap Port circles and Resize Handle in Edit Mode
+        if (isEditMode) {
+          svgHtml += `
+            <circle cx="${node.width / 2}" cy="0" r="4" class="port-circle" data-port="top" />
+            <circle cx="${node.width / 2}" cy="${node.height}" r="4" class="port-circle" data-port="bottom" />
+            <circle cx="0" cy="${node.height / 2}" r="4" class="port-circle" data-port="left" />
+            <circle cx="${node.width}" cy="${node.height / 2}" r="4" class="port-circle" data-port="right" />
+          `;
+          if (isSelected) {
+            svgHtml += `
+              <g class="resize-handle" data-resize-id="${node.id}" transform="translate(${node.width - 12}, ${node.height - 12})">
+                <rect x="0" y="0" width="12" height="12" />
+                <path d="M 3 10 L 10 3 M 6 10 L 10 6" stroke="#000000" stroke-width="1.2" />
+              </g>
+            `;
+          }
+        }
+
+        svgHtml += `</g>`;
+      });
+
+      svgHtml += `
+        </g>
+      </svg>
+      `;
+
+      svgHost.innerHTML = svgHtml;
+      attachSvgEventListeners();
+    }
+
+    function escapeXml(unsafe) {
+      if (!unsafe) return "";
+      return unsafe.replace(/[<>&'"]/g, function (c) {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+        }
+      });
+    }
+
+    // --- Interaction & Event Listeners ---
+    function attachSvgEventListeners() {
+      const svg = document.getElementById("active-flowchart-svg");
+      if (!svg) return;
+
+      // Node selection & dragging
+      const nodes = svg.querySelectorAll(".flow-node");
+      nodes.forEach(nodeEl => {
+        const nodeId = nodeEl.getAttribute("data-id");
+
+        nodeEl.addEventListener("mousedown", (e) => {
+          if (e.button !== 0) return; // Primary button only
+
+          // Add Edge Mode check
+          if (isAddingEdge) {
+            handleEdgeCreationStep(nodeId);
+            e.stopPropagation();
+            return;
+          }
+
+          selectNode(nodeId);
+
+          if (isEditMode) {
+            isDraggingNode = true;
+            dragNodeId = nodeId;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+
+            const n = getNodeById(nodeId);
+            if (n) {
+              nodeOrigX = n.x;
+              nodeOrigY = n.y;
+            }
+          }
+          e.stopPropagation();
+        });
+
+        // Double click to inline edit text
+        nodeEl.addEventListener("dblclick", (e) => {
+          if (isEditMode) {
+            promptInlineEditText(nodeId);
+          }
+          e.stopPropagation();
+        });
+      });
+
+      // Resize handle listeners
+      const resizeHandles = svg.querySelectorAll(".resize-handle");
+      resizeHandles.forEach(rh => {
+        const nodeId = rh.getAttribute("data-resize-id");
+        rh.addEventListener("mousedown", (e) => {
+          if (e.button !== 0) return;
+          isResizingNode = true;
+          resizeNodeId = nodeId;
+          resizeStartX = e.clientX;
+          resizeStartY = e.clientY;
+          const n = getNodeById(nodeId);
+          if (n) {
+            nodeOrigW = n.width;
+            nodeOrigH = n.height;
+          }
+          e.stopPropagation();
+        });
+      });
+
+      // Edge click listeners
+      const edgeGroups = svg.querySelectorAll(".flow-edge-group");
+      edgeGroups.forEach(grp => {
+        const edgeId = grp.getAttribute("data-edge-id");
+        grp.addEventListener("click", (e) => {
+          selectEdge(edgeId);
+          if (isEditMode) {
+            openLineEditModal(edgeId);
+          }
+          e.stopPropagation();
+        });
+      });
+
+      // Canvas background click clears selection
+      svg.addEventListener("mousedown", (e) => {
+        if (e.target === svg) {
+          clearSelection();
+        }
+      });
+    }
+
+    // Global drag & resize tracking with 20px grid snapping
+    window.addEventListener("mousemove", (e) => {
+      if (isResizingNode && resizeNodeId) {
+        const dx = e.clientX - resizeStartX;
+        const dy = e.clientY - resizeStartY;
+        const node = getNodeById(resizeNodeId);
+        if (node) {
+          let rawW = nodeOrigW + dx;
+          let rawH = nodeOrigH + dy;
+          let snappedW = Math.max(60, Math.round(rawW / 20) * 20);
+          let snappedH = Math.max(30, Math.round(rawH / 20) * 20);
+          if (node.width !== snappedW || node.height !== snappedH) {
+            node.width = snappedW;
+            node.height = snappedH;
+            renderCurrentRoleSvg();
+            positionNodeToolbar(node);
+            displayNodeDetails(node);
+          }
+        }
+        return;
+      }
+
+      if (!isDraggingNode || !dragNodeId) return;
+
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+
+      const node = getNodeById(dragNodeId);
+      if (!node) return;
+
+      // 20px grid snap calculation
+      let rawX = nodeOrigX + dx;
+      let rawY = nodeOrigY + dy;
+      let snappedX = Math.round(rawX / 20) * 20;
+      let snappedY = Math.round(rawY / 20) * 20;
+
+      if (snappedX < 10) snappedX = 10;
+      if (snappedY < 10) snappedY = 10;
+
+      if (node.x !== snappedX || node.y !== snappedY) {
+        node.x = snappedX;
+        node.y = snappedY;
+        renderCurrentRoleSvg();
+        positionNodeToolbar(node);
+      }
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (isResizingNode) {
+        isResizingNode = false;
+        resizeNodeId = null;
+        persistFlowchartsData();
+      }
+      if (isDraggingNode) {
+        isDraggingNode = false;
+        dragNodeId = null;
+        persistFlowchartsData();
+      }
+    });
+
+    function getNodeById(id) {
+      return flowchartsData[currentRole].nodes.find(n => n.id === id);
+    }
+
+    function getEdgeById(id) {
+      return flowchartsData[currentRole].edges.find(e => e.id === id);
+    }
+
+    function selectNode(nodeId) {
+      selectedNodeId = nodeId;
+      selectedEdgeId = null;
+      renderCurrentRoleSvg();
+
+      const node = getNodeById(nodeId);
+      if (node) {
+        displayNodeDetails(node);
+        if (isEditMode) {
+          positionNodeToolbar(node);
+        }
+      }
+    }
+
+    function selectEdge(edgeId) {
+      selectedEdgeId = edgeId;
+      selectedNodeId = null;
+      hideNodeToolbar();
+      renderCurrentRoleSvg();
+
+      const edge = getEdgeById(edgeId);
+      if (edge) {
+        displayEdgeDetails(edge);
+      }
+    }
+
+    function clearSelection() {
+      selectedNodeId = null;
+      selectedEdgeId = null;
+      hideNodeToolbar();
+      renderCurrentRoleSvg();
+      inspectorContent.innerHTML = `<p style="color: var(--muted); font-style: italic;">Select any block or line to inspect specifications.</p>`;
+    }
+
+    function positionNodeToolbar(node) {
+      const nodeEl = document.getElementById(`node-${node.id}`);
+      if (!nodeEl) return;
+
+      const svgHostRect = svgHost.getBoundingClientRect();
+      const nodeRect = nodeEl.getBoundingClientRect();
+
+      nodeToolbar.style.left = `${nodeRect.left - svgHostRect.left}px`;
+      nodeToolbar.style.top = `${nodeRect.top - svgHostRect.top - 42}px`;
+      nodeToolbar.classList.add("active");
+
+      toolbarShapeSelect.value = node.type || "process";
+      if (toolbarWidthInput) toolbarWidthInput.value = node.width;
+      if (toolbarHeightInput) toolbarHeightInput.value = node.height;
+    }
+
+    function hideNodeToolbar() {
+      nodeToolbar.classList.remove("active");
+    }
+
+    // Node Toolbar Shape Change & Dimensions
+    toolbarShapeSelect.addEventListener("change", () => {
+      if (!selectedNodeId) return;
+      const node = getNodeById(selectedNodeId);
+      if (node) {
+        node.type = toolbarShapeSelect.value;
+        renderCurrentRoleSvg();
+        persistFlowchartsData();
+        displayNodeDetails(node);
+      }
+    });
+
+    if (toolbarWidthInput) {
+      toolbarWidthInput.addEventListener("input", (e) => {
+        if (!selectedNodeId) return;
+        const node = getNodeById(selectedNodeId);
+        const val = parseInt(e.target.value, 10);
+        if (node && !isNaN(val) && val >= 40) {
+          node.width = val;
+          renderCurrentRoleSvg();
+          persistFlowchartsData();
+          displayNodeDetails(node);
+        }
+      });
+    }
+
+    if (toolbarHeightInput) {
+      toolbarHeightInput.addEventListener("input", (e) => {
+        if (!selectedNodeId) return;
+        const node = getNodeById(selectedNodeId);
+        const val = parseInt(e.target.value, 10);
+        if (node && !isNaN(val) && val >= 30) {
+          node.height = val;
+          renderCurrentRoleSvg();
+          persistFlowchartsData();
+          displayNodeDetails(node);
+        }
+      });
+    }
+
+    document.getElementById("btn-toolbar-del-node").addEventListener("click", () => {
+      if (!selectedNodeId) return;
+      deleteNode(selectedNodeId);
+    });
+
+    document.getElementById("btn-toolbar-close").addEventListener("click", () => {
+      hideNodeToolbar();
+    });
+
+    function deleteNode(id) {
+      const data = flowchartsData[currentRole];
+      data.nodes = data.nodes.filter(n => n.id !== id);
+      data.edges = data.edges.filter(e => e.from !== id && e.to !== id);
+      clearSelection();
+      persistFlowchartsData();
+      renderCurrentRoleSvg();
+    }
+
+    // Prompt for quick double-click edit
+    function promptInlineEditText(nodeId) {
+      const node = getNodeById(nodeId);
+      if (!node) return;
+
+      const newTitle = prompt("Edit Title Label:", node.title);
+      if (newTitle !== null) {
+        node.title = newTitle;
+        const newSub = prompt("Edit Subtitle / Subtext:", node.subtext || "");
+        if (newSub !== null) {
+          node.subtext = newSub;
+        }
+        persistFlowchartsData();
+        renderCurrentRoleSvg();
+        displayNodeDetails(node);
+      }
+    }
+
+    // --- Line Editing Modal ---
+    function openLineEditModal(edgeId) {
+      const edge = getEdgeById(edgeId);
+      if (!edge) return;
+      editingEdgeRef = edge;
+      lineModalLabel.value = edge.label || "";
+      lineModalStyle.value = edge.style || "orthogonal";
+      lineModal.classList.add("active");
+    }
+
+    document.getElementById("btn-line-modal-cancel").addEventListener("click", () => {
+      lineModal.classList.remove("active");
+      editingEdgeRef = null;
+    });
+
+    document.getElementById("btn-line-modal-save").addEventListener("click", () => {
+      if (editingEdgeRef) {
+        editingEdgeRef.label = lineModalLabel.value.trim();
+        editingEdgeRef.style = lineModalStyle.value;
+        lineModal.classList.remove("active");
+        editingEdgeRef = null;
+        persistFlowchartsData();
+        renderCurrentRoleSvg();
+      }
+    });
+
+    document.getElementById("btn-line-modal-delete").addEventListener("click", () => {
+      if (editingEdgeRef) {
+        const data = flowchartsData[currentRole];
+        data.edges = data.edges.filter(e => e.id !== editingEdgeRef.id);
+        lineModal.classList.remove("active");
+        editingEdgeRef = null;
+        clearSelection();
+        persistFlowchartsData();
+        renderCurrentRoleSvg();
+      }
+    });
+
+    // --- Add Connection Wire Workflow ---
+    document.getElementById("btn-add-edge").addEventListener("click", () => {
+      isAddingEdge = true;
+      edgeSourceNodeId = null;
+      alert("Connect Line: Click the SOURCE block, then click the TARGET block.");
+    });
+
+    function handleEdgeCreationStep(nodeId) {
+      if (!edgeSourceNodeId) {
+        edgeSourceNodeId = nodeId;
+        alert(`Source selected: ${nodeId}. Now click the TARGET block to connect.`);
+      } else {
+        if (edgeSourceNodeId === nodeId) {
+          alert("Cannot connect block to itself. Action cancelled.");
+        } else {
+          const newEdgeId = "e_" + Date.now();
+          flowchartsData[currentRole].edges.push({
+            id: newEdgeId,
+            from: edgeSourceNodeId,
+            to: nodeId,
+            label: "",
+            style: "orthogonal"
+          });
+          persistFlowchartsData();
+          renderCurrentRoleSvg();
+        }
+        isAddingEdge = false;
+        edgeSourceNodeId = null;
+      }
+    }
+
+    // --- Add New Semantic Block ---
+    document.getElementById("btn-add-node").addEventListener("click", () => {
+      const shapeType = prompt("Choose shape type (process, decision, database, document, io, terminal, subroutine):", "process") || "process";
+      const title = prompt("Enter Block Title:", "New Step") || "New Step";
+      const subtext = prompt("Enter Subtitle / Endpoint (optional):", "") || "";
+
+      const newNodeId = "N" + Math.floor(100 + Math.random() * 900);
+      const newNode = {
+        id: newNodeId,
+        title: title,
+        subtext: subtext,
+        type: shapeType.toLowerCase().trim(),
+        x: 100,
+        y: 100,
+        width: shapeType === "decision" ? 160 : 140,
+        height: shapeType === "decision" ? 70 : 54,
+        route: "/endpoint",
+        desc: "Custom added node.",
+        inputs: "parameters",
+        db: "table",
+        outcome: "State updated."
+      };
+
+      flowchartsData[currentRole].nodes.push(newNode);
+      persistFlowchartsData();
+      renderCurrentRoleSvg();
+      selectNode(newNodeId);
+    });
+
+    // --- Reset Positions & Center View ---
+    function resetPositions(role = currentRole) {
+      const defaultRoleData = defaultFlowcharts[role];
+      if (!defaultRoleData) return;
+      const currentData = flowchartsData[role];
+      if (!currentData) return;
+
+      const defaultMap = {};
+      defaultRoleData.nodes.forEach(n => {
+        defaultMap[n.id] = { x: n.x, y: n.y, width: n.width, height: n.height };
+      });
+
+      currentData.nodes.forEach(n => {
+        if (defaultMap[n.id]) {
+          n.x = defaultMap[n.id].x;
+          n.y = defaultMap[n.id].y;
+          n.width = defaultMap[n.id].width;
+          n.height = defaultMap[n.id].height;
+        }
+      });
+
+      persistFlowchartsData();
+      renderCurrentRoleSvg();
+      centerCanvasView();
+    }
+
+    function centerCanvasView() {
+      canvasArea.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    }
+
+    const btnResetPosH = document.getElementById("btn-reset-positions-header");
+    if (btnResetPosH) btnResetPosH.addEventListener("click", () => resetPositions());
+
+    const btnResetPosS = document.getElementById("btn-reset-positions-subbar");
+    if (btnResetPosS) btnResetPosS.addEventListener("click", () => resetPositions());
+
+    const btnCenterH = document.getElementById("btn-center-view-header");
+    if (btnCenterH) btnCenterH.addEventListener("click", centerCanvasView);
+
+    const btnCenterS = document.getElementById("btn-center-view-subbar");
+    if (btnCenterS) btnCenterS.addEventListener("click", centerCanvasView);
+
+    // --- Reset Layout (Full Factory Architecture Reset) ---
+    document.getElementById("btn-reset-layout").addEventListener("click", () => {
+      if (confirm(`Reset ${currentRole.toUpperCase()} flowchart to original default layout? Any custom adjustments for this role will be reloaded.`)) {
+        flowchartsData[currentRole] = JSON.parse(JSON.stringify(defaultFlowcharts[currentRole]));
+        persistFlowchartsData();
+        clearSelection();
+        renderCurrentRoleSvg();
+        centerCanvasView();
+      }
+    });
+
+    // --- Export / Import JSON ---
+    document.getElementById("btn-export-json").addEventListener("click", () => {
+      const jsonStr = JSON.stringify(flowchartsData[currentRole], null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `jd_solar_${currentRole}_layout.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("btn-import-json").addEventListener("click", () => {
+      document.getElementById("json-modal").classList.add("active");
+    });
+    document.getElementById("btn-json-cancel").addEventListener("click", () => {
+      document.getElementById("json-modal").classList.remove("active");
+    });
+    document.getElementById("btn-json-apply").addEventListener("click", () => {
+      try {
+        const text = document.getElementById("json-modal-text").value.trim();
+        const parsed = JSON.parse(text);
+        if (parsed.nodes && parsed.edges) {
+          flowchartsData[currentRole] = parsed;
+          persistFlowchartsData();
+          renderCurrentRoleSvg();
+          document.getElementById("json-modal").classList.remove("active");
+        } else {
+          alert("Invalid flowchart JSON format. Missing 'nodes' or 'edges' properties.");
+        }
+      } catch (err) {
+        alert("JSON Parse Error: " + err.message);
+      }
+    });
+
+    // --- Inspector Panels ---
+    function displayNodeDetails(node) {
+      inspectorContent.innerHTML = `
+        <div class="field-row">
+          <span class="field-label">Node Identifier</span>
+          <div><span class="field-tag">${node.id}</span> <span class="field-tag">${node.type.toUpperCase()}</span></div>
+        </div>
+
+        <div class="field-row">
+          <span class="field-label">Flow Title</span>
+          ${isEditMode 
+            ? `<input type="text" id="insp-title" class="field-input" value="${escapeXml(node.title)}" />`
+            : `<div style="font-weight:700; font-size:0.95rem;">${escapeXml(node.title)}</div>`}
+        </div>
+
+        <div class="field-row">
+          <span class="field-label">Subtext / Route</span>
+          ${isEditMode
+            ? `<input type="text" id="insp-subtext" class="field-input" value="${escapeXml(node.subtext || '')}" />`
+            : `<div class="field-value">${escapeXml(node.subtext || 'None')}</div>`}
+        </div>
+
+        <div class="field-row">
+          <span class="field-label">Semantic Symbol Shape</span>
+          ${isEditMode
+            ? `<select id="insp-type" class="field-select">
+                <option value="terminal" ${node.type === 'terminal' ? 'selected' : ''}>Terminal (Pill)</option>
+                <option value="process" ${node.type === 'process' ? 'selected' : ''}>Process (Rectangle)</option>
+                <option value="decision" ${node.type === 'decision' ? 'selected' : ''}>Decision (Diamond)</option>
+                <option value="database" ${node.type === 'database' ? 'selected' : ''}>Database (Cylinder)</option>
+                <option value="document" ${node.type === 'document' ? 'selected' : ''}>Document (Wavy)</option>
+                <option value="io" ${node.type === 'io' ? 'selected' : ''}>Data I/O (Parallelogram)</option>
+                <option value="subroutine" ${node.type === 'subroutine' ? 'selected' : ''}>Subroutine (Double-wall)</option>
+               </select>`
+            : `<div class="field-value">${node.type.toUpperCase()}</div>`}
+        </div>
+
+        <div class="field-row">
+          <span class="field-label">Dimensions (Width &times; Height)</span>
+          ${isEditMode
+            ? `<div style="display:flex; gap:8px;">
+                <input type="number" id="insp-width" class="field-input" min="60" step="20" value="${node.width}" title="Width (px)" />
+                <input type="number" id="insp-height" class="field-input" min="30" step="20" value="${node.height}" title="Height (px)" />
+               </div>`
+            : `<div class="field-value">${node.width} &times; ${node.height} px</div>`}
+        </div>
+
+        <div class="field-row">
+          <span class="field-label">Technical Platform Route</span>
+          <div class="field-value">${escapeXml(node.route || '/')}</div>
+        </div>
+
+        <div class="field-row">
+          <span class="field-label">Technical Description</span>
+          <div class="field-value">${escapeXml(node.desc || '')}</div>
+        </div>
+
+        <div class="field-row">
+          <span class="field-label">Inputs & Parameters</span>
+          <div class="field-value">${escapeXml(node.inputs || '')}</div>
+        </div>
+
+        <div class="field-row">
+          <span class="field-label">Database & Storage Operations</span>
+          <div class="field-value">${escapeXml(node.db || '')}</div>
+        </div>
+
+        <div class="field-row">
+          <span class="field-label">Target State / Outcome</span>
+          <div class="field-value">${escapeXml(node.outcome || '')}</div>
+        </div>
+      `;
+
+      if (isEditMode) {
+        document.getElementById("insp-title").addEventListener("input", (e) => {
+          node.title = e.target.value;
+          renderCurrentRoleSvg();
+          persistFlowchartsData();
+        });
+        document.getElementById("insp-subtext").addEventListener("input", (e) => {
+          node.subtext = e.target.value;
+          renderCurrentRoleSvg();
+          persistFlowchartsData();
+        });
+        document.getElementById("insp-type").addEventListener("change", (e) => {
+          node.type = e.target.value;
+          renderCurrentRoleSvg();
+          persistFlowchartsData();
+        });
+        document.getElementById("insp-width").addEventListener("input", (e) => {
+          const val = parseInt(e.target.value, 10);
+          if (!isNaN(val) && val >= 40) {
+            node.width = val;
+            renderCurrentRoleSvg();
+            persistFlowchartsData();
+            positionNodeToolbar(node);
+          }
+        });
+        document.getElementById("insp-height").addEventListener("input", (e) => {
+          const val = parseInt(e.target.value, 10);
+          if (!isNaN(val) && val >= 30) {
+            node.height = val;
+            renderCurrentRoleSvg();
+            persistFlowchartsData();
+            positionNodeToolbar(node);
+          }
+        });
+      }
+    }
+
+    function displayEdgeDetails(edge) {
+      inspectorContent.innerHTML = `
+        <div class="field-row">
+          <span class="field-label">Connecting Edge</span>
+          <div><span class="field-tag">${edge.id}</span></div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">Source Block</span>
+          <div class="field-value">${edge.from}</div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">Target Block</span>
+          <div class="field-value">${edge.to}</div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">Branch Label</span>
+          <div class="field-value">${escapeXml(edge.label || '(None)')}</div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">Routing Style</span>
+          <div class="field-value">${edge.style || 'orthogonal'}</div>
+        </div>
+        ${isEditMode ? `<button class="btn btn-primary" onclick="openLineEditModal('${edge.id}')">Edit Line Properties</button>` : ''}
+      `;
+    }
+
+    // Toggle View / Edit Mode
+    btnToggleMode.addEventListener("click", () => {
+      isEditMode = !isEditMode;
+      if (isEditMode) {
+        btnToggleMode.textContent = "View Mode";
+        btnToggleMode.classList.remove("btn-primary");
+        btnToggleMode.classList.add("btn-toggled");
+        modeBadge.textContent = "EDIT MODE";
+        modeBadge.className = "mode-indicator edit-mode";
+        editSubbar.classList.add("active");
+        canvasArea.classList.add("edit-grid");
+      } else {
+        btnToggleMode.textContent = "Edit Mode";
+        btnToggleMode.classList.add("btn-primary");
+        btnToggleMode.classList.remove("btn-toggled");
+        modeBadge.textContent = "VIEW MODE";
+        modeBadge.className = "mode-indicator view-mode";
+        editSubbar.classList.remove("active");
+        canvasArea.classList.remove("edit-grid");
+        hideNodeToolbar();
+        clearSelection();
+      }
+      renderCurrentRoleSvg();
+    });
+
+    // Role Tab Switching
+    const tabBtns = document.querySelectorAll(".tab-btn");
+    tabBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        tabBtns.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentRole = btn.getAttribute("data-role");
+        clearSelection();
+        renderCurrentRoleSvg();
+      });
+    });
+
+    // Inspector Panel Toggle
+    document.getElementById("btn-toggle-inspector").addEventListener("click", () => {
+      inspector.classList.toggle("collapsed");
+    });
+    document.getElementById("btn-close-inspector").addEventListener("click", () => {
+      inspector.classList.add("collapsed");
+    });
+
+    // --- High-Resolution PNG Export (Pure Vanilla Canvas) ---
+    function exportSvgToPng(svgElement, filename, scaleMultiplier = 2.5) {
+      // Temporarily hide edit handles and toolbars for export
+      const wasEdit = isEditMode;
+      if (wasEdit) {
+        svgElement.classList.remove("edit-mode-active");
+      }
+
+      const xml = new XMLSerializer().serializeToString(svgElement);
+      const svgBlob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+      const URLObj = window.URL || window.webkitURL || window;
+      const blobUrl = URLObj.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.onload = function() {
+        const width = svgElement.viewBox.baseVal.width || svgElement.clientWidth || 1024;
+        const height = svgElement.viewBox.baseVal.height || svgElement.clientHeight || 980;
+
+        const canvas = document.getElementById("export-canvas");
+        canvas.width = width * scaleMultiplier;
+        canvas.height = height * scaleMultiplier;
+
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URLObj.revokeObjectURL(blobUrl);
+
+        if (wasEdit) {
+          svgElement.classList.add("edit-mode-active");
+        }
+
+        const pngUrl = canvas.toDataURL("image/png");
+        const downloadLink = document.createElement("a");
+        downloadLink.download = filename;
+        downloadLink.href = pngUrl;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      };
+
+      img.src = blobUrl;
+    }
+
+    document.getElementById("btn-export-role-png").addEventListener("click", () => {
+      const currentSvg = document.getElementById("active-flowchart-svg");
+      if (currentSvg) {
+        exportSvgToPng(currentSvg, `jd_solar_flowchart_${currentRole}.png`, 2.5);
+      }
+    });
+
+    document.getElementById("btn-export-full-png").addEventListener("click", () => {
+      // Build a stitched 4-role mega SVG canvas in memory
+      const roles = ["admin", "staff", "customer", "visitor"];
+      let totalWidth = 40;
+      let maxHeight = 850;
+
+      const laneSvgs = roles.map(r => {
+        const d = flowchartsData[r];
+        let roleMaxX = 0;
+        let roleMaxY = 0;
+        d.nodes.forEach(n => {
+          if (n.x + n.width > roleMaxX) roleMaxX = n.x + n.width;
+          if (n.y + n.height > roleMaxY) roleMaxY = n.y + n.height;
+        });
+        const w = Math.max(roleMaxX + 40, 920);
+        const h = Math.max(roleMaxY + 80, 850);
+        if (h > maxHeight) maxHeight = h;
+        return { role: r, width: w, height: h, data: d };
+      });
+
+      const combinedWidth = laneSvgs.reduce((acc, l) => acc + l.width + 30, 40);
+
+      let megaSvg = `
+      <svg id="mega-export-svg" width="${combinedWidth}" height="${maxHeight + 80}" viewBox="0 0 ${combinedWidth} ${maxHeight + 80}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow-mega" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#000000" />
+          </marker>
+        </defs>
+        <text x="${combinedWidth / 2}" y="36" font-family="ui-monospace, monospace" font-size="16" font-weight="700" text-anchor="middle">JD SOLAR PLATFORM - COMPLETE 4-ROLE SYSTEM ARCHITECTURE</text>
+        <line x1="40" y1="50" x2="${combinedWidth - 40}" y2="50" stroke="#000000" stroke-width="1.5" />
+      `;
+
+      let curX = 30;
+      laneSvgs.forEach(lane => {
+        megaSvg += `<g transform="translate(${curX}, 70)">`;
+        megaSvg += `
+          <rect x="0" y="0" width="${lane.width}" height="${maxHeight}" fill="none" stroke="#d0d0d0" stroke-width="1" />
+          <text x="${lane.width / 2}" y="24" font-family="ui-monospace, monospace" font-size="12" font-weight="700" text-anchor="middle">ROLE: ${lane.role.toUpperCase()}</text>
+          <line x1="20" y1="36" x2="${lane.width - 20}" y2="36" stroke="#000000" stroke-width="1" />
+        `;
+
+        const nodeMap = {};
+        lane.data.nodes.forEach(n => { nodeMap[n.id] = n; });
+
+        // Edges
+        lane.data.edges.forEach(edge => {
+          const fn = nodeMap[edge.from];
+          const tn = nodeMap[edge.to];
+          if (!fn || !tn) return;
+          const pathInfo = computeEdgePath(fn, tn, edge.style || "orthogonal");
+          megaSvg += `<path d="${pathInfo.d}" stroke="#000000" stroke-width="1.4" fill="none" marker-end="url(#arrow-mega)" />`;
+          if (edge.label && edge.label.trim().length > 0) {
+            const lw = Math.max(34, edge.label.length * 6.5);
+            megaSvg += `
+              <rect x="${pathInfo.midX - lw/2}" y="${pathInfo.midY - 8}" width="${lw}" height="16" fill="#ffffff" stroke="#ffffff" stroke-width="2" />
+              <text x="${pathInfo.midX}" y="${pathInfo.midY}" font-family="ui-monospace, monospace" font-size="9" font-weight="700" text-anchor="middle" dominant-baseline="central">${edge.label}</text>
+            `;
+          }
+        });
+
+        // Nodes
+        lane.data.nodes.forEach(n => {
+          const shape = renderSemanticShape(n.type, n.width, n.height);
+          const ty = n.subtext && n.subtext.trim().length > 0 ? (n.height / 2 - 6) : (n.height / 2);
+          const sty = n.height / 2 + 8;
+          megaSvg += `
+            <g transform="translate(${n.x}, ${n.y})">
+              ${shape}
+              <text x="${n.width / 2}" y="${ty}" font-family="ui-monospace, monospace" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central">${escapeXml(n.title)}</text>
+          `;
+          if (n.subtext && n.subtext.trim().length > 0) {
+            megaSvg += `<text x="${n.width / 2}" y="${sty}" font-family="ui-monospace, monospace" font-size="9.5" fill="#555555" text-anchor="middle" dominant-baseline="central">${escapeXml(n.subtext)}</text>`;
+          }
+          megaSvg += `</g>`;
+        });
+
+        megaSvg += `</g>`;
+        curX += lane.width + 30;
+      });
+
+      megaSvg += `</svg>`;
+
+      const tempHost = document.createElement("div");
+      tempHost.style.display = "none";
+      tempHost.innerHTML = megaSvg;
+      document.body.appendChild(tempHost);
+      const svgEl = tempHost.querySelector("svg");
+
+      exportSvgToPng(svgEl, "jd_solar_flowchart_complete_system.png", 2);
+      setTimeout(() => tempHost.remove(), 1000);
+    });
+
+    // Initialize application
+    updateCounts();
+    renderCurrentRoleSvg();
+  </script>
+</body>
+</html>

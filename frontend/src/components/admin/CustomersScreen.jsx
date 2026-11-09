@@ -43,6 +43,7 @@ import {
   deleteCustomerAccount
 } from '../../lib/customerService'
 import { formatDate, calculateExpiryDate } from '../../lib/warrantyUtils'
+import { sanitizeText, sanitizePhone, isValidPhone, sanitizeSerialNumber, sanitizeNumber } from '../../lib/sanitize.js'
 import QRReceiptModal from './QRReceiptModal'
 
 export default function CustomersScreen({ onNavigate, onSelectCustomerForSale }) {
@@ -247,9 +248,9 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
       setVoidingPurchase(null)
       setVoidReasonCustom('')
-      setUnitActionMessage({ 
-        type: 'success', 
-        text: warning ? `Warranty voided. (${warning})` : 'Unit warranty successfully marked as voided.' 
+      setUnitActionMessage({
+        type: 'success',
+        text: warning ? `Warranty voided. (${warning})` : 'Unit warranty successfully marked as voided.'
       })
       setTimeout(() => setUnitActionMessage(null), 4000)
     } catch (err) {
@@ -350,9 +351,9 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
       } : c))
 
       setExtendingPurchase(null)
-      setUnitActionMessage({ 
-        type: 'success', 
-        text: `Warranty extended by ${extensionMonths} months.` 
+      setUnitActionMessage({
+        type: 'success',
+        text: `Warranty extended by ${extensionMonths} months.`
       })
       setTimeout(() => setUnitActionMessage(null), 3000)
     } catch (err) {
@@ -406,11 +407,15 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
   const handleSaveProfile = async (e) => {
     e.preventDefault()
     if (!selectedCustomer) return
-    const trimmedName = editName.trim()
-    const trimmedPhone = editPhone.trim()
+    const trimmedName = sanitizeText(editName, { maxLength: 100 })
+    const trimmedPhone = sanitizePhone(editPhone)
 
-    if (!trimmedName || !trimmedPhone) {
-      setProfileMessage({ type: 'error', text: 'Name and phone number are required.' })
+    if (!trimmedName) {
+      setProfileMessage({ type: 'error', text: 'Customer full name is required.' })
+      return
+    }
+    if (!trimmedPhone || !isValidPhone(trimmedPhone)) {
+      setProfileMessage({ type: 'error', text: 'A valid 11-digit Philippine mobile phone number starting with 09 is required (e.g. 09171234567).' })
       return
     }
 
@@ -457,10 +462,10 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
       const { purchase, error } = await addCustomerProductPurchase({
         customerId: selectedCustomer.id,
         productId: newProductId,
-        serialNumber: newSerial,
-        warrantyMonths: newWarrantyMonths,
+        serialNumber: sanitizeSerialNumber(newSerial, 64),
+        warrantyMonths: sanitizeNumber(newWarrantyMonths, { min: 1, max: 360, integer: true, fallback: 12 }),
         purchaseDate: newPurchaseDate,
-        branchLocation: newBranch
+        branchLocation: sanitizeText(newBranch, { maxLength: 50 })
       })
 
       if (error) throw error
@@ -578,11 +583,10 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
       {/* KPI Cards */}
       {customerActionBanner && (
         <div
-          className={`p-4 rounded-xl border text-xs font-semibold flex items-center justify-between gap-3 ${
-            customerActionBanner.type === 'success'
+          className={`p-4 rounded-xl border text-xs font-semibold flex items-center justify-between gap-3 ${customerActionBanner.type === 'success'
               ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
               : 'bg-jds-error/10 text-jds-error border-jds-error/20'
-          }`}
+            }`}
         >
           <span>{customerActionBanner.text}</span>
           <button
@@ -833,11 +837,10 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                   </h3>
                   {profileMessage && (
                     <span
-                      className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                        profileMessage.type === 'success'
+                      className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${profileMessage.type === 'success'
                           ? 'bg-emerald-500/10 text-emerald-600'
                           : 'bg-jds-error/10 text-jds-error'
-                      }`}
+                        }`}
                     >
                       {profileMessage.text}
                     </span>
@@ -852,22 +855,30 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                       </label>
                       <input
                         type="text"
+                        maxLength={100}
                         value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
+                        onChange={(e) => setEditName(sanitizeText(e.target.value, { maxLength: 100 }))}
                         placeholder="Customer full name..."
                         className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary transition-colors"
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-label-sm font-semibold text-jds-on-surface-variant">
-                        Phone Number
-                      </label>
+                      <div className="flex items-center justify-between text-label-sm font-semibold text-jds-on-surface-variant">
+                        <label>Phone Number</label>
+                        <span className={`text-[10px] font-mono ${editPhone.length === 11 && isValidPhone(editPhone) ? 'text-emerald-500 font-bold' : 'text-jds-on-surface-variant/60'
+                          }`}>
+                          {editPhone.length}/11 digits
+                        </span>
+                      </div>
                       <input
-                        type="text"
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={11}
                         value={editPhone}
-                        onChange={(e) => setEditPhone(e.target.value)}
-                        placeholder="Customer contact number..."
+                        onChange={(e) => setEditPhone(sanitizePhone(e.target.value))}
+                        placeholder="09171234567"
                         className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface font-mono outline-none focus:border-jds-primary transition-colors"
                       />
                     </div>
@@ -984,11 +995,10 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
                 {productAddMessage && (
                   <div
-                    className={`p-3 rounded-lg text-xs font-semibold ${
-                      productAddMessage.type === 'success'
+                    className={`p-3 rounded-lg text-xs font-semibold ${productAddMessage.type === 'success'
                         ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
                         : 'bg-jds-error/10 text-jds-error border border-jds-error/20'
-                    }`}
+                      }`}
                   >
                     {productAddMessage.text}
                   </div>
@@ -1120,11 +1130,10 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                 {/* Inline Unit Action Feedback */}
                 {unitActionMessage && (
                   <div
-                    className={`p-3 rounded-lg text-xs font-semibold ${
-                      unitActionMessage.type === 'success'
+                    className={`p-3 rounded-lg text-xs font-semibold ${unitActionMessage.type === 'success'
                         ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
                         : 'bg-jds-error/10 text-jds-error border border-jds-error/20'
-                    }`}
+                      }`}
                   >
                     {unitActionMessage.text}
                   </div>
@@ -1456,11 +1465,10 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                       key={m}
                       type="button"
                       onClick={() => setExtensionMonths(m)}
-                      className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all ${
-                        extensionMonths === m
+                      className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all ${extensionMonths === m
                           ? 'bg-jds-primary text-jds-on-primary border-jds-primary shadow-xs'
                           : 'bg-jds-surface border-jds-outline-variant/40 text-jds-on-surface hover:bg-jds-surface-container'
-                      }`}
+                        }`}
                     >
                       +{m} Months
                     </button>
@@ -1470,8 +1478,8 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
               {/* Calculated Preview */}
               {(() => {
-                const baseExpiry = extendingPurchase.warranty_expires_at 
-                  ? new Date(extendingPurchase.warranty_expires_at) 
+                const baseExpiry = extendingPurchase.warranty_expires_at
+                  ? new Date(extendingPurchase.warranty_expires_at)
                   : new Date()
                 const startFrom = baseExpiry > new Date() ? baseExpiry : new Date()
                 const preview = new Date(startFrom)

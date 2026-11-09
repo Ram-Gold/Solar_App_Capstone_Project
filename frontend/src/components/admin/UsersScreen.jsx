@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../context/AuthContext'
 import { deletePlatformUser } from '../../lib/customerService'
+import { sanitizeText, sanitizePhone, isValidPhone, sanitizeEmail } from '../../lib/sanitize.js'
 import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 import { Trash2, Plus, X, Shield, Users as UsersIcon, CalendarDays, Mail, Phone, Briefcase, UserPlus, AlertTriangle } from 'lucide-react'
@@ -44,11 +45,29 @@ export default function UsersScreen() {
     e.preventDefault()
     setError('')
     setSuccess('')
+
+    const cleanName = sanitizeText(form.name, { maxLength: 100 })
+    const cleanEmail = sanitizeEmail(form.email)
+    const cleanPhone = form.phone ? sanitizePhone(form.phone) : null
+
+    if (!cleanName) {
+      setError('Full name is required.')
+      return
+    }
+    if (!cleanEmail) {
+      setError('A valid email address is required.')
+      return
+    }
+    if (cleanPhone && !isValidPhone(cleanPhone)) {
+      setError('Phone number must be a valid 11-digit Philippine mobile starting with 09 (e.g. 09171234567).')
+      return
+    }
+
     setSaving(true)
 
     // Create user via Supabase Auth signUp
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: form.email,
+      email: cleanEmail,
       password: form.password,
     })
 
@@ -63,16 +82,16 @@ export default function UsersScreen() {
       const tableName = form.role === 'admin' ? 'admins' : 'staff'
       const { error: insertError } = await supabase.from(tableName).insert([{
         id: authData.user.id,
-        full_name: form.name,
-        email: form.email,
-        phone: form.phone || null,
+        full_name: cleanName,
+        email: cleanEmail,
+        phone: cleanPhone,
         position: form.role === 'admin' ? 'Administrator' : 'Staff Member',
       }])
 
       if (insertError) {
         setError(insertError.message)
       } else {
-        setSuccess(`${form.role === 'admin' ? 'Administrator' : 'Staff member'} "${form.name}" created successfully.`)
+        setSuccess(`${form.role === 'admin' ? 'Administrator' : 'Staff member'} "${cleanName}" created successfully.`)
         setForm({ name: '', email: '', password: '', phone: '', role: 'staff' })
         setShowForm(false)
         fetchAll()
@@ -209,18 +228,36 @@ export default function UsersScreen() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                { key: 'name', label: 'Full Name', type: 'text', placeholder: 'e.g. Maria Clara', icon: UsersIcon },
-                { key: 'email', label: 'Email Address', type: 'email', placeholder: 'name@solarapp.com', icon: Mail },
-                { key: 'password', label: 'Initial Password', type: 'password', placeholder: '••••••••', icon: Shield },
-                { key: 'phone', label: 'Phone Number', type: 'text', placeholder: '+63 9XX XXX XXXX', icon: Phone, required: false },
+                { key: 'name', label: 'Full Name', type: 'text', placeholder: 'e.g. Maria Clara', icon: UsersIcon, maxLength: 100 },
+                { key: 'email', label: 'Email Address', type: 'email', placeholder: 'name@solarapp.com', icon: Mail, maxLength: 254 },
+                { key: 'password', label: 'Initial Password', type: 'password', placeholder: '••••••••', icon: Shield, minLength: 6 },
+                { key: 'phone', label: 'Phone Number (Optional)', type: 'tel', placeholder: '09171234567', icon: Phone, required: false, maxLength: 11, inputMode: 'numeric', pattern: '[0-9]*' },
               ].map(f => (
                 <div key={f.key} className="space-y-1.5">
-                  <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">{f.label}</label>
+                  <div className="flex items-center justify-between text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">
+                    <label>{f.label}</label>
+                    {f.key === 'phone' && form.phone && (
+                      <span className={`text-[10px] font-mono lowercase ${form.phone.length === 11 && isValidPhone(form.phone) ? 'text-emerald-500 font-bold' : 'text-jds-on-surface-variant/60'
+                        }`}>
+                        {form.phone.length}/11 digits
+                      </span>
+                    )}
+                  </div>
                   <input
                     type={f.type}
                     required={f.required !== false}
+                    maxLength={f.maxLength}
+                    minLength={f.minLength}
+                    inputMode={f.inputMode}
+                    pattern={f.pattern}
                     value={form[f.key]}
-                    onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                    onChange={(e) => {
+                      let val = e.target.value
+                      if (f.key === 'phone') val = sanitizePhone(val)
+                      else if (f.key === 'email') val = sanitizeEmail(val)
+                      else if (f.key === 'name') val = sanitizeText(val, { maxLength: 100 })
+                      setForm({ ...form, [f.key]: val })
+                    }}
                     className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
                     placeholder={f.placeholder}
                   />
@@ -319,13 +356,13 @@ export default function UsersScreen() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleOpenDeleteConfirm(u, 'staff')
-                          }} 
+                          }}
                           className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
                           title="Delete staff account"
                         >
@@ -402,13 +439,13 @@ export default function UsersScreen() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleOpenDeleteConfirm(u, 'admins')
-                          }} 
+                          }}
                           className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
                           title="Delete administrator account"
                         >
