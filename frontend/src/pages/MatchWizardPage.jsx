@@ -43,16 +43,16 @@ export default function MatchWizardPage() {
     const budgetLabel =
       criteria.budget === 'any' ? 'Any Budget' : `PHP ${Number(criteria.budget).toLocaleString()}`
 
-    let report = `### Solar Product Matcher Assessment Dossier\n\n`
+    let report = `### Solar Product Match Summary\n\n`
     report += `* **Target Location:** ${locLabel}\n`
     report += `* **Power Needs:** ${criteria.powerNeeds}W Output\n`
-    report += `* **Target Unit Investment:** ${budgetLabel}\n`
+    report += `* **Budget Target:** ${budgetLabel}\n`
     report += `* **Sensitivity Threshold:** ${Math.round(criteria.threshold * 100)}% Match\n\n`
     report += `**Qualified Models:**\n`
 
     matchResult.matches.forEach((item, idx) => {
       const p = item.product
-      report += `${idx + 1}. **[${p.name}](/product/${p.id})** — **${item.matchPercentage}% Compatibility** (Optics: ${item.breakdown.locationScore}%, Power: ${item.breakdown.powerScore}%, Budget: ${item.breakdown.budgetScore}%)\n`
+      report += `${idx + 1}. **[${p.name}](/product/${p.id})**, **${item.matchPercentage}% Compatibility** (Optics: ${item.breakdown.locationScore}%, Power: ${item.breakdown.powerScore}%, Budget: ${item.breakdown.budgetScore}%)\n`
     })
 
     report += `\nI have evaluated these models against my project requirements. Please provide verified stock availability, bulk package options, and delivery timelines for these units.`

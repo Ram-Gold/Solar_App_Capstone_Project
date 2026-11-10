@@ -89,7 +89,7 @@ export default function AboutPage() {
             <div className="flex flex-wrap gap-3">
               <div className="flex items-center gap-2 bg-jds-surface-container-low px-4 py-2.5 rounded-full border border-jds-outline-variant/30 shadow-sm">
                 <HiOutlineCheckBadge className="text-jds-primary text-xl shrink-0" />
-                <span className="text-label-md font-medium text-jds-on-surface">Quiapo's Premier Partner</span>
+                <span className="text-label-md font-medium text-jds-on-surface">Quiapo Solar Equipment Supplier</span>
               </div>
               <div className="flex items-center gap-2 bg-jds-surface-container-low px-4 py-2.5 rounded-full border border-jds-outline-variant/30 shadow-sm">
                 <HiOutlineBolt className="text-jds-primary text-xl shrink-0" />
@@ -167,7 +167,7 @@ export default function AboutPage() {
                 <div>
                   <h4 className="font-semibold text-jds-on-surface mb-1 text-headline-sm">Our Core Realization</h4>
                   <p className="text-body-md text-jds-on-surface-variant">
-                    Energy independence shouldn't be a privilege. By delivering affordable, essential solar energy products, we help ease daily utility burdens and empower communities.
+                    Energy independence shouldn't be a privilege. By delivering affordable, essential solar energy products, we help reduce monthly electricity expenses for households and local compounds.
                   </p>
                 </div>
               </div>
@@ -191,7 +191,7 @@ export default function AboutPage() {
                     <span className="text-label-sm bg-jds-secondary-container text-jds-on-secondary-container px-2.5 py-1 rounded-md font-semibold">Expansion</span>
                     <h4 className="text-body-lg font-bold text-jds-on-surface mt-2">Opening the Cavite Branch</h4>
                     <p className="text-body-md text-jds-on-surface-variant mt-1">
-                      Opened our physical showroom in Cavite to showcase products, manage regional distribution, and support the community.
+                      Opened our physical showroom in Cavite to display products, handle regional distribution, and assist local buyers.
                     </p>
                   </div>
 
@@ -314,9 +314,9 @@ export default function AboutPage() {
                 and their families.
               </p>
               <p>
-                We view competition not as a threat, but as a powerful source of inspiration. Seeing others 
+                We view competition not as a threat, but as motivation to improve. Seeing others 
                 succeed drives us to work harder, strengthen our operations, and continuously prove that 
-                we can meet—and exceed—the standards of the industry.
+                our units meet or exceed standard commercial specifications.
               </p>
               <p>
                 We understand that every great venture begins at step one. We do not look for overnight jackpots; 
@@ -353,7 +353,7 @@ export default function AboutPage() {
               Vision, Mission, and Values
             </h2>
             <p className="text-body-lg text-jds-on-surface-variant max-w-2xl mx-auto mt-2">
-              Our core blueprints outline how we pave the road toward clean energy independence in the Philippines.
+              Our vision, mission, and operating standards define how we source, test, and distribute solar lighting across the country.
             </p>
           </motion.div>
 
@@ -371,9 +371,9 @@ export default function AboutPage() {
               <div className="bg-jds-surface p-8 rounded-2xl border border-jds-outline-variant/40 shadow-sm relative group hover:border-jds-secondary/40 transition-all duration-300">
                 <h3 className="text-headline-md text-jds-on-surface font-bold mb-4">Vision</h3>
                 <p className="text-body-lg text-jds-on-surface-variant leading-relaxed">
-                  To be a leading provider of accessible, sustainable solar energy solutions across the Philippines, 
-                  empowering every household and local community to achieve energy independence while building a 
-                  brighter, self-sufficient future.
+                  To be a dependable provider of accessible solar lighting across the Philippines, 
+                  helping households and local communities install dependable, off-grid equipment 
+                  without recurring power bills.
                 </p>
               </div>
 
@@ -381,10 +381,10 @@ export default function AboutPage() {
               <div className="bg-jds-surface p-8 rounded-2xl border border-jds-outline-variant/40 shadow-sm relative group hover:border-jds-primary/40 transition-all duration-300">
                 <h3 className="text-headline-md text-jds-on-surface font-bold mb-4">Mission</h3>
                 <p className="text-body-lg text-jds-on-surface-variant leading-relaxed">
-                  To deliver affordable and essential solar energy products through innovative online operations and 
-                  strategic community partnerships. We dedicate ourselves to reducing the burden of utility costs for 
-                  everyday Filipinos, fostering economic growth through local job creation, and treating every 
-                  operational challenge as a stepping stone toward excellence.
+                  To deliver affordable and essential solar energy products through responsive online operations and 
+                  direct community supply. We dedicate ourselves to reducing utility costs for 
+                  everyday Filipinos, creating local jobs for technicians and warehouse staff, and 
+                  resolving operational challenges directly.
                 </p>
               </div>
             </motion.div>
@@ -420,7 +420,7 @@ export default function AboutPage() {
                     <HiOutlineUserGroup className="text-xl" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-jds-on-surface mb-1">Community & Empowerment</h4>
+                    <h4 className="font-bold text-jds-on-surface mb-1">Community & Livelihood</h4>
                     <p className="text-body-md text-jds-on-surface-variant">
                       Our growth is meaningful only if it uplifts others. We are committed to providing sustainable livelihoods for our team and their families.
                     </p>
@@ -435,7 +435,7 @@ export default function AboutPage() {
                   <div>
                     <h4 className="font-bold text-jds-on-surface mb-1">Healthy Competition</h4>
                     <p className="text-body-md text-jds-on-surface-variant">
-                      We use market competition as fuel to innovate, strengthen our resolve, and continuously elevate the quality of our service.
+                      We use market competition as fuel to innovate, strengthen our resolve, and steadily improve the reliability of our service.
                     </p>
                   </div>
                 </div>
@@ -508,10 +508,10 @@ export default function AboutPage() {
                   electricity burdens, but that it needed to be approachable and affordable.
                 </p>
                 <p>
-                  By focusing on community projects, building strategic online distribution setups, and later 
-                  establishing physical showrooms in Cavite and Manila, Jeremy has led JD Force Solar to become 
-                  a reliable partner for local governments, businesses, and homeowners alike, making sustainable green 
-                  energy an achievable reality.
+                  By focusing on community projects, building direct online distribution, and establishing 
+                  physical showrooms in Cavite and Manila, Jeremy has led JD Force Solar to become 
+                  a reliable partner for local governments, businesses, and homeowners alike, making off-grid 
+                  solar equipment accessible to local buyers.
                 </p>
               </div>
 

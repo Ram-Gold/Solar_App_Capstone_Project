@@ -245,7 +245,7 @@ export default function ProductInfoPage() {
                 </div>
               )}
               <p className="text-body-lg text-jds-on-surface-variant italic">
-                {product.watt}W solar-powered light — built for durability and performance.
+                {product.watt}W solar light equipped with internal lithium storage and automatic dusk-to-dawn lighting.
               </p>
             </div>
 
@@ -291,7 +291,7 @@ export default function ProductInfoPage() {
                   className="w-full py-4 bg-stone-200 text-stone-500 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 text-base border border-stone-300"
                 >
                   <HiOutlineLockClosed className="text-xl" />
-                  <span>Out of Stock — Pickup Unavailable</span>
+                  <span>Out of Stock (Pickup Unavailable)</span>
                 </button>
               )}
 

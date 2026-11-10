@@ -60,7 +60,7 @@ const reviews = [
 const features = [
   'High-Efficiency Monocrystalline Panels',
   'Smart Cloud-Based Monitoring',
-  'Seamless Grid-Tied Integration',
+  'Grid-Tied System Compatibility',
 ]
 
 const galleryItems = [
@@ -119,8 +119,8 @@ export default function LandingPage() {
               variants={fadeInUp}
               className="text-body-lg text-jd-on-surface-variant mb-10 max-w-xl"
             >
-              Automated customer assistance for solar solutions in Quiapo, Manila.
-              Experience a sustainable future through transparent, expert-led technology.
+              Automated consultation and equipment sizing for solar lighting in Quiapo and Cavite.
+              Review verified product specifications, check local stock, and schedule branch pickups.
             </motion.p>
 
             <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-4">
@@ -236,8 +236,8 @@ export default function LandingPage() {
                   alt="Close-up of high-quality monocrystalline solar panel cells"
                 />
                 <div className="bg-jd-primary text-jd-on-primary p-6 rounded-xl">
-                  <span className="text-headline-md block mb-1">25+</span>
-                  <span className="text-label-md">Years Warranty</span>
+                  <span className="text-headline-md block mb-1">2 Years</span>
+                  <span className="text-label-md">Official Warranty</span>
                 </div>
               </div>
               <div className="pt-12">
@@ -262,9 +262,8 @@ export default function LandingPage() {
               Sustainable Precision for Every Home
             </h2>
             <p className="text-jd-on-surface-variant mb-8 text-body-lg">
-              We don't just sell panels; we provide a complete energy ecosystem. Our solutions
-              are tailored to Manila's unique climate and urban landscape, ensuring maximum yield
-              even in dense environments.
+              We supply solar streetlights, floodlights, and mounting hardware built for
+              tropical rain, dust, and continuous dusk-to-dawn operation in Metro Manila.
             </p>
             <ul className="space-y-4 mb-10">
               {features.map((feature) => (
@@ -298,7 +297,7 @@ export default function LandingPage() {
               Project Gallery
             </h2>
             <p className="text-jd-on-surface-variant max-w-lg">
-              Experience our commitment to excellence through these captured moments of our solar installations across Manila.
+              Completed solar lighting and battery installations supplied across residential streets, compounds, and commercial sites in Metro Manila and Cavite.
             </p>
           </motion.div>
 

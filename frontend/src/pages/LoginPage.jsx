@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { loginCustomerWithPassword } from '../lib/customerService'
 import { motion } from 'framer-motion'
+import PrivacyPolicyModal from '../components/PrivacyPolicyModal'
+import TermsOfServiceModal from '../components/TermsOfServiceModal'
 import {
   HiOutlineEnvelope,
   HiOutlineLockClosed,
@@ -24,6 +26,8 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [remember, setRemember] = useState(true)
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
   const { signIn, setCustomerSession } = useAuth()
   const navigate = useNavigate()
 
@@ -281,15 +285,32 @@ export default function LoginPage() {
             © {new Date().getFullYear()} JD Solar Manila. Quiapo's trusted solar partner.
           </span>
           <div className="flex gap-6">
-            <a className="text-label-sm text-jds-on-surface-variant hover:text-jds-secondary underline transition-all" href="#">
+            <button
+              type="button"
+              onClick={() => setShowPrivacyModal(true)}
+              className="text-label-sm text-jds-on-surface-variant hover:text-jds-secondary underline transition-all cursor-pointer"
+            >
               Privacy Policy
-            </a>
-            <a className="text-label-sm text-jds-on-surface-variant hover:text-jds-secondary underline transition-all" href="#">
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowTermsModal(true)}
+              className="text-label-sm text-jds-on-surface-variant hover:text-jds-secondary underline transition-all cursor-pointer"
+            >
               Terms of Service
-            </a>
+            </button>
           </div>
         </div>
       </footer>
+
+      <PrivacyPolicyModal
+        isOpen={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+      />
+      <TermsOfServiceModal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+      />
     </div>
   )
 }

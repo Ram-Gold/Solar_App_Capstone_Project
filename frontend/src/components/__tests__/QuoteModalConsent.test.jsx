@@ -70,7 +70,7 @@ describe('QuoteModal Data Privacy Consent Gate', () => {
     expect(submitBtn.disabled).toBe(true)
   })
 
-  it('opens and closes the Data Privacy Act disclosure modal', () => {
+  it('opens and closes the unified Terms of Service and Data Privacy modal', () => {
     render(
       <QuoteModal
         isOpen={true}
@@ -80,23 +80,23 @@ describe('QuoteModal Data Privacy Consent Gate', () => {
       />
     )
 
-    // Click the Data Privacy Act link
-    const dpaBtn = screen.getByRole('button', { name: /Data Privacy Act/i })
-    fireEvent.click(dpaBtn)
+    // Click the Terms of Service link
+    const termsBtn = screen.getByRole('button', { name: /Terms of Service/i })
+    fireEvent.click(termsBtn)
 
     // Modal elements should be visible
-    expect(screen.getByText('Data Privacy Notice')).toBeDefined()
-    expect(screen.getByText(/Republic Act No. 10173/i)).toBeDefined()
-    expect(screen.getByText('Purpose Limitation')).toBeDefined()
-    expect(screen.getByText('Zero Third-Party Sharing')).toBeDefined()
-    expect(screen.getByText('Automated Hygiene Retention')).toBeDefined()
+    expect(screen.getByText('Terms of Service and Privacy Policy')).toBeDefined()
+    expect(screen.getAllByText(/Republic Act 10173/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Product Matcher and Sizing Recommendations/i)).toBeDefined()
+    expect(screen.getByText(/Privacy of Inquiries and Troubleshooting Requests/i)).toBeDefined()
+    expect(screen.getByText(/Zero Third-Party Sharing/i)).toBeDefined()
 
-    // Click Understood
-    const understoodBtn = screen.getByRole('button', { name: /Understood/i })
-    fireEvent.click(understoodBtn)
+    // Click Close
+    const closeBtns = screen.getAllByRole('button', { name: /close/i })
+    fireEvent.click(closeBtns[closeBtns.length - 1])
 
     // Notice should close
-    expect(screen.queryByText('Data Privacy Notice')).toBeNull()
+    expect(screen.queryByText('Terms of Service and Privacy Policy')).toBeNull()
   })
 
   it('preserves the consent checkbox state when navigating between Step 2 and Step 1', () => {

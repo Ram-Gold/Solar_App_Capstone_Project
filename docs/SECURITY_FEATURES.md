@@ -202,17 +202,19 @@ To protect customer warranty/invoice records, staff panels, and administrative o
 * **Audit Notice Banner (`LoginPage.jsx`):**
   * Redirects to `/login?reason=timeout` and renders a clear notification banner indicating the session expired due to 15 minutes of inactivity.
 
-### 5.6 Consumer Data-Sharing Consent Gate (`QuoteModal.jsx`)
+### 5.6 Unified Terms of Service & Data Privacy Consent Gate (`QuoteModal.jsx`, `TermsOfServiceModal.jsx`)
 
-To uphold compliance with the Philippine Data Privacy Act of 2012 (Republic Act No. 10173) and protect consumer rights when requesting technical sizing or showroom product reservations, the inquiry interface enforces a mandatory data-sharing consent gate:
+To uphold compliance with the Philippine Data Privacy Act of 2012 (Republic Act No. 10173) and protect consumer rights when requesting technical sizing or showroom product reservations, the inquiry interface enforces a unified terms and data-sharing consent gate:
 
 * **Explicit Unchecked Checkbox (Pre-Submission Gate):**
   * Submission of consultation or reservation passes is hard-blocked until the user explicitly marks the agreement checkbox.
-  * Phrasing: *"I agree to share my contact and location details for technical consultation, quotation, and showroom scheduling in accordance with the Data Privacy Act."*
+  * Phrasing: *"I agree to the Terms of Service (including technical consultation disclaimers and Data Privacy commitments under RA 10173)."*
 * **Visual Form Enforcement:**
   * The submission button is visually disabled (`opacity-50`, `cursor-not-allowed`) and programmatically prevented from executing until consent is confirmed.
-* **Interactive RA 10173 Disclosure Modal:**
-  * Clicking the "Data Privacy Act" anchor renders a dedicated disclosure modal detailing purpose limitation, zero third-party disclosure, automated 14-day hygiene purging, and zero financial data collection.
+* **Unified Terms & RA 10173 Disclosure Modal:**
+  * Clicking the "Terms of Service" anchor renders the centralized, text-only Terms of Service modal. Section 5 explicitly details purpose limitation (coordinating on-site visit scheduling, showroom appointments, and customer dashboard creation), zero third-party disclosure, automated 14-day hygiene purging, zero financial credential storage, and Section 16 right to erasure.
+* **Elimination of Redundant Inline Modals:**
+  * Deprecated redundant nested privacy disclosures in favor of the single source of truth across the platform, maintaining high-contrast monochrome industrial styling without decorative icons or badge clutter.
 * **Step State Preservation:**
   * Checkbox state is preserved across Step 1 and Step 2 navigation, avoiding input reset when customers revise phone numbers or delivery addresses.
 

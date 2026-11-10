@@ -13,8 +13,8 @@ import {
   Calendar,
   Clock,
   AlertCircle,
-  ShieldCheck,
 } from 'lucide-react'
+import TermsOfServiceModal from './TermsOfServiceModal'
 import { FaFacebook, FaInstagram } from 'react-icons/fa'
 import { getInquiryStatusConfig, normalizeInquiryStatus } from '../lib/inquiryStatusUtils'
 import { normalizePhMobile, isValidPhMobile } from '../lib/phoneUtils'
@@ -125,7 +125,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
   const [visitDate, setVisitDate] = useState(getNextBusinessDay)
   const [visitTime, setVisitTime] = useState('10:00')
   const [consentAccepted, setConsentAccepted] = useState(false)
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
 
   // Generated Ticket State
   const [generatedTicket, setGeneratedTicket] = useState(null)
@@ -148,7 +148,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       setBarangayCode('')
       setStreetAddress('')
       setConsentAccepted(false)
-      setShowPrivacyModal(false)
+      setShowTermsModal(false)
     }
   }, [isOpen, initialMode])
 
@@ -211,7 +211,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
     }
 
     if (!consentAccepted) {
-      errs.consent = 'You must accept the data-sharing agreement to proceed.'
+      errs.consent = 'You must accept the terms of service to proceed.'
     }
 
     setErrors(errs)
@@ -733,7 +733,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               )}
             </div>
 
-            {/* Data Sharing & Privacy Act Consent */}
+            {/* Terms of Service & Data Privacy Consent */}
             <div className="pt-2 pb-1">
               <label className="flex items-start gap-2.5 cursor-pointer select-none">
                 <input
@@ -752,18 +752,18 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                   className="mt-0.5 h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-amber-400 focus:ring-offset-0 cursor-pointer shrink-0"
                 />
                 <span className="text-xs text-stone-600 leading-relaxed">
-                  I agree to share my contact and location details for technical consultation, quotation, and showroom scheduling in accordance with the{' '}
+                  I agree to the{' '}
                   <button
                     type="button"
                     onClick={(e) => {
                       e.preventDefault()
-                      setShowPrivacyModal(true)
+                      setShowTermsModal(true)
                     }}
-                    className="text-amber-600 dark:text-amber-500 hover:text-amber-700 underline font-semibold inline"
+                    className="text-amber-600 dark:text-amber-500 hover:text-amber-700 underline font-semibold inline cursor-pointer"
                   >
-                    Data Privacy Act
-                  </button>
-                  .
+                    Terms of Service
+                  </button>{' '}
+                  (including technical consultation disclaimers and Data Privacy commitments under RA 10173).
                 </span>
               </label>
               {errors.consent && (
@@ -924,69 +924,11 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
           </div>
         )}
 
-        {/* Data Privacy Disclosure Modal */}
-        {showPrivacyModal && (
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 8 }}
-              className="relative w-full max-w-md bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 p-6 shadow-2xl text-stone-900 dark:text-stone-100"
-            >
-              <div className="flex items-start justify-between border-b border-stone-200 dark:border-stone-800 pb-3 mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                    <ShieldCheck className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-stone-900 dark:text-white">Data Privacy Notice</h3>
-                    <p className="text-[11px] text-stone-500 dark:text-stone-400">Republic Act No. 10173 (DPA 2012)</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowPrivacyModal(false)}
-                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
-                  aria-label="Close Notice"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="space-y-3 text-xs leading-relaxed text-stone-600 dark:text-stone-300 max-h-[60vh] overflow-y-auto pr-1">
-                <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200/70 dark:border-stone-700/60">
-                  <span className="font-bold text-stone-900 dark:text-white block mb-1">Purpose Limitation</span>
-                  Your name, mobile number, and Philippine regional address are collected solely to calculate technical solar sizing, prepare quote tickets, and reserve demonstration equipment at JD Solar showrooms.
-                </div>
-
-                <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200/70 dark:border-stone-700/60">
-                  <span className="font-bold text-stone-900 dark:text-white block mb-1">Zero Third-Party Sharing</span>
-                  We do not sell, rent, or distribute personal customer data to external marketing vendors, advertising networks, or third-party brokers.
-                </div>
-
-                <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200/70 dark:border-stone-700/60">
-                  <span className="font-bold text-stone-900 dark:text-white block mb-1">Automated Hygiene Retention</span>
-                  Under our automated data retention policy, inactive inquiries without a confirmed showroom visit are permanently purged after 14 days. Completed tickets are purged within 7 days.
-                </div>
-
-                <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200/70 dark:border-stone-700/60">
-                  <span className="font-bold text-stone-900 dark:text-white block mb-1">Zero Financial Exposure</span>
-                  This consultation portal never collects bank details, credit cards, or online payment credentials. All transactions are settled in person at official showrooms.
-                </div>
-              </div>
-
-              <div className="pt-4 mt-4 border-t border-stone-200 dark:border-stone-800">
-                <button
-                  type="button"
-                  onClick={() => setShowPrivacyModal(false)}
-                  className="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 dark:bg-stone-100 dark:hover:bg-white text-white dark:text-stone-900 text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Understood
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+        {/* Unified Terms of Service and Data Privacy Modal */}
+        <TermsOfServiceModal
+          isOpen={showTermsModal}
+          onClose={() => setShowTermsModal(false)}
+        />
       </motion.div>
     </div>
   )

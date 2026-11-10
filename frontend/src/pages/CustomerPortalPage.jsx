@@ -496,7 +496,7 @@ export default function CustomerPortalPage() {
                           <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
                             {p.is_voided
                               ? "This equipment's warranty is voided. You can still use our self-diagnostic troubleshooting guide or visit our Quiapo / Cavite branch for non-warranty shop servicing."
-                              : "This unit has utilized its 1-time warranty replacement entitlement. You can run self-diagnostics or bring the unit to our branch for shop repairs."}
+                              : "This unit has used its 1-time warranty replacement entitlement. You can run self-diagnostics or bring the unit to our branch for shop repairs."}
                           </p>
                           <button
                             type="button"

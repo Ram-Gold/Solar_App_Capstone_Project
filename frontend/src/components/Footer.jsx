@@ -1,8 +1,14 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FaFacebook, FaInstagram, FaMailBulk } from 'react-icons/fa'
 import jdSolarLogo from '../assets/jdsolarlogo.webp'
+import PrivacyPolicyModal from './PrivacyPolicyModal'
+import TermsOfServiceModal from './TermsOfServiceModal'
 
 export default function Footer() {
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
+
   return (
     <footer className="bg-jds-surface-container-low border-t border-jds-outline-variant">
       <div className="flex flex-col md:flex-row gap-10 w-full px-4 md:px-10 py-12 max-w-[1400px] mx-auto">
@@ -57,6 +63,23 @@ export default function Footer() {
               <span className="font-inter text-[10px] text-jds-on-surface-variant/50 uppercase tracking-tighter">
                 1645 Soler St. Brgy. 309 Cor Calero, Manila, Philippines, 1001
               </span>
+              <div className="flex items-center gap-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPrivacyModal(true)}
+                  className="font-inter text-[11px] text-jds-on-surface-variant/80 hover:text-jds-secondary underline transition-colors cursor-pointer"
+                >
+                  Privacy Policy
+                </button>
+                <span className="text-[10px] text-jds-outline-variant">•</span>
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(true)}
+                  className="font-inter text-[11px] text-jds-on-surface-variant/80 hover:text-jds-secondary underline transition-colors cursor-pointer"
+                >
+                  Terms of Service
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-5">
@@ -73,6 +96,15 @@ export default function Footer() {
           </div>
         </div>
       </div>
+
+      <PrivacyPolicyModal
+        isOpen={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+      />
+      <TermsOfServiceModal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+      />
     </footer>
   )
 }

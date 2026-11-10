@@ -532,8 +532,8 @@ export default function BrowsePage() {
             <div className="flex items-center gap-4">
               <HiOutlineLifebuoy className="text-jds-secondary text-3xl flex-shrink-0" />
               <div>
-                <div className="text-label-md text-jds-on-surface">24/7 Local Support</div>
-                <div className="text-xs text-jds-on-surface-variant">Immediate Manila response</div>
+                <div className="text-label-md text-jds-on-surface">Mon–Sat Technical Support</div>
+                <div className="text-xs text-jds-on-surface-variant">Quiapo & Cavite branch staff</div>
               </div>
             </div>
           </div>

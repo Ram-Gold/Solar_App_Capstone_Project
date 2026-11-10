@@ -285,22 +285,14 @@ export default function RegisterSaleScreen({ onNavigate }) {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* Phone */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-jds-on-surface-variant">
+              <div className="flex items-center justify-between h-5 text-xs font-semibold text-jds-on-surface-variant">
                 <label htmlFor="reg-sale-phone">Mobile Phone Number *</label>
-                <div className="flex items-center gap-2">
-                  {isSearchingPhone && <span className="text-[11px] text-jds-primary animate-pulse">Checking records...</span>}
-                  <span className={`text-[11px] font-mono font-medium ${phoneNumber.length === 11 && isValidPhone(phoneNumber)
-                    ? 'text-emerald-500'
-                    : phoneTouched && phoneNumber.length > 0 && !isValidPhone(phoneNumber)
-                      ? 'text-jds-error'
-                      : 'text-jds-on-surface-variant/60'
-                    }`}>
-                    {phoneNumber.length}/11 digits
-                  </span>
-                </div>
+                {isSearchingPhone && (
+                  <span className="text-[11px] text-jds-primary animate-pulse">Checking records...</span>
+                )}
               </div>
               <div className="relative">
                 <Phone className="w-4 h-4 text-jds-on-surface-variant absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -315,7 +307,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
                   value={phoneNumber}
                   onChange={handlePhoneChange}
                   onBlur={handlePhoneBlur}
-                  className={`w-full bg-jds-surface-container/40 border rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none transition-colors font-mono ${phoneTouched && phoneNumber && !isValidPhone(phoneNumber)
+                  className={`w-full h-11 bg-jds-surface-container/40 border rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none transition-colors font-mono ${phoneTouched && phoneNumber && !isValidPhone(phoneNumber)
                     ? 'border-jds-error focus:border-jds-error bg-jds-error/5'
                     : phoneNumber.length === 11 && isValidPhone(phoneNumber)
                       ? 'border-emerald-500/50 focus:border-emerald-500'
@@ -333,9 +325,9 @@ export default function RegisterSaleScreen({ onNavigate }) {
 
             {/* Name */}
             <div className="space-y-1.5">
-              <label htmlFor="reg-sale-name" className="text-xs font-semibold text-jds-on-surface-variant">
-                Customer Full Name *
-              </label>
+              <div className="flex items-center justify-between h-5 text-xs font-semibold text-jds-on-surface-variant">
+                <label htmlFor="reg-sale-name">Customer Full Name *</label>
+              </div>
               <div className="relative">
                 <User className="w-4 h-4 text-jds-on-surface-variant absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
@@ -346,7 +338,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
                   placeholder="e.g. Maria Santos"
                   value={fullName}
                   onChange={handleFullNameChange}
-                  className="w-full bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors"
+                  className="w-full h-11 bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors"
                 />
               </div>
             </div>
