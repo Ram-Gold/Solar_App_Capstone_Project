@@ -237,9 +237,8 @@ export default function UsersScreen() {
                   <div className="flex items-center justify-between text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">
                     <label>{f.label}</label>
                     {f.key === 'phone' && form.phone && (
-                      <span className={`text-[10px] font-mono lowercase ${
-                        form.phone.length === 11 && isValidPhone(form.phone) ? 'text-emerald-500 font-bold' : 'text-jds-on-surface-variant/60'
-                      }`}>
+                      <span className={`text-[10px] font-mono lowercase ${form.phone.length === 11 && isValidPhone(form.phone) ? 'text-emerald-500 font-bold' : 'text-jds-on-surface-variant/60'
+                        }`}>
                         {form.phone.length}/11 digits
                       </span>
                     )}
@@ -357,13 +356,13 @@ export default function UsersScreen() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleOpenDeleteConfirm(u, 'staff')
-                          }} 
+                          }}
                           className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
                           title="Delete staff account"
                         >
@@ -440,13 +439,13 @@ export default function UsersScreen() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleOpenDeleteConfirm(u, 'admins')
-                          }} 
+                          }}
                           className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
                           title="Delete administrator account"
                         >

@@ -183,6 +183,54 @@ The consultative chatbot (`solarBotEngine.js`, `solarDiagnosticEngine.js`) inclu
   * Immune to carding bots, stolen credit card testing, payment interception, and fraudulent chargebacks.
   * All financial exchanges occur in person at the Quiapo or Cavite showrooms with physical equipment inspection.
 
+### 5.5 Cross-Tab Inactivity Session Timeout Watchdog (`frontend/src/context/AuthContext.jsx`)
+
+To protect customer warranty/invoice records, staff panels, and administrative operations on shared showroom terminals or unattended devices, the platform implements an automated 15-minute inactivity session watchdog:
+
+* **Enforced Across All Authenticated Roles:**
+  * Protects Customers, Staff, and Administrators. Anonymous public visitors browsing the product catalog remain uninterrupted.
+* **15-Minute Interaction Monitoring:**
+  * Tracks user input (`mousemove`, `mousedown`, `keydown`, `scroll`, `touchstart`) with a 10-second throttle to minimize CPU overhead.
+  * Calculates idle time against a centralized timestamp (`jd_last_activity_timestamp`).
+* **Multi-Tab Cross-Synchronization:**
+  * Synchronizes activity across all open browser tabs via `window.addEventListener('storage', ...)`. User actions in one tab reset the inactivity countdown across all concurrent tabs.
+* **Device Sleep & Wake-up Verification:**
+  * Evaluates idle duration immediately via `document.addEventListener('visibilitychange', ...)` when a tab resumes or a laptop is opened, terminating sessions immediately if the 15-minute threshold lapsed in sleep mode.
+* **Token Invalidation with Email Retention:**
+  * Upon timeout, active credentials and authentication tokens (`jd_customer_token`, Supabase JWT) are invalidated and purged.
+  * Non-sensitive email identifiers (`jd_customer_email`, `jd_remembered_email`) are preserved in storage, pre-populating the login input field so legitimate users need only enter their password.
+* **Audit Notice Banner (`LoginPage.jsx`):**
+  * Redirects to `/login?reason=timeout` and renders a clear notification banner indicating the session expired due to 15 minutes of inactivity.
+
+### 5.6 Consumer Data-Sharing Consent Gate (`QuoteModal.jsx`)
+
+To uphold compliance with the Philippine Data Privacy Act of 2012 (Republic Act No. 10173) and protect consumer rights when requesting technical sizing or showroom product reservations, the inquiry interface enforces a mandatory data-sharing consent gate:
+
+* **Explicit Unchecked Checkbox (Pre-Submission Gate):**
+  * Submission of consultation or reservation passes is hard-blocked until the user explicitly marks the agreement checkbox.
+  * Phrasing: *"I agree to share my contact and location details for technical consultation, quotation, and showroom scheduling in accordance with the Data Privacy Act."*
+* **Visual Form Enforcement:**
+  * The submission button is visually disabled (`opacity-50`, `cursor-not-allowed`) and programmatically prevented from executing until consent is confirmed.
+* **Interactive RA 10173 Disclosure Modal:**
+  * Clicking the "Data Privacy Act" anchor renders a dedicated disclosure modal detailing purpose limitation, zero third-party disclosure, automated 14-day hygiene purging, and zero financial data collection.
+* **Step State Preservation:**
+  * Checkbox state is preserved across Step 1 and Step 2 navigation, avoiding input reset when customers revise phone numbers or delivery addresses.
+
+### 5.7 First-Time Customer Warranty & Disqualification Gate (`WarrantyTermsModal.jsx`)
+
+To establish clear legal terms, manage operational liability, and ensure transparent expectations regarding hardware handling, new customer accounts entering the customer portal are gated by a mandatory first-time warranty onboarding modal:
+
+* **Default 24-Month (2-Year) Official Coverage Notice:**
+  * Affirms that registered solar units are protected against factory defects, internal MPPT/PWM charge controller malfunctions, dusk-to-dawn sensor faults, abnormal battery degradation, and solar cell delamination for 24 months.
+* **1-Time Unit Replacement Entitlement:**
+  * Clarifies that each registered serial number is eligible for exactly one (1) unit replacement or major sub-assembly exchange during its 2-year warranty term, concluding warranty coverage upon fulfillment.
+* **Explicit Disqualification & Customer Carelessness Exclusions:**
+  * Outlines that damage from physical drops, shattered tempered glass, casing impact trauma, moisture ingress from unsealed cable ports, modified wiring, broken warranty seals, or customer negligence strictly disqualifies the unit from free warranty replacement.
+* **Post-Warranty / Disqualified Local Servicing Support:**
+  * Clarifies that disqualified units remain eligible for local bench repairs, component swaps, and servicing at cost at the Quiapo Showroom or Cavite Hub.
+* **Mandatory Interactive Acknowledgment:**
+  * First-time portal access is hard-blocked until the customer checks the acknowledgment checkbox and submits the confirmation. Acknowledgment status is persisted per customer token in storage (`jd_warranty_ack_<token>`), preventing repetitive prompts on subsequent visits while remaining accessible via the "Terms & Policy" review button.
+
 ---
 
 ## 6. Security Checklist for Junior Developers

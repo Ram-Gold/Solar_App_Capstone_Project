@@ -49,7 +49,7 @@ export async function registerCustomerAndSale({
   // 1. Find or create customer
   let customer = null
   const { customer: existingCust, error: findErr } = await searchCustomerByPhone(phone)
-  
+
   if (findErr) throw findErr
 
   if (existingCust) {
@@ -285,7 +285,7 @@ export async function uploadEvidenceFile(file) {
     const { data: fallbackData, error: fallbackErr } = await supabase.storage
       .from('product-images')
       .upload(`evidence/${fileName}`, file)
-    
+
     if (fallbackErr) throw uploadError
     const { data: publicUrlData } = supabase.storage
       .from('product-images')
@@ -862,7 +862,7 @@ export async function voidCustomerWarranty({ purchaseId, reason = 'Administrativ
   if (!purchaseId) throw new Error('Purchase ID is required.')
 
   const nowIso = new Date().toISOString()
-  
+
   // Try updating with is_voided and void_reason
   const { data, error } = await supabase
     .from('customer_purchases')
@@ -885,10 +885,10 @@ export async function voidCustomerWarranty({ purchaseId, reason = 'Administrativ
         .eq('id', purchaseId)
         .select()
       if (fallback.error) throw fallback.error
-      return { 
-        data: fallback.data, 
-        warning: 'Please run warranty_void_migration.sql in Supabase to track explicit void reasons.', 
-        error: null 
+      return {
+        data: fallback.data,
+        warning: 'Please run warranty_void_migration.sql in Supabase to track explicit void reasons.',
+        error: null
       }
     }
     throw error
@@ -944,11 +944,11 @@ export async function extendCustomerWarranty({ purchaseId, additionalMonths = 12
 
   if (fetchErr || !current) throw (fetchErr || new Error('Purchase record not found.'))
 
-  const baseExpiry = current.warranty_expires_at 
-    ? new Date(current.warranty_expires_at) 
+  const baseExpiry = current.warranty_expires_at
+    ? new Date(current.warranty_expires_at)
     : new Date(calculateExpiryDate(current.purchase_date, current.warranty_months || 12))
   const now = new Date()
-  
+
   // If already expired, extend from today; if still active, add to existing expiration date
   const startFrom = baseExpiry > now ? baseExpiry : now
   const newExpiry = new Date(startFrom)

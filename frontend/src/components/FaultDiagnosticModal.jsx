@@ -334,8 +334,8 @@ export default function FaultDiagnosticModal({
       const compoundLines =
         currentDiagnosis.compoundFactors && currentDiagnosis.compoundFactors.length > 0
           ? `\nCompound / Contributing Factors:\n` +
-            currentDiagnosis.compoundFactors.map((f) => `- ${f.code} (${f.title}): ${cleanMarkdown(f.detail)}`).join('\n') +
-            '\n'
+          currentDiagnosis.compoundFactors.map((f) => `- ${f.code} (${f.title}): ${cleanMarkdown(f.detail)}`).join('\n') +
+          '\n'
           : ''
 
       const warrantyLine = currentDiagnosis.warrantyEvaluation
@@ -447,7 +447,7 @@ Customer requested technician bench evaluation.`
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm overflow-y-auto">
       <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-3 sm:my-6 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
-        
+
         {/* Header */}
         <div className="p-4 border-b border-jds-outline-variant/30 flex items-center justify-between bg-jds-surface-container-low shrink-0">
           <div className="flex items-center gap-3 min-w-0">
@@ -496,11 +496,10 @@ Customer requested technician bench evaluation.`
             <button
               type="button"
               onClick={() => setActiveTab('wizard')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'wizard'
-                  ? 'bg-jds-primary text-jds-on-primary shadow-sm'
-                  : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
-              }`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${activeTab === 'wizard'
+                ? 'bg-jds-primary text-jds-on-primary shadow-sm'
+                : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
+                }`}
             >
               <Wrench className="w-3.5 h-3.5" />
               <span>Troubleshooting Wizard</span>
@@ -509,11 +508,10 @@ Customer requested technician bench evaluation.`
             <button
               type="button"
               onClick={() => setActiveTab('claim')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'claim'
-                  ? 'bg-jds-primary text-jds-on-primary shadow-sm'
-                  : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
-              }`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${activeTab === 'claim'
+                ? 'bg-jds-primary text-jds-on-primary shadow-sm'
+                : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
+                }`}
             >
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>File Warranty Claim</span>
@@ -537,7 +535,7 @@ Customer requested technician bench evaluation.`
         {/* ========================================================= */}
         {activeTab === 'wizard' && (
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-jds-surface flex flex-col justify-between">
-            
+
             <div className="space-y-6">
               {/* Stepper (Minimal Linear Progress Bar like Product Matcher) */}
               <div className="max-w-md mx-auto px-2 select-none" aria-label={`Step ${currentStepNum} of ${STEPS.length}`}>
@@ -572,11 +570,10 @@ Customer requested technician bench evaluation.`
                             )}
                           </div>
                           <span
-                            className={`mt-1.5 text-[11px] text-center transition-colors truncate max-w-full px-0.5 ${
-                              isCurrent
-                                ? 'text-jds-on-surface font-semibold'
-                                : 'text-jds-on-surface-variant/70'
-                            }`}
+                            className={`mt-1.5 text-[11px] text-center transition-colors truncate max-w-full px-0.5 ${isCurrent
+                              ? 'text-jds-on-surface font-semibold'
+                              : 'text-jds-on-surface-variant/70'
+                              }`}
                           >
                             <span className="hidden sm:inline">{s.label}</span>
                             <span className="sm:hidden">{s.short}</span>
@@ -607,13 +604,12 @@ Customer requested technician bench evaluation.`
                         )}
                       </div>
                       <span
-                        className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
-                          currentDiagnosis.severity === 'critical'
-                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                            : currentDiagnosis.severity === 'moderate'
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full border ${currentDiagnosis.severity === 'critical'
+                          ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                          : currentDiagnosis.severity === 'moderate'
                             ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
                             : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                        }`}
+                          }`}
                       >
                         {currentDiagnosis.severityLabel}
                       </span>
@@ -710,13 +706,12 @@ Customer requested technician bench evaluation.`
                   {/* Warranty Evaluation Banner */}
                   {currentDiagnosis.warrantyEvaluation && (
                     <div
-                      className={`p-3.5 rounded-xl border text-xs space-y-1 ${
-                        currentDiagnosis.warrantyEvaluation.eligible
-                          ? 'bg-emerald-500/10 border-emerald-500/25 text-jds-on-surface'
-                          : currentDiagnosis.warrantyEvaluation.status === 'DISQUALIFIED_IMPACT'
+                      className={`p-3.5 rounded-xl border text-xs space-y-1 ${currentDiagnosis.warrantyEvaluation.eligible
+                        ? 'bg-emerald-500/10 border-emerald-500/25 text-jds-on-surface'
+                        : currentDiagnosis.warrantyEvaluation.status === 'DISQUALIFIED_IMPACT'
                           ? 'bg-rose-500/10 border-rose-500/25 text-jds-on-surface'
                           : 'bg-jds-surface-container/60 border-jds-outline-variant/30 text-jds-on-surface'
-                      }`}
+                        }`}
                     >
                       <div className="font-bold flex items-center gap-1.5">
                         <ShieldCheck className="w-4 h-4 text-jds-primary shrink-0" />
@@ -877,7 +872,7 @@ Customer requested technician bench evaluation.`
         {/* ========================================================= */}
         {activeTab === 'claim' && (
           <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 bg-jds-surface">
-            
+
             {/* Success State */}
             {isSuccess ? (
               <div className="py-8 text-center space-y-4">
@@ -907,7 +902,7 @@ Customer requested technician bench evaluation.`
               </div>
             ) : (
               <form onSubmit={handleSubmitClaim} className="space-y-4">
-                
+
                 {/* Handoff Banner from Diagnostic Wizard */}
                 {currentDiagnosis && (
                   <div className="p-3.5 rounded-xl bg-jds-primary/10 border border-jds-primary/30 text-xs flex items-start gap-2.5">
@@ -983,16 +978,14 @@ Customer requested technician bench evaluation.`
                           key={cat.id}
                           type="button"
                           onClick={() => setCategory(cat.id)}
-                          className={`p-2.5 rounded-xl border text-left text-xs font-medium flex items-center gap-2 transition-all cursor-pointer ${
-                            isSelected
-                              ? 'bg-jds-primary/10 border-jds-primary text-jds-primary shadow-sm'
-                              : 'bg-jds-surface border-jds-outline-variant/40 text-jds-on-surface-variant hover:border-jds-outline-variant hover:text-jds-on-surface'
-                          }`}
+                          className={`p-2.5 rounded-xl border text-left text-xs font-medium flex items-center gap-2 transition-all cursor-pointer ${isSelected
+                            ? 'bg-jds-primary/10 border-jds-primary text-jds-primary shadow-sm'
+                            : 'bg-jds-surface border-jds-outline-variant/40 text-jds-on-surface-variant hover:border-jds-outline-variant hover:text-jds-on-surface'
+                            }`}
                         >
                           <Icon
-                            className={`w-4 h-4 shrink-0 ${
-                              isSelected ? 'text-jds-primary' : 'text-jds-on-surface-variant'
-                            }`}
+                            className={`w-4 h-4 shrink-0 ${isSelected ? 'text-jds-primary' : 'text-jds-on-surface-variant'
+                              }`}
                           />
                           <span className="truncate">{cat.label}</span>
                         </button>

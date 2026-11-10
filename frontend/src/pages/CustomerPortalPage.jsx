@@ -17,7 +17,8 @@ import {
   Mail,
   Check,
   X,
-  Trash2
+  Trash2,
+  FileText
 } from 'lucide-react'
 import {
   fetchCustomerPortalData,
@@ -28,6 +29,7 @@ import {
 import { formatDate, formatRemainingText, getClaimStatusMeta } from '../lib/warrantyUtils'
 import { sanitizeEmail, sanitizeText } from '../lib/sanitize.js'
 import FaultDiagnosticModal from '../components/FaultDiagnosticModal'
+import WarrantyTermsModal from '../components/WarrantyTermsModal'
 import { useAuth } from '../context/AuthContext'
 
 export default function CustomerPortalPage() {
@@ -70,6 +72,10 @@ export default function CustomerPortalPage() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
 
+  // Warranty Terms & Policy Modal States
+  const [isWarrantyModalOpen, setIsWarrantyModalOpen] = useState(false)
+  const [isFirstTimeWarranty, setIsFirstTimeWarranty] = useState(false)
+
   const loadData = async (activeToken) => {
     if (!activeToken) {
       setLoading(false)
@@ -84,6 +90,14 @@ export default function CustomerPortalPage() {
       if (!data) throw new Error('Customer account not found.')
       setPortalData(data)
 
+      // First-time warranty terms acknowledgment check
+      const ackKey = `jd_warranty_ack_${activeToken}`
+      const hasAcknowledged = localStorage.getItem(ackKey) === 'true'
+      if (!hasAcknowledged) {
+        setIsFirstTimeWarranty(true)
+        setIsWarrantyModalOpen(true)
+      }
+
       // Fetch password & auth status
       const authInfo = await getCustomerAuthStatus(activeToken)
       setAuthStatus(authInfo)
@@ -96,6 +110,19 @@ export default function CustomerPortalPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleAcknowledgeWarranty = () => {
+    if (token) {
+      localStorage.setItem(`jd_warranty_ack_${token}`, 'true')
+    }
+    setIsFirstTimeWarranty(false)
+    setIsWarrantyModalOpen(false)
+  }
+
+  const handleOpenWarrantyTerms = () => {
+    setIsFirstTimeWarranty(false)
+    setIsWarrantyModalOpen(true)
   }
 
   useEffect(() => {
@@ -540,7 +567,16 @@ export default function CustomerPortalPage() {
                 <p className="text-xs text-jds-on-surface-variant">Default 24-Month Coverage • 1-Time Replacement Entitlement</p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+            <div className="flex items-center gap-1.5 self-start sm:self-auto flex-wrap">
+              <button
+                type="button"
+                onClick={handleOpenWarrantyTerms}
+                className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-jds-primary/10 hover:bg-jds-primary/20 text-jds-primary border border-jds-primary/30 transition-colors flex items-center gap-1 cursor-pointer"
+                title="Review Official Warranty Terms"
+              >
+                <FileText className="w-3 h-3" />
+                <span>Terms & Policy</span>
+              </button>
               <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                 24 Mos Solar Terms
               </span>
@@ -897,6 +933,15 @@ export default function CustomerPortalPage() {
           </div>
         </div>
       )}
+
+      {/* 2-Year Warranty Terms & Disqualification Notice Modal */}
+      <WarrantyTermsModal
+        isOpen={isWarrantyModalOpen}
+        onClose={() => setIsWarrantyModalOpen(false)}
+        onAcknowledge={handleAcknowledgeWarranty}
+        isFirstTime={isFirstTimeWarranty}
+        customerName={portalData?.customer?.name || ''}
+      />
     </div>
   )
 }

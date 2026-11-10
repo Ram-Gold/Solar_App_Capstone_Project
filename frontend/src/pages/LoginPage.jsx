@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { loginCustomerWithPassword } from '../lib/customerService'
@@ -14,35 +14,51 @@ import {
 import jdSolarLogo from '../assets/jdsolarlogo.webp'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
+  const [searchParams] = useSearchParams()
+  const isTimedOut = searchParams.get('reason') === 'timeout'
+
+  const [email, setEmail] = useState(() => {
+    return localStorage.getItem('jd_remembered_email') || localStorage.getItem('jd_customer_email') || ''
+  })
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [remember, setRemember] = useState(false)
+  const [remember, setRemember] = useState(true)
   const { signIn, setCustomerSession } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!email) {
+      const stored = localStorage.getItem('jd_remembered_email') || localStorage.getItem('jd_customer_email')
+      if (stored) setEmail(stored)
+    }
+  }, [email])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
+    const normalizedEmail = email.trim().toLowerCase()
+    localStorage.setItem('jd_remembered_email', normalizedEmail)
+    localStorage.setItem('jd_last_activity_timestamp', Date.now().toString())
+
     try {
       // 1. First attempt customer login via customer authentication
-      const custRes = await loginCustomerWithPassword(email, password)
+      const custRes = await loginCustomerWithPassword(normalizedEmail, password)
       if (custRes?.token) {
         if (setCustomerSession) {
-          setCustomerSession(custRes.token, email.trim().toLowerCase())
+          setCustomerSession(custRes.token, normalizedEmail)
         } else {
           localStorage.setItem('jd_customer_token', custRes.token)
-          localStorage.setItem('jd_customer_email', email.trim().toLowerCase())
+          localStorage.setItem('jd_customer_email', normalizedEmail)
         }
         navigate(`/portal?token=${custRes.token}`)
         return
       }
 
       // 2. Otherwise attempt Supabase staff/admin authentication
-      const { data, error } = await signIn(email, password)
+      const { data, error } = await signIn(normalizedEmail, password)
       if (error) {
         setError(error.message)
       } else {
@@ -118,12 +134,29 @@ export default function LoginPage() {
           {/* Login Card */}
           <div className="bg-jds-surface-container-lowest border border-jds-outline-variant/30 rounded-xl p-10 shadow-[0px_4px_12px_rgba(0,0,0,0.05)]">
             {/* Card Header */}
-            <div className="text-center mb-10">
+            <div className="text-center mb-8">
               <h1 className="text-headline-lg text-jds-on-surface mb-2">Portal Login</h1>
               <p className="text-body-md text-jds-on-surface-variant">
                 Access your solar dashboard, warranties, or staff panel.
               </p>
             </div>
+
+            {/* Session Timeout Banner */}
+            {isTimedOut && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-3.5 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-950 dark:text-amber-200 text-sm mb-6 shadow-sm"
+              >
+                <HiOutlineLockClosed className="text-xl text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="flex flex-col text-left">
+                  <span className="font-semibold text-label-md">Session Timed Out</span>
+                  <span className="text-body-sm opacity-90 leading-relaxed mt-0.5">
+                    Your session expired due to 15 minutes of inactivity. Please enter your password to continue.
+                  </span>
+                </div>
+              </motion.div>
+            )}
 
             {/* Error */}
             {error && (

@@ -347,8 +347,8 @@ export default function ProductsScreen({ onNavigate }) {
         rest.stock_quantity !== undefined && rest.stock_quantity !== ''
           ? sanitizeNumber(rest.stock_quantity, { min: 0, integer: true, fallback: 0 })
           : rest.in_stock
-          ? 10
-          : 0
+            ? 10
+            : 0
 
       rest.stock_quantity = parsedQty
       rest.in_stock = parsedQty > 0
@@ -558,11 +558,11 @@ export default function ProductsScreen({ onNavigate }) {
         data && data.length > 0
           ? data[0]
           : {
-              ...product,
-              stock_quantity: targetStock,
-              sales: targetSales,
-              in_stock: targetInStock,
-            }
+            ...product,
+            stock_quantity: targetStock,
+            sales: targetSales,
+            in_stock: targetInStock,
+          }
 
       setProducts((prev) =>
         prev.map((p) => (p.id === product.id ? { ...p, ...updated } : p))
@@ -673,13 +673,12 @@ export default function ProductsScreen({ onNavigate }) {
         <div
           role="status"
           aria-live="polite"
-          className={`fixed bottom-6 right-6 z-50 flex items-start gap-3 rounded-2xl border p-4 shadow-2xl backdrop-blur-md max-w-md animate-in slide-in-from-bottom-5 duration-300 ${
-            toast.type === 'error'
-              ? 'border-jds-error/40 bg-jds-surface text-jds-error shadow-jds-error/10'
-              : toast.type === 'info'
+          className={`fixed bottom-6 right-6 z-50 flex items-start gap-3 rounded-2xl border p-4 shadow-2xl backdrop-blur-md max-w-md animate-in slide-in-from-bottom-5 duration-300 ${toast.type === 'error'
+            ? 'border-jds-error/40 bg-jds-surface text-jds-error shadow-jds-error/10'
+            : toast.type === 'info'
               ? 'border-jds-secondary/40 bg-jds-surface text-jds-on-surface shadow-jds-secondary/10'
               : 'border-emerald-500/40 bg-jds-surface text-jds-on-surface shadow-emerald-500/10'
-          }`}
+            }`}
         >
           <div className="shrink-0 mt-0.5">
             {toast.type === 'error' ? (
@@ -756,11 +755,10 @@ export default function ProductsScreen({ onNavigate }) {
         <button
           type="button"
           onClick={() => setStockFilter('All Stock')}
-          className={`flex flex-col justify-between p-4 rounded-2xl border text-left transition-all ${
-            stockFilter === 'All Stock'
-              ? 'border-jds-primary bg-jds-primary/5 ring-2 ring-jds-primary/20 shadow-sm'
-              : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest hover:border-jds-outline-variant/60'
-          }`}
+          className={`flex flex-col justify-between p-4 rounded-2xl border text-left transition-all ${stockFilter === 'All Stock'
+            ? 'border-jds-primary bg-jds-primary/5 ring-2 ring-jds-primary/20 shadow-sm'
+            : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest hover:border-jds-outline-variant/60'
+            }`}
         >
           <div className="flex items-center justify-between w-full">
             <span className="text-label-sm font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
@@ -786,11 +784,10 @@ export default function ProductsScreen({ onNavigate }) {
           onClick={() =>
             setStockFilter(stockFilter === 'In Stock (> 5 units)' ? 'All Stock' : 'In Stock (> 5 units)')
           }
-          className={`flex flex-col justify-between p-4 rounded-2xl border text-left transition-all ${
-            stockFilter === 'In Stock (> 5 units)'
-              ? 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/20 shadow-sm'
-              : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest hover:border-emerald-500/40'
-          }`}
+          className={`flex flex-col justify-between p-4 rounded-2xl border text-left transition-all ${stockFilter === 'In Stock (> 5 units)'
+            ? 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/20 shadow-sm'
+            : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest hover:border-emerald-500/40'
+            }`}
         >
           <div className="flex items-center justify-between w-full">
             <span className="text-label-sm font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
@@ -816,11 +813,10 @@ export default function ProductsScreen({ onNavigate }) {
           onClick={() =>
             setStockFilter(stockFilter === 'Low Stock (1-5 units)' ? 'All Stock' : 'Low Stock (1-5 units)')
           }
-          className={`flex flex-col justify-between p-4 rounded-2xl border text-left transition-all ${
-            stockFilter === 'Low Stock (1-5 units)'
-              ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/20 shadow-sm'
-              : 'border-amber-500/30 bg-jds-surface-container-lowest hover:border-amber-500/60'
-          }`}
+          className={`flex flex-col justify-between p-4 rounded-2xl border text-left transition-all ${stockFilter === 'Low Stock (1-5 units)'
+            ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/20 shadow-sm'
+            : 'border-amber-500/30 bg-jds-surface-container-lowest hover:border-amber-500/60'
+            }`}
         >
           <div className="flex items-center justify-between w-full">
             <span className="text-label-sm font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
@@ -846,11 +842,10 @@ export default function ProductsScreen({ onNavigate }) {
           onClick={() =>
             setStockFilter(stockFilter === 'Out of Stock (0 units)' ? 'All Stock' : 'Out of Stock (0 units)')
           }
-          className={`flex flex-col justify-between p-4 rounded-2xl border text-left transition-all ${
-            stockFilter === 'Out of Stock (0 units)'
-              ? 'border-jds-error bg-jds-error/10 ring-2 ring-jds-error/20 shadow-sm'
-              : 'border-jds-error/30 bg-jds-surface-container-lowest hover:border-jds-error/60'
-          }`}
+          className={`flex flex-col justify-between p-4 rounded-2xl border text-left transition-all ${stockFilter === 'Out of Stock (0 units)'
+            ? 'border-jds-error bg-jds-error/10 ring-2 ring-jds-error/20 shadow-sm'
+            : 'border-jds-error/30 bg-jds-surface-container-lowest hover:border-jds-error/60'
+            }`}
         >
           <div className="flex items-center justify-between w-full">
             <span className="text-label-sm font-bold uppercase tracking-wider text-jds-error">
@@ -935,11 +930,10 @@ export default function ProductsScreen({ onNavigate }) {
               <button
                 type="button"
                 onClick={() => setViewMode('table')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label-sm font-bold transition-all ${
-                  viewMode === 'table'
-                    ? 'bg-jds-surface text-jds-primary shadow-sm border border-jds-outline-variant/30'
-                    : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                }`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label-sm font-bold transition-all ${viewMode === 'table'
+                  ? 'bg-jds-surface text-jds-primary shadow-sm border border-jds-outline-variant/30'
+                  : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+                  }`}
                 title="Data Table View"
               >
                 <List className="h-4 w-4" />
@@ -948,11 +942,10 @@ export default function ProductsScreen({ onNavigate }) {
               <button
                 type="button"
                 onClick={() => setViewMode('cards')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label-sm font-bold transition-all ${
-                  viewMode === 'cards'
-                    ? 'bg-jds-surface text-jds-primary shadow-sm border border-jds-outline-variant/30'
-                    : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                }`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label-sm font-bold transition-all ${viewMode === 'cards'
+                  ? 'bg-jds-surface text-jds-primary shadow-sm border border-jds-outline-variant/30'
+                  : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+                  }`}
                 title="Visual Card Grid View"
               >
                 <LayoutGrid className="h-4 w-4" />
@@ -978,11 +971,10 @@ export default function ProductsScreen({ onNavigate }) {
                 key={opt.value}
                 type="button"
                 onClick={() => setPowerFilter(opt.value)}
-                className={`px-3 py-1.5 rounded-lg text-label-sm font-semibold transition-all ${
-                  powerFilter === opt.value
-                    ? 'bg-jds-primary text-jds-on-primary shadow-sm'
-                    : 'border border-jds-outline-variant/30 bg-jds-surface-container-low/20 text-jds-on-surface-variant hover:bg-jds-surface-container-high'
-                }`}
+                className={`px-3 py-1.5 rounded-lg text-label-sm font-semibold transition-all ${powerFilter === opt.value
+                  ? 'bg-jds-primary text-jds-on-primary shadow-sm'
+                  : 'border border-jds-outline-variant/30 bg-jds-surface-container-low/20 text-jds-on-surface-variant hover:bg-jds-surface-container-high'
+                  }`}
               >
                 {opt.label}
               </button>
@@ -1409,13 +1401,12 @@ export default function ProductsScreen({ onNavigate }) {
                       <div className="flex flex-col items-center justify-center px-3">
                         <ArrowRight className="h-5 w-5 text-jds-on-surface-variant/40" />
                         <span
-                          className={`font-mono text-xs font-bold mt-1 ${
-                            delta > 0
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : delta < 0
+                          className={`font-mono text-xs font-bold mt-1 ${delta > 0
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : delta < 0
                               ? 'text-jds-error'
                               : 'text-jds-on-surface-variant'
-                          }`}
+                            }`}
                         >
                           {delta > 0 ? `+${delta}` : delta === 0 ? 'No change' : `${delta}`}
                         </span>
@@ -1905,11 +1896,10 @@ export default function ProductsScreen({ onNavigate }) {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveEditTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-label-sm font-semibold whitespace-nowrap transition-all ${
-                    activeEditTab === tab.id
-                      ? 'bg-jds-primary text-jds-on-primary shadow-sm'
-                      : 'text-jds-on-surface-variant hover:bg-jds-surface-container-high hover:text-jds-on-surface'
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-label-sm font-semibold whitespace-nowrap transition-all ${activeEditTab === tab.id
+                    ? 'bg-jds-primary text-jds-on-primary shadow-sm'
+                    : 'text-jds-on-surface-variant hover:bg-jds-surface-container-high hover:text-jds-on-surface'
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -2021,11 +2011,10 @@ export default function ProductsScreen({ onNavigate }) {
                         type={f.type}
                         value={editingProduct[f.key] ?? ''}
                         onChange={(e) => handleFieldChange(f.key, e.target.value, f.type)}
-                        className={`h-11 w-full rounded-xl border bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:bg-jds-surface-container-lowest transition-all ${
-                          validationErrors[f.key]
-                            ? 'border-jds-error focus:border-jds-error focus:ring-1 focus:ring-jds-error/20'
-                            : 'border-jds-outline-variant/30 focus:border-jds-secondary'
-                        }`}
+                        className={`h-11 w-full rounded-xl border bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:bg-jds-surface-container-lowest transition-all ${validationErrors[f.key]
+                          ? 'border-jds-error focus:border-jds-error focus:ring-1 focus:ring-jds-error/20'
+                          : 'border-jds-outline-variant/30 focus:border-jds-secondary'
+                          }`}
                       />
                     )}
 

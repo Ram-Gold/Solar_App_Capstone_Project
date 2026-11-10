@@ -180,9 +180,9 @@ export default function AddProductScreen({ onNavigate }) {
               <span className="text-[11px] text-jds-on-surface-variant/60 font-medium">Add via + icon</span>
             </div>
             <div className="flex items-center gap-2">
-              <select 
-                value={form.type} 
-                onChange={(e) => handleChange('type', e.target.value)} 
+              <select
+                value={form.type}
+                onChange={(e) => handleChange('type', e.target.value)}
                 className={`${inputClass} flex-1`}
               >
                 {categories.map(t => <option key={t} value={t}>{t}</option>)}

@@ -13,6 +13,7 @@ import {
   Calendar,
   Clock,
   AlertCircle,
+  ShieldCheck,
 } from 'lucide-react'
 import { FaFacebook, FaInstagram } from 'react-icons/fa'
 import { getInquiryStatusConfig, normalizeInquiryStatus } from '../lib/inquiryStatusUtils'
@@ -97,9 +98,9 @@ const formatDisplayTime = (timeStr) => {
   return `${displayH}:${m || '00'} ${ampm}`
 }
 
-export default function QuoteModal({ isOpen, onClose, product, initialMode = 'reserve' }) {
+export default function QuoteModal({ isOpen, onClose, product, initialMode = 'reserve', initialStep = 1 }) {
   const [mode, setMode] = useState(initialMode) // 'reserve' | 'inquire'
-  const [step, setStep] = useState(1) // 1: Contact, 2: Visit & Time, 3: Ticket Pass
+  const [step, setStep] = useState(initialStep) // 1: Contact, 2: Visit & Time, 3: Ticket Pass
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -123,6 +124,8 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
   const [selectedBranch, setSelectedBranch] = useState(BRANCHES[0].name)
   const [visitDate, setVisitDate] = useState(getNextBusinessDay)
   const [visitTime, setVisitTime] = useState('10:00')
+  const [consentAccepted, setConsentAccepted] = useState(false)
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false)
 
   // Generated Ticket State
   const [generatedTicket, setGeneratedTicket] = useState(null)
@@ -131,7 +134,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
   useEffect(() => {
     if (isOpen) {
       setMode(initialMode || 'reserve')
-      setStep(1)
+      setStep(initialStep || 1)
       setErrors({})
       setCopied(false)
       setLoading(false)
@@ -144,6 +147,8 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       setBarangay('')
       setBarangayCode('')
       setStreetAddress('')
+      setConsentAccepted(false)
+      setShowPrivacyModal(false)
     }
   }, [isOpen, initialMode])
 
@@ -203,6 +208,10 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       errs.visitTime = 'Please select a visit time slot.'
     } else if (!isWithinBusinessHours(visitTime)) {
       errs.visitTime = 'Showroom visits must be scheduled within business hours: 9:00 AM to 5:00 PM.'
+    }
+
+    if (!consentAccepted) {
+      errs.consent = 'You must accept the data-sharing agreement to proceed.'
     }
 
     setErrors(errs)
@@ -437,9 +446,8 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 placeholder="e.g. Engr. Juan Dela Cruz"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all ${
-                  errors.customerName ? 'border-red-400 bg-red-50/20' : 'border-stone-200 focus:border-amber-500 bg-stone-50/40 focus:bg-white'
-                }`}
+                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all ${errors.customerName ? 'border-red-400 bg-red-50/20' : 'border-stone-200 focus:border-amber-500 bg-stone-50/40 focus:bg-white'
+                  }`}
               />
               {errors.customerName && <p className="text-[11px] text-red-500 mt-1">{errors.customerName}</p>}
             </div>
@@ -456,9 +464,8 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 placeholder="09171234567"
                 value={mobileContact}
                 onChange={handlePhoneChange}
-                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all ${
-                  errors.mobileContact ? 'border-red-400 bg-red-50/20' : 'border-stone-200 focus:border-amber-500 bg-stone-50/40 focus:bg-white'
-                }`}
+                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all ${errors.mobileContact ? 'border-red-400 bg-red-50/20' : 'border-stone-200 focus:border-amber-500 bg-stone-50/40 focus:bg-white'
+                  }`}
               />
               {errors.mobileContact && <p className="text-[11px] text-red-500 mt-1">{errors.mobileContact}</p>}
             </div>
@@ -510,9 +517,8 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 Facebook Profile / Username <span className="text-amber-600">*</span>
               </label>
               <div
-                className={`flex items-center rounded-xl border bg-stone-50/40 transition-all overflow-hidden focus-within:border-amber-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-500/20 ${
-                  errors.facebook ? 'border-red-400 bg-red-50/20' : 'border-stone-200'
-                }`}
+                className={`flex items-center rounded-xl border bg-stone-50/40 transition-all overflow-hidden focus-within:border-amber-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-500/20 ${errors.facebook ? 'border-red-400 bg-red-50/20' : 'border-stone-200'
+                  }`}
               >
                 <div className="flex items-center gap-1.5 pl-3.5 pr-2.5 py-2.5 bg-stone-100/80 border-r border-stone-200 text-stone-600 select-none shrink-0">
                   <FaFacebook className="h-4 w-4 text-[#1877F2] shrink-0" />
@@ -581,11 +587,10 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
             <div className="pt-2">
               <button
                 type="submit"
-                className={`w-full py-3.5 rounded-xl text-white font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2 ${
-                  isReserve 
-                    ? 'bg-stone-900 hover:bg-stone-800' 
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                className={`w-full py-3.5 rounded-xl text-white font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2 ${isReserve
+                  ? 'bg-stone-900 hover:bg-stone-800'
+                  : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
               >
                 <span>Continue to Schedule Visit</span>
                 <ArrowRight className="h-4 w-4" />
@@ -609,13 +614,12 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                     <div
                       key={b.id}
                       onClick={() => setSelectedBranch(b.name)}
-                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                        isSelected
-                          ? isReserve
-                            ? 'border-amber-500 bg-amber-50/30 ring-1 ring-amber-500'
-                            : 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
-                          : 'border-stone-200 bg-stone-50/50 hover:border-stone-300'
-                      }`}
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${isSelected
+                        ? isReserve
+                          ? 'border-amber-500 bg-amber-50/30 ring-1 ring-amber-500'
+                          : 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
+                        : 'border-stone-200 bg-stone-50/50 hover:border-stone-300'
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -659,7 +663,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 onClick={(e) => {
                   try {
                     e.currentTarget.showPicker?.()
-                  } catch (err) {}
+                  } catch (err) { }
                 }}
                 onChange={(e) => {
                   setVisitDate(e.target.value)
@@ -671,11 +675,10 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                     })
                   }
                 }}
-                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors cursor-pointer ${
-                  errors.visitDate
-                    ? 'border-red-400 bg-red-50/20'
-                    : 'border-stone-200 bg-stone-50/40 focus:border-amber-500 focus:bg-white'
-                }`}
+                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors cursor-pointer ${errors.visitDate
+                  ? 'border-red-400 bg-red-50/20'
+                  : 'border-stone-200 bg-stone-50/40 focus:border-amber-500 focus:bg-white'
+                  }`}
               />
               {errors.visitDate && (
                 <p className="text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1.5">
@@ -705,7 +708,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 onClick={(e) => {
                   try {
                     e.currentTarget.showPicker?.()
-                  } catch (err) {}
+                  } catch (err) { }
                 }}
                 onChange={(e) => {
                   setVisitTime(e.target.value)
@@ -717,16 +720,56 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                     })
                   }
                 }}
-                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors cursor-pointer ${
-                  errors.visitTime
-                    ? 'border-red-400 bg-red-50/20'
-                    : 'border-stone-200 bg-stone-50/40 focus:border-amber-500 focus:bg-white'
-                }`}
+                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors cursor-pointer ${errors.visitTime
+                  ? 'border-red-400 bg-red-50/20'
+                  : 'border-stone-200 bg-stone-50/40 focus:border-amber-500 focus:bg-white'
+                  }`}
               />
               {errors.visitTime && (
                 <p className="text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1.5">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   <span>{errors.visitTime}</span>
+                </p>
+              )}
+            </div>
+
+            {/* Data Sharing & Privacy Act Consent */}
+            <div className="pt-2 pb-1">
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={consentAccepted}
+                  onChange={(e) => {
+                    setConsentAccepted(e.target.checked)
+                    if (errors.consent) {
+                      setErrors((prev) => {
+                        const next = { ...prev }
+                        delete next.consent
+                        return next
+                      })
+                    }
+                  }}
+                  className="mt-0.5 h-4 w-4 rounded border-stone-300 text-amber-500 focus:ring-amber-400 focus:ring-offset-0 cursor-pointer shrink-0"
+                />
+                <span className="text-xs text-stone-600 leading-relaxed">
+                  I agree to share my contact and location details for technical consultation, quotation, and showroom scheduling in accordance with the{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setShowPrivacyModal(true)
+                    }}
+                    className="text-amber-600 dark:text-amber-500 hover:text-amber-700 underline font-semibold inline"
+                  >
+                    Data Privacy Act
+                  </button>
+                  .
+                </span>
+              </label>
+              {errors.consent && (
+                <p className="text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{errors.consent}</span>
                 </p>
               )}
             </div>
@@ -742,11 +785,13 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !consentAccepted}
                 className={`w-2/3 py-3 rounded-xl text-white font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2 ${
-                  isReserve 
-                    ? 'bg-amber-500 hover:bg-amber-600' 
-                    : 'bg-blue-600 hover:bg-blue-700'
+                  !consentAccepted || loading
+                    ? 'opacity-50 cursor-not-allowed bg-stone-400'
+                    : isReserve
+                      ? 'bg-amber-500 hover:bg-amber-600'
+                      : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
                 {loading ? 'Generating...' : (isReserve ? 'Confirm Reservation Pass' : 'Confirm Consultation Pass')}
@@ -758,11 +803,10 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
         {/* ================= STEP 3: TICKET PASS ================= */}
         {step === 3 && generatedTicket && (
           <div className="space-y-5">
-            <div className={`rounded-2xl border p-5 space-y-4 ${
-              isReserve 
-                ? 'border-emerald-300 bg-emerald-50/40' 
-                : 'border-blue-300 bg-blue-50/40'
-            }`}>
+            <div className={`rounded-2xl border p-5 space-y-4 ${isReserve
+              ? 'border-emerald-300 bg-emerald-50/40'
+              : 'border-blue-300 bg-blue-50/40'
+              }`}>
               {/* Ticket Reference Code */}
               <div className="border-b border-stone-200/80 pb-3 flex items-start justify-between">
                 <div>
@@ -877,6 +921,70 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 Done
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Data Privacy Disclosure Modal */}
+        {showPrivacyModal && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              className="relative w-full max-w-md bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 p-6 shadow-2xl text-stone-900 dark:text-stone-100"
+            >
+              <div className="flex items-start justify-between border-b border-stone-200 dark:border-stone-800 pb-3 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900 dark:text-white">Data Privacy Notice</h3>
+                    <p className="text-[11px] text-stone-500 dark:text-stone-400">Republic Act No. 10173 (DPA 2012)</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPrivacyModal(false)}
+                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+                  aria-label="Close Notice"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs leading-relaxed text-stone-600 dark:text-stone-300 max-h-[60vh] overflow-y-auto pr-1">
+                <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200/70 dark:border-stone-700/60">
+                  <span className="font-bold text-stone-900 dark:text-white block mb-1">Purpose Limitation</span>
+                  Your name, mobile number, and Philippine regional address are collected solely to calculate technical solar sizing, prepare quote tickets, and reserve demonstration equipment at JD Solar showrooms.
+                </div>
+
+                <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200/70 dark:border-stone-700/60">
+                  <span className="font-bold text-stone-900 dark:text-white block mb-1">Zero Third-Party Sharing</span>
+                  We do not sell, rent, or distribute personal customer data to external marketing vendors, advertising networks, or third-party brokers.
+                </div>
+
+                <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200/70 dark:border-stone-700/60">
+                  <span className="font-bold text-stone-900 dark:text-white block mb-1">Automated Hygiene Retention</span>
+                  Under our automated data retention policy, inactive inquiries without a confirmed showroom visit are permanently purged after 14 days. Completed tickets are purged within 7 days.
+                </div>
+
+                <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200/70 dark:border-stone-700/60">
+                  <span className="font-bold text-stone-900 dark:text-white block mb-1">Zero Financial Exposure</span>
+                  This consultation portal never collects bank details, credit cards, or online payment credentials. All transactions are settled in person at official showrooms.
+                </div>
+              </div>
+
+              <div className="pt-4 mt-4 border-t border-stone-200 dark:border-stone-800">
+                <button
+                  type="button"
+                  onClick={() => setShowPrivacyModal(false)}
+                  className="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 dark:bg-stone-100 dark:hover:bg-white text-white dark:text-stone-900 text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Understood
+                </button>
+              </div>
+            </motion.div>
           </div>
         )}
       </motion.div>
