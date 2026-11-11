@@ -266,7 +266,7 @@ export default function UsersScreen() {
                       let val = e.target.value
                       if (f.key === 'phone') val = sanitizePhone(val)
                       else if (f.key === 'email') val = sanitizeEmail(val)
-                      else if (f.key === 'name') val = sanitizeText(val, { maxLength: 100 })
+                      else if (f.key === 'name') val = sanitizeText(val, { maxLength: 100, trim: false })
                       setForm({ ...form, [f.key]: val })
                     }}
                     className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"

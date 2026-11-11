@@ -968,7 +968,8 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                         maxLength={100}
                         required
                         value={editName}
-                        onChange={(e) => setEditName(sanitizeText(e.target.value, { maxLength: 100 }))}
+                        onChange={(e) => setEditName(sanitizeText(e.target.value, { maxLength: 100, trim: false }))}
+                        onBlur={() => setEditName(prev => prev.trim())}
                         placeholder="Customer full name..."
                         className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary transition-colors"
                       />

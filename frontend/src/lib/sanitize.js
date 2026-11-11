@@ -13,12 +13,13 @@ import { normalizePhMobile, isValidPhMobile } from './phoneUtils.js'
  * @param {Object} [options]
  * @param {number} [options.maxLength] - Maximum allowed character length
  * @param {boolean} [options.allowMultiline=false] - Whether to preserve clean newlines
+ * @param {boolean} [options.trim=true] - Whether to trim outer whitespace (defaults to true)
  * @returns {string} Sanitized clean string
  */
 export function sanitizeText(input, options = {}) {
   if (input === null || input === undefined) return ''
 
-  const { maxLength = 1000, allowMultiline = false } = options
+  const { maxLength = 1000, allowMultiline = false, trim = true } = options
 
   // Convert to string
   let text = String(input)
@@ -47,15 +48,18 @@ export function sanitizeText(input, options = {}) {
       .replace(/\r/g, '\n')
       .replace(/\n{3,}/g, '\n\n')
       .split('\n')
-      .map(line => line.trim())
+      .map(line => (trim ? line.trim() : line))
       .join('\n')
   } else {
-    // Collapse all whitespace (tabs, newlines, multiple spaces) into a single space
-    text = text.replace(/\s+/g, ' ')
+    // Collapse internal tabs, newlines, and excessive whitespace sequences into a single space
+    // while keeping trailing/leading single spaces intact if trim is false
+    text = text.replace(/[\t\r\n]+/g, ' ').replace(/ {2,}/g, ' ')
   }
 
-  // Trim edges
-  text = text.trim()
+  // Trim edges only when requested
+  if (trim) {
+    text = text.trim()
+  }
 
   // Enforce max length
   if (typeof maxLength === 'number' && maxLength > 0 && text.length > maxLength) {

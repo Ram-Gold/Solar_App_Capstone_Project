@@ -150,7 +150,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
 
   const handleFullNameChange = (e) => {
     const raw = e.target.value
-    const sanitized = sanitizeText(raw, { maxLength: 100 })
+    const sanitized = sanitizeText(raw, { maxLength: 100, trim: false })
     setFullName(sanitized)
     if (errorMessage) setErrorMessage('')
   }
@@ -388,6 +388,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
                   placeholder="e.g. Maria Santos"
                   value={fullName}
                   onChange={handleFullNameChange}
+                  onBlur={() => setFullName(prev => prev.trim())}
                   className="w-full h-11 bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors"
                 />
               </div>

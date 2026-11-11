@@ -159,7 +159,8 @@ export default function ProfileScreen() {
                 <input
                   maxLength={100}
                   value={form.full_name}
-                  onChange={(e) => setForm({ ...form, full_name: sanitizeText(e.target.value, { maxLength: 100 }) })}
+                  onChange={(e) => setForm({ ...form, full_name: sanitizeText(e.target.value, { maxLength: 100, trim: false }) })}
+                  onBlur={() => setForm(prev => ({ ...prev, full_name: prev.full_name.trim() }))}
                   className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
                   placeholder="e.g. Maria Clara"
                 />
