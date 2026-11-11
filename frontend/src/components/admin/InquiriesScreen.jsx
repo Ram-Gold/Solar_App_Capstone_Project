@@ -40,6 +40,7 @@ import { FaFacebook } from 'react-icons/fa'
 import { extractFacebookHandle, formatFacebookUrl } from '../../lib/facebookUtils'
 import { sanitizeEmail, isValidEmail } from '../../lib/sanitize.js'
 import AnimatedConfirmation from '../ui/AnimatedConfirmation'
+import { sendInquiryTicketEmail } from '../../lib/customerService'
 
 export const CALENDAR_START_HOUR = 7 // 07:00 AM
 export const CALENDAR_END_HOUR = 20  // 08:00 PM (13 hours: 7 to 19 inclusive)
@@ -434,6 +435,38 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
   const [isPurgeModalOpen, setIsPurgeModalOpen] = useState(false)
   const [isPurging, setIsPurging] = useState(false)
 
+  // New inquiry walk-in modal
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false)
+  const [newSuccessTicket, setNewSuccessTicket] = useState(null)
+  const [newCustName, setNewCustName] = useState('')
+  const [newCustPhone, setNewCustPhone] = useState('')
+  const [newCustEmail, setNewCustEmail] = useState('')
+  const [newCustFacebook, setNewCustFacebook] = useState('')
+  const [newCustProvince, setNewCustProvince] = useState('')
+  const [newCustProvinceCode, setNewCustProvinceCode] = useState('')
+  const [newCustCity, setNewCustCity] = useState('')
+  const [newCustCityCode, setNewCustCityCode] = useState('')
+  const [newCustBarangay, setNewCustBarangay] = useState('')
+  const [newCustBarangayCode, setNewCustBarangayCode] = useState('')
+  const [newCustStreetAddress, setNewCustStreetAddress] = useState('')
+  const [newLocationErrors, setNewLocationErrors] = useState({})
+  const [newBranch, setNewBranch] = useState('Cavite Distribution Hub')
+  const [newType, setNewType] = useState('INQUIRY')
+  const [newProduct, setNewProduct] = useState('')
+  const [newWatt, setNewWatt] = useState('')
+  const [newQuantity, setNewQuantity] = useState(1)
+  const [newVisitDate, setNewVisitDate] = useState(getNextBusinessDay)
+  const [newVisitTime, setNewVisitTime] = useState('09:00')
+  const [newStaffNotes, setNewStaffNotes] = useState('')
+  const [newCreating, setNewCreating] = useState(false)
+  const [newError, setNewError] = useState('')
+
+  const handleCloseModal = () => {
+    setSelectedInquiry(null)
+    setModalError('')
+    setModalSuccess('')
+  }
+
   const anyInquiryModalOpen = Boolean(
     selectedInquiry ||
     isNewModalOpen ||
@@ -446,7 +479,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
     onClose: () => {
       if (isPurgeModalOpen && !isPurging) setIsPurgeModalOpen(false)
       else if (ticketToDelete && !isDeletingTicket) setTicketToDelete(null)
-      else if (isNewModalOpen && !newCreating) setIsNewModalOpen(false)
+      else if (isNewModalOpen && !newCreating) {
+        setIsNewModalOpen(false)
+        setNewSuccessTicket(null)
+      }
       else if (selectedInquiry && !modalSaving) handleCloseModal()
     },
   })
@@ -481,32 +517,6 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
   const formattedCurrentTime = useMemo(() => {
     return formatMinutesToTime(currentMinutesOfDay)
   }, [currentMinutesOfDay])
-
-  // New inquiry walk-in modal
-  const [isNewModalOpen, setIsNewModalOpen] = useState(false)
-  const [newSuccessTicket, setNewSuccessTicket] = useState(null)
-  const [newCustName, setNewCustName] = useState('')
-  const [newCustPhone, setNewCustPhone] = useState('')
-  const [newCustEmail, setNewCustEmail] = useState('')
-  const [newCustFacebook, setNewCustFacebook] = useState('')
-  const [newCustProvince, setNewCustProvince] = useState('')
-  const [newCustProvinceCode, setNewCustProvinceCode] = useState('')
-  const [newCustCity, setNewCustCity] = useState('')
-  const [newCustCityCode, setNewCustCityCode] = useState('')
-  const [newCustBarangay, setNewCustBarangay] = useState('')
-  const [newCustBarangayCode, setNewCustBarangayCode] = useState('')
-  const [newCustStreetAddress, setNewCustStreetAddress] = useState('')
-  const [newLocationErrors, setNewLocationErrors] = useState({})
-  const [newBranch, setNewBranch] = useState('Cavite Distribution Hub')
-  const [newType, setNewType] = useState('INQUIRY')
-  const [newProduct, setNewProduct] = useState('')
-  const [newWatt, setNewWatt] = useState('')
-  const [newQuantity, setNewQuantity] = useState(1)
-  const [newVisitDate, setNewVisitDate] = useState(getNextBusinessDay)
-  const [newVisitTime, setNewVisitTime] = useState('09:00')
-  const [newStaffNotes, setNewStaffNotes] = useState('')
-  const [newCreating, setNewCreating] = useState(false)
-  const [newError, setNewError] = useState('')
 
   const minBusinessDateStr = getNextBusinessDay()
 
@@ -790,7 +800,11 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
 
     if (isTodayInView) {
       const targetScroll = Math.max(0, timeIndicatorTop - 200)
-      calendarScrollRef.current.scrollTo({ top: targetScroll, behavior: 'smooth' })
+      if (typeof calendarScrollRef.current.scrollTo === 'function') {
+        calendarScrollRef.current.scrollTo({ top: targetScroll, behavior: 'smooth' })
+      } else {
+        calendarScrollRef.current.scrollTop = targetScroll
+      }
     }
   }, [calendarSubView, viewMode, currentDate, weekDates, todayIso, timeIndicatorTop])
 
@@ -872,12 +886,6 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
     setModalError('')
     setModalSuccess('')
     setCopiedCode(false)
-  }
-
-  const handleCloseModal = () => {
-    setSelectedInquiry(null)
-    setModalError('')
-    setModalSuccess('')
   }
 
   // Save changes to database
@@ -1137,6 +1145,13 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
 
       showToast(`Inquiry ${ticketCode} scheduled successfully.`)
       setNewSuccessTicket(finalRecord)
+
+      // Dispatch confirmation email to customer
+      if (finalRecord.email) {
+        sendInquiryTicketEmail(finalRecord).catch(emailErr => {
+          console.warn('Inquiry confirmation email dispatch warning:', emailErr)
+        })
+      }
     } catch (err) {
       console.error('Failed to create walk-in inquiry:', err)
       setNewError('Failed to record inquiry. Please check database connection.')

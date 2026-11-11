@@ -49,6 +49,7 @@ export async function queueAndSendCustomerConfirmationEmail({
   phoneNumber,
   branchLocation = 'Cavite',
   accessToken,
+  purchases = [],
   onStatusChange = null
 }) {
   const cleanEmail = sanitizeEmail(email)
@@ -118,7 +119,8 @@ export async function queueAndSendCustomerConfirmationEmail({
           branchLocation,
           accessToken,
           verificationToken,
-          origin
+          origin,
+          purchases
         })
       })
 
@@ -258,6 +260,60 @@ export async function confirmCustomerEmailByToken(token, verificationToken = nul
     status: 'confirmed',
     message: 'Email address verified and confirmed.'
   }
+}
+
+/**
+ * Dispatches an official Showroom Pass / Inquiry Confirmation email for customer reservations & inquiries.
+ * Dispatched to /api/send-confirmation-email with receipt details and ticket code.
+ */
+export async function sendInquiryTicketEmail(ticketData) {
+  if (!ticketData) return { success: false, error: 'Ticket data required.' }
+
+  const recipientEmail = sanitizeEmail(ticketData.email)
+  if (!recipientEmail || !isValidEmail(recipientEmail)) {
+    return { success: false, error: 'Valid recipient email required.' }
+  }
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://jdforcesolar.com'
+
+  if (typeof fetch === 'function') {
+    try {
+      const response = await fetch('/api/send-confirmation-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'inquiry_ticket',
+          ticketCode: ticketData.ticket_code || ticketData.ticketCode,
+          customerName: ticketData.customer_name || ticketData.customerName,
+          email: recipientEmail,
+          mobileContact: ticketData.mobile_contact || ticketData.mobileContact,
+          branch: ticketData.store_branch || ticketData.branch || 'Cavite Distribution Hub',
+          visitDate: ticketData.visit_date || ticketData.visitDate,
+          visitTime: ticketData.visit_time_slot || ticketData.visitTime,
+          productName: ticketData.product_name || ticketData.productName,
+          productWatt: ticketData.product_watt || ticketData.productWatt,
+          productPriceRange: ticketData.product_price_range || ticketData.productPriceRange,
+          quantity: ticketData.quantity || 1,
+          purposeOfVisitation: ticketData.purpose_of_visitation || ticketData.purposeOfVisitation,
+          deliveryAddress: ticketData.delivery_address || ticketData.deliveryAddress,
+          facebook: ticketData.facebook,
+          origin
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        return { success: true, data }
+      }
+      const errData = await response.json().catch(() => ({}))
+      return { success: false, error: errData.error || `HTTP ${response.status}` }
+    } catch (err) {
+      console.warn('sendInquiryTicketEmail network note:', err)
+      return { success: false, error: err.message }
+    }
+  }
+
+  return { success: false, error: 'Fetch not available.' }
 }
 
 /**
@@ -482,6 +538,7 @@ export async function registerCustomerAndSale({
       phoneNumber: phone,
       branchLocation: branch,
       accessToken: customer.access_token,
+      purchases: createdPurchases || purchasesToInsert || [],
       onStatusChange: onEmailStatusChange
     }).catch(err => {
       console.warn('Confirmation email dispatch warning:', err)

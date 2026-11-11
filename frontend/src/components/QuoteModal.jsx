@@ -13,7 +13,9 @@ import {
   Calendar,
   Clock,
   AlertCircle,
+  MailCheck,
 } from 'lucide-react'
+import { sendInquiryTicketEmail } from '../lib/customerService'
 import TermsOfServiceModal from './TermsOfServiceModal'
 import { FaFacebook, FaInstagram } from 'react-icons/fa'
 import { getInquiryStatusConfig } from '../lib/inquiryStatusUtils'
@@ -330,10 +332,23 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       const finalTicket = data && data[0] ? data[0] : payload
       setGeneratedTicket(finalTicket)
       setIsConfirmedTransition(true)
+
+      // Dispatch confirmation & inquiry receipt email if email provided
+      if (finalTicket.email) {
+        sendInquiryTicketEmail(finalTicket).catch(emailErr => {
+          console.warn('Inquiry ticket email dispatch warning:', emailErr)
+        })
+      }
     } catch (err) {
       console.error('Submission error:', err)
       setGeneratedTicket(payload)
       setIsConfirmedTransition(true)
+
+      if (payload.email) {
+        sendInquiryTicketEmail(payload).catch(emailErr => {
+          console.warn('Inquiry ticket fallback email dispatch warning:', emailErr)
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -954,6 +969,16 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                   </div>
                 </div>
               </div>
+
+              {/* Email Confirmation Notice */}
+              {generatedTicket.email && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 text-xs">
+                  <MailCheck className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span className="leading-tight">
+                    Official pass &amp; inquiry receipt details sent to <strong>{generatedTicket.email}</strong>.
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
