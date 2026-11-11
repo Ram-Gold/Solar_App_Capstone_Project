@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -652,9 +653,11 @@
       .branches-grid {
         grid-template-columns: repeat(3, 1fr);
       }
+
       .pillars-strip {
         grid-template-columns: repeat(2, 1fr);
       }
+
       .matrix-options,
       .scorecard-grid {
         grid-template-columns: 1fr;
@@ -662,19 +665,23 @@
     }
 
     @media (max-width: 580px) {
+
       .branches-grid,
       .pillars-strip {
         grid-template-columns: 1fr;
       }
+
       body {
         padding: 20px 14px;
       }
+
       .runner-wrap {
         padding: 18px;
       }
     }
   </style>
 </head>
+
 <body>
 
   <div class="container">
@@ -716,16 +723,23 @@
           <div class="branch-title" onclick="selectNode('SYMPTOM_NO_POWER')">1. No Power</div>
           <div class="stage-block">
             <div class="stage-block-label">3-Stage Criteria Audit</div>
-            <div class="stage-pill" id="pill-SYMPTOM_NO_POWER" onclick="selectNode('SYMPTOM_NO_POWER')"><span>S1: Electrical</span><span>30%</span></div>
-            <div class="stage-pill" id="pill-CRIT_NP_PHYSICAL" onclick="selectNode('CRIT_NP_PHYSICAL')"><span>S2: Physical Seal</span><span>25%</span></div>
-            <div class="stage-pill" id="pill-CRIT_NP_ENV" onclick="selectNode('CRIT_NP_ENV')"><span>S3: Env &amp; Age</span><span>45%</span></div>
+            <div class="stage-pill" id="pill-SYMPTOM_NO_POWER" onclick="selectNode('SYMPTOM_NO_POWER')"><span>S1:
+                Electrical</span><span>30%</span></div>
+            <div class="stage-pill" id="pill-CRIT_NP_PHYSICAL" onclick="selectNode('CRIT_NP_PHYSICAL')"><span>S2:
+                Physical Seal</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-CRIT_NP_ENV" onclick="selectNode('CRIT_NP_ENV')"><span>S3: Env &amp;
+                Age</span><span>45%</span></div>
           </div>
           <div class="stage-block-label">Leaf Verdicts</div>
           <div class="branch-leaf-list">
-            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_OPEN_CIRCUIT" onclick="selectNode('DIAG_OPEN_CIRCUIT')"><span>FLT-PV-001</span> <span>DIY</span></div>
-            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_BMS_LOCKOUT" onclick="selectNode('DIAG_BMS_LOCKOUT')"><span>FLT-BAT-002</span> <span>DIY</span></div>
-            <div class="leaf-tag" data-proto="INFO" id="pill-DIAG_RAIN_DEPLETION" onclick="selectNode('DIAG_RAIN_DEPLETION')"><span>FLT-ENV-003</span> <span>INFO</span></div>
-            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_SWITCH_DISENGAGED" onclick="selectNode('DIAG_SWITCH_DISENGAGED')"><span>FLT-PWR-004</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_OPEN_CIRCUIT"
+              onclick="selectNode('DIAG_OPEN_CIRCUIT')"><span>FLT-PV-001</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_BMS_LOCKOUT" onclick="selectNode('DIAG_BMS_LOCKOUT')">
+              <span>FLT-BAT-002</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="INFO" id="pill-DIAG_RAIN_DEPLETION"
+              onclick="selectNode('DIAG_RAIN_DEPLETION')"><span>FLT-ENV-003</span> <span>INFO</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_SWITCH_DISENGAGED"
+              onclick="selectNode('DIAG_SWITCH_DISENGAGED')"><span>FLT-PWR-004</span> <span>DIY</span></div>
           </div>
         </div>
 
@@ -734,16 +748,23 @@
           <div class="branch-title" onclick="selectNode('SYMPTOM_SHORT_RUNTIME')">2. Short Run</div>
           <div class="stage-block">
             <div class="stage-block-label">3-Stage Criteria Audit</div>
-            <div class="stage-pill" id="pill-SYMPTOM_SHORT_RUNTIME" onclick="selectNode('SYMPTOM_SHORT_RUNTIME')"><span>S1: Harvest LED</span><span>30%</span></div>
-            <div class="stage-pill" id="pill-CRIT_SR_PHYSICAL" onclick="selectNode('CRIT_SR_PHYSICAL')"><span>S2: Glass &amp; Seal</span><span>25%</span></div>
-            <div class="stage-pill" id="pill-CRIT_SR_ENV" onclick="selectNode('CRIT_SR_ENV')"><span>S3: Soil/Shade/Tilt</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-SYMPTOM_SHORT_RUNTIME" onclick="selectNode('SYMPTOM_SHORT_RUNTIME')">
+              <span>S1: Harvest LED</span><span>30%</span></div>
+            <div class="stage-pill" id="pill-CRIT_SR_PHYSICAL" onclick="selectNode('CRIT_SR_PHYSICAL')"><span>S2: Glass
+                &amp; Seal</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-CRIT_SR_ENV" onclick="selectNode('CRIT_SR_ENV')"><span>S3:
+                Soil/Shade/Tilt</span><span>25%</span></div>
           </div>
           <div class="stage-block-label">Leaf Verdicts</div>
           <div class="branch-leaf-list">
-            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_SOILING_LOSS" onclick="selectNode('DIAG_SOILING_LOSS')"><span>FLT-PV-005</span> <span>DIY</span></div>
-            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_SHADING_LOSS" onclick="selectNode('DIAG_SHADING_LOSS')"><span>FLT-PV-006</span> <span>DIY</span></div>
-            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_TILT_MISALIGNMENT" onclick="selectNode('DIAG_TILT_MISALIGNMENT')"><span>FLT-PV-007</span> <span>DIY</span></div>
-            <div class="leaf-tag" data-proto="CLAIM" id="pill-DIAG_BATTERY_AGING" onclick="selectNode('DIAG_BATTERY_AGING')"><span>FLT-BAT-008</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_SOILING_LOSS"
+              onclick="selectNode('DIAG_SOILING_LOSS')"><span>FLT-PV-005</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_SHADING_LOSS"
+              onclick="selectNode('DIAG_SHADING_LOSS')"><span>FLT-PV-006</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_TILT_MISALIGNMENT"
+              onclick="selectNode('DIAG_TILT_MISALIGNMENT')"><span>FLT-PV-007</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="CLAIM" id="pill-DIAG_BATTERY_AGING"
+              onclick="selectNode('DIAG_BATTERY_AGING')"><span>FLT-BAT-008</span> <span>CLAIM</span></div>
           </div>
         </div>
 
@@ -752,16 +773,23 @@
           <div class="branch-title" onclick="selectNode('SYMPTOM_DIM_FLICKER')">3. Dim/Flicker</div>
           <div class="stage-block">
             <div class="stage-block-label">3-Stage Criteria Audit</div>
-            <div class="stage-pill" id="pill-SYMPTOM_DIM_FLICKER" onclick="selectNode('SYMPTOM_DIM_FLICKER')"><span>S1: LED Pattern</span><span>30%</span></div>
-            <div class="stage-pill" id="pill-CRIT_DF_PHYSICAL" onclick="selectNode('CRIT_DF_PHYSICAL')"><span>S2: Lens Moisture</span><span>25%</span></div>
-            <div class="stage-pill" id="pill-CRIT_DF_ENV" onclick="selectNode('CRIT_DF_ENV')"><span>S3: Irradiance</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-SYMPTOM_DIM_FLICKER" onclick="selectNode('SYMPTOM_DIM_FLICKER')"><span>S1:
+                LED Pattern</span><span>30%</span></div>
+            <div class="stage-pill" id="pill-CRIT_DF_PHYSICAL" onclick="selectNode('CRIT_DF_PHYSICAL')"><span>S2: Lens
+                Moisture</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-CRIT_DF_ENV" onclick="selectNode('CRIT_DF_ENV')"><span>S3:
+                Irradiance</span><span>25%</span></div>
           </div>
           <div class="stage-block-label">Leaf Verdicts</div>
           <div class="branch-leaf-list">
-            <div class="leaf-tag" data-proto="CLAIM" data-elim="true" id="pill-DIAG_WATER_INGRESS" onclick="selectNode('DIAG_WATER_INGRESS')"><span>FLT-IP-009</span> <span>CLAIM</span></div>
-            <div class="leaf-tag" data-proto="INFO" id="pill-DIAG_NORMAL_RADAR" onclick="selectNode('DIAG_NORMAL_RADAR')"><span>FLT-SET-010</span> <span>INFO</span></div>
-            <div class="leaf-tag" data-proto="CLAIM" id="pill-DIAG_VOLTAGE_RIPPLE" onclick="selectNode('DIAG_VOLTAGE_RIPPLE')"><span>FLT-DRV-011</span> <span>CLAIM</span></div>
-            <div class="leaf-tag" data-proto="CLAIM" id="pill-DIAG_LED_ARRAY_BURNOUT" onclick="selectNode('DIAG_LED_ARRAY_BURNOUT')"><span>FLT-LED-012</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" data-proto="CLAIM" data-elim="true" id="pill-DIAG_WATER_INGRESS"
+              onclick="selectNode('DIAG_WATER_INGRESS')"><span>FLT-IP-009</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" data-proto="INFO" id="pill-DIAG_NORMAL_RADAR"
+              onclick="selectNode('DIAG_NORMAL_RADAR')"><span>FLT-SET-010</span> <span>INFO</span></div>
+            <div class="leaf-tag" data-proto="CLAIM" id="pill-DIAG_VOLTAGE_RIPPLE"
+              onclick="selectNode('DIAG_VOLTAGE_RIPPLE')"><span>FLT-DRV-011</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" data-proto="CLAIM" id="pill-DIAG_LED_ARRAY_BURNOUT"
+              onclick="selectNode('DIAG_LED_ARRAY_BURNOUT')"><span>FLT-LED-012</span> <span>CLAIM</span></div>
           </div>
         </div>
 
@@ -770,14 +798,19 @@
           <div class="branch-title" onclick="selectNode('SYMPTOM_DAYTIME_ON')">4. Daytime On</div>
           <div class="stage-block">
             <div class="stage-block-label">3-Stage Criteria Audit</div>
-            <div class="stage-pill" id="pill-SYMPTOM_DAYTIME_ON" onclick="selectNode('SYMPTOM_DAYTIME_ON')"><span>S1: Photocell 5V</span><span>30%</span></div>
-            <div class="stage-pill" id="pill-CRIT_DO_PHYSICAL" onclick="selectNode('CRIT_DO_PHYSICAL')"><span>S2: Seal &amp; Plug</span><span>25%</span></div>
-            <div class="stage-pill" id="pill-CRIT_DO_CONTROL" onclick="selectNode('CRIT_DO_CONTROL')"><span>S3: Remote Gate</span><span>20%</span></div>
+            <div class="stage-pill" id="pill-SYMPTOM_DAYTIME_ON" onclick="selectNode('SYMPTOM_DAYTIME_ON')"><span>S1:
+                Photocell 5V</span><span>30%</span></div>
+            <div class="stage-pill" id="pill-CRIT_DO_PHYSICAL" onclick="selectNode('CRIT_DO_PHYSICAL')"><span>S2: Seal
+                &amp; Plug</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-CRIT_DO_CONTROL" onclick="selectNode('CRIT_DO_CONTROL')"><span>S3: Remote
+                Gate</span><span>20%</span></div>
           </div>
           <div class="stage-block-label">Leaf Verdicts</div>
           <div class="branch-leaf-list">
-            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_PHOTOCELL_BLOCKED" onclick="selectNode('DIAG_PHOTOCELL_BLOCKED')"><span>FLT-SNS-013</span> <span>DIY</span></div>
-            <div class="leaf-tag" data-proto="CLAIM" id="pill-DIAG_MOSFET_FAULT" onclick="selectNode('DIAG_MOSFET_FAULT')"><span>FLT-CTL-014</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_PHOTOCELL_BLOCKED"
+              onclick="selectNode('DIAG_PHOTOCELL_BLOCKED')"><span>FLT-SNS-013</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="CLAIM" id="pill-DIAG_MOSFET_FAULT"
+              onclick="selectNode('DIAG_MOSFET_FAULT')"><span>FLT-CTL-014</span> <span>CLAIM</span></div>
           </div>
         </div>
 
@@ -786,15 +819,21 @@
           <div class="branch-title" onclick="selectNode('SYMPTOM_PHYSICAL_HOTSPOT')">5. Damage/Heat</div>
           <div class="stage-block">
             <div class="stage-block-label">3-Stage Criteria Audit</div>
-            <div class="stage-pill" id="pill-SYMPTOM_PHYSICAL_HOTSPOT" onclick="selectNode('SYMPTOM_PHYSICAL_HOTSPOT')"><span>S1: Surface Audit</span><span>25%</span></div>
-            <div class="stage-pill" id="pill-CRIT_PH_ELECTRICAL" onclick="selectNode('CRIT_PH_ELECTRICAL')"><span>S2: Continuity</span><span>30%</span></div>
-            <div class="stage-pill" id="pill-CRIT_PH_ENV" onclick="selectNode('CRIT_PH_ENV')"><span>S3: Site Exposure</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-SYMPTOM_PHYSICAL_HOTSPOT" onclick="selectNode('SYMPTOM_PHYSICAL_HOTSPOT')">
+              <span>S1: Surface Audit</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-CRIT_PH_ELECTRICAL" onclick="selectNode('CRIT_PH_ELECTRICAL')"><span>S2:
+                Continuity</span><span>30%</span></div>
+            <div class="stage-pill" id="pill-CRIT_PH_ENV" onclick="selectNode('CRIT_PH_ENV')"><span>S3: Site
+                Exposure</span><span>25%</span></div>
           </div>
           <div class="stage-block-label">Leaf Verdicts</div>
           <div class="branch-leaf-list">
-            <div class="leaf-tag" data-proto="CLAIM" data-elim="true" id="pill-DIAG_THERMAL_HOTSPOT" onclick="selectNode('DIAG_THERMAL_HOTSPOT')"><span>FLT-PV-015</span> <span>CLAIM</span></div>
-            <div class="leaf-tag" data-proto="VOID" data-elim="true" id="pill-DIAG_GLASS_FRACTURE" onclick="selectNode('DIAG_GLASS_FRACTURE')"><span>FLT-EXT-016</span> <span>VOID</span></div>
-            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_HARDWARE_MOUNT" onclick="selectNode('DIAG_HARDWARE_MOUNT')"><span>FLT-MNT-017</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="CLAIM" data-elim="true" id="pill-DIAG_THERMAL_HOTSPOT"
+              onclick="selectNode('DIAG_THERMAL_HOTSPOT')"><span>FLT-PV-015</span> <span>CLAIM</span></div>
+            <div class="leaf-tag" data-proto="VOID" data-elim="true" id="pill-DIAG_GLASS_FRACTURE"
+              onclick="selectNode('DIAG_GLASS_FRACTURE')"><span>FLT-EXT-016</span> <span>VOID</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_HARDWARE_MOUNT"
+              onclick="selectNode('DIAG_HARDWARE_MOUNT')"><span>FLT-MNT-017</span> <span>DIY</span></div>
           </div>
         </div>
 
@@ -803,15 +842,21 @@
           <div class="branch-title" onclick="selectNode('SYMPTOM_SENSOR_REMOTE')">6. Sensor/Remote</div>
           <div class="stage-block">
             <div class="stage-block-label">3-Stage Criteria Audit</div>
-            <div class="stage-pill" id="pill-SYMPTOM_SENSOR_REMOTE" onclick="selectNode('SYMPTOM_SENSOR_REMOTE')"><span>S1: IR &amp; Radar</span><span>20%</span></div>
-            <div class="stage-pill" id="pill-CRIT_SRM_ELECTRICAL" onclick="selectNode('CRIT_SRM_ELECTRICAL')"><span>S2: Main Power</span><span>30%</span></div>
-            <div class="stage-pill" id="pill-CRIT_SRM_PHYSICAL" onclick="selectNode('CRIT_SRM_PHYSICAL')"><span>S3: Sensor Dome</span><span>25%</span></div>
+            <div class="stage-pill" id="pill-SYMPTOM_SENSOR_REMOTE" onclick="selectNode('SYMPTOM_SENSOR_REMOTE')">
+              <span>S1: IR &amp; Radar</span><span>20%</span></div>
+            <div class="stage-pill" id="pill-CRIT_SRM_ELECTRICAL" onclick="selectNode('CRIT_SRM_ELECTRICAL')"><span>S2:
+                Main Power</span><span>30%</span></div>
+            <div class="stage-pill" id="pill-CRIT_SRM_PHYSICAL" onclick="selectNode('CRIT_SRM_PHYSICAL')"><span>S3:
+                Sensor Dome</span><span>25%</span></div>
           </div>
           <div class="stage-block-label">Leaf Verdicts</div>
           <div class="branch-leaf-list">
-            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_REMOTE_BATTERIES" onclick="selectNode('DIAG_REMOTE_BATTERIES')"><span>FLT-RMT-018</span> <span>DIY</span></div>
-            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_REMOTE_RANGE" onclick="selectNode('DIAG_REMOTE_RANGE')"><span>FLT-RMT-019</span> <span>DIY</span></div>
-            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_RADAR_DIRT" onclick="selectNode('DIAG_RADAR_DIRT')"><span>FLT-SNS-020</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_REMOTE_BATTERIES"
+              onclick="selectNode('DIAG_REMOTE_BATTERIES')"><span>FLT-RMT-018</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_REMOTE_RANGE"
+              onclick="selectNode('DIAG_REMOTE_RANGE')"><span>FLT-RMT-019</span> <span>DIY</span></div>
+            <div class="leaf-tag" data-proto="DIY" id="pill-DIAG_RADAR_DIRT" onclick="selectNode('DIAG_RADAR_DIRT')">
+              <span>FLT-SNS-020</span> <span>DIY</span></div>
           </div>
         </div>
 
@@ -834,8 +879,10 @@
 
     <div class="runner-controls-bar">
       <div class="mode-tabs">
-        <button class="btn-mode active" id="tab-guided" onclick="setRunnerMode('guided')">Mode A: Guided 3-Stage Audit</button>
-        <button class="btn-mode" id="tab-matrix" onclick="setRunnerMode('matrix')">Mode B: Direct Criteria Matrix</button>
+        <button class="btn-mode active" id="tab-guided" onclick="setRunnerMode('guided')">Mode A: Guided 3-Stage
+          Audit</button>
+        <button class="btn-mode" id="tab-matrix" onclick="setRunnerMode('matrix')">Mode B: Direct Criteria
+          Matrix</button>
       </div>
       <div class="context-selector">
         <span>Equipment Context:</span>
@@ -883,6 +930,15 @@
 
   <!-- SCRIPT -->
   <script>
+    const SYMPTOM_SEVERITY_PRIORITY = {
+      PHYSICAL_HOTSPOT: 1, // Highest severity (Physical damage/fire/broken glass)
+      NO_POWER: 2,         // Total electrical blackout / BMS lockout
+      SHORT_RUNTIME: 3,    // Battery depletion / undercharging
+      DIM_FLICKER: 4,      // Driver regulation / LED array burnout
+      DAYTIME_ON: 5,       // Photocell inversion / MOSFET fault
+      SENSOR_REMOTE: 6     // Remote handset / Radar sensor smudging
+    };
+
     const CRITERIA_PILLARS = [
       { key: "electrical", label: "1. Electrical Continuity", weight: 0.30, weightLabel: "30%" },
       { key: "physical", label: "2. Physical & IP Seal", weight: 0.25, weightLabel: "25%" },
@@ -1437,6 +1493,7 @@
     let evaluatedPillars = [];
     let criteriaState = {
       symptom: "NO_POWER",
+      symptoms: ["NO_POWER"],
       electrical: "LED_BLINKING",
       physical: "SEAL_INTACT",
       environmental: "CLEAR_SUN",
@@ -1452,9 +1509,16 @@
       let bestRule = DIAGNOSTIC_RULES[0];
       let bestScore = -1;
 
+      const activeSymptoms = Array.isArray(cState.symptoms) && cState.symptoms.length > 0 ? cState.symptoms : [cState.symptom];
+      const sortedSymptoms = [...activeSymptoms].sort((a, b) => (SYMPTOM_SEVERITY_PRIORITY[a] || 99) - (SYMPTOM_SEVERITY_PRIORITY[b] || 99));
+      const highestSeveritySymptom = sortedSymptoms[0] || cState.symptom;
+      cState.symptom = highestSeveritySymptom;
+      cState.symptoms = sortedSymptoms;
+
       for (const rule of DIAGNOSTIC_RULES) {
         const m = rule.match;
-        const symMatch = !m.symptom || m.symptom.includes(cState.symptom);
+        const matchingSymptoms = (m.symptom || []).filter(s => sortedSymptoms.includes(s));
+        const symMatch = !m.symptom || matchingSymptoms.length > 0;
         if (!symMatch && rule.priority < 96) continue;
 
         let weighted = 0;
@@ -1479,7 +1543,13 @@
           bonus = (rule.priority / 100) * 0.12;
         }
 
-        const total = weighted + bonus;
+        // Compound correlation bonus awarded when multiple symptoms exist and rule addresses highest severity
+        let compoundBonus = 0;
+        if (sortedSymptoms.length > 1 && m.symptom && m.symptom.includes(highestSeveritySymptom)) {
+          compoundBonus = 0.08;
+        }
+
+        const total = weighted + bonus + compoundBonus;
         if (total > bestScore) {
           bestScore = total;
           bestRule = rule;
@@ -1488,7 +1558,7 @@
 
       const confidence = Math.min(99, Math.max(86, Math.round(Math.min(1, bestScore) * 96))) + "%";
       const node = TREE_DATA[bestRule.nodeKey];
-      return { rule: bestRule, nodeKey: bestRule.nodeKey, node, confidence };
+      return { rule: bestRule, nodeKey: bestRule.nodeKey, node, confidence, activeSymptoms: sortedSymptoms, primarySymptom: highestSeveritySymptom };
     }
 
     function detectCompounds(cState, primaryKey) {
@@ -1517,6 +1587,24 @@
       if (cState.control === "AGED_CELLS" && primaryKey !== "DIAG_BATTERY_AGING") {
         list.push("FLT-BAT-008 (LiFePO4 Cell Aging): 2+ years of service cycle wear reduces nocturnal reserve capacity.");
       }
+
+      // Secondary Symptom Compound Hardware Factors
+      const SECONDARY_SYMPTOM_FACTORS = {
+        SENSOR_REMOTE: "FLT-RAD-010 (Secondary Remote/Radar Receiver Abnormality): Handheld infrared controller or radar microwave induction receiver circuit failure compounding primary issue.",
+        DIM_FLICKER: "FLT-LED-004 (Secondary LED String / Driver Voltage Fluctuating): Observed strobing or sub-nominal luminous output indicates concurrent buck driver or LED chip degradation.",
+        SHORT_RUNTIME: "FLT-BAT-002 (Secondary Battery Capacity Depletion): Accelerated nocturnal battery discharge compounding primary issue, requiring 48-hour sun-soak or cell test.",
+        NO_POWER: "FLT-PWR-001 (Secondary Circuit Open-Loop Condition): Intermittent or complete electrical circuit dropout detected in conjunction with other symptoms.",
+        DAYTIME_ON: "FLT-SNS-013 (Secondary Photocell Sensor Inversion): Fixture fails to sense daytime solar voltage threshold, operating daytime load continuously.",
+        PHYSICAL_HOTSPOT: "FLT-PV-008 (Secondary PV Module Hotspot / Heat Abnormality): Localized solar cell discoloration or localized heat marks threaten long-term panel continuity."
+      };
+      const activeSymptoms = Array.isArray(cState.symptoms) && cState.symptoms.length > 0 ? cState.symptoms : [cState.symptom];
+      const primarySymptom = cState.symptom || activeSymptoms[0];
+      activeSymptoms.forEach(sym => {
+        if (sym !== primarySymptom && SECONDARY_SYMPTOM_FACTORS[sym]) {
+          list.push(SECONDARY_SYMPTOM_FACTORS[sym]);
+        }
+      });
+
       return list;
     }
 
@@ -1568,10 +1656,14 @@
       }).join("");
     }
 
+    let selectedRootSymptoms = [];
+
     function selectNode(key, optionObj = null) {
       if (key === "ROOT") {
+        selectedRootSymptoms = [];
         criteriaState = {
           symptom: "NO_POWER",
+          symptoms: ["NO_POWER"],
           electrical: "LED_BLINKING",
           physical: "SEAL_INTACT",
           environmental: "CLEAR_SUN",
@@ -1604,7 +1696,7 @@
 
       // If user clicked a leaf verdict pill directly from the top map, load its canonical criteria vector
       if (data.faultCode && !optionObj && data.defaultCriteria) {
-        criteriaState = { ...data.defaultCriteria };
+        criteriaState = { ...data.defaultCriteria, symptoms: [data.defaultCriteria.symptom] };
         evaluatedPillars = ["electrical", "physical", "environmental", "control"];
         const res = evaluateMultiCriteria(criteriaState);
         ruleConfidence = res.confidence;
@@ -1660,7 +1752,7 @@
         const compounds = detectCompounds(criteriaState, key);
         const compoundHtml = compounds.length > 0 ? `
           <div class="compound-box">
-            <div class="compound-title">Compound Contributing Criteria Detected (${compounds.length}):</div>
+            <div class="compound-title">Compound Contributing Criteria & Secondary Symptoms Detected (${compounds.length}):</div>
             ${compounds.map(c => `<div>• ${c}</div>`).join("")}
           </div>
         ` : "";
@@ -1696,30 +1788,99 @@
       // Render Choices
       const cList = document.getElementById("run-choices-list");
       cList.innerHTML = "";
-      (data.options || []).forEach((opt, idx) => {
-        const btn = document.createElement("button");
-        btn.className = "btn-choice";
-        btn.innerHTML = `<span>${opt.label}</span> <span>→</span>`;
-        btn.onclick = () => selectNode(opt.next, opt);
-        cList.appendChild(btn);
-      });
+
+      if (key === "ROOT") {
+        document.getElementById("run-subtext").innerText = "Select one or more symptoms below. The system automatically prioritizes the highest-severity symptom for the guided audit while logging secondary symptoms as compound factors.";
+
+        (data.options || []).forEach((opt) => {
+          const symKey = opt.patch.symptom;
+          const isSelected = selectedRootSymptoms.some(s => s.patch.symptom === symKey);
+          const priority = SYMPTOM_SEVERITY_PRIORITY[symKey] || 99;
+
+          const btn = document.createElement("button");
+          btn.className = "btn-choice" + (isSelected ? " active" : "");
+          btn.style.background = isSelected ? "#f0f0f0" : "";
+          btn.style.borderWidth = isSelected ? "2px" : "1px";
+          btn.innerHTML = `<span>${opt.label}</span> <span style="font-size:0.65rem; font-weight:700;">${isSelected ? '[SELECTED • PRIORITY ' + priority + ']' : '[PRIORITY ' + priority + ']'}</span>`;
+          btn.onclick = () => {
+            if (isSelected) {
+              selectedRootSymptoms = selectedRootSymptoms.filter(s => s.patch.symptom !== symKey);
+            } else {
+              selectedRootSymptoms.push(opt);
+            }
+            selectNode("ROOT");
+          };
+          cList.appendChild(btn);
+        });
+
+        // Add action row
+        const actionRow = document.createElement("div");
+        actionRow.style.marginTop = "14px";
+        actionRow.style.padding = "10px 14px";
+        actionRow.style.border = "1px solid var(--border)";
+        actionRow.style.display = "flex";
+        actionRow.style.justifyContent = "space-between";
+        actionRow.style.alignItems = "center";
+        actionRow.style.background = "#fafafa";
+
+        const sorted = [...selectedRootSymptoms].sort((a, b) => (SYMPTOM_SEVERITY_PRIORITY[a.patch.symptom] || 99) - (SYMPTOM_SEVERITY_PRIORITY[b.patch.symptom] || 99));
+        const pri = sorted[0];
+
+        actionRow.innerHTML = `
+          <div style="font-size: 0.72rem;">
+            <strong>${selectedRootSymptoms.length} Symptom${selectedRootSymptoms.length !== 1 ? 's' : ''} Selected</strong>
+            ${pri ? `<div style="color:var(--muted); font-size:0.65rem;">Priority Branch: ${pri.label} (Severity Priority ${SYMPTOM_SEVERITY_PRIORITY[pri.patch.symptom]})</div>` : '<div style="color:var(--muted); font-size:0.65rem;">Select at least 1 symptom above to proceed</div>'}
+          </div>
+          <button class="btn-eval-now" ${selectedRootSymptoms.length === 0 ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''} id="btn-continue-multi">
+            Continue Audit →
+          </button>
+        `;
+        cList.appendChild(actionRow);
+
+        const continueBtn = document.getElementById("btn-continue-multi");
+        if (continueBtn && selectedRootSymptoms.length > 0) {
+          continueBtn.onclick = () => {
+            const allSyms = sorted.map(s => s.patch.symptom);
+            criteriaState.symptoms = allSyms;
+            criteriaState.symptom = pri.patch.symptom;
+            selectNode(pri.next, pri);
+          };
+        }
+      } else {
+        (data.options || []).forEach((opt) => {
+          const btn = document.createElement("button");
+          btn.className = "btn-choice";
+          btn.innerHTML = `<span>${opt.label}</span> <span>→</span>`;
+          btn.onclick = () => selectNode(opt.next, opt);
+          cList.appendChild(btn);
+        });
+      }
     }
 
     function renderMatrixView() {
       const container = document.getElementById("matrix-grid-container");
+      const activeSyms = Array.isArray(criteriaState.symptoms) && criteriaState.symptoms.length > 0 ? criteriaState.symptoms : [criteriaState.symptom];
+      const sorted = [...activeSyms].sort((a, b) => (SYMPTOM_SEVERITY_PRIORITY[a] || 99) - (SYMPTOM_SEVERITY_PRIORITY[b] || 99));
+      const priSym = sorted[0] || criteriaState.symptom;
+
       const symptomHtml = `
         <div class="matrix-section">
           <div class="matrix-section-head">
-            <span>0. Primary Observed Symptom</span>
-            <span>Prerequisite Vector</span>
+            <span>0. Hardware Failure Symptoms (Multi-Choice Enabled)</span>
+            <span>${activeSyms.length} Selected</span>
           </div>
           <div class="matrix-options">
-            ${CRITERIA_OPTIONS.symptom.map(opt => `
-              <button class="btn-matrix-opt ${criteriaState.symptom === opt.value ? 'active' : ''}" onclick="updateMatrixCriterion('symptom', '${opt.value}')">
-                <span>${opt.label}</span>
-                <span>[SYMPTOM]</span>
-              </button>
-            `).join("")}
+            ${CRITERIA_OPTIONS.symptom.map(opt => {
+        const isSelected = activeSyms.includes(opt.value);
+        const isPrimary = isSelected && opt.value === priSym;
+        const badge = isPrimary ? '[PRIMARY]' : isSelected ? '[COMPOUND]' : '[INACTIVE]';
+        return `
+                <button class="btn-matrix-opt ${isSelected ? 'active' : ''}" onclick="toggleMatrixSymptom('${opt.value}')">
+                  <span>${opt.label}</span>
+                  <span>${badge}</span>
+                </button>
+              `;
+      }).join("")}
           </div>
         </div>
       `;
@@ -1759,6 +1920,22 @@
         </div>
         <button class="btn-eval-now" onclick="applyMatrixEvaluation()">Generate Full Verdict Dossier →</button>
       `;
+    }
+
+    function toggleMatrixSymptom(val) {
+      let active = Array.isArray(criteriaState.symptoms) && criteriaState.symptoms.length > 0 ? [...criteriaState.symptoms] : [criteriaState.symptom];
+      if (active.includes(val)) {
+        if (active.length > 1) {
+          active = active.filter(v => v !== val);
+        }
+      } else {
+        active.push(val);
+      }
+      criteriaState.symptoms = active;
+      const sorted = [...active].sort((a, b) => (SYMPTOM_SEVERITY_PRIORITY[a] || 99) - (SYMPTOM_SEVERITY_PRIORITY[b] || 99));
+      criteriaState.symptom = sorted[0];
+      renderPillarsStrip();
+      renderMatrixView();
     }
 
     function updateMatrixCriterion(key, val) {
@@ -1820,4 +1997,5 @@
     selectNode("ROOT");
   </script>
 </body>
+
 </html>

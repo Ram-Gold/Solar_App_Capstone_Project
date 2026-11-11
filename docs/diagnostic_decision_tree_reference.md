@@ -110,12 +110,54 @@ Every leaf verdict outputs a **4-Pillar Criteria Scorecard**, **Compound Contrib
 
 ---
 
-## 4. The Interactive Monochrome HTML Visualizer (`docs/interactive_decision_tree.html`)
+## 5. Multi-Symptom Composite Scoring & Priority Branching Architecture
 
-The standalone visualizer in [`docs/interactive_decision_tree.html`](file:///home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/docs/interactive_decision_tree.html) mirrors the exact multi-criteria architecture in a **strictly monochrome, high-contrast industrial specification layout**:
+When multiple concurrent symptoms are observed on off-grid solar equipment (e.g. *Dim Lighting* along with *Remote Sensor Unresponsive*), the engine executes **Priority-Weighted Automatic Branching** and **Multi-Symptom Composite Scoring**:
 
-1. **Multi-Stage Architecture Map & Protocol Filters**: Displays the Root node, the 6 symptom columns with their 3-Stage Criteria Audit progression (`Stage 1 -> Stage 2 -> Stage 3 -> Verdict`), and all 20 fault codes with instant monochrome filters (`ALL`, `DIY FIX`, `WARRANTY CLAIM`, `ZERO DEFECT`, `ELIMINATION RULES`).
-2. **Live 4-Pillar Criteria Status Strip**: Displays the real-time state (`PASS`, `WARNING`, `FAIL`, `PENDING`) and weight (`30%`, `25%`, `25%`, `20%`) of all four criteria pillars as you step through the audit.
-3. **Dual-Mode Interactive Engine**:
-   - **Guided 3-Stage Audit Mode**: Walk step-by-step through Symptom -> Criterion 1 (Electrical) -> Criterion 2 (Physical Seal) -> Criterion 3 (Environment & Control) -> Multi-Criteria Verdict.
-   - **Direct Criteria Matrix Mode**: Toggle any combination of the 5 criteria vectors directly and watch the inference engine compute the matched fault rule, confidence percentage, 4-pillar scorecard, compound contributing factors, and warranty qualification in real time.
+### A. Symptom Severity & Safety Priority Hierarchy (`SYMPTOM_SEVERITY_PRIORITY`)
+To protect against safety hazards, Level 0 triage ranks all active symptoms. The highest-severity symptom automatically dictates the 3-stage question sequence, while all other selected symptoms are preserved as contributing compound factors:
+
+| Priority Rank | Symptom Key | Category Label | Engineering Safety Rationale |
+| :---: | :--- | :--- | :--- |
+| **1 (Highest)** | `PHYSICAL_HOTSPOT` | Panel Heat / Discoloration / Broken Glass | Critical thermal run-away or structural hermetic breach. Requires immediate physical audit. |
+| **2** | `NO_POWER` | Light Does NOT Turn On at Night | Complete open loop, severed cable collar, or BMS hard low-voltage lockout. |
+| **3** | `SHORT_RUNTIME` | Shuts Off Prematurely (1–3 Hours) | Deep LiFePO4 cell capacity degradation or acute monsoonal harvest deficit. |
+| **4** | `DIM_FLICKER` | Dim Illumination or Flickering LEDs | LED driver current regulation ripple or partial array string open. |
+| **5** | `DAYTIME_ON` | Light Stays ON During Bright Daytime | Photocell circuit blinding or MOSFET switching gate short. |
+| **6 (Lowest)** | `SENSOR_REMOTE` | Remote Control / Radar Not Responding | Handset AAA battery depletion or microwave radar lens smudging. |
+
+### B. Mathematical Multi-Symptom Inference Model
+In `evaluateDiagnosticCriteria(criteriaInput, product)`:
+
+$$\text{Final Rule Score} = \frac{\sum_{p \in \text{Pillars}} w_p \times \text{Match}_p}{\sum w_p} + \text{Priority Bonus} + \text{Compound Correlation Bonus}$$
+
+1. **Active Symptoms Set**:
+   $$\mathcal{S}_{\text{active}} = \text{Array.isArray}(c.\text{symptoms}) \land c.\text{symptoms.length} > 0 \;?\; c.\text{symptoms} : [c.\text{symptom}]$$
+2. **Rule Compatibility Check**:
+   A diagnostic rule is eligible if:
+   $$m.\text{symptom} \cap \mathcal{S}_{\text{active}} \neq \emptyset \quad \lor \quad m.\text{symptom is agnostic}$$
+3. **Compound Correlation Bonus**:
+   $$\text{Bonus}_{\text{compound}} = \begin{cases} 0.08 & \text{if } |\mathcal{S}_{\text{active}}| > 1 \text{ and rule addresses highest-severity symptom} \\ 0 & \text{otherwise} \end{cases}$$
+
+### C. Secondary Contributing Hardware Factor Extraction (`detectCompoundFactors`)
+For every secondary symptom in $\mathcal{S}_{\text{active}}$ that is not the primary diagnosed fault, the engine automatically attaches a dedicated secondary hardware factor card with its technical fault code:
+
+| Secondary Symptom | Factor Code | Contributing Title | Technical Hardware Context |
+| :--- | :--- | :--- | :--- |
+| `SENSOR_REMOTE` | **`FLT-RAD-010`** | Secondary Remote/Radar Receiver Abnormality | Handheld IR controller or radar receiver circuit failure compounding primary issue. |
+| `DIM_FLICKER` | **`FLT-LED-004`** | Secondary LED String / Driver Fluctuation | Observed strobing or sub-nominal lux indicates concurrent buck driver or LED chip wear. |
+| `SHORT_RUNTIME` | **`FLT-BAT-002`** | Secondary Battery Capacity Depletion | Accelerated nocturnal battery discharge compounding primary issue, requiring sun-soak or cell test. |
+| `NO_POWER` | **`FLT-PWR-001`** | Secondary Circuit Open-Loop Condition | Intermittent or complete electrical circuit dropout detected in conjunction with other symptoms. |
+| `DAYTIME_ON` | **`FLT-SNS-013`** | Secondary Photocell Sensor Inversion | Fixture fails to sense daytime solar voltage threshold, operating daytime load continuously. |
+| `PHYSICAL_HOTSPOT` | **`FLT-PV-008`** | Secondary PV Module Hotspot / Heat Abnormality | Localized solar cell discoloration or heat marks threaten long-term panel continuity. |
+
+### D. Safe Database Transmission & Admin Visibility
+- **`issue_category`**: Multi-selected categories are formatted as a comma-separated list (e.g. `No Power / Won't Turn On, Remote Control Issue`) sanitized to 100 characters.
+- **`description`**: Contains a structured `[MULTI-CRITERIA DIAGNOSTIC TRIAGE REPORT]` detailing:
+  - All selected primary and secondary symptoms.
+  - The 4-Pillar Scorecard.
+  - Complete list of primary and compound hardware factors.
+  - Inferred telemetry benchmarks.
+  - Official warranty intake assessment.
+- **Triage Desk**: Staff and Admin at Quiapo and Cavite reviewing [`WarrantyClaimsScreen.jsx`](file:///home/ram/Projects/Cross-platform/Solar_App_Capstone_Project/frontend/src/components/admin/WarrantyClaimsScreen.jsx) immediately see the multi-symptom breakdown in the Diagnostic Fault Report card without any database schema changes required.
+

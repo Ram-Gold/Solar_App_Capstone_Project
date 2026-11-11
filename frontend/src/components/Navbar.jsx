@@ -120,27 +120,30 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-4">
             {user ? (
               <button
+                type="button"
                 onClick={handleAuthClick}
-                className="font-inter text-label-md text-jds-on-surface-variant hover:text-jds-primary transition-colors px-2"
+                className="border border-jds-outline-variant/60 text-jds-on-surface hover:bg-jds-surface-container-high hover:border-jds-outline px-5 py-2 rounded-lg font-inter text-label-md font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer"
               >
                 Sign Out
               </button>
             ) : (
-              <button
-                onClick={handleAuthClick}
-                className="font-inter text-label-md text-jds-on-surface-variant hover:text-jds-primary transition-colors px-2"
-              >
-                Login
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleAuthClick}
+                  className="font-inter text-label-md text-jds-on-surface-variant hover:text-jds-primary transition-colors px-2 cursor-pointer"
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsInquireModalOpen(true)}
+                  className="bg-jds-primary text-jds-on-primary px-5 py-2 rounded-lg font-inter text-label-md font-bold hover:scale-[1.02] active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap cursor-pointer"
+                >
+                  Inquire
+                </button>
+              </>
             )}
-
-            <button
-              type="button"
-              onClick={() => setIsInquireModalOpen(true)}
-              className="bg-jds-primary text-jds-on-primary px-5 py-2 rounded-lg font-inter text-label-md font-bold hover:scale-[1.02] active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap cursor-pointer"
-            >
-              Inquire
-            </button>
           </div>
 
           {/* Hamburger button (lg:hidden) */}
@@ -208,38 +211,39 @@ export default function Navbar() {
               <div className="flex flex-col gap-3">
                 {user ? (
                   <button
+                    type="button"
                     onClick={() => {
                       setIsOpen(false)
                       handleAuthClick()
                     }}
-                    className="font-inter text-label-md text-center py-3 bg-jds-surface-container-high hover:bg-jds-surface-container-highest rounded-xl text-jds-on-surface-variant transition-colors"
+                    className="border border-jds-outline-variant/60 text-jds-on-surface hover:bg-jds-surface-container-high hover:border-jds-outline font-inter text-label-md font-semibold text-center py-3 rounded-xl transition-all cursor-pointer w-full"
                   >
                     Sign Out
                   </button>
                 ) : (
                   <>
                     <button
+                      type="button"
                       onClick={() => {
                         setIsOpen(false)
                         handleAuthClick()
                       }}
-                      className="font-inter text-label-md text-center py-3 bg-jds-surface-container-high hover:bg-jds-surface-container-highest rounded-xl text-jds-on-surface-variant transition-colors"
+                      className="font-inter text-label-md text-center py-3 bg-jds-surface-container-high hover:bg-jds-surface-container-highest rounded-xl text-jds-on-surface-variant transition-colors cursor-pointer"
                     >
                       Login
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsOpen(false)
+                        setIsInquireModalOpen(true)
+                      }}
+                      className="bg-jds-primary text-jds-on-primary text-center py-3 rounded-xl font-inter text-label-md font-bold shadow-md hover:shadow-lg transition-all cursor-pointer w-full"
+                    >
+                      Inquire
+                    </button>
                   </>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsOpen(false)
-                    setIsInquireModalOpen(true)
-                  }}
-                  className="bg-jds-primary text-jds-on-primary text-center py-3 rounded-xl font-inter text-label-md font-bold shadow-md hover:shadow-lg transition-all cursor-pointer w-full"
-                >
-                  Inquire
-                </button>
               </div>
             </div>
           </motion.div>

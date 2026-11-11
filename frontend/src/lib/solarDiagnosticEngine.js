@@ -92,8 +92,18 @@ export const DIAGNOSTIC_CRITERIA_OPTIONS = {
   ],
 }
 
+export const SYMPTOM_SEVERITY_PRIORITY = {
+  PHYSICAL_HOTSPOT: 1, // Highest severity (Physical damage/fire/broken glass)
+  NO_POWER: 2,         // Total electrical blackout / BMS lockout
+  SHORT_RUNTIME: 3,    // Battery depletion / undercharging
+  DIM_FLICKER: 4,      // Driver regulation / LED array burnout
+  DAYTIME_ON: 5,       // Photocell inversion / MOSFET fault
+  SENSOR_REMOTE: 6,    // Remote handset / Radar sensor smudging
+}
+
 export const DEFAULT_CRITERIA_STATE = {
   symptom: 'NO_POWER',
+  symptoms: ['NO_POWER'],
   electrical: 'LED_BLINKING',
   physical: 'SEAL_INTACT',
   environmental: 'CLEAR_SUN',
@@ -476,6 +486,49 @@ export function detectCompoundFactors(criteriaState, primaryNodeKey) {
     })
   }
 
+  // Multi-symptom secondary contributing factor extraction
+  const activeSymptoms = Array.isArray(c.symptoms) && c.symptoms.length > 0 ? c.symptoms : [c.symptom]
+  const primarySymptom = c.symptom || activeSymptoms[0]
+
+  const SECONDARY_SYMPTOM_FACTORS = {
+    SENSOR_REMOTE: {
+      code: 'FLT-RAD-010',
+      title: 'Secondary Remote/Radar Receiver Abnormality',
+      detail: 'Handheld infrared controller or radar microwave induction receiver circuit failure compounding primary issue.',
+    },
+    DIM_FLICKER: {
+      code: 'FLT-LED-004',
+      title: 'Secondary LED Array / Driver Voltage Fluctuation',
+      detail: 'Observed strobing or sub-nominal luminous output indicates concurrent buck driver or LED chip degradation.',
+    },
+    SHORT_RUNTIME: {
+      code: 'FLT-BAT-002',
+      title: 'Secondary Battery Capacity Depletion',
+      detail: 'Accelerated nocturnal battery discharge compounding primary issue, requiring 48-hour sun-soak or cell test.',
+    },
+    NO_POWER: {
+      code: 'FLT-PWR-001',
+      title: 'Secondary Circuit Open-Loop Condition',
+      detail: 'Intermittent or complete electrical circuit dropout detected in conjunction with other symptoms.',
+    },
+    DAYTIME_ON: {
+      code: 'FLT-SNS-013',
+      title: 'Secondary Photocell Sensor Inversion',
+      detail: 'Fixture fails to sense daytime solar voltage threshold, operating daytime load continuously.',
+    },
+    PHYSICAL_HOTSPOT: {
+      code: 'FLT-PV-008',
+      title: 'Secondary PV Module Hotspot / Heat Abnormality',
+      detail: 'Localized solar cell discoloration or localized heat marks threaten long-term panel continuity.',
+    },
+  }
+
+  activeSymptoms.forEach((sym) => {
+    if (sym !== primarySymptom && SECONDARY_SYMPTOM_FACTORS[sym]) {
+      factors.push(SECONDARY_SYMPTOM_FACTORS[sym])
+    }
+  })
+
   return factors
 }
 
@@ -534,9 +587,8 @@ export function evaluateWarrantyCriteria(diagnosisNode, criteriaState, product) 
     eligible: true,
     status: 'QUALIFIED_WARRANTY',
     verdictLabel: 'Meets 24-Month Warranty Intake Criteria',
-    policyReason: `Internal hardware fault (${faultCode}) verified with intact external glass within active coverage (${
-      ctx.daysRemaining !== null ? `${ctx.daysRemaining} days remaining` : 'Active'
-    }). Eligible for bench verification and 1-time replacement entitlement.`,
+    policyReason: `Internal hardware fault (${faultCode}) verified with intact external glass within active coverage (${ctx.daysRemaining !== null ? `${ctx.daysRemaining} days remaining` : 'Active'
+      }). Eligible for bench verification and 1-time replacement entitlement.`,
   }
 }
 
@@ -547,6 +599,17 @@ export function evaluateWarrantyCriteria(diagnosisNode, criteriaState, product) 
  */
 export function evaluateDiagnosticCriteria(criteriaInput = {}, product = null) {
   const c = { ...DEFAULT_CRITERIA_STATE, ...criteriaInput }
+  const activeSymptoms = Array.isArray(c.symptoms) && c.symptoms.length > 0 ? c.symptoms : [c.symptom]
+
+  // Sort active symptoms by safety & severity priority (Physical > Blackout > Short Run > Dim > Daytime > Sensor)
+  const sortedSymptoms = [...activeSymptoms].sort((a, b) => {
+    const pA = SYMPTOM_SEVERITY_PRIORITY[a] || 99
+    const pB = SYMPTOM_SEVERITY_PRIORITY[b] || 99
+    return pA - pB
+  })
+  const highestSeveritySymptom = sortedSymptoms[0] || c.symptom
+  c.symptom = highestSeveritySymptom
+  c.symptoms = sortedSymptoms
 
   let bestRule = null
   let bestWeightedScore = -1
@@ -556,8 +619,9 @@ export function evaluateDiagnosticCriteria(criteriaInput = {}, product = null) {
     let weightedMatch = 0
     let totalApplicableWeight = 0
 
-    // Symptom match check (Base prerequisite unless priority >= 96 safety elimination rule)
-    const symptomMatches = !m.symptom || m.symptom.includes(c.symptom)
+    // Symptom match check: rule matches if any active symptom matches or rule is symptom-agnostic
+    const matchingSymptoms = (m.symptom || []).filter((s) => sortedSymptoms.includes(s))
+    const symptomMatches = !m.symptom || matchingSymptoms.length > 0
     if (!symptomMatches && rule.priority < 96) {
       continue
     }
@@ -593,7 +657,13 @@ export function evaluateDiagnosticCriteria(criteriaInput = {}, product = null) {
       priorityBonus = (rule.priority / 100) * 0.12
     }
 
-    const finalScore = weightedMatch / (totalApplicableWeight || 1) + priorityBonus
+    // Compound correlation bonus: awarded when multiple symptoms are reported and rule matches highest severity
+    let compoundBonus = 0
+    if (sortedSymptoms.length > 1 && m.symptom && m.symptom.includes(highestSeveritySymptom)) {
+      compoundBonus = 0.08
+    }
+
+    const finalScore = weightedMatch / (totalApplicableWeight || 1) + priorityBonus + compoundBonus
 
     if (finalScore > bestWeightedScore) {
       bestWeightedScore = finalScore
@@ -746,9 +816,8 @@ First, let us evaluate **Electrical Continuity (30% weight)**. During peak dayli
       return `### Criterion 2/3: Physical & IP65 Enclosure Inspection
 Next, let us verify **Physical & Enclosure Integrity (25% weight)** on your **${ctx.formFactorLabel}**.
 
-Inspect the optical lens cavity, tempered solar glass, and ${
-        ctx.formFactor === 'INTEGRATED_AIO' ? 'chassis seal' : 'waterproof aviation cable plug'
-      }. Which condition matches your unit?`
+Inspect the optical lens cavity, tempered solar glass, and ${ctx.formFactor === 'INTEGRATED_AIO' ? 'chassis seal' : 'waterproof aviation cable plug'
+        }. Which condition matches your unit?`
     },
     options: [
       {
@@ -1603,11 +1672,10 @@ Multi-criteria evaluation confirms that your solar panel is receiving full sunli
 
 #### Technical Mechanism:
 * Aged or fatigued cells exhibit high internal impedance: terminal voltage rises rapidly to full threshold under daytime charging, but sags below the BMS cutoff within 60–120 minutes under nocturnal LED load.
-* **Warranty Assessment:** ${
-        ctx.isWarrantyActive
+* **Warranty Assessment:** ${ctx.isWarrantyActive
           ? `Your unit is within its **${ctx.warrantyMonths}-Month Active Warranty** (${ctx.daysRemaining ?? 'Active'} days left) and qualifies for official bench evaluation and 1-time replacement.`
           : 'If your unit is beyond its 24-month warranty window, replacement LiFePO4 battery packs can be installed at our Quiapo or Cavite service centers at standard component rates.'
-      }`
+        }`
     },
     remedySteps: [
       'File a warranty or service claim using the pre-populated multi-criteria report below.',
@@ -2157,8 +2225,7 @@ export function matchDiagnosticFreeText(query, product) {
     return {
       title: 'Multi-Criteria Solar Diagnostic System',
       message: (prod) =>
-        `The JD Solar Diagnostic Engine operates strictly in clean technical text without emojis. Select an observed symptom below or open the Criteria Matrix to evaluate your **${
-          prod?.product_name || 'unit'
+        `The JD Solar Diagnostic Engine operates strictly in clean technical text without emojis. Select an observed symptom below or open the Criteria Matrix to evaluate your **${prod?.product_name || 'unit'
         }**:`,
       options: DIAGNOSTIC_TREE.ROOT.options,
     }

@@ -40,9 +40,10 @@ Every diagnostic evaluation assesses four objective hardware dimensions before r
 Both the production React modal and the standalone HTML visualizer provide **two synchronized operating modes**:
 
 ### Mode A: Guided 3-Stage Multi-Criteria Audit
-1. **Stage 0 — Symptom & Equipment Context (`ROOT`)**:
+1. **Stage 0 — Multi-Choice Symptom Intake & Priority Branching (`ROOT`)**:
    - Inspects the registered unit's form factor (`INTEGRATED_AIO` vs `SPLIT_MODULAR`) and warranty status (`24-Month Active` vs `Expired`).
-   - Prompts the user to select 1 of 6 primary symptom branches.
+   - Allows selecting **one or multiple concurrent symptoms** (1 to 6).
+   - Executes **Priority-Weighted Automatic Branching**: automatically routes questions through the highest-severity symptom (`Physical Damage/Heat` > `No Power` > `Short Runtime` > `Dim/Flicker` > `Daytime On` > `Sensor/Remote`), while storing all selected symptoms in `criteriaState.symptoms` as active compound factors.
 2. **Stage 1 — Criterion 1: Electrical & Charging Continuity (`30%` Weight)**:
    - Evaluates the daytime charging indicator LED, LED array pattern, or photocell voltage threshold.
 3. **Stage 2 — Criterion 2: Physical & IP65 Enclosure Inspection (`25%` Weight)**:
@@ -50,11 +51,12 @@ Both the production React modal and the standalone HTML visualizer provide **two
 4. **Stage 3 — Criteria 3 & 4: Environmental Exposure & Service Lifecycle (`45%` Combined Weight)**:
    - Captures 72-hour weather history, shading/soiling, tilt angle, and unit age, then fires **`EVALUATE_CRITERIA`**.
 5. **Stage 4 — Multi-Criteria Rule Inference Verdict**:
-   - Outputs the matched Fault Code (`FLT-PV-001` through `FLT-SNS-020`), **Rule Match Confidence (`86%–99%`)**, **4-Pillar Pass/Warning/Fail Scorecard**, **Compound Contributing Factors**, **Inferred Telemetry**, and **Warranty Qualification Verdict**.
+   - Outputs the matched Fault Code (`FLT-PV-001` through `FLT-SNS-020`), **Rule Match Confidence (`86%–99%`)**, **4-Pillar Pass/Warning/Fail Scorecard**, **Compound Contributing Hardware Factors (including secondary symptoms)**, **Inferred Telemetry**, and **Warranty Qualification Verdict**.
 
 ### Mode B: Direct Multi-Criteria Matrix Evaluator
-- Exposes all 5 criteria vectors (`symptom`, `electrical`, `physical`, `environmental`, `control`) in a single interactive specification grid.
-- Toggling any criterion immediately recalculates the weighted rule match, compound factors, and warranty status via `evaluateDiagnosticCriteria()`.
+- Exposes all criteria vectors (`symptoms` array, `electrical`, `physical`, `environmental`, `control`) in an interactive specification grid.
+- Allows toggling multiple symptoms simultaneously, showing which symptom is designated `[PRIMARY]` (highest severity) and which are `[COMPOUND]`.
+- Recalculates the composite weighted rule match, compound factors, and warranty status via `evaluateDiagnosticCriteria()` in real time.
 
 ---
 
@@ -62,23 +64,26 @@ Both the production React modal and the standalone HTML visualizer provide **two
 
 ```mermaid
 flowchart TD
-    INPUT["5-Vector Criteria State<br>{ symptom, electrical, physical, environmental, control }"]
+    INPUT["Active Symptoms Vector Set<br>symptoms = ['NO_POWER', 'SENSOR_REMOTE', ...]"]
+    PILLARS["4-Pillar Physical State<br>{ electrical, physical, environmental, control }"]
     CTX["Equipment & Warranty Context<br>analyzeProductContext(purchase)"]
     RULES["20 Industrial Fault Rules<br>(DIAGNOSTIC_RULES)"]
 
-    INPUT --> ENGINE["evaluateDiagnosticCriteria()"]
-    CTX --> ENGINE
-    RULES --> ENGINE
+    INPUT & PILLARS & CTX & RULES --> ENGINE["evaluateDiagnosticCriteria()"]
 
-    ENGINE --> ELIM{"Priority Elimination Check<br>(Priority >= 96)"}
+    ENGINE --> SORT["Safety Priority Sorting<br>PHYSICAL > NO_POWER > SHORT_RUN > DIM > DAYTIME > REMOTE"]
+    SORT --> ELIM{"Priority Elimination Check<br>(Priority >= 96)"}
+
     ELIM -- "Water Ingress / Glass Fracture / Hotspot" --> PRIORITY["Trigger Safety or Exclusion Verdict<br>(FLT-IP-009 / FLT-EXT-016 / FLT-PV-015)"]
     ELIM -- "Enclosure Safe" --> WEIGHTED["Compute Weighted Multi-Attribute Score<br>0.30*Electrical + 0.25*Physical + 0.25*Env + 0.20*Control"]
 
+    WEIGHTED --> BONUS["Compound Correlation Bonus (+0.08)<br>If multi-symptom matches highest severity"]
+
     PRIORITY --> OUTPUT["Construct Enriched Verdict"]
-    WEIGHTED --> OUTPUT
+    BONUS --> OUTPUT
 
     OUTPUT --> SCORECARD["buildCriteriaScorecard()<br>4-Pillar PASS / WARNING / FAIL Matrix"]
-    OUTPUT --> COMPOUND["detectCompoundFactors()<br>Flags Secondary Adverse Criteria"]
+    OUTPUT --> COMPOUND["detectCompoundFactors()<br>Flags Secondary Symptoms (FLT-RAD-010, FLT-LED-004, etc.) & Physical/Env Anomaly"]
     OUTPUT --> WARRANTY["evaluateWarrantyCriteria()<br>24-Mo Replacement vs DIY vs Impact Void"]
 ```
 

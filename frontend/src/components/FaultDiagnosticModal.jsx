@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   UploadCloud,
   CheckCircle2,
+  Check,
   Trash2,
   Loader2,
   Sun,
@@ -26,6 +27,7 @@ import useModalBehavior from '../hooks/useModalBehavior'
 import {
   DIAGNOSTIC_TREE,
   DEFAULT_CRITERIA_STATE,
+  SYMPTOM_SEVERITY_PRIORITY,
   analyzeProductContext,
   evaluateDiagnosticCriteria,
   enrichDiagnosisNode,
@@ -39,6 +41,15 @@ const ISSUE_CATEGORIES = [
   { id: 'Sensor / Dusk-Dawn Failure', label: 'Sensor Not Detecting', icon: Eye },
   { id: 'Physical / Water Ingress', label: 'Physical / Water Damage', icon: AlertTriangle },
 ]
+
+const SYMPTOM_TO_CATEGORY_MAP = {
+  SYMPTOM_NO_POWER: 'No Power / Won\'t Turn On',
+  SYMPTOM_SHORT_RUNTIME: 'Battery / Rapid Discharge',
+  SYMPTOM_DIM_FLICKER: 'Dim Lighting / Low Lux',
+  SYMPTOM_DAYTIME_ON: 'Sensor / Dusk-Dawn Failure',
+  SYMPTOM_PHYSICAL_HOTSPOT: 'Physical / Water Ingress',
+  SYMPTOM_SENSOR_REMOTE: 'Remote Control Failure',
+}
 
 const SYMPTOM_META = {
   SYMPTOM_NO_POWER: {
@@ -146,7 +157,7 @@ function getQuestionTitle(nodeKey, node) {
 
 function getQuestionPrompt(nodeKey, node, product) {
   if (nodeKey === 'ROOT') {
-    return `Select the primary physical symptom or behavior observed on your ${product?.product_name || 'equipment'}:`
+    return `Select one or more symptoms observed on your ${product?.product_name || 'equipment'}:`
   }
   if (nodeKey.startsWith('SYMPTOM_')) {
     return 'During peak daylight hours (11:00 AM – 2:00 PM), observe the small charging indicator LED bead and verify whether the master push-button switch is toggled.'
@@ -222,9 +233,10 @@ export default function FaultDiagnosticModal({
   const [history, setHistory] = useState(['ROOT'])
   const [criteriaState, setCriteriaState] = useState(DEFAULT_CRITERIA_STATE)
   const [currentDiagnosis, setCurrentDiagnosis] = useState(null)
+  const [selectedRootSymptoms, setSelectedRootSymptoms] = useState([])
 
-  // === CLAIM FORM STATE ===
-  const [category, setCategory] = useState(ISSUE_CATEGORIES[0].id)
+  // === CLAIM FORM STATE (Multi-Category selection support) ===
+  const [selectedCategories, setSelectedCategories] = useState([ISSUE_CATEGORIES[0].id])
   const [description, setDescription] = useState('')
   const [files, setFiles] = useState([])
   const [isUploading, setIsUploading] = useState(false)
@@ -258,6 +270,93 @@ export default function FaultDiagnosticModal({
     currentStepNum = 4
   } else {
     currentStepNum = Math.min(5, Math.max(1, history.length))
+  }
+
+  // Toggle selection for multiple symptoms on Step 1 (ROOT)
+  const toggleRootSymptom = (opt) => {
+    setSelectedRootSymptoms((prev) => {
+      const exists = prev.some((s) => s.next === opt.next)
+      if (exists) {
+        return prev.filter((s) => s.next !== opt.next)
+      }
+      return [...prev, opt]
+    })
+  }
+
+  // Toggle selection for hardware issue categories in Claim Form
+  const toggleCategory = (catId) => {
+    setSelectedCategories((prev) => {
+      const exists = prev.includes(catId)
+      if (exists) {
+        if (prev.length <= 1) return prev // Maintain at least 1 category selected
+        return prev.filter((id) => id !== catId)
+      }
+      return [...prev, catId]
+    })
+  }
+
+  // Advance from Step 1 (ROOT) after selecting one or more symptoms
+  const handleContinueRootSymptoms = () => {
+    if (selectedRootSymptoms.length === 0) return
+
+    // 1. Sort selected symptoms by safety & severity priority (Physical > Blackout > Short Run > Dim > Daytime > Sensor)
+    const sortedSymptoms = [...selectedRootSymptoms].sort((a, b) => {
+      const symA = a.criteriaPatch?.symptom || a.next.replace('SYMPTOM_', '')
+      const symB = b.criteriaPatch?.symptom || b.next.replace('SYMPTOM_', '')
+      const pA = SYMPTOM_SEVERITY_PRIORITY[symA] || 99
+      const pB = SYMPTOM_SEVERITY_PRIORITY[symB] || 99
+      return pA - pB
+    })
+
+    const primarySymptom = sortedSymptoms[0]
+    const allSymptomKeys = sortedSymptoms
+      .map((s) => s.criteriaPatch?.symptom || s.next.replace('SYMPTOM_', ''))
+      .filter(Boolean)
+
+    // 2. Merge all selected symptoms' criteria patches
+    let mergedCriteria = {
+      ...criteriaState,
+      symptoms: allSymptomKeys,
+      symptom: primarySymptom.criteriaPatch?.symptom || criteriaState.symptom,
+    }
+
+    sortedSymptoms.forEach((s) => {
+      if (s.criteriaPatch) {
+        mergedCriteria = { ...mergedCriteria, ...s.criteriaPatch }
+      }
+    })
+
+    // Primary symptom (highest safety severity) takes precedence
+    if (primarySymptom?.criteriaPatch) {
+      mergedCriteria = {
+        ...mergedCriteria,
+        ...primarySymptom.criteriaPatch,
+        symptoms: allSymptomKeys,
+      }
+    }
+    setCriteriaState(mergedCriteria)
+
+    // 3. Advance to the primary symptom's next branch
+    const nextKey = primarySymptom.next
+    const nextNode = DIAGNOSTIC_TREE[nextKey]
+
+    if (nextKey === 'EVALUATE_CRITERIA') {
+      const verdict = evaluateDiagnosticCriteria(mergedCriteria, purchase)
+      setCurrentDiagnosis(verdict)
+      setHistory((prev) => [...prev, 'SOLUTION'])
+      return
+    }
+
+    if (nextNode && nextNode.faultCode) {
+      const enriched = enrichDiagnosisNode(nextKey, nextNode, purchase, mergedCriteria)
+      setCurrentDiagnosis(enriched)
+      setHistory((prev) => [...prev, 'SOLUTION'])
+      return
+    }
+
+    if (nextNode) {
+      setHistory((prev) => [...prev, nextKey])
+    }
   }
 
   // Handle selecting a multiple-choice option
@@ -321,28 +420,52 @@ export default function FaultDiagnosticModal({
     setHistory(['ROOT'])
     setCriteriaState(DEFAULT_CRITERIA_STATE)
     setCurrentDiagnosis(null)
+    setSelectedRootSymptoms([])
+    setSelectedCategories([ISSUE_CATEGORIES[0].id])
   }
 
   // Transfer diagnostic summary into the warranty claim form
   const transferToClaim = (suggestedCategory) => {
     if (suggestedCategory) {
-      setCategory(suggestedCategory)
+      setSelectedCategories([suggestedCategory])
+    } else if (selectedRootSymptoms.length > 0) {
+      const mapped = selectedRootSymptoms
+        .map((s) => SYMPTOM_TO_CATEGORY_MAP[s.next])
+        .filter(Boolean)
+      if (mapped.length > 0) {
+        setSelectedCategories(Array.from(new Set(mapped)))
+      } else if (currentDiagnosis?.category) {
+        setSelectedCategories([currentDiagnosis.category])
+      }
     } else if (currentDiagnosis?.category) {
-      setCategory(currentDiagnosis.category)
+      setSelectedCategories([currentDiagnosis.category])
     }
 
     let prefill
+    const selectedSymptomsText =
+      selectedRootSymptoms.length > 0
+        ? `Selected Symptoms: ${selectedRootSymptoms.map((s) => cleanMarkdown(s.label)).join(', ')}\n`
+        : ''
+
     if (currentDiagnosis) {
       const scorecardLines = (currentDiagnosis.criteriaScorecard || [])
         .map((c) => `- ${cleanMarkdown(c.criterion)} (${c.weightLabel}): [${c.status}] ${cleanMarkdown(c.observation)}`)
         .join('\n')
 
+      const symptomsBreakdown =
+        selectedRootSymptoms.length > 1
+          ? `Reported Symptoms (${selectedRootSymptoms.length}):\n` +
+          selectedRootSymptoms.map((s, idx) => `  ${idx + 1}. ${cleanMarkdown(s.label)}`).join('\n') +
+          '\n\n'
+          : ''
+
       const compoundLines =
-        currentDiagnosis.compoundFactors && currentDiagnosis.compoundFactors.length > 0
-          ? `\nCompound / Contributing Factors:\n` +
+        symptomsBreakdown +
+        (currentDiagnosis.compoundFactors && currentDiagnosis.compoundFactors.length > 0
+          ? `Compound / Contributing Factors:\n` +
           currentDiagnosis.compoundFactors.map((f) => `- ${f.code} (${f.title}): ${cleanMarkdown(f.detail)}`).join('\n') +
           '\n'
-          : ''
+          : '')
 
       const warrantyLine = currentDiagnosis.warrantyEvaluation
         ? `${cleanMarkdown(currentDiagnosis.warrantyEvaluation.verdictLabel)} — ${cleanMarkdown(currentDiagnosis.warrantyEvaluation.policyReason)}`
@@ -354,7 +477,7 @@ Diagnosis: ${cleanMarkdown(currentDiagnosis.title) || 'Reported Hardware Fault'}
 Severity: ${currentDiagnosis.severityLabel || 'Standard Inspection'}
 Rule Confidence: ${currentDiagnosis.confidence || 'Multi-Criteria Verified'}
 Equipment Form Factor: ${productContext.formFactorLabel}
-
+${selectedSymptomsText}
 Evaluated 4-Pillar Scorecard:
 ${scorecardLines || '- Standard physical triage completed'}
 ${compoundLines}
@@ -370,7 +493,7 @@ ${warrantyLine}`
       prefill = `[MULTI-CRITERIA CLAIM REPORT]
 Product: ${purchase.product_name} (${productContext.formFactorLabel})
 Serial #: ${purchase.serial_number || 'N/A'}
-Customer requested technician bench evaluation.`
+${selectedSymptomsText}Customer requested technician bench evaluation.`
     }
 
     setDescription(prefill)
@@ -414,10 +537,15 @@ Customer requested technician bench evaluation.`
         uploadedUrls.push(url)
       }
 
+      const categoryPayload =
+        selectedCategories.length > 0
+          ? selectedCategories.join(', ')
+          : ISSUE_CATEGORIES[0].id
+
       const res = await submitWarrantyClaim({
         token: customerToken,
         purchaseId: purchase.id,
-        issueCategory: category,
+        issueCategory: categoryPayload,
         description: sanitizeText(description, { maxLength: 2000, allowMultiline: true }),
         mediaUrls: uploadedUrls,
       })
@@ -519,7 +647,13 @@ Customer requested technician bench evaluation.`
 
             <button
               type="button"
-              onClick={() => setActiveTab('claim')}
+              onClick={() => {
+                if (!description && (selectedRootSymptoms.length > 0 || currentDiagnosis)) {
+                  transferToClaim()
+                } else {
+                  setActiveTab('claim')
+                }
+              }}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${activeTab === 'claim'
                 ? 'bg-jds-primary text-jds-on-primary shadow-sm'
                 : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
@@ -634,6 +768,19 @@ Customer requested technician bench evaluation.`
                       <p className="text-xs sm:text-sm text-jds-on-surface-variant mt-1.5 leading-relaxed">
                         {renderFormattedText(getDiagnosisSummary(currentDiagnosis, purchase))}
                       </p>
+                      {selectedRootSymptoms.length > 1 && (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-2.5">
+                          <span className="text-[11px] font-semibold text-jds-on-surface-variant">Reported Symptoms:</span>
+                          {selectedRootSymptoms.map((s) => (
+                            <span
+                              key={s.next}
+                              className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-jds-surface-container-high text-jds-on-surface border border-jds-outline-variant/40"
+                            >
+                              {s.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Probable Root Causes */}
@@ -787,38 +934,87 @@ Customer requested technician bench evaluation.`
 
                   {/* Multiple Choices */}
                   {currentNodeKey === 'ROOT' ? (
-                    /* Step 1: 6 Primary Symptom Cards with Rich Icons */
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {currentOptions.map((opt) => {
-                        const meta = SYMPTOM_META[opt.next] || {
-                          icon: AlertTriangle,
-                          label: opt.label,
-                          desc: 'Reported hardware symptom',
-                        }
-                        const Icon = meta.icon
+                    /* Step 1: Multi-Choice Primary Symptom Cards with Checkboxes & Continue Toolbar */
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {currentOptions.map((opt) => {
+                          const meta = SYMPTOM_META[opt.next] || {
+                            icon: AlertTriangle,
+                            label: opt.label,
+                            desc: 'Reported hardware symptom',
+                          }
+                          const Icon = meta.icon
+                          const isSelected = selectedRootSymptoms.some((s) => s.next === opt.next)
 
-                        return (
-                          <button
-                            key={opt.next}
-                            type="button"
-                            onClick={() => handleSelectOption(opt)}
-                            className="p-4 rounded-2xl border border-jds-outline-variant/50 bg-jds-surface hover:border-jds-primary hover:bg-jds-primary/5 transition-all text-left group flex items-start gap-3.5 shadow-2xs hover:shadow-sm active:scale-[0.99] cursor-pointer"
-                          >
-                            <div className="w-10 h-10 rounded-xl bg-jds-surface-container group-hover:bg-jds-primary/10 group-hover:text-jds-primary text-jds-on-surface-variant flex items-center justify-center shrink-0 transition-colors">
-                              <Icon className="w-5 h-5" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-xs sm:text-sm font-bold text-jds-on-surface group-hover:text-jds-primary transition-colors leading-snug">
-                                {renderFormattedText(meta.label)}
+                          return (
+                            <button
+                              key={opt.next}
+                              type="button"
+                              onClick={() => toggleRootSymptom(opt)}
+                              aria-pressed={isSelected}
+                              className={`p-4 rounded-2xl border transition-all text-left group flex items-start gap-3.5 shadow-2xs hover:shadow-sm active:scale-[0.99] cursor-pointer ${isSelected
+                                  ? 'border-jds-primary bg-jds-primary/5 ring-1 ring-jds-primary/30'
+                                  : 'border-jds-outline-variant/50 bg-jds-surface hover:border-jds-primary/60 hover:bg-jds-primary/[0.02]'
+                                }`}
+                            >
+                              <div
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isSelected
+                                    ? 'bg-jds-primary text-jds-on-primary'
+                                    : 'bg-jds-surface-container group-hover:bg-jds-primary/10 group-hover:text-jds-primary text-jds-on-surface-variant'
+                                  }`}
+                              >
+                                <Icon className="w-5 h-5" />
                               </div>
-                              <p className="text-[11px] text-jds-on-surface-variant mt-1 leading-relaxed line-clamp-2">
-                                {renderFormattedText(meta.desc)}
-                              </p>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-jds-on-surface-variant group-hover:text-jds-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
-                          </button>
-                        )
-                      })}
+                              <div className="min-w-0 flex-1">
+                                <div
+                                  className={`text-xs sm:text-sm font-bold transition-colors leading-snug ${isSelected ? 'text-jds-primary' : 'text-jds-on-surface group-hover:text-jds-primary'
+                                    }`}
+                                >
+                                  {renderFormattedText(meta.label)}
+                                </div>
+                                <p className="text-[11px] text-jds-on-surface-variant mt-1 leading-relaxed line-clamp-2">
+                                  {renderFormattedText(meta.desc)}
+                                </p>
+                              </div>
+                              <div
+                                className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5 transition-all ${isSelected
+                                    ? 'bg-jds-primary border-jds-primary text-jds-on-primary shadow-2xs'
+                                    : 'border-jds-outline-variant/80 group-hover:border-jds-primary/60 bg-jds-surface'
+                                  }`}
+                              >
+                                {isSelected && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {/* Multi-Selection Action Toolbar */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-2xl bg-jds-surface-container-low/60 border border-jds-outline-variant/40">
+                        <div className="text-xs text-jds-on-surface-variant flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-jds-primary shrink-0" />
+                          {selectedRootSymptoms.length === 0 ? (
+                            <span>Select one or more symptoms above to proceed</span>
+                          ) : (
+                            <span className="font-semibold text-jds-on-surface">
+                              {selectedRootSymptoms.length} symptom{selectedRootSymptoms.length > 1 ? 's' : ''} selected
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={selectedRootSymptoms.length === 0}
+                          onClick={handleContinueRootSymptoms}
+                          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-bold text-xs sm:text-sm hover:bg-jds-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <span>
+                            {selectedRootSymptoms.length <= 1
+                              ? 'Continue Diagnostic'
+                              : `Continue with ${selectedRootSymptoms.length} Symptoms`}
+                          </span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     /* Subsequent Steps: Clean Multiple Choice Tiles */
@@ -858,8 +1054,9 @@ Customer requested technician bench evaluation.`
                         <span>Previous Question</span>
                       </button>
                     ) : (
-                      <div className="text-[11px] text-jds-on-surface-variant">
-                        Select a symptom to begin hardware triage
+                      <div className="text-[11px] text-jds-on-surface-variant flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-jds-primary" />
+                        <span>Step 1: Multi-Symptom Hardware Intake</span>
                       </div>
                     )}
 
@@ -976,30 +1173,46 @@ Customer requested technician bench evaluation.`
                   </p>
                 </div>
 
-                {/* Step 1: Issue Category */}
+                {/* Step 1: Issue Category (Multi-Select) */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-jds-on-surface">
-                    1. Primary Hardware Category *
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-jds-on-surface">
+                      1. Hardware Issue Categories *
+                    </label>
+                    <span className="text-[10px] font-medium text-jds-on-surface-variant">
+                      {selectedCategories.length} selected
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {ISSUE_CATEGORIES.map((cat) => {
                       const Icon = cat.icon
-                      const isSelected = category === cat.id
+                      const isSelected = selectedCategories.includes(cat.id)
                       return (
                         <button
                           key={cat.id}
                           type="button"
-                          onClick={() => setCategory(cat.id)}
-                          className={`p-2.5 rounded-xl border text-left text-xs font-medium flex items-center gap-2 transition-all cursor-pointer ${isSelected
-                            ? 'bg-jds-primary/10 border-jds-primary text-jds-primary shadow-sm'
+                          onClick={() => toggleCategory(cat.id)}
+                          aria-pressed={isSelected}
+                          className={`p-2.5 rounded-xl border text-left text-xs font-medium flex items-center justify-between gap-2 transition-all cursor-pointer ${isSelected
+                            ? 'bg-jds-primary/10 border-jds-primary text-jds-primary shadow-2xs ring-1 ring-jds-primary/20'
                             : 'bg-jds-surface border-jds-outline-variant/40 text-jds-on-surface-variant hover:border-jds-outline-variant hover:text-jds-on-surface'
                             }`}
                         >
-                          <Icon
-                            className={`w-4 h-4 shrink-0 ${isSelected ? 'text-jds-primary' : 'text-jds-on-surface-variant'
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Icon
+                              className={`w-4 h-4 shrink-0 ${isSelected ? 'text-jds-primary' : 'text-jds-on-surface-variant'
+                                }`}
+                            />
+                            <span className="truncate">{cat.label}</span>
+                          </div>
+                          <div
+                            className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${isSelected
+                              ? 'bg-jds-primary border-jds-primary text-jds-on-primary'
+                              : 'border-jds-outline-variant/80 bg-jds-surface'
                               }`}
-                          />
-                          <span className="truncate">{cat.label}</span>
+                          >
+                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
                         </button>
                       )
                     })}
