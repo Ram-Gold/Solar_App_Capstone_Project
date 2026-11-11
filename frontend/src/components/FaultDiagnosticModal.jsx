@@ -455,16 +455,16 @@ export default function FaultDiagnosticModal({
       const symptomsBreakdown =
         selectedRootSymptoms.length > 1
           ? `Reported Symptoms (${selectedRootSymptoms.length}):\n` +
-          selectedRootSymptoms.map((s, idx) => `  ${idx + 1}. ${cleanMarkdown(s.label)}`).join('\n') +
-          '\n\n'
+            selectedRootSymptoms.map((s, idx) => `  ${idx + 1}. ${cleanMarkdown(s.label)}`).join('\n') +
+            '\n\n'
           : ''
 
       const compoundLines =
         symptomsBreakdown +
         (currentDiagnosis.compoundFactors && currentDiagnosis.compoundFactors.length > 0
           ? `Compound / Contributing Factors:\n` +
-          currentDiagnosis.compoundFactors.map((f) => `- ${f.code} (${f.title}): ${cleanMarkdown(f.detail)}`).join('\n') +
-          '\n'
+            currentDiagnosis.compoundFactors.map((f) => `- ${f.code} (${f.title}): ${cleanMarkdown(f.detail)}`).join('\n') +
+            '\n'
           : '')
 
       const warrantyLine = currentDiagnosis.warrantyEvaluation
@@ -952,23 +952,26 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                               type="button"
                               onClick={() => toggleRootSymptom(opt)}
                               aria-pressed={isSelected}
-                              className={`p-4 rounded-2xl border transition-all text-left group flex items-start gap-3.5 shadow-2xs hover:shadow-sm active:scale-[0.99] cursor-pointer ${isSelected
+                              className={`p-4 rounded-2xl border transition-all text-left group flex items-start gap-3.5 shadow-2xs hover:shadow-sm active:scale-[0.99] cursor-pointer ${
+                                isSelected
                                   ? 'border-jds-primary bg-jds-primary/5 ring-1 ring-jds-primary/30'
                                   : 'border-jds-outline-variant/50 bg-jds-surface hover:border-jds-primary/60 hover:bg-jds-primary/[0.02]'
-                                }`}
+                              }`}
                             >
                               <div
-                                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isSelected
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                  isSelected
                                     ? 'bg-jds-primary text-jds-on-primary'
                                     : 'bg-jds-surface-container group-hover:bg-jds-primary/10 group-hover:text-jds-primary text-jds-on-surface-variant'
-                                  }`}
+                                }`}
                               >
                                 <Icon className="w-5 h-5" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div
-                                  className={`text-xs sm:text-sm font-bold transition-colors leading-snug ${isSelected ? 'text-jds-primary' : 'text-jds-on-surface group-hover:text-jds-primary'
-                                    }`}
+                                  className={`text-xs sm:text-sm font-bold transition-colors leading-snug ${
+                                    isSelected ? 'text-jds-primary' : 'text-jds-on-surface group-hover:text-jds-primary'
+                                  }`}
                                 >
                                   {renderFormattedText(meta.label)}
                                 </div>
@@ -977,10 +980,11 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                                 </p>
                               </div>
                               <div
-                                className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5 transition-all ${isSelected
+                                className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                                  isSelected
                                     ? 'bg-jds-primary border-jds-primary text-jds-on-primary shadow-2xs'
                                     : 'border-jds-outline-variant/80 group-hover:border-jds-primary/60 bg-jds-surface'
-                                  }`}
+                                }`}
                               >
                                 {isSelected && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
                               </div>

@@ -587,8 +587,9 @@ export function evaluateWarrantyCriteria(diagnosisNode, criteriaState, product) 
     eligible: true,
     status: 'QUALIFIED_WARRANTY',
     verdictLabel: 'Meets 24-Month Warranty Intake Criteria',
-    policyReason: `Internal hardware fault (${faultCode}) verified with intact external glass within active coverage (${ctx.daysRemaining !== null ? `${ctx.daysRemaining} days remaining` : 'Active'
-      }). Eligible for bench verification and 1-time replacement entitlement.`,
+    policyReason: `Internal hardware fault (${faultCode}) verified with intact external glass within active coverage (${
+      ctx.daysRemaining !== null ? `${ctx.daysRemaining} days remaining` : 'Active'
+    }). Eligible for bench verification and 1-time replacement entitlement.`,
   }
 }
 
@@ -816,8 +817,9 @@ First, let us evaluate **Electrical Continuity (30% weight)**. During peak dayli
       return `### Criterion 2/3: Physical & IP65 Enclosure Inspection
 Next, let us verify **Physical & Enclosure Integrity (25% weight)** on your **${ctx.formFactorLabel}**.
 
-Inspect the optical lens cavity, tempered solar glass, and ${ctx.formFactor === 'INTEGRATED_AIO' ? 'chassis seal' : 'waterproof aviation cable plug'
-        }. Which condition matches your unit?`
+Inspect the optical lens cavity, tempered solar glass, and ${
+        ctx.formFactor === 'INTEGRATED_AIO' ? 'chassis seal' : 'waterproof aviation cable plug'
+      }. Which condition matches your unit?`
     },
     options: [
       {
@@ -1672,10 +1674,11 @@ Multi-criteria evaluation confirms that your solar panel is receiving full sunli
 
 #### Technical Mechanism:
 * Aged or fatigued cells exhibit high internal impedance: terminal voltage rises rapidly to full threshold under daytime charging, but sags below the BMS cutoff within 60–120 minutes under nocturnal LED load.
-* **Warranty Assessment:** ${ctx.isWarrantyActive
+* **Warranty Assessment:** ${
+        ctx.isWarrantyActive
           ? `Your unit is within its **${ctx.warrantyMonths}-Month Active Warranty** (${ctx.daysRemaining ?? 'Active'} days left) and qualifies for official bench evaluation and 1-time replacement.`
           : 'If your unit is beyond its 24-month warranty window, replacement LiFePO4 battery packs can be installed at our Quiapo or Cavite service centers at standard component rates.'
-        }`
+      }`
     },
     remedySteps: [
       'File a warranty or service claim using the pre-populated multi-criteria report below.',
@@ -2225,7 +2228,8 @@ export function matchDiagnosticFreeText(query, product) {
     return {
       title: 'Multi-Criteria Solar Diagnostic System',
       message: (prod) =>
-        `The JD Solar Diagnostic Engine operates strictly in clean technical text without emojis. Select an observed symptom below or open the Criteria Matrix to evaluate your **${prod?.product_name || 'unit'
+        `The JD Solar Diagnostic Engine operates strictly in clean technical text without emojis. Select an observed symptom below or open the Criteria Matrix to evaluate your **${
+          prod?.product_name || 'unit'
         }**:`,
       options: DIAGNOSTIC_TREE.ROOT.options,
     }
