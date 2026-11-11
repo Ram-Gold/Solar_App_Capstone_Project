@@ -92,14 +92,12 @@
         uuid id PK
         uuid customer_id FK
         text recipient_email
-        text customer_name
-        text phone_number
-        text branch_location
-        uuid access_token
-        uuid verification_token
+        text subject
         text status
-        text error_message
-        timestamptz queued_at
+        uuid verification_token
+        integer attempts
+        text last_error
+        timestamptz created_at
         timestamptz sent_at
         timestamptz confirmed_at
     }
