@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer'
+import QRCode from 'qrcode'
 
 /**
  * Escapes HTML characters to prevent XSS in email clients.
@@ -25,6 +26,7 @@ export function buildAccountCreationEmailHtml({
   accessToken,
   portalUrl,
   confirmUrl,
+  qrCodeDataUrl = null,
   purchases = []
 }) {
   const safeName = escapeHtml(customerName || 'Valued Customer')
@@ -74,7 +76,7 @@ export function buildAccountCreationEmailHtml({
                 JD Force Solar Products Trading
               </div>
               <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.01em;">
-                Customer Account &amp; Equipment Registration
+                Customer Account &amp; Purchase Receipt
               </div>
             </td>
           </tr>
@@ -86,16 +88,31 @@ export function buildAccountCreationEmailHtml({
                 Dear <strong>${safeName}</strong>,
               </p>
               <p style="margin:0 0 24px 0;font-size:14px;line-height:1.6;color:#44403c;">
-                Your customer equipment profile and warranty portal account with <strong>JD Force Solar</strong> has been created. Please confirm your email address below to activate your warranty tracking, ticket notifications, and self-service diagnostic access.
+                Your customer equipment profile and purchase receipt with <strong>JD Force Solar</strong> have been registered. Use the digital QR pass or access link below to open your Customer Warranty Portal.
               </p>
 
-              <!-- Primary CTA Button -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
+              <!-- QR Pass Card with cid attachment or data URL -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:14px;margin-bottom:28px;">
                 <tr>
-                  <td align="center">
-                    <a href="${safeConfirmUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#d97706;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:10px;">
-                      Confirm Email &amp; Open Customer Portal
-                    </a>
+                  <td align="center" style="padding:24px 20px;">
+                    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#78716c;margin-bottom:12px;">
+                      Official Customer QR Access Pass
+                    </div>
+                    ${
+                      qrCodeDataUrl
+                        ? `<div style="background-color:#ffffff;padding:12px;border-radius:12px;display:inline-block;border:1px solid #e7e5e4;margin-bottom:12px;">
+                            <img src="${qrCodeDataUrl}" alt="Customer Portal QR Code" width="180" height="180" style="display:block;margin:0 auto;" />
+                          </div>`
+                        : ''
+                    }
+                    <div style="font-family:'Courier New',Courier,monospace;font-size:13px;font-weight:700;color:#b45309;word-break:break-all;margin-bottom:14px;">
+                      TOKEN: ${safeToken}
+                    </div>
+                    <div>
+                      <a href="${safeConfirmUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#d97706;color:#ffffff;font-size:13px;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">
+                        Confirm Email &amp; Open Customer Portal
+                      </a>
+                    </div>
                   </td>
                 </tr>
               </table>
@@ -140,7 +157,7 @@ export function buildAccountCreationEmailHtml({
                 <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;margin-bottom:10px;">
                   Itemized Purchase &amp; Warranty Receipt
                 </div>
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse;border:1px solid #e7e5e4;border-radius:8px;overflow:hidden;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse;border:1px solid #e7e5e4;border-radius:8px;overflow:hidden;width:100%;">
                   <thead>
                     <tr style="background-color:#f5f5f4;text-align:left;font-size:11px;text-transform:uppercase;color:#78716c;letter-spacing:0.05em;">
                       <th style="padding:8px;border-bottom:1px solid #e7e5e4;">Product</th>
@@ -168,7 +185,7 @@ export function buildAccountCreationEmailHtml({
               </div>
 
               <p style="margin:0;font-size:12px;line-height:1.6;color:#78716c;">
-                You can access your JD Force Solar Customer Portal at any time using your printed QR receipt, your Unique Access Token, or by setting an account password inside the portal.
+                You can access your JD Force Solar Customer Portal at any time using your printed QR receipt, your Unique Access Token, or by scanning the digital QR code above.
               </p>
             </td>
           </tr>
@@ -514,6 +531,21 @@ export default async function handler(req, res) {
         ? `${portalUrl}&confirm_email=${encodeURIComponent(verificationToken)}`
         : `${portalUrl}&confirm_email=1`
 
+      // Generate embedded QR code for the portal URL
+      let qrCodeDataUrl = null
+      if (accessToken) {
+        try {
+          qrCodeDataUrl = await QRCode.toDataURL(confirmUrl, {
+            errorCorrectionLevel: 'M',
+            margin: 2,
+            width: 200,
+            color: { dark: '#1c1917', light: '#ffffff' }
+          })
+        } catch (qrErr) {
+          console.warn('Failed to generate email QR code:', qrErr)
+        }
+      }
+
       subject = 'JD Force Solar - Account Created & Purchase Receipt'
       html = buildAccountCreationEmailHtml({
         customerName: customerName || customer_name,
@@ -523,6 +555,7 @@ export default async function handler(req, res) {
         accessToken,
         portalUrl,
         confirmUrl,
+        qrCodeDataUrl,
         purchases: purchases || []
       })
     }

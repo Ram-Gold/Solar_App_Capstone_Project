@@ -414,11 +414,8 @@ export async function registerCustomerAndSale({
     const emailChanged = prevEmail !== cleanEmail
     const isUnconfirmed = !existingCust.email_confirmed
 
-    if (emailChanged || !prevEmail) {
-      shouldSendConfirmationEmail = true
-    } else if (isUnconfirmed && !prevEmail) {
-      shouldSendConfirmationEmail = true
-    }
+    // Always send purchase receipt email for any registered sale with a valid email
+    shouldSendConfirmationEmail = Boolean(cleanEmail)
 
     // Update name or email if modified
     if (existingCust.full_name !== name || emailChanged) {
