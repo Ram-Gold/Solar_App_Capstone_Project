@@ -106,6 +106,11 @@ export default function WarrantyClaimsScreen() {
   const [claimToRestore, setClaimToRestore] = useState(null)
   const [actionLoading, setActionLoading] = useState(false)
 
+  const handleCloseModal = () => {
+    setActiveModalClaim(null)
+    setModalSuccessMsg('')
+  }
+
   const anyClaimModalOpen = Boolean(
     activeModalClaim ||
     selectedMedia ||
@@ -158,34 +163,8 @@ export default function WarrantyClaimsScreen() {
     }
   }, [activeModalClaim])
 
-  // Escape key handler to close modals or lightboxes in hierarchical order
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        if (selectedMedia) {
-          setSelectedMedia(null)
-        } else if (claimToDelete && !actionLoading) {
-          setClaimToDelete(null)
-        } else if (claimToArchive && !actionLoading) {
-          setClaimToArchive(null)
-        } else if (claimToRestore && !actionLoading) {
-          setClaimToRestore(null)
-        } else if (activeModalClaim && !modalSaving) {
-          handleCloseModal()
-        }
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedMedia, claimToDelete, claimToArchive, claimToRestore, actionLoading, activeModalClaim, modalSaving])
-
   const handleOpenModal = (claim) => {
     setActiveModalClaim(claim)
-  }
-
-  const handleCloseModal = () => {
-    setActiveModalClaim(null)
-    setModalSuccessMsg('')
   }
 
   const handleSaveModalChanges = async () => {
@@ -411,7 +390,7 @@ export default function WarrantyClaimsScreen() {
             <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
               Warranty Operations
             </span>
-            <h1 className="text-2xl font-bold text-jds-on-surface">Warranty & Diagnostic Claims Board</h1>
+            <h1 className="text-lg sm:text-2xl font-bold text-jds-on-surface">Warranty & Diagnostic Claims Board</h1>
           </div>
         </div>
 

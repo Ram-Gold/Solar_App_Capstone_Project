@@ -1194,10 +1194,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
       )}
 
       {/* Screen Header & Top Action Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-jds-on-surface flex items-center gap-2.5">
-            <CalendarDays className="w-6 h-6 text-jds-primary" />
+          <h1 className="text-lg sm:text-2xl font-bold text-jds-on-surface flex items-center gap-2">
+            <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6 text-jds-primary" />
             <span>Inquiries & Showroom Schedule</span>
           </h1>
         </div>
@@ -1985,14 +1985,14 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
       {/* DETAIL & EDIT MODAL */}
       {selectedInquiry && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-2.5 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto"
           onClick={(e) => {
             if (e.target === e.currentTarget && !modalSaving) handleCloseModal()
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-5 max-h-[92vh] overflow-y-auto my-auto"
+            className="bg-jds-surface rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 sm:space-y-5 max-h-[94vh] overflow-y-auto my-auto"
           >
             {modalSuccess ? (
               <AnimatedConfirmation
@@ -2306,14 +2306,14 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
       {/* NEW INQUIRY / WALK-IN MODAL */}
       {isNewModalOpen && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-2.5 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto"
           onClick={(e) => {
             if (e.target === e.currentTarget && !newCreating) setIsNewModalOpen(false)
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 max-h-[92vh] overflow-y-auto my-auto"
+            className="bg-jds-surface rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-jds-outline-variant/30 space-y-3 sm:space-y-4 max-h-[94vh] overflow-y-auto my-auto"
           >
             {newSuccessTicket ? (
               <AnimatedConfirmation

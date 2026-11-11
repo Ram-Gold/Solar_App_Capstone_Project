@@ -637,7 +637,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
             <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-jds-primary/10 text-jds-primary">
               Customer Registry
             </span>
-            <h1 className="text-2xl font-bold text-jds-on-surface">Customers, QR & Access Tokens</h1>
+            <h1 className="text-lg sm:text-2xl font-bold text-jds-on-surface">Customers, QR & Access Tokens</h1>
           </div>
         </div>
 

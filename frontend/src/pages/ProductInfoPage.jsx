@@ -148,26 +148,26 @@ export default function ProductInfoPage() {
 
   return (
     <div className="jds-page-bg font-inter text-jds-on-surface min-h-screen">
-      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
         {/* Back Navigation */}
         <Link
           to="/browse"
-          className="inline-flex items-center gap-2 text-jds-on-surface-variant hover:text-jds-primary transition-colors mb-10 group"
+          className="inline-flex items-center gap-1.5 sm:gap-2 text-jds-on-surface-variant hover:text-jds-primary transition-colors mb-4 sm:mb-8 group"
         >
-          <HiOutlineArrowLeft className="text-xl" />
-          <span className="text-label-md">Back to Browse</span>
+          <HiOutlineArrowLeft className="text-lg sm:text-xl" />
+          <span className="text-xs sm:text-label-md">Back to Browse</span>
         </Link>
 
         {/* Product Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-10 md:gap-12 items-start">
           {/* Left: Gallery */}
           <motion.div
-            className="md:col-span-7 flex flex-col gap-6"
+            className="md:col-span-7 flex flex-col gap-3 sm:gap-6"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="bg-jds-surface-container-lowest rounded-xl overflow-hidden shadow-[0px_4px_12px_rgba(0,0,0,0.05)] aspect-[4/3] relative flex items-center justify-center p-8">
+            <div className="bg-jds-surface-container-lowest rounded-2xl overflow-hidden shadow-xs sm:shadow-sm aspect-[4/3] relative flex items-center justify-center p-4 sm:p-8">
               {product.image_url ? (
                 <img
                   alt={product.name}
@@ -175,22 +175,22 @@ export default function ProductInfoPage() {
                   src={product.image_url}
                 />
               ) : (
-                <div className="flex flex-col items-center gap-4 text-jds-on-surface-variant/30">
-                  <HiOutlineBolt className="text-7xl" />
-                  <span className="text-headline-md">{product.watt}W</span>
-                  <span className="text-body-md">{product.type}</span>
+                <div className="flex flex-col items-center gap-2 sm:gap-4 text-jds-on-surface-variant/30">
+                  <HiOutlineBolt className="text-5xl sm:text-7xl" />
+                  <span className="text-lg sm:text-headline-md font-bold">{product.watt}W</span>
+                  <span className="text-xs sm:text-body-md">{product.type}</span>
                 </div>
               )}
             </div>
             {/* Thumbnail Strip */}
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+            <div className="flex gap-2.5 sm:gap-4 overflow-x-auto no-scrollbar pb-1">
               {[0, 1, 2, 3].map((i) => (
                 <button
                   key={i}
                   onClick={() => setSelectedThumb(i)}
-                  className={`flex-shrink-0 w-24 h-24 rounded-lg border-2 overflow-hidden bg-white cursor-pointer transition-colors flex items-center justify-center ${
+                  className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 overflow-hidden bg-white cursor-pointer transition-colors flex items-center justify-center ${
                     selectedThumb === i
-                      ? 'border-jds-secondary'
+                      ? 'border-jds-secondary shadow-xs'
                       : 'border-jds-outline-variant hover:border-jds-secondary'
                   }`}
                 >
@@ -201,7 +201,7 @@ export default function ProductInfoPage() {
                       alt={`${product.name} view ${i + 1}`}
                     />
                   ) : (
-                    <HiOutlineBolt className="text-2xl text-jds-on-surface-variant/30" />
+                    <HiOutlineBolt className="text-xl sm:text-2xl text-jds-on-surface-variant/30" />
                   )}
                 </button>
               ))}
@@ -210,23 +210,23 @@ export default function ProductInfoPage() {
 
           {/* Right: Details */}
           <motion.div
-            className="md:col-span-5 flex flex-col gap-8"
+            className="md:col-span-5 flex flex-col gap-4 sm:gap-6"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
             {/* Header */}
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap gap-2">
-                <span className="bg-jds-secondary-fixed text-jds-on-secondary-fixed-variant px-3 py-1 rounded-full text-label-sm uppercase tracking-wider">
+            <div className="flex flex-col gap-2 sm:gap-3">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                <span className="bg-jds-secondary-fixed text-jds-on-secondary-fixed-variant px-2.5 py-0.5 rounded-full text-[11px] sm:text-label-sm uppercase tracking-wider font-semibold">
                   {product.type}
                 </span>
                 {product.waterproof_grade && (
-                  <span className="bg-jds-surface-container-high text-jds-on-surface-variant px-3 py-1 rounded-full text-label-sm">
+                  <span className="bg-jds-surface-container-high text-jds-on-surface-variant px-2.5 py-0.5 rounded-full text-[11px] sm:text-label-sm font-medium">
                     {product.waterproof_grade}
                   </span>
                 )}
-                <span className={`px-3 py-1 rounded-full text-label-sm ${
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] sm:text-label-sm font-semibold ${
                   product.in_stock
                     ? 'bg-jds-secondary-container/20 text-jds-secondary'
                     : 'bg-jds-error-container/20 text-jds-error'
@@ -234,36 +234,36 @@ export default function ProductInfoPage() {
                   {product.in_stock ? 'In Stock' : 'Out of Stock'}
                 </span>
               </div>
-              <h1 className="text-headline-lg-mobile md:text-headline-xl text-jds-on-surface">{product.name}</h1>
+              <h1 className="text-xl sm:text-2xl md:text-headline-xl text-jds-on-surface font-extrabold tracking-tight">{product.name}</h1>
               {product.price_range ? (
-                <div className="text-display-sm text-jds-primary font-bold my-1">
+                <div className="text-lg sm:text-2xl text-jds-primary font-extrabold my-0.5">
                   ₱{product.price_range}
                 </div>
               ) : (
-                <div className="text-body-md font-semibold text-jds-on-surface-variant my-1">
+                <div className="text-xs sm:text-body-md font-semibold text-jds-on-surface-variant my-0.5">
                   Inquire at Branch for Price (Quiapo / Cavite)
                 </div>
               )}
-              <p className="text-body-lg text-jds-on-surface-variant italic">
+              <p className="text-xs sm:text-sm md:text-body-lg text-jds-on-surface-variant italic leading-relaxed">
                 {product.watt}W solar light equipped with internal lithium storage and automatic dusk-to-dawn lighting.
               </p>
             </div>
 
             {/* 2-Column Specs Bullet Grid */}
-            <div className="bg-jds-surface-container-lowest border border-jds-outline-variant rounded-xl p-6 shadow-[0px_4px_12px_rgba(0,0,0,0.05)]">
-              <h3 className="text-headline-md text-jds-on-surface mb-6 flex items-center gap-2">
-                <HiOutlineCog6Tooth className="text-jds-primary" />
+            <div className="bg-jds-surface-container-lowest border border-jds-outline-variant rounded-2xl p-4 sm:p-6 shadow-xs">
+              <h3 className="text-sm sm:text-headline-md text-jds-on-surface mb-3 sm:mb-5 flex items-center gap-2 font-bold">
+                <HiOutlineCog6Tooth className="text-jds-primary text-base sm:text-lg" />
                 Technical Specifications
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
                 {specs.map((spec) => {
                   const Icon = spec.icon
                   return (
-                    <div key={spec.label} className="flex items-start gap-3 py-2">
-                      <Icon className="text-jds-secondary text-lg flex-shrink-0 mt-0.5" />
+                    <div key={spec.label} className="flex items-start gap-2.5 py-1.5 border-b border-jds-outline-variant/10 sm:border-none">
+                      <Icon className="text-jds-secondary text-base flex-shrink-0 mt-0.5" />
                       <div className="flex flex-col gap-0.5 min-w-0">
-                        <span className="text-label-sm text-jds-on-surface-variant uppercase tracking-wider">{spec.label}</span>
-                        <span className="text-body-md text-jds-on-surface font-medium break-words">{spec.value}</span>
+                        <span className="text-[10px] sm:text-label-sm text-jds-on-surface-variant uppercase tracking-wider">{spec.label}</span>
+                        <span className="text-xs sm:text-body-md text-jds-on-surface font-medium break-words">{spec.value}</span>
                       </div>
                     </div>
                   )
@@ -272,7 +272,7 @@ export default function ProductInfoPage() {
             </div>
 
             {/* Dual CTA Actions */}
-            <div className="flex flex-col gap-3 mt-4">
+            <div className="flex flex-col gap-2.5 sm:gap-3 mt-2 sm:mt-4">
               {/* Primary Action: Reserve for Store Pickup */}
               {product.in_stock ? (
                 <button
@@ -280,39 +280,39 @@ export default function ProductInfoPage() {
                     setModalMode('reserve')
                     setIsQuoteModalOpen(true)
                   }}
-                  className="w-full py-4 bg-gradient-to-r from-[#fdb813] via-[#f7ad0c] to-[#e69f05] text-stone-950 font-black rounded-xl shadow-md hover:shadow-xl hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 text-base border border-[#f5b311]"
+                  className="w-full py-3 sm:py-3.5 bg-gradient-to-r from-[#fdb813] via-[#f7ad0c] to-[#e69f05] text-stone-950 font-black rounded-xl shadow-xs hover:shadow-md hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-xs sm:text-sm border border-[#f5b311] cursor-pointer"
                 >
-                  <HiOutlineBuildingStorefront className="text-2xl" />
+                  <HiOutlineBuildingStorefront className="text-lg sm:text-xl" />
                   <span>Reserve for Store Pickup</span>
                 </button>
               ) : (
                 <button
                   disabled
-                  className="w-full py-4 bg-stone-200 text-stone-500 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 text-base border border-stone-300"
+                  className="w-full py-3 sm:py-3.5 bg-stone-200 text-stone-500 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 text-xs sm:text-sm border border-stone-300"
                 >
-                  <HiOutlineLockClosed className="text-xl" />
+                  <HiOutlineLockClosed className="text-base sm:text-lg" />
                   <span>Out of Stock (Pickup Unavailable)</span>
                 </button>
               )}
 
               {/* Secondary 2-Column Row: Inquire / Request Quote & Ask Solar Assistant */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 <button
                   onClick={() => {
                     setModalMode('inquire')
                     setIsQuoteModalOpen(true)
                   }}
-                  className="w-full py-3.5 border-2 border-jds-secondary text-jds-secondary font-bold rounded-xl hover:bg-jds-secondary-fixed/20 transition-all flex items-center justify-center gap-2 text-sm shadow-sm"
+                  className="w-full py-2.5 sm:py-3 border-2 border-jds-secondary text-jds-secondary font-bold rounded-xl hover:bg-jds-secondary-fixed/20 transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm shadow-2xs cursor-pointer"
                 >
-                  <HiOutlineDocumentText className="text-lg" />
+                  <HiOutlineDocumentText className="text-base" />
                   <span>Inquire / Request Quote</span>
                 </button>
 
                 <button
                   onClick={handleAskAI}
-                  className="w-full py-3.5 bg-jds-surface-container-high border border-jds-outline-variant/60 text-jds-on-surface font-semibold rounded-xl hover:bg-jds-surface-container-highest transition-all flex items-center justify-center gap-2 text-sm shadow-sm"
+                  className="w-full py-2.5 sm:py-3 bg-jds-surface-container-high border border-jds-outline-variant/60 text-jds-on-surface font-semibold rounded-xl hover:bg-jds-surface-container-highest transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm shadow-2xs cursor-pointer"
                 >
-                  <HiOutlineChatBubbleLeftRight className="text-lg text-amber-500" />
+                  <HiOutlineChatBubbleLeftRight className="text-base text-amber-500" />
                   <span>Ask Solar Assistant</span>
                 </button>
               </div>

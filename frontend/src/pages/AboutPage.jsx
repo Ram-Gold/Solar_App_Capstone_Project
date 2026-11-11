@@ -43,7 +43,7 @@ export default function AboutPage() {
   return (
     <div className="jds-page-bg font-inter text-jds-on-surface grain-texture overflow-hidden">
       {/* ── Hero Section ── */}
-      <section className="relative py-20 md:py-28 px-4 md:px-0 bg-jds-surface overflow-hidden border-b border-jds-outline-variant/30">
+      <section className="relative py-10 sm:py-16 md:py-24 px-3 sm:px-6 md:px-0 bg-jds-surface overflow-hidden border-b border-jds-outline-variant/30">
         {/* Background Image Layer */}
         <div
           className="absolute inset-0 z-0 opacity-10 grayscale brightness-75 contrast-125"
@@ -56,45 +56,45 @@ export default function AboutPage() {
         {/* Sunlight Glow Effect */}
         <div className="absolute inset-0 bg-gradient-to-b from-jds-primary-container/10 via-transparent to-transparent pointer-events-none" />
 
-        <div className="max-w-screen-2xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 items-center relative z-10 px-4 md:px-8">
+        <div className="max-w-screen-2xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 sm:gap-12 items-center relative z-10 px-3 sm:px-6 md:px-8">
           <motion.div
             className="md:col-span-7 flex flex-col justify-center"
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <span className="text-label-md text-jds-secondary uppercase tracking-[0.25em] mb-4 block font-semibold">
+            <span className="text-xs sm:text-label-md text-jds-secondary uppercase tracking-[0.2em] mb-2 sm:mb-4 block font-semibold">
               Our Identity
             </span>
-            <h1 className="text-headline-lg-mobile md:text-headline-xl text-jds-on-surface mb-2 leading-tight tracking-tight">
+            <h1 className="text-2xl sm:text-4xl md:text-headline-xl text-jds-on-surface mb-2 leading-tight tracking-tight font-extrabold">
               JD Solar Lightning Zone <br />
-              <span className="text-jds-primary font-extrabold">Quiapo Manila</span>
+              <span className="text-jds-primary">Quiapo Manila</span>
             </h1>
             
-            <div className="w-20 h-1 bg-jds-primary mb-6 mt-2 rounded-full" />
+            <div className="w-14 sm:w-20 h-1 bg-jds-primary mb-4 sm:mb-6 mt-1 sm:mt-2 rounded-full" />
             
-            <h2 className="text-headline-md text-jds-secondary font-medium mb-4 leading-snug">
+            <h2 className="text-base sm:text-xl md:text-headline-md text-jds-secondary font-semibold mb-3 sm:mb-4 leading-snug">
               A Spark in the Dark: Our Journey to Light the Philippines
             </h2>
             
-            <p className="text-body-lg text-jds-on-surface-variant max-w-2xl mb-8 leading-relaxed">
+            <p className="text-xs sm:text-base md:text-body-lg text-jds-on-surface-variant max-w-2xl mb-6 sm:mb-8 leading-relaxed">
               Founded during a global crisis, JD Force Solar was born to bring practical, 
               affordable power to Filipino families. We bridge the gap between complex 
               engineering and everyday accessibility, lighting up lives from the heart of Manila.
             </p>
             
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 bg-jds-surface-container-low px-4 py-2.5 rounded-full border border-jds-outline-variant/30 shadow-sm">
-                <HiOutlineCheckBadge className="text-jds-primary text-xl shrink-0" />
-                <span className="text-label-md font-medium text-jds-on-surface">Quiapo Solar Equipment Supplier</span>
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-jds-surface-container-low px-3 py-1.5 sm:px-4 sm:py-2.5 rounded-full border border-jds-outline-variant/30 shadow-2xs">
+                <HiOutlineCheckBadge className="text-jds-primary text-base sm:text-xl shrink-0" />
+                <span className="text-xs sm:text-label-md font-medium text-jds-on-surface">Quiapo Solar Supplier</span>
               </div>
-              <div className="flex items-center gap-2 bg-jds-surface-container-low px-4 py-2.5 rounded-full border border-jds-outline-variant/30 shadow-sm">
-                <HiOutlineBolt className="text-jds-primary text-xl shrink-0" />
-                <span className="text-label-md font-medium text-jds-on-surface">Est. 2020</span>
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-jds-surface-container-low px-3 py-1.5 sm:px-4 sm:py-2.5 rounded-full border border-jds-outline-variant/30 shadow-2xs">
+                <HiOutlineBolt className="text-jds-primary text-base sm:text-xl shrink-0" />
+                <span className="text-xs sm:text-label-md font-medium text-jds-on-surface">Est. 2020</span>
               </div>
-              <div className="flex items-center gap-2 bg-jds-surface-container-low px-4 py-2.5 rounded-full border border-jds-outline-variant/30 shadow-sm">
-                <HiOutlineMapPin className="text-jds-primary text-xl shrink-0" />
-                <span className="text-label-md font-medium text-jds-on-surface">Cavite & Manila Branches</span>
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-jds-surface-container-low px-3 py-1.5 sm:px-4 sm:py-2.5 rounded-full border border-jds-outline-variant/30 shadow-2xs">
+                <HiOutlineMapPin className="text-jds-primary text-base sm:text-xl shrink-0" />
+                <span className="text-xs sm:text-label-md font-medium text-jds-on-surface">Cavite & Manila</span>
               </div>
             </div>
           </motion.div>
@@ -230,34 +230,34 @@ export default function AboutPage() {
             viewport={{ once: true }}
           >
             {/* Metric 1 */}
-            <motion.div variants={cardVariants} className="p-6 bg-white rounded-xl border border-jds-outline-variant/30 shadow-sm hover:shadow-md transition-shadow">
-              <span className="text-headline-lg-mobile md:text-headline-xl font-extrabold text-jds-primary block mb-1">3+</span>
-              <span className="text-label-md text-jds-on-surface-variant uppercase tracking-wider font-semibold">Years in Business</span>
+            <motion.div variants={cardVariants} className="p-4 sm:p-6 bg-white rounded-2xl border border-jds-outline-variant/30 shadow-2xs hover:shadow-xs transition-shadow text-center sm:text-left">
+              <span className="text-2xl sm:text-3xl md:text-headline-xl font-extrabold text-jds-primary block mb-0.5 sm:mb-1">3+</span>
+              <span className="text-[10px] sm:text-label-md text-jds-on-surface-variant uppercase tracking-wider font-semibold">Years in Business</span>
             </motion.div>
 
             {/* Metric 2 */}
-            <motion.div variants={cardVariants} className="p-6 bg-white rounded-xl border border-jds-outline-variant/30 shadow-sm hover:shadow-md transition-shadow">
-              <span className="text-headline-lg-mobile md:text-headline-xl font-extrabold text-jds-secondary block mb-1">+1,000</span>
-              <span className="text-label-md text-jds-on-surface-variant uppercase tracking-wider font-semibold">Families Assisted</span>
+            <motion.div variants={cardVariants} className="p-4 sm:p-6 bg-white rounded-2xl border border-jds-outline-variant/30 shadow-2xs hover:shadow-xs transition-shadow text-center sm:text-left">
+              <span className="text-2xl sm:text-3xl md:text-headline-xl font-extrabold text-jds-secondary block mb-0.5 sm:mb-1">+1,000</span>
+              <span className="text-[10px] sm:text-label-md text-jds-on-surface-variant uppercase tracking-wider font-semibold">Families Assisted</span>
             </motion.div>
 
             {/* Metric 3 */}
-            <motion.div variants={cardVariants} className="p-6 bg-white rounded-xl border border-jds-outline-variant/30 shadow-sm hover:shadow-md transition-shadow">
-              <span className="text-headline-lg-mobile md:text-headline-xl font-extrabold text-jds-primary block mb-1">2</span>
-              <span className="text-label-md text-jds-on-surface-variant uppercase tracking-wider font-semibold">Active Branches</span>
+            <motion.div variants={cardVariants} className="p-4 sm:p-6 bg-white rounded-2xl border border-jds-outline-variant/30 shadow-2xs hover:shadow-xs transition-shadow text-center sm:text-left">
+              <span className="text-2xl sm:text-3xl md:text-headline-xl font-extrabold text-jds-primary block mb-0.5 sm:mb-1">2</span>
+              <span className="text-[10px] sm:text-label-md text-jds-on-surface-variant uppercase tracking-wider font-semibold">Active Branches</span>
             </motion.div>
 
             {/* Metric 4 */}
-            <motion.div variants={cardVariants} className="p-6 bg-white rounded-xl border border-jds-outline-variant/30 shadow-sm hover:shadow-md transition-shadow">
-              <span className="text-headline-lg-mobile md:text-headline-xl font-extrabold text-jds-secondary block mb-1">Tons</span>
-              <span className="text-label-md text-jds-on-surface-variant uppercase tracking-wider font-semibold">Carbon Footprint Saved</span>
+            <motion.div variants={cardVariants} className="p-4 sm:p-6 bg-white rounded-2xl border border-jds-outline-variant/30 shadow-2xs hover:shadow-xs transition-shadow text-center sm:text-left">
+              <span className="text-2xl sm:text-3xl md:text-headline-xl font-extrabold text-jds-secondary block mb-0.5 sm:mb-1">Tons</span>
+              <span className="text-[10px] sm:text-label-md text-jds-on-surface-variant uppercase tracking-wider font-semibold">Carbon Footprint Saved</span>
             </motion.div>
           </motion.div>
         </div>
       </section>
 
       {/* ── Chapter 2: Purpose & Philosophy (Social Impact & Competition) ── */}
-      <section className="relative py-24 px-4 md:px-8 bg-jds-surface overflow-hidden">
+      <section className="relative py-12 sm:py-16 md:py-24 px-3 sm:px-6 md:px-8 bg-jds-surface overflow-hidden">
         {/* Background Image Layer */}
         <div
           className="absolute inset-0 z-0 opacity-5 grayscale contrast-125 pointer-events-none"

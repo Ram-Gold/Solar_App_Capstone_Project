@@ -395,24 +395,24 @@ export default function CustomerPortalPage() {
     <div className="min-h-screen bg-jds-background pb-16">
       
       {/* Top Banner & Customer Header */}
-      <div className="bg-jds-surface border-b border-jds-outline-variant/30 px-4 py-6 md:px-8">
-        <div className="max-w-4xl mx-auto space-y-4">
+      <div className="bg-jds-surface border-b border-jds-outline-variant/30 px-3.5 py-4 sm:px-6 sm:py-6 md:px-8">
+        <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
             <div>
-              <div className="text-xs font-semibold text-jds-primary uppercase tracking-wider">
+              <div className="text-[10px] sm:text-xs font-semibold text-jds-primary uppercase tracking-wider">
                 Customer Dashboard
               </div>
-              <h1 className="text-2xl font-bold text-jds-on-surface mt-0.5">
+              <h1 className="text-lg sm:text-2xl font-bold text-jds-on-surface mt-0.5">
                 Welcome, {customer.name}!
               </h1>
-              <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-jds-on-surface-variant">
-                <span className="flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5" /> {customer.phone}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-[11px] sm:text-xs text-jds-on-surface-variant">
+                <span className="flex items-center gap-1 sm:gap-1.5">
+                  <Phone className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {customer.phone}
                 </span>
                 {resolvedCustomerEmail && (
-                  <span className="flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5" /> {resolvedCustomerEmail}
+                  <span className="flex items-center gap-1 sm:gap-1.5">
+                    <Mail className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {resolvedCustomerEmail}
                   </span>
                 )}
               </div>
@@ -425,42 +425,42 @@ export default function CustomerPortalPage() {
                   setPwdSuccess(null)
                   setIsPasswordModalOpen(true)
                 }}
-                className="px-3.5 py-1.5 rounded-xl bg-jds-primary/10 hover:bg-jds-primary/20 border border-jds-primary/30 text-xs font-semibold text-jds-primary flex items-center gap-1.5 transition-colors"
+                className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-jds-primary/10 hover:bg-jds-primary/20 border border-jds-primary/30 text-[11px] sm:text-xs font-semibold text-jds-primary flex items-center gap-1 sm:gap-1.5 transition-colors cursor-pointer"
               >
-                <KeyRound className="w-3.5 h-3.5" />
+                <KeyRound className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 {authStatus.hasPassword ? 'Change Password' : 'Set Password'}
               </button>
 
               <button
                 onClick={() => loadData(token)}
-                className="px-3.5 py-1.5 rounded-xl bg-jds-surface-container/60 border border-jds-outline-variant/40 hover:bg-jds-surface-container text-xs font-medium text-jds-on-surface flex items-center gap-1.5 transition-colors"
+                className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-jds-surface-container/60 border border-jds-outline-variant/40 hover:bg-jds-surface-container text-[11px] sm:text-xs font-medium text-jds-on-surface flex items-center gap-1 sm:gap-1.5 transition-colors cursor-pointer"
               >
                 <RefreshCw className="w-3 h-3" />
-                Refresh Status
+                Refresh
               </button>
             </div>
           </div>
 
           {/* Quick Metrics Bar */}
-          <div className="grid grid-cols-3 gap-3 pt-2">
-            <div className="p-3 rounded-xl bg-jds-surface-container/30 border border-jds-outline-variant/20 text-center">
-              <div className="text-base md:text-xl font-bold text-jds-on-surface">{purchases.length}</div>
-              <div className="text-[10px] md:text-xs text-jds-on-surface-variant">Registered Units</div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-1 sm:pt-2">
+            <div className="p-2 sm:p-3 rounded-xl bg-jds-surface-container/30 border border-jds-outline-variant/20 text-center">
+              <div className="text-sm sm:text-lg md:text-xl font-bold text-jds-on-surface">{purchases.length}</div>
+              <div className="text-[9px] sm:text-xs text-jds-on-surface-variant font-medium">Units</div>
             </div>
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-              <div className="text-base md:text-xl font-bold text-emerald-500">{activeWarrantiesCount}</div>
-              <div className="text-[10px] md:text-xs text-emerald-600">Active Warranties</div>
+            <div className="p-2 sm:p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+              <div className="text-sm sm:text-lg md:text-xl font-bold text-emerald-500">{activeWarrantiesCount}</div>
+              <div className="text-[9px] sm:text-xs text-emerald-600 font-medium">Warranties</div>
             </div>
-            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center">
-              <div className="text-base md:text-xl font-bold text-blue-500">{claims.length}</div>
-              <div className="text-[10px] md:text-xs text-blue-600">Service Claims</div>
+            <div className="p-2 sm:p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center">
+              <div className="text-sm sm:text-lg md:text-xl font-bold text-blue-500">{claims.length}</div>
+              <div className="text-[9px] sm:text-xs text-blue-600 font-medium">Claims</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-5 sm:py-8 space-y-5 sm:space-y-8">
 
         {/* Email Confirmation Status Banner (Non-blocking) */}
         {emailJustConfirmedMessage && (

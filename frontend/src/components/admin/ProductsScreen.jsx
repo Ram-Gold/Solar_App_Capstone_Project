@@ -189,6 +189,15 @@ export default function ProductsScreen({ onNavigate }) {
   const [productToDelete, setProductToDelete] = useState(null)
   const [deletingProduct, setDeletingProduct] = useState(false)
 
+  const handleCloseEdit = useCallback(() => {
+    setEditingProduct(null)
+    setOriginalProduct(null)
+    setShowConfirmModal(false)
+    setPendingChanges([])
+    setValidationErrors({})
+    setEditSuccessMessage(null)
+  }, [])
+
   const anyProductModalOpen = Boolean(
     editingProduct ||
     quickRestockItem ||
@@ -218,16 +227,6 @@ export default function ProductsScreen({ onNavigate }) {
     toastTimeoutRef.current = setTimeout(() => {
       setToast(null)
     }, 3800)
-  }, [])
-
-  // Modals & Reset Handlers declared before useEffect hooks
-  const handleCloseEdit = useCallback(() => {
-    setEditingProduct(null)
-    setOriginalProduct(null)
-    setShowConfirmModal(false)
-    setPendingChanges([])
-    setValidationErrors({})
-    setEditSuccessMessage(null)
   }, [])
 
   const loadCategories = useCallback(async () => {
@@ -729,7 +728,7 @@ export default function ProductsScreen({ onNavigate }) {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-headline-md font-bold text-jds-on-surface">Solar Inventory Catalog</h1>
+            <h1 className="text-lg sm:text-headline-md font-bold text-jds-on-surface">Solar Inventory Catalog</h1>
             <span className="rounded-full bg-jds-surface-container-high px-3 py-1 font-mono text-label-sm font-bold text-jds-on-surface-variant border border-jds-outline-variant/30">
               {products.length} models
             </span>

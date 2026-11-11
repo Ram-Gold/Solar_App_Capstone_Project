@@ -59,14 +59,14 @@ export default function Navbar() {
 
   const navContent = (
     <>
-      <div className="flex items-center justify-between w-full px-6 py-4 max-w-screen-2xl mx-auto">
+      <div className="flex items-center justify-between w-full px-4 py-2.5 sm:px-6 sm:py-3.5 max-w-screen-2xl mx-auto">
         {/* Left Group: Logo & Navigation */}
-        <div className="flex items-center gap-12">
+        <div className="flex items-center gap-6 sm:gap-12">
           <Link to="/" className="flex items-center shrink-0" aria-label="JD Solar Home">
             <img 
               src={jdSolarLogo} 
               alt="JD Solar" 
-              className="h-10 sm:h-11 w-auto object-contain rounded-xl"
+              className="h-8 sm:h-10 w-auto object-contain rounded-xl"
             />
           </Link>
 
@@ -169,23 +169,23 @@ export default function Navbar() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="lg:hidden border-t border-jds-outline-variant/20 bg-jds-surface-container-lowest overflow-hidden"
+            className="lg:hidden border-t border-jds-outline-variant/20 bg-jds-surface-container-lowest overflow-hidden shadow-xl"
           >
-            <div className="px-6 py-4 flex flex-col gap-6">
+            <div className="px-4 py-3 sm:px-6 sm:py-4 flex flex-col gap-4 sm:gap-6">
               {/* Search Input for Mobile/Tablet (hidden sm and up since it is in header there) */}
               <form onSubmit={handleSearchSubmit} className="relative group w-full sm:hidden">
-                <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 text-jds-on-surface-variant group-focus-within:text-jds-primary transition-colors text-lg" />
+                <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 text-jds-on-surface-variant group-focus-within:text-jds-primary transition-colors text-base" />
                 <input
                   type="text"
                   placeholder="Search guide..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-jds-surface-container-low border border-jds-outline-variant/30 rounded-xl py-2.5 pl-10 pr-4 text-label-md text-jds-on-surface focus:ring-2 focus:ring-jds-primary/20 focus:border-jds-primary focus:bg-jds-surface transition-all outline-none"
+                  className="w-full bg-jds-surface-container-low border border-jds-outline-variant/30 rounded-xl py-2 pl-9 pr-3 text-xs text-jds-on-surface focus:ring-2 focus:ring-jds-primary/20 focus:border-jds-primary focus:bg-jds-surface transition-all outline-none"
                 />
               </form>
 
               {/* Navigation Links */}
-              <nav className="flex flex-col gap-4">
+              <nav className="flex flex-col gap-1.5 sm:gap-3">
                 {dynamicNavLinks.map((link) => {
                   const isActive = link.to !== '#' && pathname === link.to
                   return (
@@ -193,10 +193,10 @@ export default function Navbar() {
                       key={link.label}
                       to={link.to}
                       onClick={() => setIsOpen(false)}
-                      className={`font-inter text-body-lg tracking-wide transition-all duration-300 py-1 ${
+                      className={`font-inter text-xs sm:text-sm tracking-wide transition-all duration-300 py-1.5 px-2 rounded-lg ${
                         isActive
-                          ? 'text-jds-primary font-semibold'
-                          : 'text-jds-on-surface-variant hover:text-jds-primary'
+                          ? 'text-jds-primary font-bold bg-jds-primary/10'
+                          : 'text-jds-on-surface-variant hover:text-jds-primary hover:bg-jds-surface-container'
                       }`}
                     >
                       {link.label}
@@ -208,7 +208,7 @@ export default function Navbar() {
               <div className="h-px bg-jds-outline-variant/20" />
 
               {/* Auth & CTA Mobile Buttons */}
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2 sm:gap-3">
                 {user ? (
                   <button
                     type="button"
@@ -216,7 +216,7 @@ export default function Navbar() {
                       setIsOpen(false)
                       handleAuthClick()
                     }}
-                    className="border border-jds-outline-variant/60 text-jds-on-surface hover:bg-jds-surface-container-high hover:border-jds-outline font-inter text-label-md font-semibold text-center py-3 rounded-xl transition-all cursor-pointer w-full"
+                    className="border border-jds-outline-variant/60 text-jds-on-surface hover:bg-jds-surface-container-high hover:border-jds-outline font-inter text-xs sm:text-sm font-semibold text-center py-2.5 rounded-xl transition-all cursor-pointer w-full"
                   >
                     Sign Out
                   </button>
@@ -228,7 +228,7 @@ export default function Navbar() {
                         setIsOpen(false)
                         handleAuthClick()
                       }}
-                      className="font-inter text-label-md text-center py-3 bg-jds-surface-container-high hover:bg-jds-surface-container-highest rounded-xl text-jds-on-surface-variant transition-colors cursor-pointer"
+                      className="font-inter text-xs sm:text-sm text-center py-2.5 bg-jds-surface-container-high hover:bg-jds-surface-container-highest rounded-xl text-jds-on-surface-variant font-medium transition-colors cursor-pointer"
                     >
                       Login
                     </button>
@@ -238,7 +238,7 @@ export default function Navbar() {
                         setIsOpen(false)
                         setIsInquireModalOpen(true)
                       }}
-                      className="bg-jds-primary text-jds-on-primary text-center py-3 rounded-xl font-inter text-label-md font-bold shadow-md hover:shadow-lg transition-all cursor-pointer w-full"
+                      className="bg-jds-primary text-jds-on-primary text-center py-2.5 rounded-xl font-inter text-xs sm:text-sm font-bold shadow-sm hover:shadow-md transition-all cursor-pointer w-full"
                     >
                       Inquire
                     </button>

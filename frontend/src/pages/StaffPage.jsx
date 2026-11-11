@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Menu } from 'lucide-react'
+import ErrorBoundary from '../components/ErrorBoundary'
 import StaffSidebar from '../components/staff/StaffSidebar'
 import DashboardScreen from '../components/admin/DashboardScreen'
 import ProductsScreen from '../components/admin/ProductsScreen'
@@ -32,7 +33,7 @@ export default function StaffPage() {
   const [activeScreen, setActiveScreen] = useState('dashboard')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
-  const ActiveComponent = screens[activeScreen]
+  const ActiveComponent = screens[activeScreen] || DashboardScreen
 
   const handleNavigate = (screen) => {
     setActiveScreen(screen)
@@ -57,19 +58,26 @@ export default function StaffPage() {
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile Header Bar */}
-        <div className="lg:hidden flex items-center justify-between px-6 py-4 border-b border-jds-outline-variant/30 bg-jds-surface shrink-0">
+        <div className="lg:hidden flex items-center justify-between px-4 py-2.5 sm:px-6 sm:py-3.5 border-b border-jds-outline-variant/30 bg-jds-surface shrink-0">
           <button 
             onClick={() => setIsSidebarOpen(true)}
-            className="flex items-center gap-2 text-label-md font-medium text-jds-on-surface hover:text-jds-primary transition-colors"
+            className="flex items-center gap-2 text-xs sm:text-label-md font-medium text-jds-on-surface hover:text-jds-primary transition-colors cursor-pointer"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
             <span>Staff Menu</span>
           </button>
-          <span className="text-label-md font-semibold capitalize text-jds-primary">{activeScreen.replace('-', ' ')}</span>
+          <span className="text-xs sm:text-label-md font-bold capitalize text-jds-primary">{activeScreen.replace('-', ' ')}</span>
         </div>
 
-        <main className="flex-grow overflow-y-auto p-4 md:p-8">
-          <ActiveComponent onNavigate={handleNavigate} />
+        <main className="flex-grow overflow-y-auto p-3 sm:p-5 md:p-8">
+          <ErrorBoundary
+            key={activeScreen}
+            isSubtree
+            fallbackTitle="Staff Screen Error"
+            onReset={() => setActiveScreen('dashboard')}
+          >
+            <ActiveComponent onNavigate={handleNavigate} />
+          </ErrorBoundary>
         </main>
       </div>
     </div>

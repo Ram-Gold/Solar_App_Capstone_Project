@@ -289,7 +289,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
             <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-jds-primary/10 text-jds-primary">
               Point of Sale
             </span>
-            <h1 className="text-2xl font-bold text-jds-on-surface">Register In-Store Sale</h1>
+            <h1 className="text-lg sm:text-2xl font-bold text-jds-on-surface">Register In-Store Sale</h1>
           </div>
         </div>
 

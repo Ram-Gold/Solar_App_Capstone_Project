@@ -366,7 +366,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
   const modalContent = (
     <div
       {...backdropProps}
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2.5 sm:p-5 overflow-y-auto bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.98, y: 10 }}
@@ -374,21 +374,21 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
         exit={{ opacity: 0, scale: 0.98, y: 10 }}
         transition={{ duration: 0.2 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-lg bg-white rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] p-6 sm:p-8 overflow-hidden my-auto max-h-[92vh] overflow-y-auto no-scrollbar font-inter"
+        className="relative w-full max-w-lg bg-white rounded-2xl sm:rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] p-4 sm:p-7 overflow-hidden my-auto max-h-[94vh] overflow-y-auto no-scrollbar font-inter"
       >
         {/* Floating Minimalist Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors z-20"
+          className="absolute top-4 right-4 sm:top-5 sm:right-5 p-1.5 sm:p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors z-20 cursor-pointer"
           aria-label="Close"
         >
           <X className="h-4 w-4" />
         </button>
 
         {/* Step Indicator & Title */}
-        <div className="mb-5">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className={`text-[11px] font-bold uppercase tracking-wider ${isReserve ? 'text-amber-600' : 'text-blue-600'}`}>
+        <div className="mb-4 sm:mb-5">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider ${isReserve ? 'text-amber-600' : 'text-blue-600'}`}>
               {isConfirmedTransition
                 ? 'Submission Confirmed'
                 : step === 1
@@ -398,9 +398,9 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                     : (isReserve ? 'Reservation Pass Ready' : 'Consultation Pass Ready')}
             </span>
             <span className="h-1 w-1 rounded-full bg-stone-300" />
-            <span className="text-[11px] font-medium text-stone-400">JD Force Solar</span>
+            <span className="text-[10px] sm:text-[11px] font-medium text-stone-400">JD Force Solar</span>
           </div>
-          <h2 className="text-xl font-black tracking-tight text-stone-900">
+          <h2 className="text-base sm:text-xl font-black tracking-tight text-stone-900">
             {isConfirmedTransition
               ? (isReserve ? 'Reservation Confirmed' : 'Consultation Confirmed')
               : step === 1

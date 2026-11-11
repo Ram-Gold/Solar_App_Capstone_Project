@@ -86,6 +86,14 @@ export default function DashboardScreen({ onNavigate }) {
   const [editingImageUploading, setEditingImageUploading] = useState(false)
   const editFileInputRef = useRef(null)
 
+  const handleCloseEdit = useCallback(() => {
+    setEditingProduct(null)
+    setOriginalProduct(null)
+    setShowConfirmModal(false)
+    setPendingChanges([])
+    setValidationErrors({})
+  }, [])
+
   const anyDashboardModalOpen = Boolean(
     editingProduct ||
     quickRestockItem ||
@@ -327,14 +335,6 @@ export default function DashboardScreen({ onNavigate }) {
     setValidationErrors({})
   }
 
-  const handleCloseEdit = () => {
-    setEditingProduct(null)
-    setOriginalProduct(null)
-    setShowConfirmModal(false)
-    setPendingChanges([])
-    setValidationErrors({})
-  }
-
   const handleFieldChange = (key, value, type) => {
     let finalVal = value
     if (type === 'number') {
@@ -569,20 +569,20 @@ export default function DashboardScreen({ onNavigate }) {
       )}
 
       <div>
-        <h1 className="text-headline-md font-bold text-jds-on-surface">Inventory Dashboard</h1>
+        <h1 className="text-lg sm:text-headline-md font-bold text-jds-on-surface">Inventory Dashboard</h1>
       </div>
 
       {/* Critical Stock Alert Banner */}
       {criticalAttentionCount > 0 && (
-        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-5 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="h-5 w-5" />
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 sm:p-5 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-start gap-2.5 sm:gap-3.5">
+              <div className="mt-0.5 flex h-7 w-7 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
               <div>
-                <h3 className="text-body-md font-bold text-jds-on-surface">Inventory Replenishment Required</h3>
-                <p className="text-body-sm text-jds-on-surface-variant mt-0.5">
+                <h3 className="text-xs sm:text-body-md font-bold text-jds-on-surface">Inventory Replenishment Required</h3>
+                <p className="text-[11px] sm:text-body-sm text-jds-on-surface-variant mt-0.5 leading-relaxed">
                   {outOfStockProducts.length > 0 && (
                     <span className="font-semibold text-jds-error">
                       {outOfStockProducts.length} product{outOfStockProducts.length === 1 ? '' : 's'} completely depleted
@@ -601,17 +601,17 @@ export default function DashboardScreen({ onNavigate }) {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setStockFilter(outOfStockProducts.length > 0 ? 'out' : 'low')}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-500/40 bg-white/60 dark:bg-black/20 px-3.5 py-2 text-label-sm font-semibold text-amber-800 dark:text-amber-300 hover:bg-white dark:hover:bg-black/40 transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-500/40 bg-white/60 dark:bg-black/20 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-label-sm font-semibold text-amber-800 dark:text-amber-300 hover:bg-white dark:hover:bg-black/40 transition-colors cursor-pointer"
               >
-                <span>Filter Critical on Table</span>
+                <span>Filter Critical</span>
               </button>
               {onNavigate && (
                 <button
                   onClick={() => onNavigate('products')}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-label-sm font-semibold text-white shadow-sm hover:bg-amber-600 transition-colors shrink-0 cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 sm:py-2 text-[11px] sm:text-label-sm font-semibold text-white shadow-xs hover:bg-amber-600 transition-colors shrink-0 cursor-pointer"
                 >
-                  <span>Manage in Products</span>
-                  <ArrowRight className="h-4 w-4" />
+                  <span>Manage</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
@@ -620,30 +620,30 @@ export default function DashboardScreen({ onNavigate }) {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-6 lg:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon
           return (
             <div
               key={card.label}
               onClick={card.action}
-              className={`rounded-xl border bg-jds-surface-container-lowest p-6 shadow-sm hover:shadow-md transition-all ${
+              className={`rounded-xl border bg-jds-surface-container-lowest p-3.5 sm:p-6 shadow-2xs hover:shadow-xs transition-all ${
                 card.active
                   ? 'ring-2 ring-jds-primary border-jds-primary'
                   : card.highlight || 'border-jds-outline-variant/30'
               } ${card.action ? 'cursor-pointer hover:border-jds-primary/60 hover:scale-[1.01]' : ''}`}
             >
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-label-sm font-bold uppercase tracking-wider text-jds-on-surface-variant/70">{card.label}</p>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${card.bg}`}>
-                  <Icon className={`h-5 w-5 ${card.color}`} />
+              <div className="flex items-center justify-between mb-2 sm:mb-4">
+                <p className="text-[10px] sm:text-label-sm font-bold uppercase tracking-wider text-jds-on-surface-variant/70 truncate">{card.label}</p>
+                <div className={`flex h-7 w-7 sm:h-10 sm:w-10 items-center justify-center rounded-lg shrink-0 ${card.bg}`}>
+                  <Icon className={`h-3.5 w-3.5 sm:h-5 sm:w-5 ${card.color}`} />
                 </div>
               </div>
-              <p className="text-headline-md font-bold text-jds-on-surface">{card.value}</p>
+              <p className="text-base sm:text-headline-md font-bold text-jds-on-surface">{card.value}</p>
               {card.sub && (
-                <div className="mt-2 flex items-center justify-between text-xs text-jds-on-surface-variant font-medium">
-                  <span>{card.sub}</span>
-                  {card.action && <ArrowRight className="h-3.5 w-3.5 text-jds-primary" />}
+                <div className="mt-1 sm:mt-2 flex items-center justify-between text-[10px] sm:text-xs text-jds-on-surface-variant font-medium">
+                  <span className="truncate">{card.sub}</span>
+                  {card.action && <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-jds-primary shrink-0" />}
                 </div>
               )}
             </div>

@@ -46,3 +46,4 @@ describe('RegisterSaleScreen - Customer Full Name input spaces handling', () => 
     expect(sanitizeText('<script>alert(1)</script>Maria Santos', { trim: false })).toBe('Maria Santos')
   })
 })
+

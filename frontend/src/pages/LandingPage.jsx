@@ -140,7 +140,7 @@ export default function LandingPage() {
   return (
     <div className="jd-page-bg font-inter text-jd-on-surface selection:bg-jd-primary-fixed">
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-20 pb-32 md:pt-32 md:pb-48 px-4 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden pt-8 pb-14 sm:pt-16 sm:pb-24 md:pt-24 md:pb-36 px-4 sm:px-6 lg:px-8">
         <div className="max-w-screen-2xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
           {/* Hero Text */}
           <motion.div
@@ -151,15 +151,15 @@ export default function LandingPage() {
           >
             <motion.div
               variants={fadeInUp}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-jd-secondary-container/20 text-jd-secondary mb-6"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 rounded-full bg-jd-secondary-container/20 text-jd-secondary mb-3 sm:mb-6"
             >
-              <HiOutlineSun className="text-lg" />
-              <span className="text-label-sm uppercase tracking-wider">Quiapo's Solar Specialist</span>
+              <HiOutlineSun className="text-base sm:text-lg" />
+              <span className="text-[11px] sm:text-label-sm uppercase tracking-wider font-semibold">Quiapo's Solar Specialist</span>
             </motion.div>
 
             <motion.h1
               variants={fadeInUp}
-              className="text-headline-lg-mobile md:text-headline-xl text-jd-on-background mb-6 leading-tight tracking-tight font-extrabold"
+              className="text-2xl sm:text-3xl md:text-headline-xl text-jd-on-background mb-3 sm:mb-6 leading-tight tracking-tight font-extrabold"
             >
               JD Solar: Your Digital <br className="hidden md:block" />
               Guide to <span className="text-jd-primary">Clean Energy</span>
@@ -167,22 +167,22 @@ export default function LandingPage() {
 
             <motion.p
               variants={fadeInUp}
-              className="text-body-lg text-jd-on-surface-variant mb-10 max-w-xl"
+              className="text-xs sm:text-base md:text-body-lg text-jd-on-surface-variant mb-6 sm:mb-8 max-w-xl leading-relaxed"
             >
               Automated consultation and equipment sizing for solar lighting in Quiapo and Cavite.
               Review verified product specifications, check local stock, and schedule branch pickups.
             </motion.p>
 
-            <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-4">
+            <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-2.5 sm:gap-4">
               <Link
                 to="/browse"
-                className="bg-jd-primary-container text-jd-on-primary-container px-8 py-4 rounded-lg text-label-md font-bold hover:shadow-lg transition-all text-center"
+                className="bg-jd-primary-container text-jd-on-primary-container px-6 py-3 sm:px-8 sm:py-3.5 rounded-xl text-xs sm:text-label-md font-bold hover:shadow-lg transition-all text-center"
               >
                 Browse Products
               </Link>
               <Link
                 to="/match"
-                className="border-2 border-jd-secondary text-jd-secondary px-8 py-4 rounded-lg text-label-md font-bold hover:bg-jd-secondary/5 transition-all text-center"
+                className="border-2 border-jd-secondary text-jd-secondary px-6 py-3 sm:px-8 sm:py-3.5 rounded-xl text-xs sm:text-label-md font-bold hover:bg-jd-secondary/5 transition-all text-center"
               >
                 Product Matching
               </Link>
@@ -191,12 +191,12 @@ export default function LandingPage() {
 
           {/* Hero Image */}
           <motion.div
-            className="lg:col-span-5 relative mt-12 lg:mt-0"
+            className="lg:col-span-5 relative mt-6 lg:mt-0"
             initial={{ opacity: 0, x: 60, rotate: 3 }}
             animate={{ opacity: 1, x: 0, rotate: 3 }}
             transition={{ duration: 0.7, delay: 0.3 }}
           >
-            <div className="relative z-10 rounded-2xl overflow-hidden shadow-2xl transform lg:rotate-3 hover:rotate-0 transition-transform duration-500">
+            <div className="relative z-10 rounded-2xl overflow-hidden shadow-xl sm:shadow-2xl transform lg:rotate-3 hover:rotate-0 transition-transform duration-500 max-w-md mx-auto lg:max-w-none">
               <img
                 className="w-full aspect-[4/5] object-cover"
                 src={pic1}
@@ -211,25 +211,25 @@ export default function LandingPage() {
       </section>
 
       {/* Reviews Section */}
-      <section className="bg-jd-surface-container-low py-24 px-4 sm:px-6 lg:px-8 md:py-32">
+      <section className="bg-jd-surface-container-low py-12 px-4 sm:px-6 lg:px-8 sm:py-16 md:py-24">
         <div className="max-w-screen-2xl mx-auto">
           <motion.div
-            className="text-center mb-16"
+            className="text-center mb-8 sm:mb-14"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeInUp}
           >
-            <h2 className="text-headline-lg text-jd-on-surface mb-4 tracking-tight font-bold">
+            <h2 className="text-xl sm:text-2xl md:text-headline-lg text-jd-on-surface mb-2 sm:mb-3 tracking-tight font-bold">
               What Our Customers Say
             </h2>
-            <p className="text-jd-on-surface-variant max-w-lg mx-auto">
+            <p className="text-xs sm:text-sm text-jd-on-surface-variant max-w-lg mx-auto">
               We take pride in our service and product quality. Here's what our satisfied clients have to say about their experience.
             </p>
           </motion.div>
 
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-3 gap-8"
+            className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-8"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
@@ -239,23 +239,23 @@ export default function LandingPage() {
               <motion.div
                 key={idx}
                 variants={fadeInUp}
-                className="bg-jd-surface p-8 rounded-xl shadow-[0px_4px_12px_rgba(0,0,0,0.05)] border border-jd-outline-variant hover:border-jd-secondary transition-all hover:shadow-lg group flex flex-col h-full"
+                className="bg-jd-surface p-5 sm:p-7 rounded-2xl shadow-[0px_4px_12px_rgba(0,0,0,0.05)] border border-jd-outline-variant hover:border-jd-secondary transition-all hover:shadow-lg group flex flex-col h-full"
               >
-                <div className="flex gap-1 mb-4">
+                <div className="flex gap-1 mb-2.5 sm:mb-4">
                   {[...Array(5)].map((_, i) => (
-                    <HiStar key={i} className="text-[#ffb700] text-xl" />
+                    <HiStar key={i} className="text-[#ffb700] text-base sm:text-xl" />
                   ))}
                 </div>
                 
-                <p className="text-jd-on-surface text-body-md italic mb-8 flex-grow leading-relaxed">
+                <p className="text-jd-on-surface text-xs sm:text-body-md italic mb-4 sm:mb-8 flex-grow leading-relaxed">
                   "{review.review}"
                 </p>
                 
                 <div className="mt-auto">
-                  <h3 className="text-label-lg font-bold text-jd-on-surface mb-1">
+                  <h3 className="text-xs sm:text-label-lg font-bold text-jd-on-surface mb-0.5">
                     {review.name}
                   </h3>
-                  <div className="flex flex-wrap items-center gap-2 text-label-sm text-jd-on-surface-variant">
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-label-sm text-jd-on-surface-variant">
                     <span>{review.date}</span>
                     <span className="w-1 h-1 rounded-full bg-jd-outline-variant" />
                     <span className="text-jd-secondary font-medium">{review.source}</span>
@@ -268,8 +268,8 @@ export default function LandingPage() {
       </section>
 
       {/* Product Highlight Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-screen-2xl mx-auto md:py-40">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-screen-2xl mx-auto sm:py-16 md:py-28">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
           {/* Image Grid */}
           <motion.div
             className="relative order-2 lg:order-1"
@@ -278,21 +278,21 @@ export default function LandingPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="space-y-3 sm:space-y-4">
                 <img
-                  className="rounded-xl w-full h-64 object-cover shadow-md"
+                  className="rounded-xl w-full h-44 sm:h-64 object-cover shadow-md"
                   src={pic3}
                   alt="Close-up of high-quality monocrystalline solar panel cells"
                 />
-                <div className="bg-jd-primary text-jd-on-primary p-6 rounded-xl">
-                  <span className="text-headline-md block mb-1">2 Years</span>
-                  <span className="text-label-md">Official Warranty</span>
+                <div className="bg-jd-primary text-jd-on-primary p-4 sm:p-6 rounded-xl">
+                  <span className="text-lg sm:text-headline-md font-bold block mb-0.5">2 Years</span>
+                  <span className="text-xs sm:text-label-md">Official Warranty</span>
                 </div>
               </div>
-              <div className="pt-12">
+              <div className="pt-8 sm:pt-12">
                 <img
-                  className="rounded-xl w-full h-80 object-cover shadow-md"
+                  className="rounded-xl w-full h-56 sm:h-80 object-cover shadow-md"
                   src={pic4}
                   alt="Solar technician inspecting a modern smart inverter system"
                 />
@@ -308,24 +308,24 @@ export default function LandingPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-headline-lg text-jd-on-surface mb-6 tracking-tight font-bold">
+            <h2 className="text-xl sm:text-2xl md:text-headline-lg text-jd-on-surface mb-3 sm:mb-6 tracking-tight font-bold">
               Sustainable Precision for Every Home
             </h2>
-            <p className="text-jd-on-surface-variant mb-8 text-body-lg">
+            <p className="text-jd-on-surface-variant mb-4 sm:mb-8 text-xs sm:text-sm md:text-body-lg leading-relaxed">
               We supply solar streetlights, floodlights, and mounting hardware built for
               tropical rain, dust, and continuous dusk-to-dawn operation in Metro Manila.
             </p>
-            <ul className="space-y-4 mb-10">
+            <ul className="space-y-2.5 sm:space-y-4 mb-6 sm:mb-10">
               {features.map((feature) => (
-                <li key={feature} className="flex items-center gap-3">
-                  <HiOutlineCheckCircle className="text-jd-primary text-xl flex-shrink-0" />
-                  <span className="text-body-md">{feature}</span>
+                <li key={feature} className="flex items-center gap-2.5 sm:gap-3">
+                  <HiOutlineCheckCircle className="text-jd-primary text-base sm:text-xl flex-shrink-0" />
+                  <span className="text-xs sm:text-body-md">{feature}</span>
                 </li>
               ))}
             </ul>
             <Link
               to="/browse"
-              className="text-jd-secondary font-bold text-label-md flex items-center gap-2 hover:gap-4 transition-all group"
+              className="text-jd-secondary font-bold text-xs sm:text-label-md flex items-center gap-2 hover:gap-4 transition-all group"
             >
               Learn about our technology
               <HiOutlineArrowRight className="group-hover:translate-x-1 transition-transform" />
@@ -335,53 +335,53 @@ export default function LandingPage() {
       </section>
 
       {/* Bento Box Gallery Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-screen-2xl mx-auto md:py-32 overflow-hidden">
-        <div className="flex justify-between items-end mb-16 px-4 md:px-0">
+      <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-screen-2xl mx-auto sm:py-16 md:py-24 overflow-hidden">
+        <div className="flex justify-between items-end mb-8 sm:mb-14 px-2 sm:px-4 md:px-0">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeInUp}
           >
-            <h2 className="text-headline-lg text-jd-on-surface mb-4 tracking-tight font-bold">
+            <h2 className="text-xl sm:text-2xl md:text-headline-lg text-jd-on-surface mb-1.5 sm:mb-4 tracking-tight font-bold">
               Project Gallery
             </h2>
-            <p className="text-jd-on-surface-variant max-w-lg">
+            <p className="text-xs sm:text-sm text-jd-on-surface-variant max-w-lg">
               Completed solar lighting and battery installations supplied across residential streets, compounds, and commercial sites in Metro Manila and Cavite.
             </p>
           </motion.div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-2 sm:gap-4">
             <button
               onClick={() => scroll('left')}
               disabled={!canScrollLeft}
-              className={`w-12 h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface transition-all shadow-sm ${
+              className={`w-9 h-9 sm:w-12 sm:h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface transition-all shadow-sm ${
                 canScrollLeft
                   ? 'hover:bg-jd-primary hover:text-jd-on-primary hover:border-jd-primary cursor-pointer'
                   : 'opacity-40 cursor-not-allowed pointer-events-none'
               }`}
               aria-label="Scroll left"
             >
-              <HiOutlineChevronLeft size={24} />
+              <HiOutlineChevronLeft className="w-4 h-4 sm:w-6 sm:h-6" />
             </button>
             <button
               onClick={() => scroll('right')}
               disabled={!canScrollRight}
-              className={`w-12 h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface transition-all shadow-sm ${
+              className={`w-9 h-9 sm:w-12 sm:h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface transition-all shadow-sm ${
                 canScrollRight
                   ? 'hover:bg-jd-primary hover:text-jd-on-primary hover:border-jd-primary cursor-pointer'
                   : 'opacity-40 cursor-not-allowed pointer-events-none'
               }`}
               aria-label="Scroll right"
             >
-              <HiOutlineChevronRight size={24} />
+              <HiOutlineChevronRight className="w-4 h-4 sm:w-6 sm:h-6" />
             </button>
           </div>
         </div>
 
         <motion.div
           ref={scrollRef}
-          className="grid grid-rows-2 grid-flow-col gap-4 overflow-x-auto pb-12 scrollbar-hide snap-x snap-mandatory h-[500px] md:h-[700px]"
+          className="grid grid-rows-2 grid-flow-col gap-3 sm:gap-4 overflow-x-auto pb-8 sm:pb-12 scrollbar-hide snap-x snap-mandatory h-[340px] sm:h-[480px] md:h-[650px]"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
@@ -393,7 +393,7 @@ export default function LandingPage() {
               key={index}
               data-gallery-item
               variants={fadeInUp}
-              className={`flex-shrink-0 snap-start relative overflow-hidden rounded-[2rem] shadow-xl
+              className={`flex-shrink-0 snap-start relative overflow-hidden rounded-xl sm:rounded-[2rem] shadow-md sm:shadow-xl
                 ${item.rowSpan === 2 ? 'row-span-2' : 'row-span-1'}
                 ${item.width}`}
             >
@@ -405,7 +405,7 @@ export default function LandingPage() {
             </motion.div>
           ))}
           {/* Invisible padding to maintain cut-off look */}
-          <div className="w-16 md:w-32" />
+          <div className="w-8 sm:w-16 md:w-32" />
         </motion.div>
       </section>
 

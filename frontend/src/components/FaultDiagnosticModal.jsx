@@ -585,18 +585,18 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
   return (
     <div
       {...backdropProps}
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-2.5 sm:p-5 bg-black/60 backdrop-blur-sm overflow-y-auto"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-3 sm:my-6 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"
+        className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-2 sm:my-6 flex flex-col max-h-[94vh] animate-in fade-in zoom-in-95 duration-200"
       >
 
         {/* Header */}
-        <div className="p-4 border-b border-jds-outline-variant/30 flex items-center justify-between bg-jds-surface-container-low shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-jds-primary/10 flex items-center justify-center text-jds-primary shadow-sm shrink-0">
-              <Wrench className="w-5 h-5" />
+        <div className="p-3 sm:p-4 border-b border-jds-outline-variant/30 flex items-center justify-between bg-jds-surface-container-low shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-jds-primary/10 flex items-center justify-center text-jds-primary shadow-2xs shrink-0">
+              <Wrench className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">

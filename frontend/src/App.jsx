@@ -1,8 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, useLocation, Link } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation, Link, Navigate } from 'react-router-dom'
 import { HiOutlineChatBubbleLeftRight } from 'react-icons/hi2'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import LandingPage from './pages/LandingPage'
+import ErrorBoundary from './components/ErrorBoundary'
 
 import BrowsePage from './pages/BrowsePage'
 import ChatboxPage from './pages/ChatboxPage'
@@ -40,7 +41,7 @@ function AppLayout() {
           <Route path="/portal" element={<CustomerPortalPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route 
-            path="/admin" 
+            path="/admin/*" 
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminPage />
@@ -48,13 +49,14 @@ function AppLayout() {
             } 
           />
           <Route 
-            path="/staff" 
+            path="/staff/*" 
             element={
               <ProtectedRoute allowedRoles={['staff']}>
                 <StaffPage />
               </ProtectedRoute>
             } 
           />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       {showShell && !isDashboardRoute && !isPortalRoute && !isMatchRoute && !isChatRoute && <Footer />}
@@ -80,13 +82,15 @@ function AppLayout() {
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <ChatProvider>
-          <AppLayout />
-        </ChatProvider>
-      </AuthProvider>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <AuthProvider>
+          <ChatProvider>
+            <AppLayout />
+          </ChatProvider>
+        </AuthProvider>
+      </Router>
+    </ErrorBoundary>
   )
 }
 

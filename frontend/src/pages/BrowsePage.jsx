@@ -193,20 +193,20 @@ export default function BrowsePage() {
 
   return (
     <div className="jds-page-bg font-inter text-jds-on-surface min-h-screen">
-      <main className="max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-8 sm:py-12 overflow-x-hidden">
+      <main className="max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-10 overflow-x-hidden">
         {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-headline-lg-mobile md:text-headline-xl text-jds-on-surface">Digital Product Guide</h1>
-            <p className="text-body-lg text-jds-on-surface-variant max-w-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-10">
+          <div className="flex flex-col gap-1 sm:gap-2">
+            <h1 className="text-xl sm:text-2xl md:text-headline-xl text-jds-on-surface font-extrabold tracking-tight">Digital Product Guide</h1>
+            <p className="text-xs sm:text-sm md:text-body-lg text-jds-on-surface-variant max-w-2xl leading-relaxed">
               Discover our complete range of solar-powered lights and streetlights. Built for durability, designed for Manila's streets.
             </p>
           </div>
           <Link
             to="/match"
-            className="self-start sm:self-auto flex items-center gap-2 bg-jds-primary hover:bg-jds-primary/90 text-white font-bold text-label-md px-5 py-3 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 shrink-0"
+            className="self-start sm:self-auto flex items-center gap-1.5 sm:gap-2 bg-jds-primary hover:bg-jds-primary/90 text-white font-bold text-xs sm:text-label-md px-3.5 py-2 sm:px-5 sm:py-3 rounded-xl shadow-xs hover:shadow-md transition-all active:scale-95 shrink-0"
           >
-            <HiOutlineSparkles className="text-lg" />
+            <HiOutlineSparkles className="text-base sm:text-lg" />
             <span>Product Matcher</span>
           </Link>
         </div>
@@ -215,19 +215,19 @@ export default function BrowsePage() {
           {/* Mobile Filter Toggle Button */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="md:hidden flex items-center justify-center gap-2 w-full py-3 px-4 bg-jds-surface-container-high rounded-xl text-label-md font-bold text-jds-on-surface border border-jds-outline-variant hover:bg-jds-surface-container-highest transition-colors"
+            className="md:hidden flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-jds-surface-container-high rounded-xl text-xs font-bold text-jds-on-surface border border-jds-outline-variant hover:bg-jds-surface-container-highest transition-colors cursor-pointer"
           >
-            <HiOutlineFunnel className="text-lg" />
+            <HiOutlineFunnel className="text-base" />
             {showFilters ? 'Hide Filters' : 'Show Filters'}
           </button>
 
           {/* Sidebar */}
-          <aside className={`w-full md:w-80 md:flex-shrink-0 flex-col gap-6 md:gap-8 ${showFilters ? 'flex' : 'hidden md:flex'}`}>
+          <aside className={`w-full md:w-80 md:flex-shrink-0 flex-col gap-4 sm:gap-6 md:gap-8 ${showFilters ? 'flex' : 'hidden md:flex'}`}>
             {/* Search */}
             <div className="relative">
-              <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-jds-on-surface-variant text-xl" />
+              <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 text-jds-on-surface-variant text-base sm:text-lg" />
               <input
-                className="w-full pl-12 pr-4 py-4 bg-jds-surface-container-highest border-none rounded-xl focus:ring-2 focus:ring-jds-secondary focus:bg-jds-surface transition-all text-body-md outline-none"
+                className="w-full pl-10 pr-3 py-2.5 sm:py-3 bg-jds-surface-container-highest border-none rounded-xl focus:ring-2 focus:ring-jds-secondary focus:bg-jds-surface transition-all text-xs sm:text-body-md outline-none"
                 placeholder="Search solar lights..."
                 type="text"
                 value={search}
@@ -236,29 +236,29 @@ export default function BrowsePage() {
             </div>
 
             {/* Categories */}
-            <div className="flex flex-col gap-4">
-              <h3 className="text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Categories</h3>
-              <div className="flex flex-col gap-2 max-h-64 md:max-h-none overflow-y-auto">
+            <div className="flex flex-col gap-2.5 sm:gap-4">
+              <h3 className="text-xs sm:text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Categories</h3>
+              <div className="flex flex-col gap-1.5 max-h-60 md:max-h-none overflow-y-auto">
                 {categories.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
-                    className={`flex items-center justify-between px-4 py-2 rounded-lg text-label-md w-full text-left transition-colors ${activeCategory === cat
+                    className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-xs sm:text-label-md w-full text-left transition-colors ${activeCategory === cat
                       ? 'bg-jds-secondary/10 text-jds-secondary font-semibold'
                       : 'text-jds-on-surface-variant hover:bg-jds-surface-container-high'
                       }`}
                   >
                     <span className="truncate">{cat === 'All Products' ? cat : cat.replace('Solar ', '').replace('Aviation Aluminum ', 'Avi. Alum. ')}</span>
-                    {activeCategory === cat && <HiOutlineCheck className="text-sm flex-shrink-0" />}
+                    {activeCategory === cat && <HiOutlineCheck className="text-xs flex-shrink-0" />}
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Waterproof Filter */}
-            <div className="flex flex-col gap-4">
-              <h3 className="text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Waterproof Rating</h3>
-              <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5 sm:gap-4">
+              <h3 className="text-xs sm:text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Waterproof Rating</h3>
+              <div className="flex flex-col gap-1.5 sm:gap-2">
                 {[
                   { label: 'All Ratings', value: 'All Ratings' },
                   { label: 'IP65', value: 'IP65' },
@@ -267,7 +267,7 @@ export default function BrowsePage() {
                 ].map((opt) => (
                   <label
                     key={opt.value}
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-body-sm font-medium cursor-pointer transition-all ${waterproofFilter === opt.value
+                    className={`flex items-center gap-2.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer transition-all ${waterproofFilter === opt.value
                       ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary'
                       : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
                       }`}
@@ -278,18 +278,18 @@ export default function BrowsePage() {
                       value={opt.value}
                       checked={waterproofFilter === opt.value}
                       onChange={() => setWaterproofFilter(opt.value)}
-                      className="h-4 w-4 text-jds-secondary accent-jds-secondary cursor-pointer border-jds-outline-variant focus:ring-jds-secondary"
+                      className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-jds-secondary accent-jds-secondary cursor-pointer border-jds-outline-variant focus:ring-jds-secondary"
                     />
-                    <span className="text-body-md">{opt.label}</span>
+                    <span>{opt.label}</span>
                   </label>
                 ))}
               </div>
             </div>
 
             {/* Power Output */}
-            <div className="flex flex-col gap-4">
-              <h3 className="text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Power Output</h3>
-              <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5 sm:gap-4">
+              <h3 className="text-xs sm:text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Power Output</h3>
+              <div className="flex flex-col gap-1.5 sm:gap-2">
                 {[
                   { label: 'All Power', value: 'All Power' },
                   { label: 'Under 200W', value: 'Under 200W' },
@@ -298,7 +298,7 @@ export default function BrowsePage() {
                 ].map((opt) => (
                   <label
                     key={opt.value}
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-body-sm font-medium cursor-pointer transition-all ${powerFilter === opt.value
+                    className={`flex items-center gap-2.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer transition-all ${powerFilter === opt.value
                       ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary'
                       : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
                       }`}
@@ -309,19 +309,19 @@ export default function BrowsePage() {
                       value={opt.value}
                       checked={powerFilter === opt.value}
                       onChange={() => setPowerFilter(opt.value)}
-                      className="h-4 w-4 text-jds-secondary accent-jds-secondary cursor-pointer border-jds-outline-variant focus:ring-jds-secondary"
+                      className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-jds-secondary accent-jds-secondary cursor-pointer border-jds-outline-variant focus:ring-jds-secondary"
                     />
-                    <span className="text-body-md">{opt.label}</span>
+                    <span>{opt.label}</span>
                   </label>
                 ))}
               </div>
             </div>
 
             {/* Max Price Filter */}
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2 sm:gap-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Max Price</h3>
-                <span className="text-body-sm font-medium text-jds-secondary">
+                <h3 className="text-xs sm:text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Max Price</h3>
+                <span className="text-xs sm:text-body-sm font-semibold text-jds-secondary">
                   {maxPriceFilter >= 50000 ? 'Any Price' : `₱${maxPriceFilter}`}
                 </span>
               </div>
@@ -332,14 +332,14 @@ export default function BrowsePage() {
                 step="500"
                 value={maxPriceFilter}
                 onChange={(e) => setMaxPriceFilter(Number(e.target.value))}
-                className="w-full h-2 bg-jds-surface-variant rounded-lg appearance-none cursor-pointer accent-jds-secondary"
+                className="w-full h-1.5 sm:h-2 bg-jds-surface-variant rounded-lg appearance-none cursor-pointer accent-jds-secondary"
               />
             </div>
 
             {/* Battery Filter */}
-            <div className="flex flex-col gap-4">
-              <h3 className="text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Battery</h3>
-              <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5 sm:gap-4">
+              <h3 className="text-xs sm:text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Battery</h3>
+              <div className="flex flex-col gap-1.5 sm:gap-2">
                 {[
                   { label: 'All', value: 'All' },
                   { label: 'Included', value: 'Included' },
@@ -347,7 +347,7 @@ export default function BrowsePage() {
                 ].map((opt) => (
                   <label
                     key={opt.value}
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-body-sm font-medium cursor-pointer transition-all ${batteryFilter === opt.value
+                    className={`flex items-center gap-2.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer transition-all ${batteryFilter === opt.value
                       ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary'
                       : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
                       }`}
@@ -358,9 +358,9 @@ export default function BrowsePage() {
                       value={opt.value}
                       checked={batteryFilter === opt.value}
                       onChange={() => setBatteryFilter(opt.value)}
-                      className="h-4 w-4 text-jds-secondary accent-jds-secondary cursor-pointer border-jds-outline-variant focus:ring-jds-secondary"
+                      className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-jds-secondary accent-jds-secondary cursor-pointer border-jds-outline-variant focus:ring-jds-secondary"
                     />
-                    <span className="text-body-md">{opt.label}</span>
+                    <span>{opt.label}</span>
                   </label>
                 ))}
               </div>

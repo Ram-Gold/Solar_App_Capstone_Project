@@ -53,8 +53,28 @@
   * {
     @apply border-border;
   }
+  html {
+    font-size: 15px;
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
+  }
+  @screen sm {
+    html {
+      font-size: 16px;
+    }
+  }
   body {
-    @apply bg-background text-foreground font-inter;
+    @apply bg-background text-foreground font-inter antialiased;
+    overflow-x: hidden;
+  }
+}
+
+/* Mobile input sizing safeguard */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 14px;
   }
 }
 
