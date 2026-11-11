@@ -62,13 +62,28 @@ vi.mock('../../lib/customerService', () => ({
   }),
   getCustomerAuthStatus: vi.fn().mockResolvedValue({
     hasPassword: false,
-    email: null
+    email: 'juan@example.com',
+    emailConfirmed: false,
+    emailConfirmationStatus: 'awaiting_confirmation'
+  }),
+  confirmCustomerEmailByToken: vi.fn().mockResolvedValue({
+    success: true,
+    email: 'juan@example.com',
+    message: 'Your email address has been verified and confirmed.'
+  }),
+  queueAndSendCustomerConfirmationEmail: vi.fn().mockResolvedValue({
+    status: 'awaiting_confirmation',
+    email: 'maria.santos@email.com',
+    message: 'Confirmation email sent to maria.santos@email.com. Awaiting verification.'
   }),
   registerCustomerAndSale: vi.fn().mockResolvedValue({
     customer: {
       id: 'cust-new',
       name: 'Maria Santos',
       phone: '09181234567',
+      email: 'maria.santos@email.com',
+      email_confirmed: false,
+      email_confirmation_status: 'awaiting_confirmation',
       access_token: 'new-token-uuid-456'
     },
     purchases: [
@@ -80,7 +95,12 @@ vi.mock('../../lib/customerService', () => ({
         warranty_expires_at: '2028-11-11T00:00:00Z'
       }
     ],
-    qrUrl: 'http://localhost:5173/portal?token=new-token-uuid-456'
+    qrUrl: 'http://localhost:5173/portal?token=new-token-uuid-456',
+    emailConfirmation: {
+      status: 'awaiting_confirmation',
+      email: 'maria.santos@email.com',
+      message: 'Confirmation email sent to maria.santos@email.com. Awaiting verification.'
+    }
   }),
   searchCustomerByPhone: vi.fn().mockResolvedValue({
     customer: null,
@@ -228,9 +248,10 @@ describe('First-Time Customer Warranty Terms & Policy Modal', () => {
       expect(screen.queryByText(/Complete Sale & Generate QR/i)).toBeDefined()
     })
 
-    // Enter phone and full name using exact placeholders
+    // Enter phone, full name, and required email using exact placeholders
     fireEvent.change(screen.getByPlaceholderText('09171234567'), { target: { value: '09181234567' } })
-    fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Santos/i), { target: { value: 'Maria Santos' } })
+    fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Santos$/i), { target: { value: 'Maria Santos' } })
+    fireEvent.change(screen.getByPlaceholderText(/e\.g\. maria\.santos@email\.com/i), { target: { value: 'maria.santos@email.com' } })
 
     // Submit registration form
     const registerBtn = screen.getByRole('button', { name: /Complete Sale & Generate QR/i })

@@ -18,7 +18,7 @@ import TermsOfServiceModal from './TermsOfServiceModal'
 import { FaFacebook, FaInstagram } from 'react-icons/fa'
 import { getInquiryStatusConfig } from '../lib/inquiryStatusUtils'
 import { normalizePhMobile, isValidPhMobile } from '../lib/phoneUtils'
-import { sanitizeText, sanitizeEmail } from '../lib/sanitize.js'
+import { sanitizeText, sanitizeEmail, isValidEmail } from '../lib/sanitize.js'
 import PhilippineAddressSelect from './ui/PhilippineAddressSelect'
 import { formatFullAddress } from '../lib/philippineAddresses'
 import { extractFacebookHandle, formatFacebookUrl } from '../lib/facebookUtils'
@@ -180,6 +180,12 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       errs.mobileContact = 'Contact number is required.'
     } else if (!isValidPhMobile(mobileContact)) {
       errs.mobileContact = 'Please provide a valid 11-digit Philippine mobile number starting with 09 (e.g. 09171234567).'
+    }
+    const cleanEmail = sanitizeEmail(email)
+    if (!cleanEmail) {
+      errs.email = 'Email address is required.'
+    } else if (!isValidEmail(cleanEmail)) {
+      errs.email = 'Please provide a valid email address.'
     }
     if (!province.trim()) errs.province = 'Please select a province.'
     if (!city.trim()) errs.city = 'Please select a city or municipality.'
@@ -590,15 +596,27 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  Email Address <span className="text-stone-400 font-normal">(Optional)</span>
+                  Email Address <span className="text-amber-600">*</span>
                 </label>
                 <input
                   type="email"
+                  required
                   placeholder="juan@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50/40 px-3.5 py-2.5 text-sm outline-none focus:border-amber-500 focus:bg-white"
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (errors.email) {
+                      setErrors((prev) => {
+                        const next = { ...prev }
+                        delete next.email
+                        return next
+                      })
+                    }
+                  }}
+                  className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all ${errors.email ? 'border-red-400 bg-red-50/20' : 'border-stone-200 focus:border-amber-500 bg-stone-50/40 focus:bg-white'
+                    }`}
                 />
+                {errors.email && <p className="text-[11px] text-red-500 mt-1">{errors.email}</p>}
               </div>
 
               <div>

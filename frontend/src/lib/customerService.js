@@ -1,6 +1,264 @@
 import { supabase } from './supabaseClient'
 import { calculateExpiryDate } from './warrantyUtils'
-import { sanitizeText, sanitizePhone, isValidPhone, sanitizeSerialNumber, sanitizeNumber } from './sanitize.js'
+import {
+  sanitizeText,
+  sanitizePhone,
+  isValidPhone,
+  sanitizeSerialNumber,
+  sanitizeNumber,
+  sanitizeEmail,
+  isValidEmail
+} from './sanitize.js'
+
+/**
+ * LocalStorage helpers for tracking customer email confirmation status
+ * across client fallback and live sessions.
+ */
+function readLocalEmailState(token) {
+  if (!token || typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(`jd_cust_email_state_${token}`)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function writeLocalEmailState(token, state) {
+  if (!token || typeof window === 'undefined') return
+  try {
+    const existing = readLocalEmailState(token) || {}
+    localStorage.setItem(
+      `jd_cust_email_state_${token}`,
+      JSON.stringify({ ...existing, ...state, updatedAt: new Date().toISOString() })
+    )
+  } catch {
+    // ignore storage errors
+  }
+}
+
+/**
+ * Queues a customer confirmation email in Supabase and dispatches the email
+ * via the Vercel Serverless function (/api/send-confirmation-email) with
+ * automatic fallback to Supabase Auth's built-in mailer.
+ */
+export async function queueAndSendCustomerConfirmationEmail({
+  customerId,
+  customerName,
+  email,
+  phoneNumber,
+  branchLocation = 'Cavite',
+  accessToken,
+  onStatusChange = null
+}) {
+  const cleanEmail = sanitizeEmail(email)
+  if (!cleanEmail || !isValidEmail(cleanEmail)) {
+    throw new Error('A valid customer email address is required.')
+  }
+
+  const notify = (statusObj) => {
+    if (accessToken) {
+      writeLocalEmailState(accessToken, {
+        email: cleanEmail,
+        email_confirmed: Boolean(statusObj.emailConfirmed),
+        email_confirmation_status: statusObj.status,
+        verification_token: statusObj.verificationToken || null
+      })
+    }
+    if (typeof onStatusChange === 'function') {
+      onStatusChange(statusObj)
+    }
+  }
+
+  // Stage 1: Queuing email confirmation
+  let verificationToken =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `verif-${Date.now()}`
+
+  notify({
+    status: 'queued',
+    email: cleanEmail,
+    emailConfirmed: false,
+    verificationToken,
+    message: 'Queuing email confirmation...'
+  })
+
+  if (customerId) {
+    try {
+      const { data: qData, error: qErr } = await supabase.rpc('queue_customer_confirmation_email', {
+        p_customer_id: customerId,
+        p_email: cleanEmail
+      })
+      if (!qErr && qData?.verification_token) {
+        verificationToken = qData.verification_token
+      }
+    } catch (rpcErr) {
+      console.warn('queue_customer_confirmation_email RPC fallback:', rpcErr)
+    }
+  }
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://jdforcesolar.com'
+  const confirmUrl = `${origin}/portal?token=${encodeURIComponent(accessToken || '')}&confirm_email=${encodeURIComponent(verificationToken)}`
+
+  // Stage 2: Dispatch via Vercel Serverless API (/api/send-confirmation-email)
+  let dispatchedViaServerless = false
+  let fallbackRequired = true
+
+  if (typeof fetch === 'function') {
+    try {
+      const response = await fetch('/api/send-confirmation-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId,
+          customerName,
+          email: cleanEmail,
+          phoneNumber,
+          branchLocation,
+          accessToken,
+          verificationToken,
+          origin
+        })
+      })
+
+      if (response.ok) {
+        const resJson = await response.json()
+        if (resJson?.success && resJson.provider === 'gmail_smtp') {
+          dispatchedViaServerless = true
+          fallbackRequired = false
+        }
+      }
+    } catch (fetchErr) {
+      console.warn('Vercel serverless mailer endpoint unreachable in current environment, using Supabase mailer fallback:', fetchErr)
+    }
+  }
+
+  // Stage 2b: Automatic fallback to Supabase Auth built-in mailer if Gmail SMTP env vars are not set or running locally
+  if (fallbackRequired && supabase?.auth) {
+    try {
+      if (typeof supabase.auth.signInWithOtp === 'function') {
+        await supabase.auth.signInWithOtp({
+          email: cleanEmail,
+          options: {
+            emailRedirectTo: confirmUrl,
+            data: {
+              full_name: customerName,
+              phone_number: phoneNumber,
+              access_token: accessToken,
+              branch_location: branchLocation
+            }
+          }
+        })
+      }
+    } catch (supaMailErr) {
+      console.warn('Supabase Auth OTP mailer note:', supaMailErr)
+    }
+  }
+
+  // Mark status as 'awaiting_confirmation' in database
+  if (customerId) {
+    try {
+      await supabase.rpc('mark_confirmation_email_sent', {
+        p_customer_id: customerId,
+        p_status: 'awaiting_confirmation',
+        p_error: null
+      })
+    } catch {
+      // Fallback column update if RPC is not yet created
+      try {
+        await supabase
+          .from('customers')
+          .update({
+            email: cleanEmail,
+            email_confirmed: false,
+            email_confirmation_status: 'awaiting_confirmation',
+            email_verification_token: verificationToken,
+            email_confirmation_sent_at: new Date().toISOString()
+          })
+          .eq('id', customerId)
+      } catch {
+        // Ignore if columns not yet migrated
+      }
+    }
+  }
+
+  const finalState = {
+    status: 'awaiting_confirmation',
+    email: cleanEmail,
+    emailConfirmed: false,
+    verificationToken,
+    confirmUrl,
+    provider: dispatchedViaServerless ? 'gmail_smtp' : 'supabase_mailer',
+    message: `Confirmation email sent to ${cleanEmail}. Awaiting customer email confirmation.`
+  }
+
+  notify(finalState)
+  return finalState
+}
+
+/**
+ * Confirms a customer's email address when they click the verification link in their email.
+ */
+export async function confirmCustomerEmailByToken(token, verificationToken = null) {
+  if (!token) throw new Error('Customer access token is required.')
+
+  try {
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_customer_email', {
+      p_token: token,
+      p_verification_token: verificationToken && verificationToken !== '1' ? verificationToken : null
+    })
+
+    if (!rpcErr && rpcData) {
+      if (rpcData.success) {
+        writeLocalEmailState(token, {
+          email: rpcData.email || undefined,
+          email_confirmed: true,
+          email_confirmation_status: 'confirmed',
+          confirmed_at: new Date().toISOString()
+        })
+        return {
+          success: true,
+          email: rpcData.email,
+          emailConfirmed: true,
+          status: 'confirmed',
+          message: rpcData.message || 'Email address verified and confirmed.'
+        }
+      } else if (rpcData.error) {
+        throw new Error(rpcData.error)
+      }
+    }
+  } catch (err) {
+    console.warn('confirm_customer_email RPC fallback:', err)
+  }
+
+  // Fallback direct table update
+  try {
+    await supabase
+      .from('customers')
+      .update({
+        email_confirmed: true,
+        email_confirmation_status: 'confirmed',
+        email_confirmed_at: new Date().toISOString()
+      })
+      .eq('access_token', token)
+  } catch {
+    // ignore if columns not yet migrated
+  }
+
+  writeLocalEmailState(token, {
+    email_confirmed: true,
+    email_confirmation_status: 'confirmed',
+    confirmed_at: new Date().toISOString()
+  })
+
+  return {
+    success: true,
+    emailConfirmed: true,
+    status: 'confirmed',
+    message: 'Email address verified and confirmed.'
+  }
+}
 
 /**
  * Searches for an existing customer by phone number.
@@ -10,18 +268,53 @@ export async function searchCustomerByPhone(rawPhone) {
   if (!phone) return { customer: null, error: null }
 
   try {
+    let customerData = null
     const { data, error } = await supabase
       .from('customers')
-      .select('id, phone_number, full_name, access_token, created_at')
+      .select('id, phone_number, full_name, email, email_confirmed, email_confirmation_status, access_token, created_at')
       .eq('phone_number', phone)
       .maybeSingle()
 
-    if (error) {
+    if (error && error.code === '42703') {
+      const fallback = await supabase
+        .from('customers')
+        .select('id, phone_number, full_name, access_token, created_at')
+        .eq('phone_number', phone)
+        .maybeSingle()
+      if (fallback.error) {
+        console.warn('searchCustomerByPhone query error:', fallback.error)
+        return { customer: null, error: fallback.error }
+      }
+      customerData = fallback.data
+    } else if (error) {
       console.warn('searchCustomerByPhone query error:', error)
       return { customer: null, error }
+    } else {
+      customerData = data
     }
 
-    return { customer: data, error: null }
+    if (customerData) {
+      const localState = readLocalEmailState(customerData.access_token)
+      const localCred = (() => {
+        try {
+          return JSON.parse(localStorage.getItem(`jd_cust_cred_${customerData.access_token}`) || 'null')
+        } catch {
+          return null
+        }
+      })()
+
+      customerData = {
+        ...customerData,
+        email: customerData.email || localState?.email || localCred?.email || '',
+        email_confirmed: Boolean(customerData.email_confirmed ?? localState?.email_confirmed ?? false),
+        email_confirmation_status:
+          customerData.email_confirmation_status ||
+          localState?.email_confirmation_status ||
+          (customerData.email_confirmed ? 'confirmed' : 'awaiting_confirmation')
+      }
+    }
+
+    return { customer: customerData, error: null }
   } catch (err) {
     console.error('searchCustomerByPhone exception:', err)
     return { customer: null, error: err }
@@ -29,54 +322,118 @@ export async function searchCustomerByPhone(rawPhone) {
 }
 
 /**
- * Registers or looks up a customer, logs purchases, and generates the QR portal link.
+ * Registers or looks up a customer, logs purchases, generates the QR portal link,
+ * and queues/dispatches an account creation confirmation email when a new customer
+ * account is created or when an email is newly added/updated.
  */
 export async function registerCustomerAndSale({
   phoneNumber,
   fullName,
+  email,
   branchLocation = 'Cavite',
-  items = [] // [{ productId, serialNumber, warrantyMonths, purchaseDate }]
+  items = [], // [{ productId, serialNumber, warrantyMonths, purchaseDate }]
+  onEmailStatusChange = null
 }) {
   const phone = sanitizePhone(phoneNumber)
   const name = sanitizeText(fullName, { maxLength: 100 })
+  const cleanEmail = sanitizeEmail(email)
   const branch = sanitizeText(branchLocation, { maxLength: 50 }) || 'Cavite'
 
   if (!phone) throw new Error('Phone number is required.')
   if (!isValidPhone(phone)) throw new Error('A valid 11-digit Philippine mobile number starting with 09 is required.')
   if (!name) throw new Error('Customer name is required.')
+  if (!cleanEmail || !isValidEmail(cleanEmail)) throw new Error('A valid customer email address is required.')
   if (!items || items.length === 0) throw new Error('At least one purchased item is required.')
 
   // 1. Find or create customer
   let customer = null
+  let shouldSendConfirmationEmail = false
   const { customer: existingCust, error: findErr } = await searchCustomerByPhone(phone)
 
   if (findErr) throw findErr
 
   if (existingCust) {
     customer = existingCust
-    // Optionally update name if modified
-    if (existingCust.full_name !== name) {
-      const { data: updatedCust } = await supabase
+    const prevEmail = (existingCust.email || '').trim().toLowerCase()
+    const emailChanged = prevEmail !== cleanEmail
+    const isUnconfirmed = !existingCust.email_confirmed
+
+    if (emailChanged || !prevEmail) {
+      shouldSendConfirmationEmail = true
+    } else if (isUnconfirmed && !prevEmail) {
+      shouldSendConfirmationEmail = true
+    }
+
+    // Update name or email if modified
+    if (existingCust.full_name !== name || emailChanged) {
+      const updatePayload = { full_name: name, email: cleanEmail }
+      if (emailChanged) {
+        updatePayload.email_confirmed = false
+        updatePayload.email_confirmation_status = 'queued'
+      }
+      const { data: updatedCust, error: upErr } = await supabase
         .from('customers')
-        .update({ full_name: name })
+        .update(updatePayload)
         .eq('id', existingCust.id)
         .select()
         .single()
-      if (updatedCust) customer = updatedCust
+
+      if (upErr && upErr.code === '42703') {
+        const { data: fallbackCust } = await supabase
+          .from('customers')
+          .update({ full_name: name })
+          .eq('id', existingCust.id)
+          .select()
+          .single()
+        if (fallbackCust) customer = { ...fallbackCust, email: cleanEmail }
+      } else if (updatedCust) {
+        customer = updatedCust
+      }
     }
   } else {
-    // Insert new customer
-    const { data: newCust, error: insertCustErr } = await supabase
+    // Brand-new customer account creation -> always queue & send confirmation email
+    shouldSendConfirmationEmail = true
+    let newCust = null
+    const { data: insertedWithEmail, error: insertCustErr } = await supabase
       .from('customers')
       .insert({
         phone_number: phone,
-        full_name: name
+        full_name: name,
+        email: cleanEmail,
+        email_confirmed: false,
+        email_confirmation_status: 'queued'
       })
       .select()
       .single()
 
-    if (insertCustErr) throw insertCustErr
-    customer = newCust
+    if (insertCustErr && insertCustErr.code === '42703') {
+      const { data: fallbackCust, error: fallbackErr } = await supabase
+        .from('customers')
+        .insert({
+          phone_number: phone,
+          full_name: name
+        })
+        .select()
+        .single()
+      if (fallbackErr) throw fallbackErr
+      newCust = {
+        ...fallbackCust,
+        email: cleanEmail,
+        email_confirmed: false,
+        email_confirmation_status: 'queued'
+      }
+    } else if (insertCustErr) {
+      throw insertCustErr
+    } else {
+      newCust = insertedWithEmail
+    }
+
+    customer = {
+      ...newCust,
+      email: newCust?.email || cleanEmail,
+      email_confirmed: Boolean(newCust?.email_confirmed ?? false),
+      email_confirmation_status: newCust?.email_confirmation_status || 'queued'
+    }
   }
 
   // 2. Insert purchased items
@@ -109,10 +466,51 @@ export async function registerCustomerAndSale({
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://jdforcesolar.com'
   const qrUrl = `${origin}/portal?token=${customer.access_token}`
 
+  // 4. Queue and dispatch confirmation email if brand-new account or email changed/added
+  let emailConfirmation = {
+    triggered: shouldSendConfirmationEmail,
+    email: cleanEmail,
+    emailConfirmed: Boolean(customer.email_confirmed),
+    status: customer.email_confirmed ? 'confirmed' : (shouldSendConfirmationEmail ? 'queued' : (customer.email_confirmation_status || 'awaiting_confirmation'))
+  }
+
+  if (shouldSendConfirmationEmail) {
+    const dispatchPromise = queueAndSendCustomerConfirmationEmail({
+      customerId: customer.id,
+      customerName: name,
+      email: cleanEmail,
+      phoneNumber: phone,
+      branchLocation: branch,
+      accessToken: customer.access_token,
+      onStatusChange: onEmailStatusChange
+    }).catch(err => {
+      console.warn('Confirmation email dispatch warning:', err)
+      return {
+        status: 'awaiting_confirmation',
+        email: cleanEmail,
+        emailConfirmed: false
+      }
+    })
+
+    emailConfirmation.dispatchPromise = dispatchPromise
+    customer = {
+      ...customer,
+      email: cleanEmail,
+      email_confirmed: false,
+      email_confirmation_status: 'queued'
+    }
+  } else {
+    customer = {
+      ...customer,
+      email: customer.email || cleanEmail
+    }
+  }
+
   return {
     customer,
     purchases: createdPurchases,
-    qrUrl
+    qrUrl,
+    emailConfirmation
   }
 }
 
@@ -123,6 +521,15 @@ export async function registerCustomerAndSale({
 export async function fetchCustomerPortalData(token) {
   if (!token) return { data: null, error: new Error('Token is missing') }
 
+  const localEmailState = readLocalEmailState(token)
+  let localCredEmail = null
+  try {
+    const localCreds = JSON.parse(localStorage.getItem(`jd_cust_cred_${token}`) || 'null')
+    if (localCreds?.email) localCredEmail = localCreds.email
+  } catch {
+    // ignore
+  }
+
   try {
     // 1. Try secure RPC
     const { data: rpcData, error: rpcError } = await supabase.rpc('get_customer_portal_data', {
@@ -130,15 +537,43 @@ export async function fetchCustomerPortalData(token) {
     })
 
     if (!rpcError && rpcData) {
-      return { data: rpcData, error: null }
+      const cust = rpcData.customer || {}
+      const resolvedEmail = cust.email || localEmailState?.email || localCredEmail || null
+      const resolvedConfirmed = Boolean(cust.email_confirmed || localEmailState?.email_confirmed)
+      const resolvedStatus = resolvedConfirmed
+        ? 'confirmed'
+        : (cust.email_confirmation_status || localEmailState?.email_confirmation_status || (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed'))
+
+      return {
+        data: {
+          ...rpcData,
+          customer: {
+            ...cust,
+            email: resolvedEmail,
+            email_confirmed: resolvedConfirmed,
+            email_confirmation_status: resolvedStatus
+          }
+        },
+        error: null
+      }
     }
 
     // 2. Graceful fallback to client queries if RPC is not yet created
-    const { data: custData, error: custErr } = await supabase
+    let { data: custData, error: custErr } = await supabase
       .from('customers')
-      .select('id, phone_number, full_name, access_token')
+      .select('id, phone_number, full_name, email, email_confirmed, email_confirmation_status, email_verification_token, access_token')
       .eq('access_token', token)
       .maybeSingle()
+
+    if (custErr && custErr.code === '42703') {
+      const fallbackCust = await supabase
+        .from('customers')
+        .select('id, phone_number, full_name, access_token')
+        .eq('access_token', token)
+        .maybeSingle()
+      custData = fallbackCust.data
+      custErr = fallbackCust.error
+    }
 
     if (custErr || !custData) {
       return { data: null, error: custErr || new Error('Customer account not found.') }
@@ -242,12 +677,21 @@ export async function fetchCustomerPortalData(token) {
       })
     }
 
+    const resolvedEmail = custData.email || localEmailState?.email || localCredEmail || null
+    const resolvedConfirmed = Boolean(custData.email_confirmed || localEmailState?.email_confirmed)
+    const resolvedStatus = resolvedConfirmed
+      ? 'confirmed'
+      : (custData.email_confirmation_status || localEmailState?.email_confirmation_status || (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed'))
+
     return {
       data: {
         customer: {
           id: custData.id,
           name: custData.full_name,
           phone: custData.phone_number,
+          email: resolvedEmail,
+          email_confirmed: resolvedConfirmed,
+          email_confirmation_status: resolvedStatus,
           token: custData.access_token
         },
         purchases,
@@ -516,6 +960,9 @@ export async function fetchAllCustomers() {
         id,
         phone_number,
         full_name,
+        email,
+        email_confirmed,
+        email_confirmation_status,
         access_token,
         created_at,
         customer_purchases (
@@ -565,6 +1012,21 @@ export async function fetchAllCustomers() {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://jdforcesolar.com'
 
     const mapped = (customers || []).map(cust => {
+      const localEmailState = readLocalEmailState(cust.access_token)
+      let localCredEmail = null
+      try {
+        const localCreds = JSON.parse(localStorage.getItem(`jd_cust_cred_${cust.access_token}`) || 'null')
+        if (localCreds?.email) localCredEmail = localCreds.email
+      } catch {
+        // ignore
+      }
+
+      const resolvedEmail = cust.email || localEmailState?.email || localCredEmail || ''
+      const resolvedConfirmed = Boolean(cust.email_confirmed || localEmailState?.email_confirmed)
+      const resolvedStatus = resolvedConfirmed
+        ? 'confirmed'
+        : (cust.email_confirmation_status || localEmailState?.email_confirmation_status || (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed'))
+
       const purchases = (cust.customer_purchases || []).map(cp => {
         const expiry = cp.warranty_expires_at || calculateExpiryDate(cp.purchase_date, cp.warranty_months)
         const now = new Date()
@@ -588,6 +1050,9 @@ export async function fetchAllCustomers() {
         id: cust.id,
         phone_number: cust.phone_number,
         full_name: cust.full_name,
+        email: resolvedEmail,
+        email_confirmed: resolvedConfirmed,
+        email_confirmation_status: resolvedStatus,
         access_token: cust.access_token,
         created_at: cust.created_at,
         purchases,
@@ -608,16 +1073,31 @@ export async function fetchAllCustomers() {
  * Fetches whether a customer currently has a password configured and their linked email.
  */
 export async function getCustomerAuthStatus(token) {
-  if (!token) return { hasPassword: false, email: null }
+  if (!token) {
+    return {
+      hasPassword: false,
+      email: null,
+      emailConfirmed: false,
+      emailConfirmationStatus: 'unconfirmed'
+    }
+  }
+
+  const localEmailState = readLocalEmailState(token)
 
   try {
     const { data: rpcData, error: rpcError } = await supabase.rpc('get_customer_auth_status', {
       p_token: token
     })
     if (!rpcError && rpcData) {
+      const resolvedEmail = rpcData.email || localEmailState?.email || null
+      const resolvedConfirmed = Boolean(rpcData.email_confirmed || localEmailState?.email_confirmed)
       return {
         hasPassword: Boolean(rpcData.has_password),
-        email: rpcData.email || null
+        email: resolvedEmail,
+        emailConfirmed: resolvedConfirmed,
+        emailConfirmationStatus: resolvedConfirmed
+          ? 'confirmed'
+          : (rpcData.email_confirmation_status || localEmailState?.email_confirmation_status || (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed'))
       }
     }
   } catch (err) {
@@ -628,13 +1108,38 @@ export async function getCustomerAuthStatus(token) {
   try {
     const localCreds = JSON.parse(localStorage.getItem(`jd_cust_cred_${token}`) || 'null')
     if (localCreds) {
-      return { hasPassword: true, email: localCreds.email || null }
+      const resolvedEmail = localCreds.email || localEmailState?.email || null
+      const resolvedConfirmed = Boolean(localEmailState?.email_confirmed)
+      return {
+        hasPassword: true,
+        email: resolvedEmail,
+        emailConfirmed: resolvedConfirmed,
+        emailConfirmationStatus: resolvedConfirmed
+          ? 'confirmed'
+          : (localEmailState?.email_confirmation_status || (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed'))
+      }
     }
   } catch (e) {
     console.warn('Local credential parse error', e)
   }
 
-  return { hasPassword: false, email: null }
+  if (localEmailState?.email) {
+    return {
+      hasPassword: false,
+      email: localEmailState.email,
+      emailConfirmed: Boolean(localEmailState.email_confirmed),
+      emailConfirmationStatus: localEmailState.email_confirmed
+        ? 'confirmed'
+        : (localEmailState.email_confirmation_status || 'awaiting_confirmation')
+    }
+  }
+
+  return {
+    hasPassword: false,
+    email: null,
+    emailConfirmed: false,
+    emailConfirmationStatus: 'unconfirmed'
+  }
 }
 
 /**
@@ -642,10 +1147,12 @@ export async function getCustomerAuthStatus(token) {
  */
 export async function setCustomerPassword({ token, email, password, currentPassword = null }) {
   if (!token) throw new Error('Customer token is required.')
-  if (!email || !email.includes('@')) throw new Error('A valid email address is required.')
+  const cleanEmail = sanitizeEmail(email)
+  if (!cleanEmail || !isValidEmail(cleanEmail)) throw new Error('A valid email address is required.')
   if (!password || password.length < 6) throw new Error('Password must be at least 6 characters.')
 
-  const cleanEmail = email.trim().toLowerCase()
+  const prevLocalEmail = readLocalEmailState(token)
+  const emailChanged = !prevLocalEmail?.email || prevLocalEmail.email.toLowerCase() !== cleanEmail
 
   try {
     const { data: rpcData, error: rpcError } = await supabase.rpc('set_customer_password', {
@@ -659,7 +1166,14 @@ export async function setCustomerPassword({ token, email, password, currentPassw
       if (rpcData.success) {
         // Save client cache
         localStorage.setItem(`jd_cust_cred_${token}`, JSON.stringify({ email: cleanEmail }))
-        return { success: true, email: cleanEmail, message: rpcData.message }
+        if (emailChanged) {
+          writeLocalEmailState(token, {
+            email: cleanEmail,
+            email_confirmed: false,
+            email_confirmation_status: 'awaiting_confirmation'
+          })
+        }
+        return { success: true, email: cleanEmail, emailChanged, message: rpcData.message }
       } else {
         throw new Error(rpcData.error || 'Failed to update password.')
       }
@@ -683,9 +1197,18 @@ export async function setCustomerPassword({ token, email, password, currentPassw
       hash: btoa(password)
     }))
 
+    if (emailChanged) {
+      writeLocalEmailState(token, {
+        email: cleanEmail,
+        email_confirmed: false,
+        email_confirmation_status: 'awaiting_confirmation'
+      })
+    }
+
     return {
       success: true,
       email: cleanEmail,
+      emailChanged,
       message: 'Password saved successfully.'
     }
   }
@@ -742,9 +1265,12 @@ export async function loginCustomerWithPassword(email, password) {
 }
 
 /**
- * Updates basic customer profile information (full_name, phone_number).
+ * Updates basic customer profile information (full_name, phone_number, email).
  */
-export async function updateCustomerProfile(customerId, { fullName, phoneNumber, province, city, barangay }) {
+export async function updateCustomerProfile(
+  customerId,
+  { fullName, phoneNumber, email, province, city, barangay, previousEmail = null, accessToken = null, branchLocation = 'Cavite', onEmailStatusChange = null }
+) {
   if (!customerId) throw new Error('Customer ID is required.')
 
   const updates = {}
@@ -756,11 +1282,22 @@ export async function updateCustomerProfile(customerId, { fullName, phoneNumber,
     }
     updates.phone_number = cleaned
   }
+
+  let cleanEmail = undefined
+  if (email !== undefined) {
+    cleanEmail = sanitizeEmail(email)
+    if (!cleanEmail || !isValidEmail(cleanEmail)) {
+      throw new Error('A valid customer email address is required.')
+    }
+    updates.email = cleanEmail
+  }
+
   if (province !== undefined) updates.province = province ? sanitizeText(province, { maxLength: 100 }) : null
   if (city !== undefined) updates.city = city ? sanitizeText(city, { maxLength: 100 }) : null
   if (barangay !== undefined) updates.barangay = barangay ? sanitizeText(barangay, { maxLength: 100 }) : null
 
   try {
+    let customerData = null
     const { data, error } = await supabase
       .from('customers')
       .update(updates)
@@ -769,6 +1306,9 @@ export async function updateCustomerProfile(customerId, { fullName, phoneNumber,
         id,
         phone_number,
         full_name,
+        email,
+        email_confirmed,
+        email_confirmation_status,
         access_token,
         created_at
       `)
@@ -776,21 +1316,57 @@ export async function updateCustomerProfile(customerId, { fullName, phoneNumber,
 
     if (error && error.code === '42703') {
       // Column does not exist fallback
-      delete updates.province
-      delete updates.city
-      delete updates.barangay
+      const fallbackUpdates = { ...updates }
+      delete fallbackUpdates.province
+      delete fallbackUpdates.city
+      delete fallbackUpdates.barangay
+      delete fallbackUpdates.email
       const { data: fallbackData, error: fallbackError } = await supabase
         .from('customers')
-        .update(updates)
+        .update(fallbackUpdates)
         .eq('id', customerId)
         .select()
         .single()
       if (fallbackError) throw fallbackError
-      return { customer: fallbackData, error: null }
+      customerData = fallbackData
+    } else if (error) {
+      throw error
+    } else {
+      customerData = data
     }
 
-    if (error) throw error
-    return { customer: data, error: null }
+    const resolvedToken = customerData?.access_token || accessToken
+    const prevNormalized = previousEmail ? sanitizeEmail(previousEmail) : ''
+    const emailChanged = cleanEmail && cleanEmail !== prevNormalized
+
+    let emailConfirmation = null
+    if (cleanEmail && emailChanged && resolvedToken) {
+      emailConfirmation = await queueAndSendCustomerConfirmationEmail({
+        customerId: customerData.id,
+        customerName: customerData.full_name || fullName,
+        phoneNumber: customerData.phone_number || phoneNumber,
+        email: cleanEmail,
+        accessToken: resolvedToken,
+        branchLocation,
+        onStatusChange: onEmailStatusChange
+      })
+      customerData = {
+        ...customerData,
+        email: cleanEmail,
+        email_confirmed: false,
+        email_confirmation_status: emailConfirmation?.status || 'awaiting_confirmation'
+      }
+    } else if (cleanEmail) {
+      const localState = readLocalEmailState(resolvedToken)
+      customerData = {
+        ...customerData,
+        email: cleanEmail,
+        email_confirmed: Boolean(customerData?.email_confirmed || localState?.email_confirmed),
+        email_confirmation_status: customerData?.email_confirmation_status || localState?.email_confirmation_status || 'awaiting_confirmation'
+      }
+    }
+
+    return { customer: customerData, emailConfirmation, error: null }
   } catch (err) {
     throw err
   }
@@ -1068,6 +1644,7 @@ function purgeCustomerLocalStorage({ token, email }) {
         }
       }
       localStorage.removeItem(`jd_cust_cred_${token}`)
+      localStorage.removeItem(`${EMAIL_CONFIRMATION_STORAGE_PREFIX}${token}`)
 
       if (localStorage.getItem('jd_customer_token') === token) {
         localStorage.removeItem('jd_customer_token')

@@ -8,10 +8,20 @@ import {
   Store,
   Phone,
   User,
+  Mail,
+  Clock,
   Package } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { searchCustomerByPhone, registerCustomerAndSale } from '../../lib/customerService'
-import { sanitizePhone, isValidPhone, sanitizeText, sanitizeSerialNumber, sanitizeNumber } from '../../lib/sanitize.js'
+import {
+  sanitizePhone,
+  isValidPhone,
+  sanitizeText,
+  sanitizeEmail,
+  isValidEmail,
+  sanitizeSerialNumber,
+  sanitizeNumber
+} from '../../lib/sanitize.js'
 import QRReceiptModal from './QRReceiptModal'
 
 export default function RegisterSaleScreen({ onNavigate }) {
@@ -19,6 +29,8 @@ export default function RegisterSaleScreen({ onNavigate }) {
   const [phoneTouched, setPhoneTouched] = useState(false)
 
   const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [emailTouched, setEmailTouched] = useState(false)
   const [branchLocation, setBranchLocation] = useState('Cavite')
   const [isSearchingPhone, setIsSearchingPhone] = useState(false)
   const [isReturningCustomer, setIsReturningCustomer] = useState(false)
@@ -42,6 +54,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [qrModalData, setQrModalData] = useState(null)
+  const [liveEmailStatus, setLiveEmailStatus] = useState(null)
 
   // Fetch catalog products on mount
   useEffect(() => {
@@ -94,6 +107,9 @@ export default function RegisterSaleScreen({ onNavigate }) {
         if (!fullName) {
           setFullName(customer.full_name)
         }
+        if (!email && customer.email) {
+          setEmail(customer.email)
+        }
       } else {
         setIsReturningCustomer(false)
         setExistingCustomerRecord(null)
@@ -139,6 +155,17 @@ export default function RegisterSaleScreen({ onNavigate }) {
     if (errorMessage) setErrorMessage('')
   }
 
+  const handleEmailChange = (e) => {
+    const raw = e.target.value
+    const sanitized = sanitizeEmail(raw)
+    setEmail(sanitized)
+    if (errorMessage) setErrorMessage('')
+  }
+
+  const handleEmailBlur = () => {
+    setEmailTouched(true)
+  }
+
   const handleItemChange = (index, field, value) => {
     setItems(prev => {
       const updated = [...prev]
@@ -166,6 +193,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
     e.preventDefault()
     setErrorMessage('')
     setPhoneTouched(true)
+    setEmailTouched(true)
 
     if (!phoneNumber) {
       setErrorMessage('Please enter the customer mobile phone number.')
@@ -179,6 +207,15 @@ export default function RegisterSaleScreen({ onNavigate }) {
       setErrorMessage('Please enter the customer full name.')
       return
     }
+    const cleanEmail = sanitizeEmail(email)
+    if (!cleanEmail) {
+      setErrorMessage('Please enter the customer email address.')
+      return
+    }
+    if (!isValidEmail(cleanEmail)) {
+      setErrorMessage('Please enter a valid customer email address (e.g. maria.santos@email.com).')
+      return
+    }
     const invalidItems = items.some(item => !item.productId)
     if (invalidItems) {
       setErrorMessage('Please select a valid product for all items.')
@@ -190,8 +227,23 @@ export default function RegisterSaleScreen({ onNavigate }) {
       const result = await registerCustomerAndSale({
         phoneNumber,
         fullName,
+        email: cleanEmail,
         branchLocation,
-        items
+        items,
+        onEmailStatusChange: (statusUpdate) => {
+          setLiveEmailStatus(statusUpdate)
+          setQrModalData(prev =>
+            prev
+              ? {
+                  ...prev,
+                  emailConfirmation: {
+                    ...(prev.emailConfirmation || {}),
+                    ...statusUpdate
+                  }
+                }
+              : prev
+          )
+        }
       })
 
       setQrModalData(result)
@@ -205,8 +257,12 @@ export default function RegisterSaleScreen({ onNavigate }) {
 
   const handleResetForm = () => {
     setQrModalData(null)
+    setLiveEmailStatus(null)
     setPhoneNumber('')
+    setPhoneTouched(false)
     setFullName('')
+    setEmail('')
+    setEmailTouched(false)
     setIsReturningCustomer(false)
     setExistingCustomerRecord(null)
     setErrorMessage('')
@@ -279,7 +335,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
             {/* Phone */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between h-5 text-xs font-semibold text-jds-on-surface-variant">
@@ -335,6 +391,53 @@ export default function RegisterSaleScreen({ onNavigate }) {
                   className="w-full h-11 bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors"
                 />
               </div>
+            </div>
+
+            {/* Customer Email */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between h-5 text-xs font-semibold text-jds-on-surface-variant">
+                <label htmlFor="reg-sale-email">Customer Email Address *</label>
+                {existingCustomerRecord?.email && existingCustomerRecord.email.toLowerCase() === email.trim().toLowerCase() && (
+                  existingCustomerRecord.email_confirmed ? (
+                    <span className="text-[10px] font-semibold text-emerald-500 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Confirmed
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-amber-500 flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> Awaiting Verification
+                    </span>
+                  )
+                )}
+              </div>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-jds-on-surface-variant absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  id="reg-sale-email"
+                  type="email"
+                  maxLength={120}
+                  required
+                  placeholder="e.g. maria.santos@email.com"
+                  value={email}
+                  onChange={handleEmailChange}
+                  onBlur={handleEmailBlur}
+                  className={`w-full h-11 bg-jds-surface-container/40 border rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none transition-colors ${emailTouched && email && !isValidEmail(email)
+                    ? 'border-jds-error focus:border-jds-error bg-jds-error/5'
+                    : email && isValidEmail(email)
+                      ? 'border-emerald-500/50 focus:border-emerald-500'
+                      : 'border-jds-outline-variant/50 focus:border-jds-primary'
+                    }`}
+                />
+              </div>
+              {emailTouched && email && !isValidEmail(email) ? (
+                <p className="text-[11px] font-medium text-jds-error flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  Enter a valid email address for account creation confirmation.
+                </p>
+              ) : (
+                <p className="text-[11px] text-jds-on-surface-variant">
+                  Account creation & warranty portal confirmation will be sent to this address.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -461,6 +564,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
           customer={qrModalData.customer}
           purchases={qrModalData.purchases}
           qrUrl={qrModalData.qrUrl}
+          emailConfirmation={qrModalData.emailConfirmation || liveEmailStatus}
         />
       )}
     </div>

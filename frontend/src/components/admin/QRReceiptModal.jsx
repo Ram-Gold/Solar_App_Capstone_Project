@@ -1,7 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { Printer, Copy, Check, X, ShieldCheck, Phone, User, Key } from 'lucide-react'
+import {
+  Printer,
+  Copy,
+  Check,
+  X,
+  ShieldCheck,
+  Phone,
+  User,
+  Key,
+  Mail,
+  Clock,
+  CheckCircle2,
+  RefreshCw
+} from 'lucide-react'
 import { formatDate } from '../../lib/warrantyUtils'
+import { queueAndSendCustomerConfirmationEmail } from '../../lib/customerService'
 import useModalBehavior from '../../hooks/useModalBehavior'
 
 export default function QRReceiptModal({
@@ -9,7 +23,8 @@ export default function QRReceiptModal({
   onClose,
   customer,
   purchases = [],
-  qrUrl
+  qrUrl,
+  emailConfirmation = null
 }) {
   const { backdropProps } = useModalBehavior({
     isOpen: Boolean(isOpen && customer),
@@ -17,11 +32,58 @@ export default function QRReceiptModal({
   })
   const [copiedLink, setCopiedLink] = useState(false)
   const [copiedToken, setCopiedToken] = useState(false)
+  const [resendingEmail, setResendingEmail] = useState(false)
+  const [localEmailStatus, setLocalEmailStatus] = useState(null)
+
+  useEffect(() => {
+    if (emailConfirmation) {
+      setLocalEmailStatus(emailConfirmation)
+    } else if (customer?.email) {
+      setLocalEmailStatus({
+        email: customer.email,
+        status: customer.email_confirmed
+          ? 'confirmed'
+          : (customer.email_confirmation_status || 'awaiting_confirmation'),
+        message: customer.email_confirmed
+          ? `Customer email address (${customer.email}) is verified and confirmed.`
+          : `Confirmation email sent to ${customer.email}. Awaiting customer email verification.`
+      })
+    } else {
+      setLocalEmailStatus(null)
+    }
+  }, [emailConfirmation, customer])
 
   if (!isOpen || !customer) return null
 
   const token = customer.access_token || customer.token || ''
+  const customerEmail = localEmailStatus?.email || customer.email || ''
+  const isConfirmed = Boolean(customer.email_confirmed || localEmailStatus?.status === 'confirmed')
+  const currentStatus = isConfirmed
+    ? 'confirmed'
+    : (localEmailStatus?.status || customer.email_confirmation_status || (customerEmail ? 'awaiting_confirmation' : 'unconfirmed'))
   const computedQrUrl = qrUrl || (token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/portal?token=${token}` : '')
+
+  const handleResendConfirmation = async () => {
+    if (!customerEmail || !token || resendingEmail) return
+    try {
+      setResendingEmail(true)
+      await queueAndSendCustomerConfirmationEmail({
+        customerId: customer.id,
+        customerName: customer.full_name || customer.name,
+        phoneNumber: customer.phone_number || customer.phone,
+        email: customerEmail,
+        accessToken: token,
+        branchLocation: purchases[0]?.branch_location || 'Cavite',
+        onStatusChange: (update) => {
+          setLocalEmailStatus(update)
+        }
+      })
+    } catch (err) {
+      console.error('Resend confirmation email error:', err)
+    } finally {
+      setResendingEmail(false)
+    }
+  }
 
   const handleCopyLink = () => {
     if (!computedQrUrl) return
@@ -72,7 +134,59 @@ export default function QRReceiptModal({
 
         {/* Modal Body (Scrollable if tall) */}
         <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
-          
+          {/* Account Creation Email & Confirmation Status Banner */}
+          {customerEmail && (
+            <div
+              className={`p-4 rounded-xl border space-y-2.5 ${
+                currentStatus === 'confirmed'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                  : currentStatus === 'queued' || resendingEmail
+                    ? 'bg-jds-primary/10 border-jds-primary/30 text-jds-primary'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  {currentStatus === 'confirmed' ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  ) : currentStatus === 'queued' || resendingEmail ? (
+                    <RefreshCw className="w-4 h-4 shrink-0 mt-0.5 animate-spin" />
+                  ) : (
+                    <Clock className="w-4 h-4 shrink-0 mt-0.5" />
+                  )}
+                  <div className="space-y-1">
+                    <div className="text-xs font-bold uppercase tracking-wider">
+                      {currentStatus === 'confirmed'
+                        ? 'Email Confirmed'
+                        : currentStatus === 'queued' || resendingEmail
+                          ? 'Queuing Email Confirmation...'
+                          : 'Confirmation Email Sent — Awaiting Verification'}
+                    </div>
+                    <p className="text-xs leading-relaxed text-jds-on-surface">
+                      {currentStatus === 'confirmed'
+                        ? `Customer email address (${customerEmail}) is verified and confirmed.`
+                        : currentStatus === 'queued' || resendingEmail
+                          ? `Queuing account creation confirmation email to ${customerEmail}...`
+                          : `An account creation notification and confirmation link has been sent to ${customerEmail}. Awaiting customer email confirmation.`}
+                    </p>
+                  </div>
+                </div>
+
+                {currentStatus !== 'confirmed' && (
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={resendingEmail || currentStatus === 'queued'}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-jds-surface border border-jds-outline-variant/50 text-jds-on-surface hover:bg-jds-surface-container transition-colors flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${resendingEmail ? 'animate-spin' : ''}`} />
+                    Resend Confirmation Email
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Centered QR Display */}
           <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow-inner border border-gray-200 text-slate-900">
             <div className="p-3 bg-white rounded-xl shadow-md border border-gray-100">
@@ -140,7 +254,7 @@ export default function QRReceiptModal({
           </div>
 
           {/* Customer & Branch Details */}
-          <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-jds-surface-container/40 border border-jds-outline-variant/30 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl bg-jds-surface-container/40 border border-jds-outline-variant/30 text-sm">
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-xs text-jds-on-surface-variant">
                 <User className="w-3.5 h-3.5" /> Customer Name
@@ -153,6 +267,16 @@ export default function QRReceiptModal({
               </div>
               <div className="font-mono text-jds-on-surface">{customer.phone_number || customer.phone}</div>
             </div>
+            {customerEmail && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-xs text-jds-on-surface-variant">
+                  <Mail className="w-3.5 h-3.5" /> Email Address
+                </div>
+                <div className="text-xs font-medium text-jds-on-surface truncate" title={customerEmail}>
+                  {customerEmail}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Purchased Items & Warranties */}

@@ -6,6 +6,7 @@
     
     CUSTOMERS ||--o| CUSTOMER_PASSWORDS : "authenticates (1:1 via customer_id)"
     CUSTOMERS ||--o{ CUSTOMER_PURCHASES : "owns (1:M via customer_id)"
+    CUSTOMERS ||--o{ EMAIL_CONFIRMATION_QUEUE : "queues (1:M via customer_id)"
     PRODUCTS ||--o{ CUSTOMER_PURCHASES : "sold as (1:M via product_id)"
     CUSTOMER_PURCHASES ||--o{ WARRANTY_CLAIMS : "covers (1:M via purchase_id)"
     
@@ -73,6 +74,12 @@
         uuid id PK
         text phone_number UK
         text full_name
+        text email
+        boolean email_confirmed
+        text email_confirmation_status
+        uuid email_verification_token UK
+        timestamptz email_confirmation_sent_at
+        timestamptz email_confirmed_at
         uuid access_token UK
         text province
         text city
@@ -80,6 +87,21 @@
         text street_address
         text facebook
         timestamptz created_at
+    }
+    EMAIL_CONFIRMATION_QUEUE {
+        uuid id PK
+        uuid customer_id FK
+        text recipient_email
+        text customer_name
+        text phone_number
+        text branch_location
+        uuid access_token
+        uuid verification_token
+        text status
+        text error_message
+        timestamptz queued_at
+        timestamptz sent_at
+        timestamptz confirmed_at
     }
     CUSTOMER_PASSWORDS {
         uuid id PK

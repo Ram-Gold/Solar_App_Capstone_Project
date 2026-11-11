@@ -38,6 +38,7 @@ import PhilippineAddressSelect from '../ui/PhilippineAddressSelect'
 import { formatFullAddress } from '../../lib/philippineAddresses'
 import { FaFacebook } from 'react-icons/fa'
 import { extractFacebookHandle, formatFacebookUrl } from '../../lib/facebookUtils'
+import { sanitizeEmail, isValidEmail } from '../../lib/sanitize.js'
 import AnimatedConfirmation from '../ui/AnimatedConfirmation'
 
 export const CALENDAR_START_HOUR = 7 // 07:00 AM
@@ -1035,6 +1036,11 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
       setNewError('Customer name and contact number are required.')
       return
     }
+    const cleanWalkInEmail = sanitizeEmail(newCustEmail)
+    if (!cleanWalkInEmail || !isValidEmail(cleanWalkInEmail)) {
+      setNewError('A valid customer email address is required.')
+      return
+    }
     if (!newVisitDate) {
       setNewError('Please select a visit date.')
       return
@@ -1085,7 +1091,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         quantity: Number(newQuantity) || 1,
         customer_name: newCustName.trim(),
         mobile_contact: newCustPhone.trim(),
-        email: newCustEmail.trim() || null,
+        email: cleanWalkInEmail,
         facebook: effectiveFacebook || null,
         street_address: effectiveStreet,
         province: effectiveProvince,
@@ -2378,13 +2384,17 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
 
               <div>
                 <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                  Email Address
+                  Email Address <span className="text-amber-600">*</span>
                 </label>
                 <input
                   type="email"
-                  placeholder="Optional (customer@example.com)"
+                  required
+                  placeholder="customer@example.com"
                   value={newCustEmail}
-                  onChange={(e) => setNewCustEmail(e.target.value)}
+                  onChange={(e) => {
+                    setNewCustEmail(e.target.value)
+                    if (newError) setNewError('')
+                  }}
                   className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
                 />
               </div>

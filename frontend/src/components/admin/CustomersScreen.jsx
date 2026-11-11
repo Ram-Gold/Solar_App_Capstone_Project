@@ -24,6 +24,8 @@ import {
   EyeOff,
   X,
   Save,
+  Mail,
+  CheckCircle2,
   Clock } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../context/AuthContext'
@@ -35,10 +37,19 @@ import {
   unvoidCustomerWarranty,
   extendCustomerWarranty,
   removeCustomerPurchase,
-  deleteCustomerAccount
+  deleteCustomerAccount,
+  queueAndSendCustomerConfirmationEmail
 } from '../../lib/customerService'
 import { formatDate, calculateExpiryDate } from '../../lib/warrantyUtils'
-import { sanitizeText, sanitizePhone, isValidPhone, sanitizeSerialNumber, sanitizeNumber } from '../../lib/sanitize.js'
+import {
+  sanitizeText,
+  sanitizePhone,
+  isValidPhone,
+  sanitizeEmail,
+  isValidEmail,
+  sanitizeSerialNumber,
+  sanitizeNumber
+} from '../../lib/sanitize.js'
 import QRReceiptModal from './QRReceiptModal'
 import useModalBehavior from '../../hooks/useModalBehavior'
 
@@ -60,8 +71,11 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
   // Edit Customer Profile state inside modal
   const [editName, setEditName] = useState('')
   const [editPhone, setEditPhone] = useState('')
+  const [editEmail, setEditEmail] = useState('')
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [profileMessage, setProfileMessage] = useState(null)
+  const [emailConfirmationProgress, setEmailConfirmationProgress] = useState(null)
+  const [isResendingEmail, setIsResendingEmail] = useState(false)
 
   // Token & link states inside modal
   const [isTokenRevealedInModal, setIsTokenRevealedInModal] = useState(false)
@@ -159,8 +173,11 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
     setSelectedCustomer(customer)
     setEditName(customer.full_name || '')
     setEditPhone(customer.phone_number || '')
+    setEditEmail(customer.email || '')
     setIsSavingProfile(false)
     setProfileMessage(null)
+    setEmailConfirmationProgress(null)
+    setIsResendingEmail(false)
     setIsTokenRevealedInModal(false)
     setModalTokenCopied(false)
     setModalLinkCopied(false)
@@ -181,6 +198,8 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
     setSelectedCustomer(null)
     setIsAddingProduct(false)
     setProfileMessage(null)
+    setEmailConfirmationProgress(null)
+    setIsResendingEmail(false)
     setProductAddMessage(null)
     setUnitActionMessage(null)
     setVoidingPurchase(null)
@@ -424,6 +443,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
     if (!selectedCustomer) return
     const trimmedName = sanitizeText(editName, { maxLength: 100 })
     const trimmedPhone = sanitizePhone(editPhone)
+    const trimmedEmail = sanitizeEmail(editEmail)
 
     if (!trimmedName) {
       setProfileMessage({ type: 'error', text: 'Customer full name is required.' })
@@ -433,26 +453,47 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
       setProfileMessage({ type: 'error', text: 'A valid 11-digit Philippine mobile phone number starting with 09 is required (e.g. 09171234567).' })
       return
     }
+    if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
+      setProfileMessage({ type: 'error', text: 'A valid customer email address is required.' })
+      return
+    }
 
     try {
       setIsSavingProfile(true)
       setProfileMessage(null)
       const { customer: updated, error } = await updateCustomerProfile(selectedCustomer.id, {
         fullName: trimmedName,
-        phoneNumber: trimmedPhone
+        phoneNumber: trimmedPhone,
+        email: trimmedEmail,
+        previousEmail: selectedCustomer.email || null,
+        accessToken: selectedCustomer.access_token,
+        branchLocation: selectedCustomer.purchases?.[0]?.branch_location || 'Cavite',
+        onEmailStatusChange: (statusUpdate) => {
+          setEmailConfirmationProgress(statusUpdate)
+        }
       })
       if (error) throw error
+
+      const resolvedEmail = updated.email || trimmedEmail
+      const resolvedConfirmed = Boolean(updated.email_confirmed)
+      const resolvedStatus = updated.email_confirmation_status || (resolvedConfirmed ? 'confirmed' : 'awaiting_confirmation')
 
       setSelectedCustomer(prev => ({
         ...prev,
         full_name: updated.full_name,
-        phone_number: updated.phone_number
+        phone_number: updated.phone_number,
+        email: resolvedEmail,
+        email_confirmed: resolvedConfirmed,
+        email_confirmation_status: resolvedStatus
       }))
 
       setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? {
         ...c,
         full_name: updated.full_name,
-        phone_number: updated.phone_number
+        phone_number: updated.phone_number,
+        email: resolvedEmail,
+        email_confirmed: resolvedConfirmed,
+        email_confirmation_status: resolvedStatus
       } : c))
 
       setProfileMessage({ type: 'success', text: 'Customer profile updated successfully.' })
@@ -462,6 +503,33 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
       setProfileMessage({ type: 'error', text: err.message || 'Failed to update profile.' })
     } finally {
       setIsSavingProfile(false)
+    }
+  }
+
+  const handleResendCustomerEmail = async () => {
+    if (!selectedCustomer || isResendingEmail) return
+    const targetEmail = sanitizeEmail(editEmail || selectedCustomer.email)
+    if (!targetEmail || !isValidEmail(targetEmail)) {
+      setProfileMessage({ type: 'error', text: 'Enter and save a valid customer email address before resending.' })
+      return
+    }
+    try {
+      setIsResendingEmail(true)
+      await queueAndSendCustomerConfirmationEmail({
+        customerId: selectedCustomer.id,
+        customerName: selectedCustomer.full_name,
+        phoneNumber: selectedCustomer.phone_number,
+        email: targetEmail,
+        accessToken: selectedCustomer.access_token,
+        branchLocation: selectedCustomer.purchases?.[0]?.branch_location || 'Cavite',
+        onStatusChange: (statusUpdate) => {
+          setEmailConfirmationProgress(statusUpdate)
+        }
+      })
+    } catch (err) {
+      console.error('Failed to resend confirmation email:', err)
+    } finally {
+      setIsResendingEmail(false)
     }
   }
 
@@ -535,6 +603,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
       !query ||
       c.full_name.toLowerCase().includes(query) ||
       c.phone_number.toLowerCase().includes(query) ||
+      (c.email && c.email.toLowerCase().includes(query)) ||
       (c.access_token && c.access_token.toLowerCase().includes(query))
 
     let matchesBranch = true
@@ -752,6 +821,22 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                         <Phone className="w-3.5 h-3.5 text-jds-on-surface-variant/70 shrink-0" />
                         <span>{customer.phone_number}</span>
                       </p>
+                      {customer.email ? (
+                        <p className="text-[11px] text-jds-on-surface-variant flex items-center gap-1.5 mt-0.5 truncate" title={customer.email}>
+                          <Mail className="w-3 h-3 text-jds-on-surface-variant/70 shrink-0" />
+                          <span className="truncate">{customer.email}</span>
+                          {customer.email_confirmed ? (
+                            <span className="text-[9px] font-bold uppercase text-emerald-500 shrink-0">Confirmed</span>
+                          ) : (
+                            <span className="text-[9px] font-bold uppercase text-amber-500 shrink-0">Awaiting</span>
+                          )}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-amber-500 font-medium flex items-center gap-1 mt-0.5">
+                          <Mail className="w-3 h-3 shrink-0" />
+                          <span>Email Required</span>
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -876,11 +961,12 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-label-sm font-semibold text-jds-on-surface-variant">
-                        Full Name
+                        Full Name *
                       </label>
                       <input
                         type="text"
                         maxLength={100}
+                        required
                         value={editName}
                         onChange={(e) => setEditName(sanitizeText(e.target.value, { maxLength: 100 }))}
                         placeholder="Customer full name..."
@@ -890,7 +976,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-label-sm font-semibold text-jds-on-surface-variant">
-                        <label>Phone Number</label>
+                        <label>Phone Number *</label>
                         <span className={`text-[10px] font-mono ${editPhone.length === 11 && isValidPhone(editPhone) ? 'text-emerald-500 font-bold' : 'text-jds-on-surface-variant/60'
                           }`}>
                           {editPhone.length}/11 digits
@@ -901,6 +987,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                         inputMode="numeric"
                         pattern="[0-9]*"
                         maxLength={11}
+                        required
                         value={editPhone}
                         onChange={(e) => setEditPhone(sanitizePhone(e.target.value))}
                         placeholder="09171234567"
@@ -908,6 +995,59 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                       />
                     </div>
                   </div>
+
+                  {/* Customer Email Address (Required) */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-label-sm font-semibold text-jds-on-surface-variant">
+                      <label htmlFor="edit-customer-email">Email Address *</label>
+                      {selectedCustomer.email && (
+                        selectedCustomer.email_confirmed ? (
+                          <span className="text-[10px] font-semibold text-emerald-500 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Email Confirmed
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-amber-500 flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> Awaiting Email Verification
+                          </span>
+                        )
+                      )}
+                    </div>
+                    <input
+                      id="edit-customer-email"
+                      type="email"
+                      maxLength={120}
+                      required
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(sanitizeEmail(e.target.value))}
+                      placeholder="e.g. maria.santos@email.com"
+                      className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary transition-colors"
+                    />
+                  </div>
+
+                  {(emailConfirmationProgress || (selectedCustomer.email && !selectedCustomer.email_confirmed)) && (
+                    <div className="p-3 rounded-lg bg-jds-surface-container/40 border border-jds-outline-variant/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2 text-jds-on-surface-variant">
+                        {emailConfirmationProgress?.status === 'queued' || isResendingEmail ? (
+                          <RefreshCw className="w-3.5 h-3.5 text-jds-primary animate-spin shrink-0" />
+                        ) : (
+                          <Mail className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        )}
+                        <span>
+                          {emailConfirmationProgress?.status === 'queued' || isResendingEmail
+                            ? `Queuing email confirmation to ${editEmail || selectedCustomer.email}...`
+                            : emailConfirmationProgress?.message || `Confirmation email sent to ${selectedCustomer.email}. Awaiting customer verification.`}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleResendCustomerEmail}
+                        disabled={isResendingEmail || emailConfirmationProgress?.status === 'queued'}
+                        className="px-2.5 py-1 rounded-md bg-jds-surface border border-jds-outline-variant/50 hover:bg-jds-surface-container text-[11px] font-semibold text-jds-on-surface shrink-0 disabled:opacity-50"
+                      >
+                        Resend Confirmation
+                      </button>
+                    </div>
+                  )}
 
                   <div className="flex justify-end pt-1">
                     <button

@@ -15,6 +15,7 @@ import {
   KeyRound,
   Lock,
   Mail,
+  Clock,
   X,
   Trash2,
   FileText
@@ -23,10 +24,12 @@ import {
   fetchCustomerPortalData,
   getCustomerAuthStatus,
   setCustomerPassword,
-  deleteCustomerAccount
+  deleteCustomerAccount,
+  confirmCustomerEmailByToken,
+  queueAndSendCustomerConfirmationEmail
 } from '../lib/customerService'
 import { formatDate, formatRemainingText, getClaimStatusMeta } from '../lib/warrantyUtils'
-import { sanitizeEmail } from '../lib/sanitize.js'
+import { sanitizeEmail, isValidEmail } from '../lib/sanitize.js'
 import FaultDiagnosticModal from '../components/FaultDiagnosticModal'
 import WarrantyTermsModal from '../components/WarrantyTermsModal'
 import useModalBehavior from '../hooks/useModalBehavior'
@@ -34,7 +37,7 @@ import { useAuth } from '../context/AuthContext'
 import AnimatedConfirmation from '../components/ui/AnimatedConfirmation'
 
 export default function CustomerPortalPage() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { setCustomerSession, signOut } = useAuth()
   const [token, setToken] = useState(() => {
@@ -58,7 +61,15 @@ export default function CustomerPortalPage() {
   const [manualTokenInput, setManualTokenInput] = useState('')
 
   // Password & Security Management States
-  const [authStatus, setAuthStatus] = useState({ hasPassword: false, email: null })
+  const [authStatus, setAuthStatus] = useState({
+    hasPassword: false,
+    email: null,
+    emailConfirmed: false,
+    emailConfirmationStatus: 'unconfirmed'
+  })
+  const [emailBannerStatus, setEmailBannerStatus] = useState(null)
+  const [resendingConfirmation, setResendingConfirmation] = useState(false)
+  const [emailJustConfirmedMessage, setEmailJustConfirmedMessage] = useState(null)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [pwdEmail, setPwdEmail] = useState('')
   const [pwdNew, setPwdNew] = useState('')
@@ -101,6 +112,26 @@ export default function CustomerPortalPage() {
     try {
       setLoading(true)
       setError(null)
+
+      // Check if customer arrived via one-click email confirmation link (?confirm_email=...)
+      const confirmParam = searchParams.get('confirm_email')
+      if (confirmParam) {
+        const confirmResult = await confirmCustomerEmailByToken(activeToken, confirmParam)
+        if (confirmResult?.success) {
+          setEmailJustConfirmedMessage(
+            confirmResult.message || 'Your email address has been verified and confirmed.'
+          )
+          // Clean up query parameter while preserving token
+          try {
+            const nextParams = new URLSearchParams(searchParams)
+            nextParams.delete('confirm_email')
+            setSearchParams(nextParams, { replace: true })
+          } catch {
+            // ignore
+          }
+        }
+      }
+
       const { data, error: fetchErr } = await fetchCustomerPortalData(activeToken)
       if (fetchErr) throw fetchErr
       if (!data) throw new Error('Customer account not found.')
@@ -117,14 +148,38 @@ export default function CustomerPortalPage() {
       // Fetch password & auth status
       const authInfo = await getCustomerAuthStatus(activeToken)
       setAuthStatus(authInfo)
-      if (authInfo?.email) {
-        setPwdEmail(authInfo.email)
+      const resolvedEmail = authInfo?.email || data?.customer?.email || ''
+      if (resolvedEmail) {
+        setPwdEmail(resolvedEmail)
       }
     } catch (err) {
       console.error('Portal load failed:', err)
       setError(err.message || 'Failed to retrieve your customer dashboard.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendEmailConfirmation = async () => {
+    const targetEmail = authStatus?.email || portalData?.customer?.email
+    if (!token || !targetEmail || resendingConfirmation) return
+    try {
+      setResendingConfirmation(true)
+      await queueAndSendCustomerConfirmationEmail({
+        customerId: portalData?.customer?.id || null,
+        customerName: portalData?.customer?.name || 'Customer',
+        phoneNumber: portalData?.customer?.phone || '',
+        email: targetEmail,
+        accessToken: token,
+        branchLocation: portalData?.purchases?.[0]?.branch_location || 'Cavite',
+        onStatusChange: (statusUpdate) => {
+          setEmailBannerStatus(statusUpdate)
+        }
+      })
+    } catch (err) {
+      console.error('Failed to resend confirmation email:', err)
+    } finally {
+      setResendingConfirmation(false)
     }
   }
 
@@ -168,7 +223,7 @@ export default function CustomerPortalPage() {
       await deleteCustomerAccount({
         customerId: portalData?.customer?.id || null,
         token,
-        email: authStatus.email
+        email: authStatus.email || portalData?.customer?.email
       })
       if (setCustomerSession) {
         setCustomerSession(null)
@@ -191,7 +246,7 @@ export default function CustomerPortalPage() {
     setPwdSuccess(null)
 
     const cleanEmail = sanitizeEmail(pwdEmail)
-    if (!cleanEmail || !cleanEmail.includes('@')) {
+    if (!cleanEmail || !isValidEmail(cleanEmail)) {
       setPwdError('Please enter a valid email address.')
       return
     }
@@ -214,7 +269,28 @@ export default function CustomerPortalPage() {
       })
 
       setPwdSuccess(res.message || 'Account password updated successfully.')
-      setAuthStatus({ hasPassword: true, email: cleanEmail })
+      const wasEmailChanged = Boolean(res.emailChanged)
+      setAuthStatus(prev => ({
+        ...prev,
+        hasPassword: true,
+        email: cleanEmail,
+        emailConfirmed: wasEmailChanged ? false : prev.emailConfirmed,
+        emailConfirmationStatus: wasEmailChanged ? 'awaiting_confirmation' : prev.emailConfirmationStatus
+      }))
+      if (wasEmailChanged) {
+        setEmailJustConfirmedMessage(null)
+        await queueAndSendCustomerConfirmationEmail({
+          customerId: portalData?.customer?.id || null,
+          customerName: portalData?.customer?.name || 'Customer',
+          phoneNumber: portalData?.customer?.phone || '',
+          email: cleanEmail,
+          accessToken: token,
+          branchLocation: portalData?.purchases?.[0]?.branch_location || 'Cavite',
+          onStatusChange: (statusUpdate) => {
+            setEmailBannerStatus(statusUpdate)
+          }
+        })
+      }
       if (setCustomerSession) {
         setCustomerSession(token, cleanEmail)
       }
@@ -304,6 +380,16 @@ export default function CustomerPortalPage() {
 
   const { customer, purchases = [], claims = [] } = portalData
   const activeWarrantiesCount = purchases.filter(p => p.is_warranty_active).length
+  const resolvedCustomerEmail = authStatus.email || customer.email || ''
+  const isEmailConfirmed = Boolean(
+    emailJustConfirmedMessage ||
+    authStatus.emailConfirmed ||
+    customer.email_confirmed ||
+    emailBannerStatus?.status === 'confirmed'
+  )
+  const currentEmailStatus = isEmailConfirmed
+    ? 'confirmed'
+    : (emailBannerStatus?.status || authStatus.emailConfirmationStatus || customer.email_confirmation_status || (resolvedCustomerEmail ? 'awaiting_confirmation' : 'unconfirmed'))
 
   return (
     <div className="min-h-screen bg-jds-background pb-16">
@@ -320,9 +406,16 @@ export default function CustomerPortalPage() {
               <h1 className="text-2xl font-bold text-jds-on-surface mt-0.5">
                 Welcome, {customer.name}!
               </h1>
-              <p className="text-xs text-jds-on-surface-variant flex items-center gap-2 mt-1">
-                <Phone className="w-3.5 h-3.5" /> {customer.phone}
-              </p>
+              <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-jds-on-surface-variant">
+                <span className="flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5" /> {customer.phone}
+                </span>
+                {resolvedCustomerEmail && (
+                  <span className="flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5" /> {resolvedCustomerEmail}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-2 self-start md:self-auto">
@@ -368,6 +461,70 @@ export default function CustomerPortalPage() {
 
       {/* Main Content Area */}
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+
+        {/* Email Confirmation Status Banner (Non-blocking) */}
+        {emailJustConfirmedMessage && (
+          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3 text-xs text-emerald-700 dark:text-emerald-300">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <div>
+                <strong className="font-bold">Email Verified:</strong> {emailJustConfirmedMessage}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!isEmailConfirmed && (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-start gap-2.5">
+              {currentEmailStatus === 'queued' || resendingConfirmation ? (
+                <RefreshCw className="w-4 h-4 text-jds-primary shrink-0 mt-0.5 animate-spin" />
+              ) : (
+                <Clock className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              )}
+              <div className="space-y-0.5">
+                <div className="font-bold text-jds-on-surface">
+                  {currentEmailStatus === 'queued' || resendingConfirmation
+                    ? 'Queuing email confirmation...'
+                    : 'Awaiting Email Confirmation'}
+                </div>
+                <p className="text-jds-on-surface-variant leading-relaxed">
+                  {currentEmailStatus === 'queued' || resendingConfirmation
+                    ? `Queuing account creation confirmation email to ${resolvedCustomerEmail || 'your email address'}...`
+                    : resolvedCustomerEmail
+                      ? `Confirmation email sent to ${resolvedCustomerEmail}. Awaiting verification — please check your inbox and click the confirmation link.`
+                      : 'Please link and confirm your email address to receive account notifications and warranty updates.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+              {resolvedCustomerEmail ? (
+                <button
+                  type="button"
+                  onClick={handleResendEmailConfirmation}
+                  disabled={resendingConfirmation || currentEmailStatus === 'queued'}
+                  className="px-3.5 py-2 rounded-xl bg-jds-surface border border-jds-outline-variant/50 hover:bg-jds-surface-container text-xs font-semibold text-jds-on-surface flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${resendingConfirmation ? 'animate-spin' : ''}`} />
+                  Resend Confirmation Email
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPwdError(null)
+                    setPwdSuccess(null)
+                    setIsPasswordModalOpen(true)
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 transition-colors"
+                >
+                  Add Email Address
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* SECTION 1: Registered Products & Warranties */}
         <div className="space-y-4">
