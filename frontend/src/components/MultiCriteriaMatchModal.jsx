@@ -8,10 +8,8 @@ import {
   HiOutlineCurrencyDollar,
   HiOutlineMapPin,
   HiOutlineBolt,
-  HiOutlineCheckCircle,
   HiOutlineArrowRight,
-  HiOutlineQuestionMarkCircle,
-} from 'react-icons/hi2'
+  HiOutlineQuestionMarkCircle } from 'react-icons/hi2'
 import { matchSolarProducts } from '../lib/multiCriteriaMatcher'
 import useModalBehavior from '../hooks/useModalBehavior'
 

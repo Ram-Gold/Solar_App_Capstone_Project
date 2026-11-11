@@ -1,25 +1,20 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   X,
   ShoppingBag,
-  TrendingUp,
-  Package,
   AlertTriangle,
   Check,
   Plus,
-  Minus,
-  ArrowRight,
-  Boxes
-} from 'lucide-react'
+  Minus } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import {
   getStockQuantity,
-  getStockBadgeConfig,
   executeManualSale,
   LOW_STOCK_THRESHOLD
 } from '../../lib/inventoryUtils'
 import { Button } from '../ui/button'
 import useModalBehavior from '../../hooks/useModalBehavior'
+import AnimatedConfirmation from '../ui/AnimatedConfirmation'
 
 export default function RecordSaleModal({ product, onClose, onSaleSuccess }) {
   const { backdropProps } = useModalBehavior({
@@ -29,11 +24,15 @@ export default function RecordSaleModal({ product, onClose, onSaleSuccess }) {
   const [unitsSold, setUnitsSold] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [isConfirmedTransition, setIsConfirmedTransition] = useState(false)
+  const [confirmedData, setConfirmedData] = useState(null)
 
   useEffect(() => {
     if (product) {
       setUnitsSold(1)
       setErrorMsg('')
+      setIsConfirmedTransition(false)
+      setConfirmedData(null)
     }
   }, [product])
 
@@ -93,15 +92,18 @@ export default function RecordSaleModal({ product, onClose, onSaleSuccess }) {
     try {
       setSubmitting(true)
       const result = await executeManualSale(supabase, product, qty)
-      if (onSaleSuccess) {
-        onSaleSuccess({
-          ...product,
-          stock_quantity: result.newStock,
-          sales: result.newSales,
-          in_stock: result.newInStock
-        })
+      const updatedProduct = {
+        ...product,
+        stock_quantity: result.newStock,
+        sales: result.newSales,
+        in_stock: result.newInStock,
       }
-      onClose()
+      setConfirmedData({
+        updatedProduct,
+        qty,
+        newStock: result.newStock,
+      })
+      setIsConfirmedTransition(true)
     } catch (err) {
       console.error('Failed to record sale:', err)
       setErrorMsg(err.message || 'Failed to record customer sale.')
@@ -119,7 +121,21 @@ export default function RecordSaleModal({ product, onClose, onSaleSuccess }) {
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg rounded-2xl border border-jds-outline-variant/40 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
       >
-        {/* Modal Header */}
+        {isConfirmedTransition ? (
+          <AnimatedConfirmation
+            title="Sale Recorded Successfully"
+            description={`Processed deduction of ${confirmedData?.qty || 1} unit(s). Current available inventory: ${confirmedData?.newStock ?? ''} units.`}
+            duration={1800}
+            onComplete={() => {
+              if (onSaleSuccess && confirmedData?.updatedProduct) {
+                onSaleSuccess(confirmedData.updatedProduct)
+              }
+              onClose()
+            }}
+          />
+        ) : (
+          <>
+            {/* Modal Header */}
         <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
@@ -309,6 +325,8 @@ export default function RecordSaleModal({ product, onClose, onSaleSuccess }) {
               </Button>
             </div>
           </form>
+        )}
+          </>
         )}
       </div>
     </div>

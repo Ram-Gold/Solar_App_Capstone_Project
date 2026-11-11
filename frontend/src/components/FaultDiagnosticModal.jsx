@@ -24,6 +24,7 @@ import {
 import { uploadEvidenceFile, submitWarrantyClaim } from '../lib/customerService'
 import { sanitizeText } from '../lib/sanitize.js'
 import useModalBehavior from '../hooks/useModalBehavior'
+import AnimatedConfirmation from './ui/AnimatedConfirmation'
 import {
   DIAGNOSTIC_TREE,
   DEFAULT_CRITERIA_STATE,
@@ -243,6 +244,7 @@ export default function FaultDiagnosticModal({
   const [uploadError, setUploadError] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
   const [submittedClaimId, setSubmittedClaimId] = useState(null)
+  const [isConfirmedTransition, setIsConfirmedTransition] = useState(false)
 
   const { backdropProps } = useModalBehavior({
     isOpen: Boolean(isOpen && purchase),
@@ -552,6 +554,7 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
 
       setIsSuccess(true)
       setSubmittedClaimId(res.claimId)
+      setIsConfirmedTransition(true)
       if (onClaimSubmitted) onClaimSubmitted()
     } catch (err) {
       console.error('Submission failed:', err)
@@ -564,6 +567,7 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
   const handleClose = () => {
     setIsSuccess(false)
     setSubmittedClaimId(null)
+    setIsConfirmedTransition(false)
     setDescription('')
     setFiles([])
     setUploadError('')
@@ -1088,31 +1092,41 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
 
             {/* Success State */}
             {isSuccess ? (
-              <div className="py-8 text-center space-y-4">
-                <div className="w-14 h-14 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-                <h3 className="text-lg font-bold text-jds-on-surface">
-                  Warranty Claim Submitted Successfully
-                </h3>
-                <p className="text-xs text-jds-on-surface-variant max-w-sm mx-auto leading-relaxed">
-                  Your diagnostic report has been filed with our service center. Our technicians at Quiapo and Cavite will evaluate your unit under our 24-month warranty guidelines.
-                </p>
-                {submittedClaimId && (
-                  <div className="p-3 rounded-xl bg-jds-surface-container/60 border border-jds-outline-variant/30 font-mono text-xs text-jds-primary font-bold">
-                    TICKET #CLAIM-{submittedClaimId.slice(0, 8).toUpperCase()}
+              isConfirmedTransition ? (
+                <AnimatedConfirmation
+                  title="Warranty Diagnostic Claim Filed"
+                  description="Your diagnostic dossier and fault report have been registered with our Quiapo and Cavite service hubs."
+                  referenceCode={submittedClaimId ? `TICKET #CLAIM-${submittedClaimId.slice(0, 8).toUpperCase()}` : undefined}
+                  duration={1800}
+                  onComplete={() => setIsConfirmedTransition(false)}
+                />
+              ) : (
+                <div className="py-8 text-center space-y-4">
+                  <div className="w-14 h-14 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="w-8 h-8" />
                   </div>
-                )}
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={handleClose}
-                    className="w-full py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-semibold text-xs hover:bg-jds-primary/90 transition-all shadow-sm cursor-pointer"
-                  >
-                    Return to Customer Dashboard
-                  </button>
+                  <h3 className="text-lg font-bold text-jds-on-surface">
+                    Warranty Claim Submitted Successfully
+                  </h3>
+                  <p className="text-xs text-jds-on-surface-variant max-w-sm mx-auto leading-relaxed">
+                    Your diagnostic report has been filed with our service center. Our technicians at Quiapo and Cavite will evaluate your unit under our 24-month warranty guidelines.
+                  </p>
+                  {submittedClaimId && (
+                    <div className="p-3 rounded-xl bg-jds-surface-container/60 border border-jds-outline-variant/30 font-mono text-xs text-jds-primary font-bold">
+                      TICKET #CLAIM-{submittedClaimId.slice(0, 8).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleClose}
+                      className="w-full py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-semibold text-xs hover:bg-jds-primary/90 transition-all shadow-sm cursor-pointer"
+                    >
+                      Return to Customer Dashboard
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )
             ) : (
               <form onSubmit={handleSubmitClaim} className="space-y-4">
 

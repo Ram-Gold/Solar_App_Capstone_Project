@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, renderHook } from '@testing-library/react'
-import React from 'react'
 import useModalBehavior from '../useModalBehavior'
 
 describe('useModalBehavior', () => {

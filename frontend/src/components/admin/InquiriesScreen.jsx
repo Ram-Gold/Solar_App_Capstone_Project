@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   CalendarDays,
   Calendar as CalendarIcon,
   Clock,
-  User,
-  Phone,
   Mail,
   Building2,
   Tag,
@@ -19,16 +17,11 @@ import {
   RefreshCw,
   ShoppingBag,
   Ticket,
-  Edit3,
   MapPin,
   Plus,
   List,
-  Eye,
   Copy,
   ExternalLink,
-  ShieldCheck,
-  SlidersHorizontal,
-  ChevronDown,
   Trash2,
   AlertTriangle
 } from 'lucide-react'
@@ -38,16 +31,14 @@ import {
   normalizeInquiryStatus,
   getInquiryStatusConfig,
   getInactiveInquiriesSummary,
-  isEligibleForAutoPurge,
-  PURGE_RETENTION_RULES
-} from '../../lib/inquiryStatusUtils'
-import { Button } from '../ui/button'
+  isEligibleForAutoPurge } from '../../lib/inquiryStatusUtils'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 import useModalBehavior from '../../hooks/useModalBehavior'
 import PhilippineAddressSelect from '../ui/PhilippineAddressSelect'
 import { formatFullAddress } from '../../lib/philippineAddresses'
 import { FaFacebook } from 'react-icons/fa'
 import { extractFacebookHandle, formatFacebookUrl } from '../../lib/facebookUtils'
+import AnimatedConfirmation from '../ui/AnimatedConfirmation'
 
 export const CALENDAR_START_HOUR = 7 // 07:00 AM
 export const CALENDAR_END_HOUR = 20  // 08:00 PM (13 hours: 7 to 19 inclusive)
@@ -492,6 +483,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
 
   // New inquiry walk-in modal
   const [isNewModalOpen, setIsNewModalOpen] = useState(false)
+  const [newSuccessTicket, setNewSuccessTicket] = useState(null)
   const [newCustName, setNewCustName] = useState('')
   const [newCustPhone, setNewCustPhone] = useState('')
   const [newCustEmail, setNewCustEmail] = useState('')
@@ -949,9 +941,6 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
 
       setModalSuccess('Inquiry schedule and status updated.')
       showToast(`Inquiry ${selectedInquiry.ticket_code} updated successfully.`)
-      setTimeout(() => {
-        handleCloseModal()
-      }, 700)
     } catch (err) {
       console.error('Failed to update inquiry in Supabase:', err)
       setModalError('Failed to save changes to database.')
@@ -1103,7 +1092,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         city: effectiveCity,
         barangay: effectiveBarangay,
         delivery_address: formattedAddress,
-        purpose_of_visitation: purpose,
+        purpose_of_visitation: newType === 'PICKUP' ? 'Store Pickup & Reservation' : 'Showroom Consultation',
         will_visit: true,
         store_branch: newBranch,
         visit_date: newVisitDate,
@@ -1141,26 +1130,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
       setInquiries((prev) => [finalRecord, ...prev])
 
       showToast(`Inquiry ${ticketCode} scheduled successfully.`)
-      setIsNewModalOpen(false)
-      // Reset form
-      setNewCustName('')
-      setNewCustPhone('')
-      setNewCustEmail('')
-      setNewCustFacebook('')
-      setNewCustStreetAddress('')
-      setNewCustProvince('')
-      setNewCustProvinceCode('')
-      setNewCustCity('')
-      setNewCustCityCode('')
-      setNewCustBarangay('')
-      setNewCustBarangayCode('')
-      setNewLocationErrors({})
-      setNewProduct('')
-      setNewWatt('')
-      setNewQuantity(1)
-      setNewVisitDate(getNextBusinessDay())
-      setNewVisitTime('09:00')
-      setNewStaffNotes('')
+      setNewSuccessTicket(finalRecord)
     } catch (err) {
       console.error('Failed to create walk-in inquiry:', err)
       setNewError('Failed to record inquiry. Please check database connection.')
@@ -1218,11 +1188,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             <button
               type="button"
               onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                viewMode === 'calendar'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${viewMode === 'calendar'
                   ? 'bg-white dark:bg-zinc-800 text-jds-primary shadow-2xs'
                   : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-              }`}
+                }`}
             >
               <CalendarDays className="w-3.5 h-3.5" />
               <span>Calendar</span>
@@ -1230,11 +1199,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             <button
               type="button"
               onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                viewMode === 'table'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${viewMode === 'table'
                   ? 'bg-white dark:bg-zinc-800 text-jds-primary shadow-2xs'
                   : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-              }`}
+                }`}
             >
               <List className="w-3.5 h-3.5" />
               <span>Table</span>
@@ -1257,11 +1225,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
           <button
             type="button"
             onClick={() => setIsPurgeModalOpen(true)}
-            className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
-              inactiveSummary.count > 0
+            className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${inactiveSummary.count > 0
                 ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 hover:bg-amber-100'
                 : 'border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface hover:bg-jds-surface-container'
-            }`}
+              }`}
             title="Purge obsolete and inactive inquiries from database"
           >
             <Trash2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
@@ -1368,33 +1335,30 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
               <button
                 type="button"
                 onClick={() => setCalendarSubView('week')}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                  calendarSubView === 'week'
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${calendarSubView === 'week'
                     ? 'bg-white dark:bg-zinc-800 text-jds-primary shadow-2xs'
                     : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                }`}
+                  }`}
               >
                 Week
               </button>
               <button
                 type="button"
                 onClick={() => setCalendarSubView('month')}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                  calendarSubView === 'month'
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${calendarSubView === 'month'
                     ? 'bg-white dark:bg-zinc-800 text-jds-primary shadow-2xs'
                     : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                }`}
+                  }`}
               >
                 Month
               </button>
               <button
                 type="button"
                 onClick={() => setCalendarSubView('day')}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                  calendarSubView === 'day'
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${calendarSubView === 'day'
                     ? 'bg-white dark:bg-zinc-800 text-jds-primary shadow-2xs'
                     : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                }`}
+                  }`}
               >
                 Day
               </button>
@@ -1485,19 +1449,17 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                       return (
                         <div
                           key={dateStr}
-                          className={`p-3 text-center border-r border-jds-outline-variant/20 last:border-r-0 ${
-                            isToday ? 'bg-jds-primary/5' : ''
-                          } ${isSunday ? 'bg-stone-100/50 dark:bg-zinc-900/40' : ''}`}
+                          className={`p-3 text-center border-r border-jds-outline-variant/20 last:border-r-0 ${isToday ? 'bg-jds-primary/5' : ''
+                            } ${isSunday ? 'bg-stone-100/50 dark:bg-zinc-900/40' : ''}`}
                         >
                           <div className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
                             {date.toLocaleDateString('en-US', { weekday: 'short' })}
                           </div>
                           <div
-                            className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold mt-1 ${
-                              isToday
+                            className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold mt-1 ${isToday
                                 ? 'bg-jds-primary text-white shadow-xs'
                                 : 'text-jds-on-surface'
-                            }`}
+                              }`}
                           >
                             {date.getDate()}
                           </div>
@@ -1546,9 +1508,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                       return (
                         <div
                           key={dateStr}
-                          className={`relative h-[1560px] border-r border-jds-outline-variant/20 last:border-r-0 ${
-                            isToday ? 'bg-jds-primary/[0.02]' : ''
-                          } ${isSunday ? 'bg-stone-50/60 dark:bg-zinc-900/20' : ''}`}
+                          className={`relative h-[1560px] border-r border-jds-outline-variant/20 last:border-r-0 ${isToday ? 'bg-jds-primary/[0.02]' : ''
+                            } ${isSunday ? 'bg-stone-50/60 dark:bg-zinc-900/20' : ''}`}
                         >
                           {/* Background 10-minute Sub-grid lines (droppable) */}
                           <div className="absolute inset-0 flex flex-col divide-y divide-jds-outline-variant/20 pointer-events-auto">
@@ -1564,19 +1525,17 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                                         onDragOver={(e) => handleDragOver(e, dateStr, hourObj.hour, subMin)}
                                         onDrop={(e) => handleDrop(e, dateStr, hourObj.hour, subMin)}
                                         title={`${formatMinutesToTime(hourObj.hour * 60 + subMin)} - Drag here to schedule`}
-                                        className={`h-[20px] transition-colors ${
-                                          !isSlotEnd
+                                        className={`h-[20px] transition-colors ${!isSlotEnd
                                             ? isHalfHour
                                               ? 'border-b border-jds-outline-variant/30'
                                               : 'border-b border-dashed border-jds-outline-variant/15'
                                             : ''
-                                        } ${
-                                          dragOverSlot?.dateStr === dateStr &&
-                                          dragOverSlot?.hour === hourObj.hour &&
-                                          dragOverSlot?.minute === subMin
+                                          } ${dragOverSlot?.dateStr === dateStr &&
+                                            dragOverSlot?.hour === hourObj.hour &&
+                                            dragOverSlot?.minute === subMin
                                             ? 'bg-jds-primary/20 ring-1 ring-jds-primary/40 ring-inset'
                                             : 'hover:bg-jds-primary/[0.04]'
-                                        }`}
+                                          }`}
                                       />
                                     )
                                   })}
@@ -1592,21 +1551,18 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                               className="absolute left-0 right-0 z-30 pointer-events-none flex items-center -translate-y-1/2"
                             >
                               <div
-                                className={`w-3 h-3 rounded-full ${
-                                  isOutOfOperatingHours
+                                className={`w-3 h-3 rounded-full ${isOutOfOperatingHours
                                     ? 'bg-amber-600 ring-2 ring-amber-300 dark:ring-amber-900'
                                     : 'bg-red-500 ring-2 ring-red-200 dark:ring-red-950'
-                                } shadow-sm -ml-1.5 shrink-0`}
+                                  } shadow-sm -ml-1.5 shrink-0`}
                               />
                               <div
-                                className={`h-[2px] flex-1 ${
-                                  isOutOfOperatingHours ? 'bg-amber-500/80' : 'bg-red-500/90'
-                                } shadow-xs`}
+                                className={`h-[2px] flex-1 ${isOutOfOperatingHours ? 'bg-amber-500/80' : 'bg-red-500/90'
+                                  } shadow-xs`}
                               />
                               <span
-                                className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-extrabold tracking-tight text-white shadow-xs ml-1 whitespace-nowrap ${
-                                  isOutOfOperatingHours ? 'bg-amber-600' : 'bg-red-600'
-                                }`}
+                                className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-extrabold tracking-tight text-white shadow-xs ml-1 whitespace-nowrap ${isOutOfOperatingHours ? 'bg-amber-600' : 'bg-red-600'
+                                  }`}
                               >
                                 {isOutOfOperatingHours
                                   ? `Outside Hours (${formattedCurrentTime})`
@@ -1631,11 +1587,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                                 onClick={() => handleOpenInquiry(ticket)}
                                 style={ticket.layout.style}
                                 title={`${ticket.customer_name} (${ticket.ticket_code})\nLocation: ${ticket.barangay ? 'Brgy. ' + ticket.barangay + ', ' : ''}${ticket.city || ''}${ticket.province ? ', ' + ticket.province : ''}\n${timeDisplay}\nStatus: ${statusConfig.label}`}
-                                className={`absolute p-2 rounded-xl text-left border cursor-pointer transition-all group overflow-hidden ${statusConfig.calendarClass} ${
-                                  isDragging
+                                className={`absolute p-2 rounded-xl text-left border cursor-pointer transition-all group overflow-hidden ${statusConfig.calendarClass} ${isDragging
                                     ? 'opacity-30 scale-95 pointer-events-none'
                                     : 'hover:z-30 hover:shadow-lg hover:ring-2 hover:ring-jds-primary/40'
-                                }`}
+                                  }`}
                               >
                                 {/* Header: Ticket Code & Status */}
                                 <div className="flex items-center justify-between gap-1 mb-0.5">
@@ -1712,17 +1667,14 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                         setCurrentDate(d)
                         setCalendarSubView('day')
                       }}
-                      className={`p-2 transition-colors cursor-pointer hover:bg-jds-surface-container-low/50 flex flex-col justify-between ${
-                        !isCurrentMonth ? 'opacity-40 bg-stone-50/30 dark:bg-zinc-900/30' : ''
-                      } ${isToday ? 'bg-jds-primary/5 ring-1 ring-jds-primary/30 ring-inset' : ''} ${
-                        isSunday ? 'bg-stone-50/50 dark:bg-zinc-900/20' : ''
-                      }`}
+                      className={`p-2 transition-colors cursor-pointer hover:bg-jds-surface-container-low/50 flex flex-col justify-between ${!isCurrentMonth ? 'opacity-40 bg-stone-50/30 dark:bg-zinc-900/30' : ''
+                        } ${isToday ? 'bg-jds-primary/5 ring-1 ring-jds-primary/30 ring-inset' : ''} ${isSunday ? 'bg-stone-50/50 dark:bg-zinc-900/20' : ''
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <span
-                          className={`text-xs font-bold inline-flex items-center justify-center w-6 h-6 rounded-full ${
-                            isToday ? 'bg-jds-primary text-white' : 'text-jds-on-surface'
-                          }`}
+                          className={`text-xs font-bold inline-flex items-center justify-center w-6 h-6 rounded-full ${isToday ? 'bg-jds-primary text-white' : 'text-jds-on-surface'
+                            }`}
                         >
                           {d.getDate()}
                         </span>
@@ -1816,11 +1768,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                   return (
                     <div
                       key={hourObj.hour}
-                      className={`flex gap-4 p-3 rounded-xl border transition-all ${
-                        isCurrentHourSlot
+                      className={`flex gap-4 p-3 rounded-xl border transition-all ${isCurrentHourSlot
                           ? 'border-jds-primary/40 ring-1 ring-jds-primary/30 bg-jds-primary/[0.03]'
                           : 'border-jds-outline-variant/20 bg-jds-surface-container-low/20'
-                      }`}
+                        }`}
                     >
                       <div className="w-24 shrink-0 font-bold text-xs text-jds-on-surface-variant pt-1 flex flex-col items-start gap-1">
                         <span>{hourObj.label}</span>
@@ -2022,6 +1973,16 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             onClick={(e) => e.stopPropagation()}
             className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-5 max-h-[92vh] overflow-y-auto my-auto"
           >
+            {modalSuccess ? (
+              <AnimatedConfirmation
+                title="Inquiry Updated Successfully"
+                description={modalSuccess}
+                referenceCode={selectedInquiry.ticket_code}
+                duration={1800}
+                onComplete={() => handleCloseModal()}
+              />
+            ) : (
+              <>
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
               <div>
@@ -2147,11 +2108,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                         key={st}
                         type="button"
                         onClick={() => setModalStatus(st)}
-                        className={`p-2.5 rounded-xl text-xs font-bold border text-left transition-all flex items-center justify-between ${
-                          isSelected
+                        className={`p-2.5 rounded-xl text-xs font-bold border text-left transition-all flex items-center justify-between ${isSelected
                             ? `${cfg.badgeClass} ring-2 ring-jds-primary/20`
                             : 'border-jds-outline-variant/30 text-jds-on-surface-variant hover:bg-jds-surface-container-low'
-                        }`}
+                          }`}
                       >
                         <span>{cfg.label}</span>
                         {isSelected && <Check className="w-3.5 h-3.5" />}
@@ -2189,7 +2149,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                     onClick={(e) => {
                       try {
                         e.currentTarget.showPicker?.()
-                      } catch (err) {}
+                      } catch (err) { }
                     }}
                     onChange={(e) => {
                       setModalDate(e.target.value)
@@ -2216,7 +2176,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                     onClick={(e) => {
                       try {
                         e.currentTarget.showPicker?.()
-                      } catch (err) {}
+                      } catch (err) { }
                     }}
                     onChange={(e) => {
                       setModalTime(e.target.value)
@@ -2316,6 +2276,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                 )}
               </button>
             </div>
+            </>
+            )}
           </div>
         </div>
       )}
@@ -2332,6 +2294,37 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             onClick={(e) => e.stopPropagation()}
             className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 max-h-[92vh] overflow-y-auto my-auto"
           >
+            {newSuccessTicket ? (
+              <AnimatedConfirmation
+                title="Showroom Appointment Scheduled"
+                description={`Showroom appointment booked for ${newSuccessTicket.customer_name} at ${newSuccessTicket.store_branch}.`}
+                referenceCode={newSuccessTicket.ticket_code}
+                duration={1800}
+                onComplete={() => {
+                  setNewSuccessTicket(null)
+                  setIsNewModalOpen(false)
+                  setNewCustName('')
+                  setNewCustPhone('')
+                  setNewCustEmail('')
+                  setNewCustFacebook('')
+                  setNewCustStreetAddress('')
+                  setNewCustProvince('')
+                  setNewCustProvinceCode('')
+                  setNewCustCity('')
+                  setNewCustCityCode('')
+                  setNewCustBarangay('')
+                  setNewCustBarangayCode('')
+                  setNewLocationErrors({})
+                  setNewProduct('')
+                  setNewWatt('')
+                  setNewQuantity(1)
+                  setNewVisitDate(getNextBusinessDay())
+                  setNewVisitTime('09:00')
+                  setNewStaffNotes('')
+                }}
+              />
+            ) : (
+              <>
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-3">
               <div>
                 <h3 className="text-lg font-bold text-jds-on-surface">Log New Customer Inquiry</h3>
@@ -2539,7 +2532,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                     onClick={(e) => {
                       try {
                         e.currentTarget.showPicker?.()
-                      } catch (err) {}
+                      } catch (err) { }
                     }}
                     onChange={(e) => {
                       setNewVisitDate(e.target.value)
@@ -2566,7 +2559,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                     onClick={(e) => {
                       try {
                         e.currentTarget.showPicker?.()
-                      } catch (err) {}
+                      } catch (err) { }
                     }}
                     onChange={(e) => {
                       setNewVisitTime(e.target.value)
@@ -2618,6 +2611,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                 </button>
               </div>
             </form>
+            </>
+            )}
           </div>
         </div>
       )}

@@ -146,7 +146,7 @@ export default function BrowsePage() {
         if (tier === 'out' || p.in_stock === false) return false
       }
 
-      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase())
+      const matchesSearch = (p.name || '').toLowerCase().includes(search.toLowerCase())
       const matchesCategory = activeCategory === 'All Products' || p.type === activeCategory
 
       let matchesPower = true
@@ -183,7 +183,7 @@ export default function BrowsePage() {
     .sort((a, b) => {
       if (sortBy === 'watt-low') return (a.watt || 0) - (b.watt || 0)
       if (sortBy === 'watt-high') return (b.watt || 0) - (a.watt || 0)
-      if (sortBy === 'name') return a.name.localeCompare(b.name)
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '')
       return b.id - a.id // newest
     })
 
@@ -193,7 +193,7 @@ export default function BrowsePage() {
 
   return (
     <div className="jds-page-bg font-inter text-jds-on-surface min-h-screen">
-      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-8 sm:py-12 overflow-x-hidden">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
           <div className="flex flex-col gap-2">
@@ -211,7 +211,7 @@ export default function BrowsePage() {
           </Link>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-8 items-start w-full">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-8 items-stretch md:items-start w-full">
           {/* Mobile Filter Toggle Button */}
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -222,7 +222,7 @@ export default function BrowsePage() {
           </button>
 
           {/* Sidebar */}
-          <aside className={`w-full md:w-80 flex-shrink-0 flex flex-col gap-8 ${showFilters ? 'block' : 'hidden md:flex'}`}>
+          <aside className={`w-full md:w-80 md:flex-shrink-0 flex-col gap-6 md:gap-8 ${showFilters ? 'flex' : 'hidden md:flex'}`}>
             {/* Search */}
             <div className="relative">
               <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-jds-on-surface-variant text-xl" />
@@ -238,7 +238,7 @@ export default function BrowsePage() {
             {/* Categories */}
             <div className="flex flex-col gap-4">
               <h3 className="text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Categories</h3>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 max-h-64 md:max-h-none overflow-y-auto">
                 {categories.map((cat) => (
                   <button
                     key={cat}
@@ -368,7 +368,7 @@ export default function BrowsePage() {
           </aside>
 
           {/* Main Content Grid */}
-          <div className="flex-grow">
+          <div className="flex-grow min-w-0 w-full">
             <div className="flex justify-between items-center mb-6">
               <p className="text-label-md text-jds-on-surface-variant">
                 Showing {loading ? '...' : `${Math.min(visibleCount, filtered.length)} of ${filtered.length}`} products
@@ -386,13 +386,13 @@ export default function BrowsePage() {
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="bg-jds-surface-container-lowest border border-jds-outline-variant rounded-lg p-4 animate-pulse">
-                    <div className="aspect-square rounded-lg bg-jds-surface-variant mb-4" />
-                    <div className="h-4 bg-jds-surface-variant rounded w-3/4 mb-2" />
-                    <div className="h-4 bg-jds-surface-variant rounded w-1/2 mb-4" />
-                    <div className="h-10 bg-jds-surface-variant rounded" />
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="bg-jds-surface-container-lowest border border-jds-outline-variant rounded-lg p-2.5 sm:p-4 animate-pulse">
+                    <div className="aspect-square rounded-lg bg-jds-surface-variant mb-2.5 sm:mb-4" />
+                    <div className="h-3 sm:h-4 bg-jds-surface-variant rounded w-3/4 mb-1.5 sm:mb-2" />
+                    <div className="h-3 sm:h-4 bg-jds-surface-variant rounded w-1/2 mb-2.5 sm:mb-4" />
+                    <div className="h-7 sm:h-10 bg-jds-surface-variant rounded" />
                   </div>
                 ))}
               </div>
@@ -402,15 +402,15 @@ export default function BrowsePage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                  className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6"
                 >
                   {displayedProducts.map((product, index) => (
                     <Link
                       key={product.id}
                       to={`/product/${product.id}`}
-                      className="bg-jds-surface-container-lowest flex flex-col border border-jds-outline-variant card-shadow rounded-lg p-4 cursor-pointer no-underline text-inherit"
+                      className="bg-jds-surface-container-lowest flex flex-col border border-jds-outline-variant card-shadow rounded-lg p-2.5 sm:p-4 cursor-pointer no-underline text-inherit group hover:border-jds-primary/40 transition-colors"
                     >
-                      <div className="aspect-square rounded-lg bg-jds-surface-variant mb-4 overflow-hidden relative flex items-center justify-center">
+                      <div className="aspect-square rounded-lg bg-jds-surface-variant mb-2 sm:mb-4 overflow-hidden relative flex items-center justify-center">
                         {product.image_url ? (
                           <ProductCardImage
                             src={product.image_url}
@@ -419,43 +419,43 @@ export default function BrowsePage() {
                           />
                         ) : (
                           <div className="flex flex-col items-center gap-2 text-jds-on-surface-variant/40">
-                            <HiOutlineBolt className="text-4xl" />
-                            <span className="text-label-sm">{product.watt}W</span>
+                            <HiOutlineBolt className="text-3xl sm:text-4xl" />
+                            <span className="text-[10px] sm:text-label-sm">{product.watt}W</span>
                           </div>
                         )}
                         {product.waterproof_grade && (
-                          <span className="absolute top-2 left-2 bg-jds-secondary-container text-jds-on-secondary-container px-2 py-0.5 rounded text-[10px] font-bold uppercase z-10">
+                          <span className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-jds-secondary-container text-jds-on-secondary-container px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold uppercase z-10">
                             {product.waterproof_grade}
                           </span>
                         )}
                       </div>
-                      <div className="flex-grow mb-4">
-                        <h3 className="text-label-md text-jds-on-surface font-bold line-clamp-2">{product.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-jds-secondary font-bold text-label-md">
+                      <div className="flex-grow mb-2 sm:mb-4 min-w-0">
+                        <h3 className="text-xs sm:text-label-md text-jds-on-surface font-bold line-clamp-2 leading-tight">{product.name}</h3>
+                        <div className="flex items-center gap-1.5 sm:gap-2 mt-1">
+                          <span className="text-jds-secondary font-bold text-xs sm:text-label-md">
                             {product.watt}W
                           </span>
-                          <span className="text-jds-on-surface-variant text-label-sm">
+                          <span className="text-jds-on-surface-variant text-[10px] sm:text-label-sm truncate">
                             · {product.waterproof_grade || 'IP65'}
                           </span>
                         </div>
                         {product.price_range ? (
-                          <div className="text-jds-primary font-bold text-body-lg mt-1">
+                          <div className="text-jds-primary font-bold text-xs sm:text-body-lg mt-0.5 sm:mt-1 truncate">
                             ₱{product.price_range}
                           </div>
                         ) : (
-                          <div className="text-jds-on-surface-variant font-medium text-label-sm mt-1">
-                            Inquire at Branch for Price
+                          <div className="text-jds-on-surface-variant font-medium text-[10px] sm:text-label-sm mt-0.5 sm:mt-1 truncate">
+                            Inquire at Branch
                           </div>
                         )}
                         {product.material && (
-                          <p className="text-label-sm text-jds-on-surface-variant mt-1 truncate">
+                          <p className="text-[10px] sm:text-label-sm text-jds-on-surface-variant mt-0.5 sm:mt-1 truncate">
                             {product.material}
                           </p>
                         )}
                       </div>
                       <div
-                        className="w-full border border-jds-secondary text-jds-secondary py-2 rounded text-label-md text-center block"
+                        className="w-full border border-jds-secondary text-jds-secondary py-1.5 sm:py-2 rounded text-[11px] sm:text-label-md font-semibold text-center block mt-auto group-hover:bg-jds-secondary group-hover:text-white transition-colors"
                       >
                         View Details
                       </div>

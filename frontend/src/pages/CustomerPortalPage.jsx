@@ -15,7 +15,6 @@ import {
   KeyRound,
   Lock,
   Mail,
-  Check,
   X,
   Trash2,
   FileText
@@ -27,11 +26,12 @@ import {
   deleteCustomerAccount
 } from '../lib/customerService'
 import { formatDate, formatRemainingText, getClaimStatusMeta } from '../lib/warrantyUtils'
-import { sanitizeEmail, sanitizeText } from '../lib/sanitize.js'
+import { sanitizeEmail } from '../lib/sanitize.js'
 import FaultDiagnosticModal from '../components/FaultDiagnosticModal'
 import WarrantyTermsModal from '../components/WarrantyTermsModal'
 import useModalBehavior from '../hooks/useModalBehavior'
 import { useAuth } from '../context/AuthContext'
+import AnimatedConfirmation from '../components/ui/AnimatedConfirmation'
 
 export default function CustomerPortalPage() {
   const [searchParams] = useSearchParams()
@@ -221,10 +221,6 @@ export default function CustomerPortalPage() {
       setPwdNew('')
       setPwdConfirm('')
       setPwdCurrent('')
-      setTimeout(() => {
-        setIsPasswordModalOpen(false)
-        setPwdSuccess(null)
-      }, 1500)
     } catch (err) {
       setPwdError(err.message || 'Failed to save password.')
     } finally {
@@ -790,14 +786,18 @@ export default function CustomerPortalPage() {
               </div>
             )}
 
-            {pwdSuccess && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-500 font-medium flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                <span>{pwdSuccess}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSavePassword} className="space-y-4">
+            {pwdSuccess ? (
+              <AnimatedConfirmation
+                title="Password Updated"
+                description={pwdSuccess}
+                duration={1800}
+                onComplete={() => {
+                  setIsPasswordModalOpen(false)
+                  setPwdSuccess(null)
+                }}
+              />
+            ) : (
+              <form onSubmit={handleSavePassword} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5 text-jds-on-surface-variant" />
@@ -876,6 +876,7 @@ export default function CustomerPortalPage() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

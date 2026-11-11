@@ -8,11 +8,7 @@ import {
   ChevronDown,
   ArrowUpRight,
   ShieldCheck,
-  MessageSquare,
-  Sparkles,
-  SlidersHorizontal,
-  Check,
-} from 'lucide-react'
+  MessageSquare } from 'lucide-react'
 import { LOCATIONS, POWER_PRESETS, BUDGET_PRESETS } from './PrototypeGuidedFlow'
 
 export default function PrototypeSpotlightMatrix({

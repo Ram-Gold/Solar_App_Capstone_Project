@@ -1,20 +1,17 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   ShieldCheck,
   Search,
-  Filter,
   CheckCircle2,
   Clock,
   AlertTriangle,
   XCircle,
   MessageSquare,
-  ExternalLink,
   RefreshCw,
   Phone,
   User,
   Calendar,
   Package,
-  Eye,
   X,
   FileText,
   Store,
@@ -39,7 +36,7 @@ import {
   restoreWarrantyClaim,
   deleteWarrantyClaim
 } from '../../lib/customerService'
-import { formatDate, getClaimStatusMeta, isWarrantyActive, getRemainingDays, CLAIM_STATUSES } from '../../lib/warrantyUtils'
+import { formatDate, getClaimStatusMeta, isWarrantyActive, getRemainingDays } from '../../lib/warrantyUtils'
 import useModalBehavior from '../../hooks/useModalBehavior'
 
 const KANBAN_COLUMNS = [

@@ -40,6 +40,7 @@ import {
 } from '../../lib/inventoryUtils'
 import { sanitizeText, sanitizeNumber } from '../../lib/sanitize.js'
 import useModalBehavior from '../../hooks/useModalBehavior'
+import AnimatedConfirmation from '../ui/AnimatedConfirmation'
 
 export const EDIT_FIELDS = [
   { key: 'name', label: 'Product Name', type: 'text', group: 'general' },
@@ -169,6 +170,7 @@ export default function ProductsScreen({ onNavigate }) {
   const [savingProduct, setSavingProduct] = useState(false)
   const [validationErrors, setValidationErrors] = useState({})
   const [editingImageUploading, setEditingImageUploading] = useState(false)
+  const [editSuccessMessage, setEditSuccessMessage] = useState(null)
   const editFileInputRef = useRef(null)
 
   // Stock Adjustment State
@@ -225,6 +227,7 @@ export default function ProductsScreen({ onNavigate }) {
     setShowConfirmModal(false)
     setPendingChanges([])
     setValidationErrors({})
+    setEditSuccessMessage(null)
   }, [])
 
   const loadCategories = useCallback(async () => {
@@ -388,8 +391,9 @@ export default function ProductsScreen({ onNavigate }) {
           : { ...editingProduct, stock_quantity: parsedQty, in_stock: parsedQty > 0 }
 
       setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...updated } : p)))
+      setShowConfirmModal(false)
+      setEditSuccessMessage(`Modifications saved for ${editingProduct.name || `Product #${id}`}.`)
       showToast('Product Updated', `Modifications saved for ${editingProduct.name || `Product #${id}`}.`, 'success')
-      handleCloseEdit()
     } catch (err) {
       console.error('Failed to save product:', err)
       showToast('Save Error', err.message || 'Failed to save product modifications.', 'error')
@@ -1757,6 +1761,17 @@ export default function ProductsScreen({ onNavigate }) {
             onClick={(e) => e.stopPropagation()}
             className="relative w-full max-w-5xl max-h-[92vh] flex flex-col rounded-2xl border border-jds-outline-variant/30 bg-jds-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-auto"
           >
+            {editSuccessMessage ? (
+              <div className="p-10 flex items-center justify-center min-h-[300px]">
+                <AnimatedConfirmation
+                  title="Product Specifications Saved"
+                  description={editSuccessMessage}
+                  duration={1800}
+                  onComplete={() => handleCloseEdit()}
+                />
+              </div>
+            ) : (
+              <>
             {/* Inline Confirmation Diff Modal */}
             {showConfirmModal && (
               <div
@@ -2113,6 +2128,8 @@ export default function ProductsScreen({ onNavigate }) {
                 </Button>
               </div>
             </div>
+            </>
+            )}
           </div>
         </div>
       )}

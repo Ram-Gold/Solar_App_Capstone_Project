@@ -16,13 +16,14 @@ import {
 } from 'lucide-react'
 import TermsOfServiceModal from './TermsOfServiceModal'
 import { FaFacebook, FaInstagram } from 'react-icons/fa'
-import { getInquiryStatusConfig, normalizeInquiryStatus } from '../lib/inquiryStatusUtils'
+import { getInquiryStatusConfig } from '../lib/inquiryStatusUtils'
 import { normalizePhMobile, isValidPhMobile } from '../lib/phoneUtils'
 import { sanitizeText, sanitizeEmail } from '../lib/sanitize.js'
 import PhilippineAddressSelect from './ui/PhilippineAddressSelect'
 import { formatFullAddress } from '../lib/philippineAddresses'
 import { extractFacebookHandle, formatFacebookUrl } from '../lib/facebookUtils'
 import useModalBehavior from '../hooks/useModalBehavior'
+import AnimatedConfirmation from './ui/AnimatedConfirmation'
 
 const BRANCHES = [
   {
@@ -132,11 +133,13 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
   // Generated Ticket State
   const [generatedTicket, setGeneratedTicket] = useState(null)
   const [errors, setErrors] = useState({})
+  const [isConfirmedTransition, setIsConfirmedTransition] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
       setMode(initialMode || 'reserve')
       setStep(initialStep || 1)
+      setIsConfirmedTransition(false)
       setErrors({})
       setCopied(false)
       setLoading(false)
@@ -318,12 +321,13 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
         console.error('LocalStorage write error:', storageErr)
       }
 
-      setGeneratedTicket(data && data[0] ? data[0] : payload)
-      setStep(3)
+      const finalTicket = data && data[0] ? data[0] : payload
+      setGeneratedTicket(finalTicket)
+      setIsConfirmedTransition(true)
     } catch (err) {
       console.error('Submission error:', err)
       setGeneratedTicket(payload)
-      setStep(3)
+      setIsConfirmedTransition(true)
     } finally {
       setLoading(false)
     }
@@ -364,23 +368,30 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
         <div className="mb-5">
           <div className="flex items-center gap-2 mb-1.5">
             <span className={`text-[11px] font-bold uppercase tracking-wider ${isReserve ? 'text-amber-600' : 'text-blue-600'}`}>
-              {step === 1 && (isReserve ? 'Step 01 · Stock Reservation' : 'Step 01 · Inquiry & Contact')}
-              {step === 2 && 'Step 02 · Store Branch & Time'}
-              {step === 3 && (isReserve ? 'Reservation Pass Ready' : 'Consultation Pass Ready')}
+              {isConfirmedTransition
+                ? 'Submission Confirmed'
+                : step === 1
+                  ? (isReserve ? 'Step 01 · Stock Reservation' : 'Step 01 · Inquiry & Contact')
+                  : step === 2
+                    ? 'Step 02 · Store Branch & Time'
+                    : (isReserve ? 'Reservation Pass Ready' : 'Consultation Pass Ready')}
             </span>
             <span className="h-1 w-1 rounded-full bg-stone-300" />
             <span className="text-[11px] font-medium text-stone-400">JD Force Solar</span>
           </div>
           <h2 className="text-xl font-black tracking-tight text-stone-900">
-            {step === 1 && (isReserve ? 'Reserve Unit for Store Pickup' : 'Product Inquiry & Consultation')}
-            {step === 2 && (isReserve ? 'Schedule Showroom Pickup' : 'Schedule Showroom Consultation')}
-            {step === 3 && (isReserve ? '48-Hour Stock Hold Pass' : 'Showroom Consultation Pass')}
+            {isConfirmedTransition
+              ? (isReserve ? 'Reservation Confirmed' : 'Consultation Confirmed')
+              : step === 1
+                ? (isReserve ? 'Reserve Unit for Store Pickup' : 'Product Inquiry & Consultation')
+                : step === 2
+                  ? (isReserve ? 'Schedule Showroom Pickup' : 'Schedule Showroom Consultation')
+                  : (isReserve ? '48-Hour Stock Hold Pass' : 'Showroom Consultation Pass')}
           </h2>
         </div>
 
-
         {/* Minimal Product Pill */}
-        {step < 3 && product && (
+        {step < 3 && !isConfirmedTransition && product && (
           <div className="mb-5 flex items-center justify-between p-3 rounded-2xl bg-stone-50 border border-stone-200/60">
             <div className="flex items-center gap-3 min-w-0">
               <div className="h-12 w-12 rounded-xl bg-white p-1 border border-stone-200/50 shrink-0 flex items-center justify-center">
@@ -421,8 +432,26 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
           </div>
         )}
 
+        {/* ================= CONFIRMATION SPLASH ANIMATION ================= */}
+        {isConfirmedTransition && (
+          <AnimatedConfirmation
+            title={isReserve ? 'Stock Hold Pass Confirmed' : 'Showroom Pass Confirmed'}
+            description={
+              isReserve
+                ? 'Your unit reservation has been registered. Preparing your digital showroom pass...'
+                : 'Your showroom consultation has been scheduled. Preparing your official pass...'
+            }
+            referenceCode={generatedTicket?.ticket_code}
+            duration={1800}
+            onComplete={() => {
+              setIsConfirmedTransition(false)
+              setStep(3)
+            }}
+          />
+        )}
+
         {/* ================= STEP 1: CONTACT & INTENT FORM ================= */}
-        {step === 1 && (
+        {!isConfirmedTransition && step === 1 && (
           <form onSubmit={handleNextToStep2} className="space-y-4">
             {/* Inquiry Topic Dropdown (Only for Inquiry Mode) */}
             {!isReserve && (
@@ -606,7 +635,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
         )}
 
         {/* ================= STEP 2: STORE VISIT & TIME ================= */}
-        {step === 2 && (
+        {!isConfirmedTransition && step === 2 && (
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Branch Selector Cards */}
             <div>
@@ -807,7 +836,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
         )}
 
         {/* ================= STEP 3: TICKET PASS ================= */}
-        {step === 3 && generatedTicket && (
+        {!isConfirmedTransition && step === 3 && generatedTicket && (
           <div className="space-y-5">
             <div className={`rounded-2xl border p-5 space-y-4 ${isReserve
               ? 'border-emerald-300 bg-emerald-50/40'

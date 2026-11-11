@@ -5,6 +5,7 @@ import { ArrowLeft, Upload, Image as ImageIcon, X, Link2, Check, Plus } from 'lu
 import CategoryModal from './CategoryModal'
 import { fetchCategoriesWithCounts, DEFAULT_CATEGORIES } from '../../lib/categories'
 import { sanitizeText, sanitizeNumber } from '../../lib/sanitize.js'
+import AnimatedConfirmation from '../ui/AnimatedConfirmation'
 
 
 export default function AddProductScreen({ onNavigate }) {
@@ -32,6 +33,7 @@ export default function AddProductScreen({ onNavigate }) {
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [isSuccess, setIsSuccess] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
   const [imageUploadError, setImageUploadError] = useState('')
   const fileInputRef = useRef(null)
@@ -145,16 +147,27 @@ export default function AddProductScreen({ onNavigate }) {
 
     if (insertError) {
       setError(insertError.message)
+      setSaving(false)
     } else {
-      onNavigate('products')
+      setIsSuccess(true)
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   const inputClass = "h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-8">
+      {isSuccess && (
+        <AnimatedConfirmation
+          isOpen={isSuccess}
+          isModal={true}
+          title="Product Added Successfully"
+          description={`${form.name || 'New solar product'} has been published to the catalog.`}
+          duration={1800}
+          onComplete={() => onNavigate('products')}
+        />
+      )}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => onNavigate('products')} className="h-10 w-10 text-jds-on-surface-variant hover:bg-jds-surface-container-low">
           <ArrowLeft className="h-5 w-5" />

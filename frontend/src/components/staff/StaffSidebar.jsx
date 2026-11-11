@@ -4,13 +4,11 @@ import {
   ShoppingCart,
   LogOut,
   Image as ImageIcon,
-  Ticket,
   QrCode,
   ShieldCheck,
   UserCheck,
   UserCircle,
-  CalendarDays,
-} from 'lucide-react'
+  CalendarDays } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
 import jdSolarLogo from '../../assets/jdsolarlogo.webp'

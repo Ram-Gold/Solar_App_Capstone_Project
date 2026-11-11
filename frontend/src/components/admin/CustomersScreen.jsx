@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Users,
   Search,
@@ -23,13 +23,8 @@ import {
   Eye,
   EyeOff,
   X,
-  Edit2,
   Save,
-  ArrowRight,
-  Clock,
-  Hash,
-  AlertCircle
-} from 'lucide-react'
+  Clock } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../context/AuthContext'
 import {

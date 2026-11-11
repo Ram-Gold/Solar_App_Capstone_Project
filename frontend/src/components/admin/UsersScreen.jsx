@@ -6,7 +6,7 @@ import { deletePlatformUser } from '../../lib/customerService'
 import { sanitizeText, sanitizePhone, isValidPhone, sanitizeEmail } from '../../lib/sanitize.js'
 import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
-import { Trash2, Plus, X, Shield, Users as UsersIcon, CalendarDays, Mail, Phone, Briefcase, UserPlus, AlertTriangle } from 'lucide-react'
+import { Trash2, X, Shield, Users as UsersIcon, CalendarDays, Mail, Phone, Briefcase, UserPlus, AlertTriangle } from 'lucide-react'
 import useModalBehavior from '../../hooks/useModalBehavior'
 
 export default function UsersScreen() {

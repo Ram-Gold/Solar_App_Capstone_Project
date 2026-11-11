@@ -8,10 +8,8 @@ import {
   SlidersHorizontal,
   ArrowUpRight,
   ShieldCheck,
-  MessageSquare,
-  Sparkles,
-} from 'lucide-react'
-import { LOCATIONS, POWER_PRESETS, BUDGET_PRESETS } from './PrototypeGuidedFlow'
+  MessageSquare } from 'lucide-react'
+import { LOCATIONS, BUDGET_PRESETS } from './PrototypeGuidedFlow'
 
 export default function PrototypeSpatialBento({
   criteria,

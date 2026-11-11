@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { Printer, Copy, Check, X, ShieldCheck, Calendar, Phone, User, Store, Key, ExternalLink } from 'lucide-react'
+import { Printer, Copy, Check, X, ShieldCheck, Phone, User, Key } from 'lucide-react'
 import { formatDate } from '../../lib/warrantyUtils'
 import useModalBehavior from '../../hooks/useModalBehavior'
 

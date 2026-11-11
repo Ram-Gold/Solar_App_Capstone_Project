@@ -1,20 +1,14 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
-  UserPlus,
-  Search,
   Plus,
   Trash2,
   QrCode,
-  ShieldCheck,
   CheckCircle2,
   AlertCircle,
   Store,
   Phone,
   User,
-  Package,
-  Calendar,
-  Sparkles
-} from 'lucide-react'
+  Package } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { searchCustomerByPhone, registerCustomerAndSale } from '../../lib/customerService'
 import { sanitizePhone, isValidPhone, sanitizeText, sanitizeSerialNumber, sanitizeNumber } from '../../lib/sanitize.js'

@@ -2,8 +2,6 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   HiOutlineSparkles,
-  HiOutlineCpuChip,
-  HiOutlineWrenchScrewdriver,
   HiOutlineCheckBadge,
   HiOutlineBolt,
   HiOutlineMapPin,
@@ -13,8 +11,7 @@ import {
   HiOutlineShieldCheck,
   HiOutlineUserGroup,
   HiOutlineScale,
-  HiOutlineLightBulb,
-} from 'react-icons/hi2'
+  HiOutlineLightBulb } from 'react-icons/hi2'
 
 import pic2 from '../assets/pictures/pic2.jpg'
 import pic6 from '../assets/pictures/pic6.jpg'
