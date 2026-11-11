@@ -40,6 +40,7 @@ import {
   deleteWarrantyClaim
 } from '../../lib/customerService'
 import { formatDate, getClaimStatusMeta, isWarrantyActive, getRemainingDays, CLAIM_STATUSES } from '../../lib/warrantyUtils'
+import useModalBehavior from '../../hooks/useModalBehavior'
 
 const KANBAN_COLUMNS = [
   {
@@ -107,6 +108,25 @@ export default function WarrantyClaimsScreen() {
   const [claimToDelete, setClaimToDelete] = useState(null)
   const [claimToRestore, setClaimToRestore] = useState(null)
   const [actionLoading, setActionLoading] = useState(false)
+
+  const anyClaimModalOpen = Boolean(
+    activeModalClaim ||
+    selectedMedia ||
+    claimToArchive ||
+    claimToDelete ||
+    claimToRestore
+  )
+
+  useModalBehavior({
+    isOpen: anyClaimModalOpen,
+    onClose: () => {
+      if (selectedMedia) setSelectedMedia(null)
+      else if (claimToDelete && !actionLoading) setClaimToDelete(null)
+      else if (claimToRestore && !actionLoading) setClaimToRestore(null)
+      else if (claimToArchive && !actionLoading) setClaimToArchive(null)
+      else if (activeModalClaim && !modalSaving) handleCloseModal()
+    },
+  })
 
   // Drag-and-drop state
   const [draggingClaimId, setDraggingClaimId] = useState(null)
@@ -854,7 +874,10 @@ export default function WarrantyClaimsScreen() {
             if (e.target === e.currentTarget && !modalSaving) handleCloseModal()
           }}
         >
-          <div className="relative w-full max-w-5xl max-h-[90vh] flex flex-col rounded-3xl bg-jds-surface dark:bg-[#18140e] shadow-2xl border border-jds-outline-variant/20 dark:border-white/10 overflow-hidden my-auto animate-in zoom-in-95 duration-200">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-5xl max-h-[90vh] flex flex-col rounded-3xl bg-jds-surface dark:bg-[#18140e] shadow-2xl border border-jds-outline-variant/20 dark:border-white/10 overflow-hidden my-auto animate-in zoom-in-95 duration-200"
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between px-7 py-5 border-b border-jds-outline-variant/15 bg-jds-surface-container-lowest/80 dark:bg-white/[0.02] backdrop-blur-sm shrink-0">
               <div className="flex flex-wrap items-center gap-3">
@@ -1244,7 +1267,10 @@ export default function WarrantyClaimsScreen() {
             if (e.target === e.currentTarget && !actionLoading) setClaimToArchive(null)
           }}
         >
-          <div className="w-full max-w-md rounded-2xl border border-jds-outline-variant/40 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl border border-jds-outline-variant/40 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
+          >
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
@@ -1338,7 +1364,10 @@ export default function WarrantyClaimsScreen() {
             if (e.target === e.currentTarget && !actionLoading) setClaimToRestore(null)
           }}
         >
-          <div className="w-full max-w-md rounded-2xl border border-emerald-500/30 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl border border-emerald-500/30 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
+          >
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -1426,7 +1455,10 @@ export default function WarrantyClaimsScreen() {
             if (e.target === e.currentTarget && !actionLoading) setClaimToDelete(null)
           }}
         >
-          <div className="w-full max-w-md rounded-2xl border border-rose-500/30 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl border border-rose-500/30 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
+          >
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
@@ -1518,7 +1550,10 @@ export default function WarrantyClaimsScreen() {
           className="fixed inset-0 z-60 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150"
           onClick={() => setSelectedMedia(null)}
         >
-          <div className="relative max-w-4xl max-h-[85vh] bg-black rounded-2xl overflow-hidden p-2 shadow-2xl">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-4xl max-h-[85vh] bg-black rounded-2xl overflow-hidden p-2 shadow-2xl"
+          >
             <button
               onClick={() => setSelectedMedia(null)}
               className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black/90 transition-colors cursor-pointer"

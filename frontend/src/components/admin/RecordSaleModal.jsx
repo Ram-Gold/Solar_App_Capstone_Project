@@ -19,8 +19,13 @@ import {
   LOW_STOCK_THRESHOLD
 } from '../../lib/inventoryUtils'
 import { Button } from '../ui/button'
+import useModalBehavior from '../../hooks/useModalBehavior'
 
 export default function RecordSaleModal({ product, onClose, onSaleSuccess }) {
+  const { backdropProps } = useModalBehavior({
+    isOpen: Boolean(product),
+    onClose,
+  })
   const [unitsSold, setUnitsSold] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -107,12 +112,13 @@ export default function RecordSaleModal({ product, onClose, onSaleSuccess }) {
 
   return (
     <div
+      {...backdropProps}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
     >
-      <div className="w-full max-w-lg rounded-2xl border border-jds-outline-variant/40 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-2xl border border-jds-outline-variant/40 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
+      >
         {/* Modal Header */}
         <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
           <div className="flex items-center gap-3">

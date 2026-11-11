@@ -1,30 +1,20 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import useModalBehavior from '../hooks/useModalBehavior'
 
 export default function TermsOfServiceModal({ isOpen, onClose }) {
-  useEffect(() => {
-    if (!isOpen) return
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        onClose?.()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose])
+  const { backdropProps } = useModalBehavior({ isOpen, onClose })
 
   if (!isOpen) return null
 
   return (
     <AnimatePresence>
       <div
+        {...backdropProps}
         className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto"
         role="dialog"
         aria-modal="true"
         aria-labelledby="terms-service-title"
-        onClick={onClose}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.98, y: 8 }}

@@ -9,8 +9,8 @@
 ---
 
 ## 1. Executive Summary
-
 The JD Solar platform employs a defense-in-depth architecture. Security is not handled at a single checkpoint (such as a frontend route); instead, security controls are layered across the user interface, client-side routing, API communication, and the database engine.
+
 
 Key principles enforced across the application:
 * **Principle of Least Privilege:** Users and frontend clients receive only the permissions strictly required to perform their role.

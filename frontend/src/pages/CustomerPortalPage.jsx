@@ -30,6 +30,7 @@ import { formatDate, formatRemainingText, getClaimStatusMeta } from '../lib/warr
 import { sanitizeEmail, sanitizeText } from '../lib/sanitize.js'
 import FaultDiagnosticModal from '../components/FaultDiagnosticModal'
 import WarrantyTermsModal from '../components/WarrantyTermsModal'
+import useModalBehavior from '../hooks/useModalBehavior'
 import { useAuth } from '../context/AuthContext'
 
 export default function CustomerPortalPage() {
@@ -71,6 +72,21 @@ export default function CustomerPortalPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
+
+  const { backdropProps: passwordBackdropProps } = useModalBehavior({
+    isOpen: isPasswordModalOpen,
+    onClose: () => setIsPasswordModalOpen(false),
+  })
+
+  const { backdropProps: deleteBackdropProps } = useModalBehavior({
+    isOpen: isDeleteModalOpen,
+    onClose: () => {
+      if (!isDeletingAccount) {
+        setIsDeleteModalOpen(false)
+        setDeleteError(null)
+      }
+    },
+  })
 
   // Warranty Terms & Policy Modal States
   const [isWarrantyModalOpen, setIsWarrantyModalOpen] = useState(false)
@@ -737,8 +753,14 @@ export default function CustomerPortalPage() {
 
       {/* Password Management Modal */}
       {isPasswordModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto">
-          <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+        <div
+          {...passwordBackdropProps}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative"
+          >
             <div className="flex items-center justify-between border-b border-jds-outline-variant/20 pb-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-jds-primary/10 text-jds-primary flex items-center justify-center">
@@ -872,8 +894,14 @@ export default function CustomerPortalPage() {
 
       {/* Delete Customer Account Confirmation Modal */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto">
-          <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+        <div
+          {...deleteBackdropProps}
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />

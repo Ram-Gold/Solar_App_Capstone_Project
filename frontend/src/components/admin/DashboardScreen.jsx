@@ -39,6 +39,7 @@ import {
   filterAndSortProducts,
   SORT_OPTIONS,
 } from '../../lib/inventoryUtils'
+import useModalBehavior from '../../hooks/useModalBehavior'
 
 export default function DashboardScreen({ onNavigate }) {
   const [products, setProducts] = useState([])
@@ -84,6 +85,21 @@ export default function DashboardScreen({ onNavigate }) {
   const [savingProduct, setSavingProduct] = useState(false)
   const [editingImageUploading, setEditingImageUploading] = useState(false)
   const editFileInputRef = useRef(null)
+
+  const anyDashboardModalOpen = Boolean(
+    editingProduct ||
+    quickRestockItem ||
+    directConfirmAction
+  )
+
+  useModalBehavior({
+    isOpen: anyDashboardModalOpen,
+    onClose: () => {
+      if (directConfirmAction && !directConfirmLoading) setDirectConfirmAction(null)
+      else if (quickRestockItem && !updatingStock) setQuickRestockItem(null)
+      else if (editingProduct && !savingProduct) handleCloseEdit()
+    },
+  })
 
   const loadCategories = useCallback(async () => {
     try {
@@ -1024,7 +1040,10 @@ export default function DashboardScreen({ onNavigate }) {
             }
           }}
         >
-          <div className="w-full max-w-sm rounded-2xl border border-jds-outline-variant/30 bg-jds-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl border border-jds-outline-variant/30 bg-jds-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
+          >
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-jds-primary/10 text-jds-primary">
@@ -1176,7 +1195,10 @@ export default function DashboardScreen({ onNavigate }) {
             }
           }}
         >
-          <div className="w-full max-w-sm rounded-2xl border border-jds-outline-variant/30 bg-jds-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl border border-jds-outline-variant/30 bg-jds-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
+          >
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-jds-primary/10 text-jds-primary">
@@ -1261,7 +1283,10 @@ export default function DashboardScreen({ onNavigate }) {
             }
           }}
         >
-          <div className="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl border border-jds-outline-variant/30 bg-jds-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 relative">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl border border-jds-outline-variant/30 bg-jds-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 relative"
+          >
             {/* Diff Confirmation Dialog Overlay */}
             {showConfirmModal && (
               <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-6">

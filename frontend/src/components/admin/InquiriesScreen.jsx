@@ -43,6 +43,7 @@ import {
 } from '../../lib/inquiryStatusUtils'
 import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
+import useModalBehavior from '../../hooks/useModalBehavior'
 import PhilippineAddressSelect from '../ui/PhilippineAddressSelect'
 import { formatFullAddress } from '../../lib/philippineAddresses'
 import { FaFacebook } from 'react-icons/fa'
@@ -440,6 +441,23 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
   // Bulk inactive purge modal state
   const [isPurgeModalOpen, setIsPurgeModalOpen] = useState(false)
   const [isPurging, setIsPurging] = useState(false)
+
+  const anyInquiryModalOpen = Boolean(
+    selectedInquiry ||
+    isNewModalOpen ||
+    ticketToDelete ||
+    isPurgeModalOpen
+  )
+
+  useModalBehavior({
+    isOpen: anyInquiryModalOpen,
+    onClose: () => {
+      if (isPurgeModalOpen && !isPurging) setIsPurgeModalOpen(false)
+      else if (ticketToDelete && !isDeletingTicket) setTicketToDelete(null)
+      else if (isNewModalOpen && !newCreating) setIsNewModalOpen(false)
+      else if (selectedInquiry && !modalSaving) handleCloseModal()
+    },
+  })
 
   // Real-time calendar clock state
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -2000,7 +2018,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             if (e.target === e.currentTarget && !modalSaving) handleCloseModal()
           }}
         >
-          <div className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-5 max-h-[92vh] overflow-y-auto my-auto">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-5 max-h-[92vh] overflow-y-auto my-auto"
+          >
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
               <div>
@@ -2307,7 +2328,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             if (e.target === e.currentTarget && !newCreating) setIsNewModalOpen(false)
           }}
         >
-          <div className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 max-h-[92vh] overflow-y-auto my-auto">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 max-h-[92vh] overflow-y-auto my-auto"
+          >
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-3">
               <div>
                 <h3 className="text-lg font-bold text-jds-on-surface">Log New Customer Inquiry</h3>
@@ -2606,7 +2630,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             if (e.target === e.currentTarget && !isDeletingTicket) setTicketToDelete(null)
           }}
         >
-          <div className="bg-jds-surface rounded-2xl max-w-md w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 my-auto">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-jds-surface rounded-2xl max-w-md w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 my-auto"
+          >
             <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
               <div className="p-2.5 rounded-full bg-rose-100 dark:bg-rose-950/50">
                 <AlertTriangle className="w-5 h-5" />
@@ -2682,7 +2709,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             if (e.target === e.currentTarget && !isPurging) setIsPurgeModalOpen(false)
           }}
         >
-          <div className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 my-auto">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-jds-surface rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 my-auto"
+          >
             <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
               <div className="p-2.5 rounded-full bg-amber-100 dark:bg-amber-950/50">
                 <Trash2 className="w-5 h-5" />

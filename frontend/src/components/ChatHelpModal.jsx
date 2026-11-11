@@ -7,8 +7,11 @@ import {
   HiOutlineClock,
   HiOutlineCircleStack,
 } from 'react-icons/hi2'
+import useModalBehavior from '../hooks/useModalBehavior'
 
 export default function ChatHelpModal({ isOpen, onClose }) {
+  const { backdropProps } = useModalBehavior({ isOpen, onClose })
+
   if (!isOpen) return null
 
   return (
@@ -19,7 +22,7 @@ export default function ChatHelpModal({ isOpen, onClose }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          {...backdropProps}
           className="fixed inset-0 bg-neutral-900/50 backdrop-blur-xs"
         />
 
@@ -28,6 +31,7 @@ export default function ChatHelpModal({ isOpen, onClose }) {
           initial={{ opacity: 0, scale: 0.96, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 10 }}
+          onClick={(e) => e.stopPropagation()}
           className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-jds-outline-variant/30 overflow-hidden z-10"
         >
           {/* Header */}

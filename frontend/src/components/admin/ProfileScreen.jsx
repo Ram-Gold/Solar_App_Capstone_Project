@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { deletePlatformUser } from '../../lib/customerService'
 import { sanitizeText, sanitizePhone, isValidPhone } from '../../lib/sanitize.js'
 import { Button } from '../ui/button'
+import useModalBehavior from '../../hooks/useModalBehavior'
 
 export default function ProfileScreen() {
   const { user, role, signOut } = useAuth()
@@ -20,6 +21,13 @@ export default function ProfileScreen() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+
+  const { backdropProps } = useModalBehavior({
+    isOpen: isDeleteModalOpen,
+    onClose: () => {
+      if (!isDeleting) setIsDeleteModalOpen(false)
+    },
+  })
 
   const tableName = role === 'admin' ? 'admins' : 'staff'
 
@@ -226,8 +234,14 @@ export default function ProfileScreen() {
 
       {/* Delete Own Account Confirmation Modal */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150">
+        <div
+          {...backdropProps}
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />

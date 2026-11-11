@@ -22,6 +22,7 @@ import { sanitizeText, sanitizeEmail } from '../lib/sanitize.js'
 import PhilippineAddressSelect from './ui/PhilippineAddressSelect'
 import { formatFullAddress } from '../lib/philippineAddresses'
 import { extractFacebookHandle, formatFacebookUrl } from '../lib/facebookUtils'
+import useModalBehavior from '../hooks/useModalBehavior'
 
 const BRANCHES = [
   {
@@ -99,6 +100,7 @@ const formatDisplayTime = (timeStr) => {
 }
 
 export default function QuoteModal({ isOpen, onClose, product, initialMode = 'reserve', initialStep = 1 }) {
+  const { backdropProps } = useModalBehavior({ isOpen, onClose })
   const [mode, setMode] = useState(initialMode) // 'reserve' | 'inquire'
   const [step, setStep] = useState(initialStep) // 1: Contact, 2: Visit & Time, 3: Ticket Pass
   const [loading, setLoading] = useState(false)
@@ -337,12 +339,16 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
   const minBusinessDateStr = getNextBusinessDay()
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      {...backdropProps}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.98, y: 10 }}
         transition={{ duration: 0.2 }}
+        onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-lg bg-white rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] p-6 sm:p-8 overflow-hidden my-auto max-h-[92vh] overflow-y-auto no-scrollbar font-inter"
       >
         {/* Floating Minimalist Close Button */}

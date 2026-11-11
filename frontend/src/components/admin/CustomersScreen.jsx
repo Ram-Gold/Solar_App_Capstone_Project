@@ -45,6 +45,7 @@ import {
 import { formatDate, calculateExpiryDate } from '../../lib/warrantyUtils'
 import { sanitizeText, sanitizePhone, isValidPhone, sanitizeSerialNumber, sanitizeNumber } from '../../lib/sanitize.js'
 import QRReceiptModal from './QRReceiptModal'
+import useModalBehavior from '../../hooks/useModalBehavior'
 
 export default function CustomersScreen({ onNavigate, onSelectCustomerForSale }) {
   const { role } = useAuth()
@@ -103,6 +104,25 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
   const [customerActionBanner, setCustomerActionBanner] = useState(null)
 
   const [unitActionMessage, setUnitActionMessage] = useState(null)
+
+  const anyCustomerModalOpen = Boolean(
+    selectedCustomer ||
+    voidingPurchase ||
+    extendingPurchase ||
+    removingPurchase ||
+    deletingCustomer
+  )
+
+  useModalBehavior({
+    isOpen: anyCustomerModalOpen,
+    onClose: () => {
+      if (deletingCustomer && !isDeletingCustomer) setDeletingCustomer(null)
+      else if (removingPurchase && !isSubmittingRemoval) setRemovingPurchase(null)
+      else if (extendingPurchase && !isSubmittingExtension) setExtendingPurchase(null)
+      else if (voidingPurchase && !isSubmittingVoid) setVoidingPurchase(null)
+      else if (selectedCustomer && !isSavingProfile && !isSavingProduct) setSelectedCustomer(null)
+    },
+  })
 
   const loadData = async () => {
     try {
@@ -799,8 +819,18 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
       {/* Customer Detail & Management Modal */}
       {selectedCustomer && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="w-full max-w-2xl max-h-[90vh] bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSavingProfile && !isSavingProduct) {
+              setSelectedCustomer(null)
+            }
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl max-h-[90vh] bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+          >
             {/* Modal Header */}
             <div className="p-5 border-b border-jds-outline-variant/30 flex items-center justify-between gap-3 bg-jds-surface-container-low/20 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
@@ -1345,8 +1375,18 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
       {/* Void Warranty Modal */}
       {voidingPurchase && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSubmittingVoid) {
+              setVoidingPurchase(null)
+            }
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
                 <ShieldAlert className="w-5 h-5" />
@@ -1430,8 +1470,18 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
       {/* Extend Warranty Modal */}
       {extendingPurchase && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSubmittingExtension) {
+              setExtendingPurchase(null)
+            }
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center shrink-0">
                 <Clock className="w-5 h-5" />
@@ -1522,8 +1572,18 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
       {/* Remove Unit Confirmation Modal */}
       {removingPurchase && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSubmittingRemoval) {
+              setRemovingPurchase(null)
+            }
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />
@@ -1580,8 +1640,18 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
 
       {/* Delete Customer Account Confirmation Modal (Admin Only) */}
       {deletingCustomer && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150">
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isDeletingCustomer) {
+              setDeletingCustomer(null)
+            }
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />

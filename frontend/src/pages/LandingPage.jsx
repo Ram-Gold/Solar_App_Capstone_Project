@@ -21,7 +21,7 @@ import pic13 from '../assets/pictures/pic13.jpg'
 import pic14 from '../assets/pictures/pic14.jpg'
 import pic15 from '../assets/pictures/pic15.jpg'
 import { HiOutlineChevronLeft, HiOutlineChevronRight } from 'react-icons/hi2'
-import { useRef } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -78,12 +78,62 @@ const galleryItems = [
 
 export default function LandingPage() {
   const scrollRef = useRef(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(true)
+
+  const updateScrollButtons = useCallback(() => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
+      setCanScrollLeft(scrollLeft > 10)
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 15)
+    }
+  }, [])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    updateScrollButtons()
+    const timer = setTimeout(updateScrollButtons, 300)
+
+    el.addEventListener('scroll', updateScrollButtons, { passive: true })
+    window.addEventListener('resize', updateScrollButtons)
+
+    return () => {
+      clearTimeout(timer)
+      el.removeEventListener('scroll', updateScrollButtons)
+      window.removeEventListener('resize', updateScrollButtons)
+    }
+  }, [updateScrollButtons])
 
   const scroll = (direction) => {
-    if (scrollRef.current) {
-      const { scrollLeft, clientWidth } = scrollRef.current
-      const scrollTo = direction === 'left' ? scrollLeft - clientWidth / 2 : scrollLeft + clientWidth / 2
-      scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' })
+    const container = scrollRef.current
+    if (!container) return
+
+    const { scrollLeft, scrollWidth, clientWidth } = container
+    const items = container.querySelectorAll('[data-gallery-item]')
+    const containerRect = container.getBoundingClientRect()
+
+    const offsets = Array.from(items).map((el) => {
+      return Math.round(el.getBoundingClientRect().left - containerRect.left + container.scrollLeft)
+    })
+
+    const sortedOffsets = offsets.sort((a, b) => a - b)
+    const uniqueOffsets = sortedOffsets.filter((pos, idx, arr) => {
+      return idx === 0 || Math.abs(pos - arr[idx - 1]) > 15
+    })
+
+    const buffer = 15
+    const maxScroll = scrollWidth - clientWidth
+
+    if (direction === 'right') {
+      const nextOffset = uniqueOffsets.find((pos) => pos > scrollLeft + buffer)
+      const target = nextOffset !== undefined ? Math.min(nextOffset, maxScroll) : maxScroll
+      container.scrollTo({ left: target, behavior: 'smooth' })
+    } else {
+      const prevOffsets = uniqueOffsets.filter((pos) => pos < scrollLeft - buffer)
+      const target = prevOffsets.length > 0 ? Math.max(0, prevOffsets[prevOffsets.length - 1]) : 0
+      container.scrollTo({ left: target, behavior: 'smooth' })
     }
   }
 
@@ -304,14 +354,24 @@ export default function LandingPage() {
           <div className="flex gap-4">
             <button
               onClick={() => scroll('left')}
-              className="w-12 h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface hover:bg-jd-primary hover:text-jd-on-primary hover:border-jd-primary transition-all shadow-sm"
+              disabled={!canScrollLeft}
+              className={`w-12 h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface transition-all shadow-sm ${
+                canScrollLeft
+                  ? 'hover:bg-jd-primary hover:text-jd-on-primary hover:border-jd-primary cursor-pointer'
+                  : 'opacity-40 cursor-not-allowed pointer-events-none'
+              }`}
               aria-label="Scroll left"
             >
               <HiOutlineChevronLeft size={24} />
             </button>
             <button
               onClick={() => scroll('right')}
-              className="w-12 h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface hover:bg-jd-primary hover:text-jd-on-primary hover:border-jd-primary transition-all shadow-sm"
+              disabled={!canScrollRight}
+              className={`w-12 h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface transition-all shadow-sm ${
+                canScrollRight
+                  ? 'hover:bg-jd-primary hover:text-jd-on-primary hover:border-jd-primary cursor-pointer'
+                  : 'opacity-40 cursor-not-allowed pointer-events-none'
+              }`}
               aria-label="Scroll right"
             >
               <HiOutlineChevronRight size={24} />
@@ -331,6 +391,7 @@ export default function LandingPage() {
           {galleryItems.map((item, index) => (
             <motion.div
               key={index}
+              data-gallery-item
               variants={fadeInUp}
               className={`flex-shrink-0 snap-start relative overflow-hidden rounded-[2rem] shadow-xl
                 ${item.rowSpan === 2 ? 'row-span-2' : 'row-span-1'}

@@ -8,6 +8,7 @@ import {
   updateCategory,
   deleteCategory,
 } from '../../lib/categories'
+import useModalBehavior from '../../hooks/useModalBehavior'
 
 export default function CategoryModal({
   isOpen,
@@ -55,16 +56,7 @@ export default function CategoryModal({
     }
   }, [isOpen])
 
-  // Close on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose])
+  const { backdropProps } = useModalBehavior({ isOpen, onClose })
 
   if (!isOpen) return null
 
@@ -160,8 +152,12 @@ export default function CategoryModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      {...backdropProps}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+    >
       <div 
+        onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg rounded-2xl bg-jds-surface border border-jds-outline-variant/30 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"

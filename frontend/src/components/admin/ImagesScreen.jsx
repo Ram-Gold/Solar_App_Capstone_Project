@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { Button } from '../ui/button'
+import useModalBehavior from '../../hooks/useModalBehavior'
 import { 
   Upload, 
   Image as ImageIcon, 
@@ -27,6 +28,11 @@ export default function ImagesScreen() {
   const [sortBy, setSortBy] = useState('newest') // 'newest' | 'oldest' | 'name' | 'size'
   const [copiedName, setCopiedName] = useState(null)
   const [selectedImage, setSelectedImage] = useState(null)
+
+  useModalBehavior({
+    isOpen: Boolean(selectedImage),
+    onClose: () => setSelectedImage(null),
+  })
   const [uploadFeedback, setUploadFeedback] = useState(null) // { type: 'success' | 'error', message: '' }
   const [dragOver, setDragOver] = useState(false)
   

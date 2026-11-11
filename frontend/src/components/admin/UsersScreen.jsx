@@ -7,6 +7,7 @@ import { sanitizeText, sanitizePhone, isValidPhone, sanitizeEmail } from '../../
 import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 import { Trash2, Plus, X, Shield, Users as UsersIcon, CalendarDays, Mail, Phone, Briefcase, UserPlus, AlertTriangle } from 'lucide-react'
+import useModalBehavior from '../../hooks/useModalBehavior'
 
 export default function UsersScreen() {
   const { user: currentUser, signOut } = useAuth()
@@ -25,6 +26,16 @@ export default function UsersScreen() {
   const [deletingUser, setDeletingUser] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+
+  const anyUserModalOpen = Boolean(selectedUser || deletingUser)
+
+  useModalBehavior({
+    isOpen: anyUserModalOpen,
+    onClose: () => {
+      if (deletingUser && !isDeleting) setDeletingUser(null)
+      else if (selectedUser) setSelectedUser(null)
+    },
+  })
 
   useEffect(() => {
     fetchAll()
@@ -463,8 +474,16 @@ export default function UsersScreen() {
 
       {/* User Account Detail Modal (with Delete Account at the bottom) */}
       {selectedUser && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedUser(null)
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+          >
             <div className="p-5 border-b border-jds-outline-variant/30 flex items-center justify-between gap-3 bg-jds-surface-container-low/20">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center font-bold text-base shrink-0">
@@ -555,8 +574,16 @@ export default function UsersScreen() {
 
       {/* Delete Platform User Confirmation Modal */}
       {deletingUser && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150">
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isDeleting) setDeletingUser(null)
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />

@@ -69,9 +69,8 @@ function ProductCardImage({ src, alt, priority = false }) {
         decoding="async"
         onLoad={() => setLoaded(true)}
         onError={() => setHasError(true)}
-        className={`w-full h-full object-cover transition-opacity duration-300 ${
-          loaded ? 'opacity-100' : 'opacity-0'
-        }`}
+        className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'
+          }`}
       />
     </>
   )
@@ -149,7 +148,7 @@ export default function BrowsePage() {
 
       const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase())
       const matchesCategory = activeCategory === 'All Products' || p.type === activeCategory
-      
+
       let matchesPower = true
       if (powerFilter !== 'All Power') {
         if (powerFilter === 'Under 200W') matchesPower = (p.watt || 0) < 200
@@ -208,7 +207,7 @@ export default function BrowsePage() {
             className="self-start sm:self-auto flex items-center gap-2 bg-jds-primary hover:bg-jds-primary/90 text-white font-bold text-label-md px-5 py-3 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 shrink-0"
           >
             <HiOutlineSparkles className="text-lg" />
-            <span>Product Matcher Wizard</span>
+            <span>Product Matcher</span>
           </Link>
         </div>
 
@@ -244,11 +243,10 @@ export default function BrowsePage() {
                   <button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
-                    className={`flex items-center justify-between px-4 py-2 rounded-lg text-label-md w-full text-left transition-colors ${
-                      activeCategory === cat
-                        ? 'bg-jds-secondary/10 text-jds-secondary font-semibold'
-                        : 'text-jds-on-surface-variant hover:bg-jds-surface-container-high'
-                    }`}
+                    className={`flex items-center justify-between px-4 py-2 rounded-lg text-label-md w-full text-left transition-colors ${activeCategory === cat
+                      ? 'bg-jds-secondary/10 text-jds-secondary font-semibold'
+                      : 'text-jds-on-surface-variant hover:bg-jds-surface-container-high'
+                      }`}
                   >
                     <span className="truncate">{cat === 'All Products' ? cat : cat.replace('Solar ', '').replace('Aviation Aluminum ', 'Avi. Alum. ')}</span>
                     {activeCategory === cat && <HiOutlineCheck className="text-sm flex-shrink-0" />}
@@ -267,13 +265,12 @@ export default function BrowsePage() {
                   { label: 'IP66', value: 'IP66' },
                   { label: 'IP67', value: 'IP67' }
                 ].map((opt) => (
-                  <label 
-                    key={opt.value} 
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-body-sm font-medium cursor-pointer transition-all ${
-                      waterproofFilter === opt.value 
-                        ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary' 
-                        : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
-                    }`}
+                  <label
+                    key={opt.value}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-body-sm font-medium cursor-pointer transition-all ${waterproofFilter === opt.value
+                      ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary'
+                      : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
+                      }`}
                   >
                     <input
                       type="radio"
@@ -299,13 +296,12 @@ export default function BrowsePage() {
                   { label: '200W - 400W', value: '200W - 400W' },
                   { label: 'Above 400W', value: 'Above 400W' }
                 ].map((opt) => (
-                  <label 
-                    key={opt.value} 
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-body-sm font-medium cursor-pointer transition-all ${
-                      powerFilter === opt.value 
-                        ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary' 
-                        : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
-                    }`}
+                  <label
+                    key={opt.value}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-body-sm font-medium cursor-pointer transition-all ${powerFilter === opt.value
+                      ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary'
+                      : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
+                      }`}
                   >
                     <input
                       type="radio"
@@ -349,13 +345,12 @@ export default function BrowsePage() {
                   { label: 'Included', value: 'Included' },
                   { label: 'Not Included', value: 'Not Included' }
                 ].map((opt) => (
-                  <label 
-                    key={opt.value} 
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-body-sm font-medium cursor-pointer transition-all ${
-                      batteryFilter === opt.value 
-                        ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary' 
-                        : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
-                    }`}
+                  <label
+                    key={opt.value}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-body-sm font-medium cursor-pointer transition-all ${batteryFilter === opt.value
+                      ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary'
+                      : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
+                      }`}
                   >
                     <input
                       type="radio"

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { uploadEvidenceFile, submitWarrantyClaim } from '../lib/customerService'
 import { sanitizeText } from '../lib/sanitize.js'
+import useModalBehavior from '../hooks/useModalBehavior'
 import {
   DIAGNOSTIC_TREE,
   DEFAULT_CRITERIA_STATE,
@@ -230,6 +231,11 @@ export default function FaultDiagnosticModal({
   const [uploadError, setUploadError] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
   const [submittedClaimId, setSubmittedClaimId] = useState(null)
+
+  const { backdropProps } = useModalBehavior({
+    isOpen: Boolean(isOpen && purchase),
+    onClose,
+  })
 
   if (!isOpen || !purchase) return null
 
@@ -445,8 +451,14 @@ Customer requested technician bench evaluation.`
   const rootCauses = isSolutionView ? getDiagnosisRootCauses(currentDiagnosis, purchase) : []
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-3 sm:my-6 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
+    <div
+      {...backdropProps}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-3 sm:my-6 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"
+      >
 
         {/* Header */}
         <div className="p-4 border-b border-jds-outline-variant/30 flex items-center justify-between bg-jds-surface-container-low shrink-0">

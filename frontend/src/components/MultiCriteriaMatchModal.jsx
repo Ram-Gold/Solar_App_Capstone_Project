@@ -13,6 +13,7 @@ import {
   HiOutlineQuestionMarkCircle,
 } from 'react-icons/hi2'
 import { matchSolarProducts } from '../lib/multiCriteriaMatcher'
+import useModalBehavior from '../hooks/useModalBehavior'
 
 const LOCATIONS = [
   {
@@ -51,6 +52,7 @@ const BUDGET_PRESETS = [
 ]
 
 export default function MultiCriteriaMatchModal({ isOpen, onClose, products = [] }) {
+  const { backdropProps } = useModalBehavior({ isOpen, onClose })
   const [location, setLocation] = useState('street')
   const [powerNeeds, setPowerNeeds] = useState(300)
   const [budget, setBudget] = useState(3000)
@@ -78,7 +80,7 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          {...backdropProps}
           className="fixed inset-0 bg-jds-on-surface/40 backdrop-blur-md transition-opacity"
         />
 
@@ -87,6 +89,7 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
           initial={{ opacity: 0, scale: 0.96, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 15 }}
+          onClick={(e) => e.stopPropagation()}
           className="relative w-full max-w-4xl bg-jds-surface rounded-2xl shadow-2xl border border-jds-outline-variant/30 overflow-hidden z-10 flex flex-col max-h-[92vh] font-inter"
         >
           {/* Header */}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import useModalBehavior from '../hooks/useModalBehavior'
 
 export default function WarrantyTermsModal({
   isOpen,
@@ -9,6 +10,12 @@ export default function WarrantyTermsModal({
   customerName = ''
 }) {
   const [agreed, setAgreed] = useState(false)
+  const { backdropProps } = useModalBehavior({
+    isOpen,
+    onClose: !isFirstTime ? onClose : undefined,
+    closeOnOutsideClick: !isFirstTime,
+    closeOnEscape: !isFirstTime,
+  })
 
   if (!isOpen) return null
 
@@ -23,6 +30,7 @@ export default function WarrantyTermsModal({
   return (
     <AnimatePresence>
       <div
+        {...backdropProps}
         className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto"
         role="dialog"
         aria-modal="true"
