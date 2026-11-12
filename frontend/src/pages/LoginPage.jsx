@@ -275,16 +275,6 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
-
-            {/* Help */}
-            <div className="mt-8 pt-8 border-t border-jds-outline-variant/30 text-center">
-              <p className="text-label-sm text-jds-on-surface-variant">
-                Technical issues?{' '}
-                <a className="text-jds-secondary font-bold hover:underline" href="#">
-                  Contact IT Support
-                </a>
-              </p>
-            </div>
           </div>
 
           {/* Branding Accent */}
