@@ -1,23 +1,32 @@
 -- ==============================================================================
 -- JD Force Solar Products Trading
--- Customer Email Confirmation & Queuing Migration
+-- Customer Email Confirmation & Queuing Migration (Normalized Schema)
 -- ==============================================================================
 -- Run this in the Supabase Dashboard SQL Editor (https://supabase.com/dashboard)
--- to enable mandatory customer email tracking, confirmation queuing, and
--- one-click email verification.
+-- to normalize public.customers (keeping only email and email_confirmed_at) and
+-- slim down public.email_confirmation_queue to 7 core dispatch columns.
 -- ==============================================================================
 
--- 1. Add email and confirmation lifecycle columns to public.customers
+-- 1. Ensure email and email_confirmed_at exist on public.customers
 ALTER TABLE public.customers
 ADD COLUMN IF NOT EXISTS email TEXT,
-ADD COLUMN IF NOT EXISTS email_confirmed BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS email_confirmation_status TEXT DEFAULT 'queued',
-ADD COLUMN IF NOT EXISTS email_verification_token UUID DEFAULT gen_random_uuid(),
-ADD COLUMN IF NOT EXISTS email_confirmation_sent_at TIMESTAMPTZ,
 ADD COLUMN IF NOT EXISTS email_confirmed_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_customers_email ON public.customers(LOWER(email));
-CREATE INDEX IF NOT EXISTS idx_customers_verification_token ON public.customers(email_verification_token);
+
+-- Backfill email_confirmed_at from legacy email_confirmed boolean if present
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'customers' AND column_name = 'email_confirmed'
+    ) THEN
+        UPDATE public.customers
+        SET email_confirmed_at = COALESCE(email_confirmed_at, NOW())
+        WHERE email_confirmed = TRUE
+          AND email_confirmed_at IS NULL;
+    END IF;
+END $$;
 
 -- Backfill email on public.customers from public.customer_passwords if already present
 DO $$
@@ -34,23 +43,36 @@ BEGIN
     END IF;
 END $$;
 
--- 2. Create public.email_confirmation_queue table
+-- Drop redundant email confirmation columns & index from public.customers
+DROP INDEX IF EXISTS public.idx_customers_verification_token;
+
+ALTER TABLE public.customers
+DROP COLUMN IF EXISTS email_confirmed,
+DROP COLUMN IF EXISTS email_confirmation_status,
+DROP COLUMN IF EXISTS email_verification_token,
+DROP COLUMN IF EXISTS email_confirmation_sent_at;
+
+-- 2. Create or normalize public.email_confirmation_queue (7 core columns)
 CREATE TABLE IF NOT EXISTS public.email_confirmation_queue (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_id UUID NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
     recipient_email TEXT NOT NULL,
-    subject TEXT NOT NULL DEFAULT 'JD Force Solar - Account Created & Email Confirmation Required',
-    status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'awaiting_confirmation', 'confirmed', 'failed')),
     verification_token UUID NOT NULL DEFAULT gen_random_uuid(),
-    attempts INTEGER NOT NULL DEFAULT 0,
-    last_error TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
+    status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'awaiting_confirmation', 'confirmed', 'failed')),
     sent_at TIMESTAMPTZ,
-    confirmed_at TIMESTAMPTZ
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Drop redundant columns from public.email_confirmation_queue if upgrading from earlier migration
+ALTER TABLE public.email_confirmation_queue
+DROP COLUMN IF EXISTS subject,
+DROP COLUMN IF EXISTS attempts,
+DROP COLUMN IF EXISTS last_error,
+DROP COLUMN IF EXISTS confirmed_at;
 
 CREATE INDEX IF NOT EXISTS idx_email_confirmation_queue_customer ON public.email_confirmation_queue(customer_id);
 CREATE INDEX IF NOT EXISTS idx_email_confirmation_queue_status ON public.email_confirmation_queue(status);
+CREATE INDEX IF NOT EXISTS idx_email_confirmation_queue_token ON public.email_confirmation_queue(verification_token);
 
 -- 3. Enable Row Level Security (RLS) on email_confirmation_queue
 ALTER TABLE public.email_confirmation_queue ENABLE ROW LEVEL SECURITY;
@@ -102,29 +124,24 @@ BEGIN
 
     v_new_token := gen_random_uuid();
 
-    -- Update customer email & reset confirmation state to queued
+    -- Update customer email & reset confirmation timestamp to NULL (unconfirmed)
     UPDATE public.customers
     SET email = v_clean_email,
-        email_confirmed = false,
-        email_confirmation_status = 'queued',
-        email_verification_token = v_new_token,
         email_confirmed_at = NULL
     WHERE id = p_customer_id;
 
-    -- Insert queue record
+    -- Insert queue record with 7 core columns
     INSERT INTO public.email_confirmation_queue (
         customer_id,
         recipient_email,
-        status,
         verification_token,
-        attempts,
+        status,
         created_at
     ) VALUES (
         p_customer_id,
         v_clean_email,
-        'queued',
         v_new_token,
-        1,
+        'queued',
         NOW()
     )
     RETURNING id INTO v_queue_id;
@@ -137,7 +154,8 @@ BEGIN
         'access_token', v_customer.access_token,
         'verification_token', v_new_token,
         'email_confirmation_status', 'queued',
-        'email_confirmed', false
+        'email_confirmed', false,
+        'email_confirmed_at', NULL
     );
 END;
 $$;
@@ -157,29 +175,26 @@ SET search_path = ''
 AS $$
 DECLARE
     v_effective_status TEXT;
+    v_sent_at TIMESTAMPTZ;
 BEGIN
     v_effective_status := COALESCE(NULLIF(TRIM(p_status), ''), 'awaiting_confirmation');
     IF v_effective_status NOT IN ('queued', 'awaiting_confirmation', 'confirmed', 'failed') THEN
         v_effective_status := 'awaiting_confirmation';
     END IF;
 
-    UPDATE public.customers
-    SET email_confirmation_status = v_effective_status,
-        email_confirmation_sent_at = CASE WHEN v_effective_status = 'awaiting_confirmation' THEN NOW() ELSE email_confirmation_sent_at END
-    WHERE id = p_customer_id
-      AND COALESCE(email_confirmed, false) = false;
+    v_sent_at := CASE WHEN v_effective_status = 'awaiting_confirmation' THEN NOW() ELSE NULL END;
 
     UPDATE public.email_confirmation_queue
     SET status = v_effective_status,
-        sent_at = CASE WHEN v_effective_status = 'awaiting_confirmation' THEN NOW() ELSE sent_at END,
-        last_error = p_error
+        sent_at = COALESCE(v_sent_at, sent_at)
     WHERE customer_id = p_customer_id
       AND status IN ('queued', 'failed');
 
     RETURN jsonb_build_object(
         'success', true,
         'customer_id', p_customer_id,
-        'email_confirmation_status', v_effective_status
+        'email_confirmation_status', v_effective_status,
+        'sent_at', v_sent_at
     );
 END;
 $$;
@@ -198,8 +213,10 @@ SET search_path = ''
 AS $$
 DECLARE
     v_customer RECORD;
+    v_latest_queue RECORD;
+    v_confirmed_ts TIMESTAMPTZ;
 BEGIN
-    SELECT id, full_name, email, phone_number, access_token, email_confirmed, email_verification_token
+    SELECT id, full_name, email, phone_number, access_token, email_confirmed_at
     INTO v_customer
     FROM public.customers
     WHERE access_token = p_token;
@@ -208,21 +225,28 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid customer access token.');
     END IF;
 
+    -- Fetch latest verification token from email_confirmation_queue if present
+    SELECT id, verification_token, status
+    INTO v_latest_queue
+    FROM public.email_confirmation_queue
+    WHERE customer_id = v_customer.id
+    ORDER BY created_at DESC
+    LIMIT 1;
+
     IF p_verification_token IS NOT NULL
-       AND v_customer.email_verification_token IS NOT NULL
-       AND v_customer.email_verification_token <> p_verification_token THEN
+       AND v_latest_queue.verification_token IS NOT NULL
+       AND v_latest_queue.verification_token <> p_verification_token THEN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid or expired email verification link.');
     END IF;
 
+    v_confirmed_ts := COALESCE(v_customer.email_confirmed_at, NOW());
+
     UPDATE public.customers
-    SET email_confirmed = true,
-        email_confirmation_status = 'confirmed',
-        email_confirmed_at = COALESCE(email_confirmed_at, NOW())
+    SET email_confirmed_at = v_confirmed_ts
     WHERE id = v_customer.id;
 
     UPDATE public.email_confirmation_queue
-    SET status = 'confirmed',
-        confirmed_at = NOW()
+    SET status = 'confirmed'
     WHERE customer_id = v_customer.id
       AND status <> 'confirmed';
 
@@ -231,6 +255,7 @@ BEGIN
         'customer_id', v_customer.id,
         'email', v_customer.email,
         'email_confirmed', true,
+        'email_confirmed_at', v_confirmed_ts,
         'email_confirmation_status', 'confirmed',
         'message', 'Email address verified and confirmed.'
     );
@@ -249,9 +274,12 @@ AS $$
 DECLARE
     v_customer RECORD;
     v_cred RECORD;
+    v_queue RECORD;
+    v_has_password BOOLEAN := false;
     v_effective_email TEXT;
+    v_is_confirmed BOOLEAN;
 BEGIN
-    SELECT id, email, email_confirmed, email_confirmation_status, email_verification_token, email_confirmation_sent_at, email_confirmed_at
+    SELECT id, email, email_confirmed_at
     INTO v_customer
     FROM public.customers
     WHERE access_token = p_token;
@@ -261,6 +289,7 @@ BEGIN
             'has_password', false,
             'email', null,
             'email_confirmed', false,
+            'email_confirmed_at', null,
             'email_confirmation_status', 'queued'
         );
     END IF;
@@ -268,17 +297,29 @@ BEGIN
     SELECT email INTO v_cred
     FROM public.customer_passwords
     WHERE customer_id = v_customer.id;
+    v_has_password := FOUND;
+
+    SELECT verification_token, status, sent_at
+    INTO v_queue
+    FROM public.email_confirmation_queue
+    WHERE customer_id = v_customer.id
+    ORDER BY created_at DESC
+    LIMIT 1;
 
     v_effective_email := COALESCE(v_customer.email, v_cred.email);
+    v_is_confirmed := (v_customer.email_confirmed_at IS NOT NULL);
 
     RETURN jsonb_build_object(
-        'has_password', FOUND,
+        'has_password', v_has_password,
         'email', v_effective_email,
-        'email_confirmed', COALESCE(v_customer.email_confirmed, false),
-        'email_confirmation_status', COALESCE(v_customer.email_confirmation_status, CASE WHEN COALESCE(v_customer.email_confirmed, false) THEN 'confirmed' ELSE 'awaiting_confirmation' END),
-        'email_verification_token', v_customer.email_verification_token,
-        'email_confirmation_sent_at', v_customer.email_confirmation_sent_at,
-        'email_confirmed_at', v_customer.email_confirmed_at
+        'email_confirmed', v_is_confirmed,
+        'email_confirmed_at', v_customer.email_confirmed_at,
+        'email_confirmation_status', CASE
+            WHEN v_is_confirmed THEN 'confirmed'
+            ELSE COALESCE(v_queue.status, 'awaiting_confirmation')
+        END,
+        'email_verification_token', v_queue.verification_token,
+        'email_confirmation_sent_at', v_queue.sent_at
     );
 END;
 $$;
@@ -303,7 +344,7 @@ DECLARE
     v_clean_email TEXT;
     v_new_hash TEXT;
     v_email_changed BOOLEAN := false;
-    v_new_verif_token UUID;
+    v_is_confirmed BOOLEAN := false;
 BEGIN
     v_clean_email := LOWER(TRIM(p_email));
 
@@ -316,7 +357,7 @@ BEGIN
     END IF;
 
     -- Look up customer by access token
-    SELECT id, phone_number, full_name, access_token, email, email_confirmed, email_confirmation_status, email_verification_token
+    SELECT id, phone_number, full_name, access_token, email, email_confirmed_at
     INTO v_customer
     FROM public.customers
     WHERE access_token = p_token;
@@ -366,16 +407,30 @@ BEGIN
         password_hash = EXCLUDED.password_hash,
         updated_at = NOW();
 
-    -- Sync email on public.customers; if email changed or was empty, reset confirmation
+    -- Sync email on public.customers; if email changed, reset email_confirmed_at to NULL
     v_email_changed := (v_customer.email IS DISTINCT FROM v_clean_email);
-    IF v_email_changed OR COALESCE(v_customer.email_confirmed, false) = false THEN
-        v_new_verif_token := CASE WHEN v_email_changed THEN gen_random_uuid() ELSE COALESCE(v_customer.email_verification_token, gen_random_uuid()) END;
+    IF v_email_changed THEN
         UPDATE public.customers
         SET email = v_clean_email,
-            email_confirmed = CASE WHEN v_email_changed THEN false ELSE COALESCE(email_confirmed, false) END,
-            email_confirmation_status = CASE WHEN v_email_changed THEN 'queued' ELSE COALESCE(email_confirmation_status, 'queued') END,
-            email_verification_token = v_new_verif_token
+            email_confirmed_at = NULL
         WHERE id = v_customer.id;
+
+        INSERT INTO public.email_confirmation_queue (
+            customer_id,
+            recipient_email,
+            verification_token,
+            status,
+            created_at
+        ) VALUES (
+            v_customer.id,
+            v_clean_email,
+            gen_random_uuid(),
+            'queued',
+            NOW()
+        );
+        v_is_confirmed := false;
+    ELSE
+        v_is_confirmed := (v_customer.email_confirmed_at IS NOT NULL);
     END IF;
 
     RETURN jsonb_build_object(
@@ -383,10 +438,10 @@ BEGIN
         'message', 'Password saved successfully.',
         'email', v_clean_email,
         'email_changed', v_email_changed,
-        'email_confirmed', CASE WHEN v_email_changed THEN false ELSE COALESCE(v_customer.email_confirmed, false) END
+        'email_confirmed', v_is_confirmed,
+        'email_confirmed_at', CASE WHEN v_email_changed THEN NULL ELSE v_customer.email_confirmed_at END
     );
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.set_customer_password(UUID, TEXT, TEXT, TEXT) TO anon, authenticated;
-

@@ -75,10 +75,6 @@
         text phone_number UK
         text full_name
         text email
-        boolean email_confirmed
-        text email_confirmation_status
-        uuid email_verification_token UK
-        timestamptz email_confirmation_sent_at
         timestamptz email_confirmed_at
         uuid access_token UK
         text province
@@ -92,14 +88,10 @@
         uuid id PK
         uuid customer_id FK
         text recipient_email
-        text subject
-        text status
         uuid verification_token
-        integer attempts
-        text last_error
-        timestamptz created_at
+        text status
         timestamptz sent_at
-        timestamptz confirmed_at
+        timestamptz created_at
     }
     CUSTOMER_PASSWORDS {
         uuid id PK

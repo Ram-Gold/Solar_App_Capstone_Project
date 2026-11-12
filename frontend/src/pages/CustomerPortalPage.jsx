@@ -250,8 +250,8 @@ export default function CustomerPortalPage() {
       setPwdError('Please enter a valid email address.')
       return
     }
-    if (!pwdNew || pwdNew.length < 6) {
-      setPwdError('Password must be at least 6 characters.')
+    if (!pwdNew || pwdNew.length < 8) {
+      setPwdError('Password must be at least 8 characters.')
       return
     }
     if (pwdNew !== pwdConfirm) {
@@ -384,6 +384,7 @@ export default function CustomerPortalPage() {
   const isEmailConfirmed = Boolean(
     emailJustConfirmedMessage ||
     authStatus.emailConfirmed ||
+    customer.email_confirmed_at ||
     customer.email_confirmed ||
     emailBannerStatus?.status === 'confirmed'
   )

@@ -475,7 +475,8 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
       if (error) throw error
 
       const resolvedEmail = updated.email || trimmedEmail
-      const resolvedConfirmed = Boolean(updated.email_confirmed)
+      const resolvedConfirmed = Boolean(updated.email_confirmed_at || updated.email_confirmed)
+      const resolvedConfirmedAt = updated.email_confirmed_at || (resolvedConfirmed ? (selectedCustomer.email_confirmed_at || new Date().toISOString()) : null)
       const resolvedStatus = updated.email_confirmation_status || (resolvedConfirmed ? 'confirmed' : 'awaiting_confirmation')
 
       setSelectedCustomer(prev => ({
@@ -484,6 +485,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
         phone_number: updated.phone_number,
         email: resolvedEmail,
         email_confirmed: resolvedConfirmed,
+        email_confirmed_at: resolvedConfirmedAt,
         email_confirmation_status: resolvedStatus
       }))
 
@@ -493,6 +495,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
         phone_number: updated.phone_number,
         email: resolvedEmail,
         email_confirmed: resolvedConfirmed,
+        email_confirmed_at: resolvedConfirmedAt,
         email_confirmation_status: resolvedStatus
       } : c))
 
@@ -825,7 +828,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                         <p className="text-[11px] text-jds-on-surface-variant flex items-center gap-1.5 mt-0.5 truncate" title={customer.email}>
                           <Mail className="w-3 h-3 text-jds-on-surface-variant/70 shrink-0" />
                           <span className="truncate">{customer.email}</span>
-                          {customer.email_confirmed ? (
+                          {Boolean(customer.email_confirmed_at || customer.email_confirmed) ? (
                             <span className="text-[9px] font-bold uppercase text-emerald-500 shrink-0">Confirmed</span>
                           ) : (
                             <span className="text-[9px] font-bold uppercase text-amber-500 shrink-0">Awaiting</span>
@@ -1002,9 +1005,12 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                     <div className="flex items-center justify-between text-label-sm font-semibold text-jds-on-surface-variant">
                       <label htmlFor="edit-customer-email">Email Address *</label>
                       {selectedCustomer.email && (
-                        selectedCustomer.email_confirmed ? (
-                          <span className="text-[10px] font-semibold text-emerald-500 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Email Confirmed
+                        Boolean(selectedCustomer.email_confirmed_at || selectedCustomer.email_confirmed) ? (
+                          <span
+                            className="text-[10px] font-semibold text-emerald-500 flex items-center gap-1"
+                            title={selectedCustomer.email_confirmed_at ? `Verified ${formatDate(selectedCustomer.email_confirmed_at)}` : 'Verified'}
+                          >
+                            <CheckCircle2 className="w-3 h-3" /> Email Confirmed {selectedCustomer.email_confirmed_at ? `(${formatDate(selectedCustomer.email_confirmed_at)})` : ''}
                           </span>
                         ) : (
                           <span className="text-[10px] font-semibold text-amber-500 flex items-center gap-1">
@@ -1025,7 +1031,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                     />
                   </div>
 
-                  {(emailConfirmationProgress || (selectedCustomer.email && !selectedCustomer.email_confirmed)) && (
+                  {(emailConfirmationProgress || (selectedCustomer.email && !Boolean(selectedCustomer.email_confirmed_at || selectedCustomer.email_confirmed))) && (
                     <div className="p-3 rounded-lg bg-jds-surface-container/40 border border-jds-outline-variant/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                       <div className="flex items-center gap-2 text-jds-on-surface-variant">
                         {emailConfirmationProgress?.status === 'queued' || isResendingEmail ? (

@@ -10,6 +10,8 @@ import {
   isValidEmail
 } from './sanitize.js'
 
+const EMAIL_CONFIRMATION_STORAGE_PREFIX = 'jd_cust_email_state_'
+
 /**
  * LocalStorage helpers for tracking customer email confirmation status
  * across client fallback and live sessions.
@@ -17,7 +19,7 @@ import {
 function readLocalEmailState(token) {
   if (!token || typeof window === 'undefined') return null
   try {
-    const raw = localStorage.getItem(`jd_cust_email_state_${token}`)
+    const raw = localStorage.getItem(`${EMAIL_CONFIRMATION_STORAGE_PREFIX}${token}`)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
@@ -29,11 +31,54 @@ function writeLocalEmailState(token, state) {
   try {
     const existing = readLocalEmailState(token) || {}
     localStorage.setItem(
-      `jd_cust_email_state_${token}`,
+      `${EMAIL_CONFIRMATION_STORAGE_PREFIX}${token}`,
       JSON.stringify({ ...existing, ...state, updatedAt: new Date().toISOString() })
     )
   } catch {
     // ignore storage errors
+  }
+}
+
+/**
+ * Normalizes a customer record's email verification state from `email_confirmed_at`
+ * and optional `email_confirmation_queue` rows.
+ */
+function extractLatestQueueEntry(queueRelation) {
+  if (!queueRelation) return null
+  if (Array.isArray(queueRelation)) {
+    if (queueRelation.length === 0) return null
+    return [...queueRelation].sort((a, b) => {
+      const ta = a?.created_at ? new Date(a.created_at).getTime() : 0
+      const tb = b?.created_at ? new Date(b.created_at).getTime() : 0
+      return tb - ta
+    })[0]
+  }
+  if (typeof queueRelation === 'object') return queueRelation
+  return null
+}
+
+function resolveCustomerEmailState(cust = {}, localState = null, fallbackEmail = '') {
+  const resolvedEmail = cust?.email || localState?.email || fallbackEmail || ''
+  const confirmedAt =
+    cust?.email_confirmed_at ||
+    localState?.email_confirmed_at ||
+    localState?.confirmed_at ||
+    (cust?.email_confirmed ? cust?.created_at || new Date().toISOString() : null) ||
+    (localState?.email_confirmed ? localState?.updatedAt || new Date().toISOString() : null)
+
+  const isConfirmed = Boolean(confirmedAt || cust?.email_confirmed || localState?.email_confirmed)
+  const latestQueue = extractLatestQueueEntry(cust?.email_confirmation_queue)
+  const queueStatus = latestQueue?.status || cust?.email_confirmation_status || localState?.email_confirmation_status
+  const status = isConfirmed
+    ? 'confirmed'
+    : (queueStatus || (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed'))
+
+  return {
+    email: resolvedEmail,
+    email_confirmed_at: confirmedAt || null,
+    email_confirmed: isConfirmed,
+    email_confirmation_status: status,
+    email_confirmation_sent_at: latestQueue?.sent_at || cust?.email_confirmation_sent_at || null
   }
 }
 
@@ -62,6 +107,7 @@ export async function queueAndSendCustomerConfirmationEmail({
       writeLocalEmailState(accessToken, {
         email: cleanEmail,
         email_confirmed: Boolean(statusObj.emailConfirmed),
+        email_confirmed_at: statusObj.emailConfirmed ? new Date().toISOString() : null,
         email_confirmation_status: statusObj.status,
         verification_token: statusObj.verificationToken || null
       })
@@ -158,7 +204,7 @@ export async function queueAndSendCustomerConfirmationEmail({
     }
   }
 
-  // Mark status as 'awaiting_confirmation' in database
+  // Mark status as 'awaiting_confirmation' in email_confirmation_queue
   if (customerId) {
     try {
       await supabase.rpc('mark_confirmation_email_sent', {
@@ -167,16 +213,13 @@ export async function queueAndSendCustomerConfirmationEmail({
         p_error: null
       })
     } catch {
-      // Fallback column update if RPC is not yet created
+      // Fallback normalized table update if RPC is not yet created
       try {
         await supabase
           .from('customers')
           .update({
             email: cleanEmail,
-            email_confirmed: false,
-            email_confirmation_status: 'awaiting_confirmation',
-            email_verification_token: verificationToken,
-            email_confirmation_sent_at: new Date().toISOString()
+            email_confirmed_at: null
           })
           .eq('id', customerId)
       } catch {
@@ -189,6 +232,7 @@ export async function queueAndSendCustomerConfirmationEmail({
     status: 'awaiting_confirmation',
     email: cleanEmail,
     emailConfirmed: false,
+    emailConfirmedAt: null,
     verificationToken,
     confirmUrl,
     provider: dispatchedViaServerless ? 'gmail_smtp' : 'supabase_mailer',
@@ -205,6 +249,8 @@ export async function queueAndSendCustomerConfirmationEmail({
 export async function confirmCustomerEmailByToken(token, verificationToken = null) {
   if (!token) throw new Error('Customer access token is required.')
 
+  const nowIso = new Date().toISOString()
+
   try {
     const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_customer_email', {
       p_token: token,
@@ -213,16 +259,19 @@ export async function confirmCustomerEmailByToken(token, verificationToken = nul
 
     if (!rpcErr && rpcData) {
       if (rpcData.success) {
+        const confirmedAt = rpcData.email_confirmed_at || nowIso
         writeLocalEmailState(token, {
           email: rpcData.email || undefined,
           email_confirmed: true,
+          email_confirmed_at: confirmedAt,
           email_confirmation_status: 'confirmed',
-          confirmed_at: new Date().toISOString()
+          confirmed_at: confirmedAt
         })
         return {
           success: true,
           email: rpcData.email,
           emailConfirmed: true,
+          emailConfirmedAt: confirmedAt,
           status: 'confirmed',
           message: rpcData.message || 'Email address verified and confirmed.'
         }
@@ -234,14 +283,12 @@ export async function confirmCustomerEmailByToken(token, verificationToken = nul
     console.warn('confirm_customer_email RPC fallback:', err)
   }
 
-  // Fallback direct table update
+  // Fallback direct table update (normalized: only email_confirmed_at on customers)
   try {
     await supabase
       .from('customers')
       .update({
-        email_confirmed: true,
-        email_confirmation_status: 'confirmed',
-        email_confirmed_at: new Date().toISOString()
+        email_confirmed_at: nowIso
       })
       .eq('access_token', token)
   } catch {
@@ -250,13 +297,15 @@ export async function confirmCustomerEmailByToken(token, verificationToken = nul
 
   writeLocalEmailState(token, {
     email_confirmed: true,
+    email_confirmed_at: nowIso,
     email_confirmation_status: 'confirmed',
-    confirmed_at: new Date().toISOString()
+    confirmed_at: nowIso
   })
 
   return {
     success: true,
     emailConfirmed: true,
+    emailConfirmedAt: nowIso,
     status: 'confirmed',
     message: 'Email address verified and confirmed.'
   }
@@ -327,21 +376,33 @@ export async function searchCustomerByPhone(rawPhone) {
     let customerData = null
     const { data, error } = await supabase
       .from('customers')
-      .select('id, phone_number, full_name, email, email_confirmed, email_confirmation_status, access_token, created_at')
+      .select('id, phone_number, full_name, email, email_confirmed_at, access_token, created_at, email_confirmation_queue (status, sent_at, created_at)')
       .eq('phone_number', phone)
       .maybeSingle()
 
-    if (error && error.code === '42703') {
+    if (error && (error.code === '42703' || error.code === 'PGRST200')) {
       const fallback = await supabase
         .from('customers')
-        .select('id, phone_number, full_name, access_token, created_at')
+        .select('id, phone_number, full_name, email, email_confirmed_at, access_token, created_at')
         .eq('phone_number', phone)
         .maybeSingle()
-      if (fallback.error) {
+      if (fallback.error && fallback.error.code === '42703') {
+        const legacyFallback = await supabase
+          .from('customers')
+          .select('id, phone_number, full_name, access_token, created_at')
+          .eq('phone_number', phone)
+          .maybeSingle()
+        if (legacyFallback.error) {
+          console.warn('searchCustomerByPhone query error:', legacyFallback.error)
+          return { customer: null, error: legacyFallback.error }
+        }
+        customerData = legacyFallback.data
+      } else if (fallback.error) {
         console.warn('searchCustomerByPhone query error:', fallback.error)
         return { customer: null, error: fallback.error }
+      } else {
+        customerData = fallback.data
       }
-      customerData = fallback.data
     } else if (error) {
       console.warn('searchCustomerByPhone query error:', error)
       return { customer: null, error }
@@ -359,14 +420,10 @@ export async function searchCustomerByPhone(rawPhone) {
         }
       })()
 
+      const emailState = resolveCustomerEmailState(customerData, localState, localCred?.email || '')
       customerData = {
         ...customerData,
-        email: customerData.email || localState?.email || localCred?.email || '',
-        email_confirmed: Boolean(customerData.email_confirmed ?? localState?.email_confirmed ?? false),
-        email_confirmation_status:
-          customerData.email_confirmation_status ||
-          localState?.email_confirmation_status ||
-          (customerData.email_confirmed ? 'confirmed' : 'awaiting_confirmation')
+        ...emailState
       }
     }
 
@@ -412,17 +469,15 @@ export async function registerCustomerAndSale({
     customer = existingCust
     const prevEmail = (existingCust.email || '').trim().toLowerCase()
     const emailChanged = prevEmail !== cleanEmail
-    const isUnconfirmed = !existingCust.email_confirmed
 
     // Always send purchase receipt email for any registered sale with a valid email
     shouldSendConfirmationEmail = Boolean(cleanEmail)
 
-    // Update name or email if modified
+    // Update name or email if modified (normalized: only email and email_confirmed_at on customers)
     if (existingCust.full_name !== name || emailChanged) {
       const updatePayload = { full_name: name, email: cleanEmail }
       if (emailChanged) {
-        updatePayload.email_confirmed = false
-        updatePayload.email_confirmation_status = 'queued'
+        updatePayload.email_confirmed_at = null
       }
       const { data: updatedCust, error: upErr } = await supabase
         .from('customers')
@@ -438,7 +493,7 @@ export async function registerCustomerAndSale({
           .eq('id', existingCust.id)
           .select()
           .single()
-        if (fallbackCust) customer = { ...fallbackCust, email: cleanEmail }
+        if (fallbackCust) customer = { ...fallbackCust, email: cleanEmail, email_confirmed_at: emailChanged ? null : existingCust.email_confirmed_at }
       } else if (updatedCust) {
         customer = updatedCust
       }
@@ -453,8 +508,7 @@ export async function registerCustomerAndSale({
         phone_number: phone,
         full_name: name,
         email: cleanEmail,
-        email_confirmed: false,
-        email_confirmation_status: 'queued'
+        email_confirmed_at: null
       })
       .select()
       .single()
@@ -472,6 +526,7 @@ export async function registerCustomerAndSale({
       newCust = {
         ...fallbackCust,
         email: cleanEmail,
+        email_confirmed_at: null,
         email_confirmed: false,
         email_confirmation_status: 'queued'
       }
@@ -481,10 +536,10 @@ export async function registerCustomerAndSale({
       newCust = insertedWithEmail
     }
 
+    const emailState = resolveCustomerEmailState(newCust, null, cleanEmail)
     customer = {
       ...newCust,
-      email: newCust?.email || cleanEmail,
-      email_confirmed: Boolean(newCust?.email_confirmed ?? false),
+      ...emailState,
       email_confirmation_status: newCust?.email_confirmation_status || 'queued'
     }
   }
@@ -520,11 +575,13 @@ export async function registerCustomerAndSale({
   const qrUrl = `${origin}/portal?token=${customer.access_token}`
 
   // 4. Queue and dispatch confirmation email if brand-new account or email changed/added
+  const isAlreadyConfirmed = Boolean(customer.email_confirmed_at || customer.email_confirmed)
   let emailConfirmation = {
     triggered: shouldSendConfirmationEmail,
     email: cleanEmail,
-    emailConfirmed: Boolean(customer.email_confirmed),
-    status: customer.email_confirmed ? 'confirmed' : (shouldSendConfirmationEmail ? 'queued' : (customer.email_confirmation_status || 'awaiting_confirmation'))
+    emailConfirmed: isAlreadyConfirmed,
+    emailConfirmedAt: customer.email_confirmed_at || null,
+    status: isAlreadyConfirmed ? 'confirmed' : (shouldSendConfirmationEmail ? 'queued' : (customer.email_confirmation_status || 'awaiting_confirmation'))
   }
 
   if (shouldSendConfirmationEmail) {
@@ -542,7 +599,8 @@ export async function registerCustomerAndSale({
       return {
         status: 'awaiting_confirmation',
         email: cleanEmail,
-        emailConfirmed: false
+        emailConfirmed: false,
+        emailConfirmedAt: null
       }
     })
 
@@ -550,6 +608,7 @@ export async function registerCustomerAndSale({
     customer = {
       ...customer,
       email: cleanEmail,
+      email_confirmed_at: null,
       email_confirmed: false,
       email_confirmation_status: 'queued'
     }
@@ -592,20 +651,15 @@ export async function fetchCustomerPortalData(token) {
 
     if (!rpcError && rpcData) {
       const cust = rpcData.customer || {}
-      const resolvedEmail = cust.email || localEmailState?.email || localCredEmail || null
-      const resolvedConfirmed = Boolean(cust.email_confirmed || localEmailState?.email_confirmed)
-      const resolvedStatus = resolvedConfirmed
-        ? 'confirmed'
-        : (cust.email_confirmation_status || localEmailState?.email_confirmation_status || (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed'))
+      const emailState = resolveCustomerEmailState(cust, localEmailState, localCredEmail)
 
       return {
         data: {
           ...rpcData,
           customer: {
             ...cust,
-            email: resolvedEmail,
-            email_confirmed: resolvedConfirmed,
-            email_confirmation_status: resolvedStatus
+            ...emailState,
+            email: emailState.email || null
           }
         },
         error: null
@@ -615,18 +669,28 @@ export async function fetchCustomerPortalData(token) {
     // 2. Graceful fallback to client queries if RPC is not yet created
     let { data: custData, error: custErr } = await supabase
       .from('customers')
-      .select('id, phone_number, full_name, email, email_confirmed, email_confirmation_status, email_verification_token, access_token')
+      .select('id, phone_number, full_name, email, email_confirmed_at, access_token, email_confirmation_queue (status, sent_at, verification_token, created_at)')
       .eq('access_token', token)
       .maybeSingle()
 
-    if (custErr && custErr.code === '42703') {
+    if (custErr && (custErr.code === '42703' || custErr.code === 'PGRST200')) {
       const fallbackCust = await supabase
         .from('customers')
-        .select('id, phone_number, full_name, access_token')
+        .select('id, phone_number, full_name, email, email_confirmed_at, access_token')
         .eq('access_token', token)
         .maybeSingle()
-      custData = fallbackCust.data
-      custErr = fallbackCust.error
+      if (fallbackCust.error && fallbackCust.error.code === '42703') {
+        const legacyCust = await supabase
+          .from('customers')
+          .select('id, phone_number, full_name, access_token')
+          .eq('access_token', token)
+          .maybeSingle()
+        custData = legacyCust.data
+        custErr = legacyCust.error
+      } else {
+        custData = fallbackCust.data
+        custErr = fallbackCust.error
+      }
     }
 
     if (custErr || !custData) {
@@ -731,11 +795,7 @@ export async function fetchCustomerPortalData(token) {
       })
     }
 
-    const resolvedEmail = custData.email || localEmailState?.email || localCredEmail || null
-    const resolvedConfirmed = Boolean(custData.email_confirmed || localEmailState?.email_confirmed)
-    const resolvedStatus = resolvedConfirmed
-      ? 'confirmed'
-      : (custData.email_confirmation_status || localEmailState?.email_confirmation_status || (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed'))
+    const emailState = resolveCustomerEmailState(custData, localEmailState, localCredEmail || '')
 
     return {
       data: {
@@ -743,9 +803,11 @@ export async function fetchCustomerPortalData(token) {
           id: custData.id,
           name: custData.full_name,
           phone: custData.phone_number,
-          email: resolvedEmail,
-          email_confirmed: resolvedConfirmed,
-          email_confirmation_status: resolvedStatus,
+          email: emailState.email || null,
+          email_confirmed: emailState.email_confirmed,
+          email_confirmed_at: emailState.email_confirmed_at,
+          email_confirmation_status: emailState.email_confirmation_status,
+          email_confirmation_sent_at: emailState.email_confirmation_sent_at,
           token: custData.access_token
         },
         purchases,
@@ -1008,17 +1070,17 @@ export async function deleteWarrantyClaim(claimId) {
 export async function fetchAllCustomers() {
   try {
     let customers = null
-    const { data: withVoid, error: errVoid } = await supabase
+    const { data: withQueue, error: errQueue } = await supabase
       .from('customers')
       .select(`
         id,
         phone_number,
         full_name,
         email,
-        email_confirmed,
-        email_confirmation_status,
+        email_confirmed_at,
         access_token,
         created_at,
+        email_confirmation_queue (status, sent_at, created_at),
         customer_purchases (
           id,
           product_id,
@@ -1035,8 +1097,8 @@ export async function fetchAllCustomers() {
       `)
       .order('created_at', { ascending: false })
 
-    if (!errVoid) {
-      customers = withVoid
+    if (!errQueue) {
+      customers = withQueue
     } else {
       const { data: fallback, error: errFallback } = await supabase
         .from('customers')
@@ -1044,6 +1106,8 @@ export async function fetchAllCustomers() {
           id,
           phone_number,
           full_name,
+          email,
+          email_confirmed_at,
           access_token,
           created_at,
           customer_purchases (
@@ -1054,13 +1118,42 @@ export async function fetchAllCustomers() {
             warranty_months,
             warranty_expires_at,
             branch_location,
+            is_voided,
+            void_reason,
+            voided_at,
             products (id, name, type, watt, image_url)
           )
         `)
         .order('created_at', { ascending: false })
 
-      if (errFallback) throw errFallback
-      customers = fallback
+      if (errFallback && errFallback.code === '42703') {
+        const { data: legacyFallback, error: errLegacy } = await supabase
+          .from('customers')
+          .select(`
+            id,
+            phone_number,
+            full_name,
+            access_token,
+            created_at,
+            customer_purchases (
+              id,
+              product_id,
+              serial_number,
+              purchase_date,
+              warranty_months,
+              warranty_expires_at,
+              branch_location,
+              products (id, name, type, watt, image_url)
+            )
+          `)
+          .order('created_at', { ascending: false })
+        if (errLegacy) throw errLegacy
+        customers = legacyFallback
+      } else if (errFallback) {
+        throw errFallback
+      } else {
+        customers = fallback
+      }
     }
 
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://jdforcesolar.com'
@@ -1075,11 +1168,7 @@ export async function fetchAllCustomers() {
         // ignore
       }
 
-      const resolvedEmail = cust.email || localEmailState?.email || localCredEmail || ''
-      const resolvedConfirmed = Boolean(cust.email_confirmed || localEmailState?.email_confirmed)
-      const resolvedStatus = resolvedConfirmed
-        ? 'confirmed'
-        : (cust.email_confirmation_status || localEmailState?.email_confirmation_status || (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed'))
+      const emailState = resolveCustomerEmailState(cust, localEmailState, localCredEmail || '')
 
       const purchases = (cust.customer_purchases || []).map(cp => {
         const expiry = cp.warranty_expires_at || calculateExpiryDate(cp.purchase_date, cp.warranty_months)
@@ -1104,9 +1193,10 @@ export async function fetchAllCustomers() {
         id: cust.id,
         phone_number: cust.phone_number,
         full_name: cust.full_name,
-        email: resolvedEmail,
-        email_confirmed: resolvedConfirmed,
-        email_confirmation_status: resolvedStatus,
+        email: emailState.email,
+        email_confirmed: emailState.email_confirmed,
+        email_confirmed_at: emailState.email_confirmed_at,
+        email_confirmation_status: emailState.email_confirmation_status,
         access_token: cust.access_token,
         created_at: cust.created_at,
         purchases,
@@ -1203,7 +1293,7 @@ export async function setCustomerPassword({ token, email, password, currentPassw
   if (!token) throw new Error('Customer token is required.')
   const cleanEmail = sanitizeEmail(email)
   if (!cleanEmail || !isValidEmail(cleanEmail)) throw new Error('A valid email address is required.')
-  if (!password || password.length < 6) throw new Error('Password must be at least 6 characters.')
+  if (!password || password.length < 8) throw new Error('Password must be at least 8 characters.')
 
   const prevLocalEmail = readLocalEmailState(token)
   const emailChanged = !prevLocalEmail?.email || prevLocalEmail.email.toLowerCase() !== cleanEmail
@@ -1351,6 +1441,12 @@ export async function updateCustomerProfile(
   if (barangay !== undefined) updates.barangay = barangay ? sanitizeText(barangay, { maxLength: 100 }) : null
 
   try {
+    const prevNormalized = previousEmail ? sanitizeEmail(previousEmail) : ''
+    const emailChanged = Boolean(cleanEmail && cleanEmail !== prevNormalized)
+    if (emailChanged) {
+      updates.email_confirmed_at = null
+    }
+
     let customerData = null
     const { data, error } = await supabase
       .from('customers')
@@ -1361,8 +1457,7 @@ export async function updateCustomerProfile(
         phone_number,
         full_name,
         email,
-        email_confirmed,
-        email_confirmation_status,
+        email_confirmed_at,
         access_token,
         created_at
       `)
@@ -1375,6 +1470,7 @@ export async function updateCustomerProfile(
       delete fallbackUpdates.city
       delete fallbackUpdates.barangay
       delete fallbackUpdates.email
+      delete fallbackUpdates.email_confirmed_at
       const { data: fallbackData, error: fallbackError } = await supabase
         .from('customers')
         .update(fallbackUpdates)
@@ -1390,8 +1486,6 @@ export async function updateCustomerProfile(
     }
 
     const resolvedToken = customerData?.access_token || accessToken
-    const prevNormalized = previousEmail ? sanitizeEmail(previousEmail) : ''
-    const emailChanged = cleanEmail && cleanEmail !== prevNormalized
 
     let emailConfirmation = null
     if (cleanEmail && emailChanged && resolvedToken) {
@@ -1407,16 +1501,16 @@ export async function updateCustomerProfile(
       customerData = {
         ...customerData,
         email: cleanEmail,
+        email_confirmed_at: null,
         email_confirmed: false,
         email_confirmation_status: emailConfirmation?.status || 'awaiting_confirmation'
       }
     } else if (cleanEmail) {
       const localState = readLocalEmailState(resolvedToken)
+      const emailState = resolveCustomerEmailState(customerData, localState, cleanEmail)
       customerData = {
         ...customerData,
-        email: cleanEmail,
-        email_confirmed: Boolean(customerData?.email_confirmed || localState?.email_confirmed),
-        email_confirmation_status: customerData?.email_confirmation_status || localState?.email_confirmation_status || 'awaiting_confirmation'
+        ...emailState
       }
     }
 
@@ -1884,3 +1978,38 @@ export async function deletePlatformUser({ targetUserId, table = null }) {
 
 
 
+
+/**
+ * Requests a password reset email. Always resolves the same way whether or not
+ * the email belongs to an account; the server never reveals that.
+ */
+export async function requestPasswordReset(email) {
+  const cleanEmail = (email || '').trim().toLowerCase()
+  if (!cleanEmail || !isValidEmail(cleanEmail)) {
+    throw new Error('A valid email address is required.')
+  }
+  const res = await fetch('/api/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: cleanEmail })
+  })
+  if (!res.ok) {
+    throw new Error('Unable to send the reset link right now. Please try again shortly.')
+  }
+  return { success: true }
+}
+
+/**
+ * Redeems a reset token and sets the new password.
+ */
+export async function resetCustomerPassword(token, newPassword) {
+  if (!token) throw new Error('This reset link is invalid or has expired.')
+  if (!newPassword || newPassword.length < 8) throw new Error('Password must be at least 8 characters.')
+  const { data, error } = await supabase.rpc('reset_customer_password', {
+    p_token: token,
+    p_new_password: newPassword
+  })
+  if (error) throw new Error('Unable to reset the password right now. Please try again.')
+  if (!data?.success) throw new Error(data?.error || 'This reset link is invalid or has expired.')
+  return data
+}

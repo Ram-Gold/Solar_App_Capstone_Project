@@ -39,12 +39,13 @@ export default function QRReceiptModal({
     if (emailConfirmation) {
       setLocalEmailStatus(emailConfirmation)
     } else if (customer?.email) {
+      const confirmed = Boolean(customer.email_confirmed_at || customer.email_confirmed)
       setLocalEmailStatus({
         email: customer.email,
-        status: customer.email_confirmed
+        status: confirmed
           ? 'confirmed'
           : (customer.email_confirmation_status || 'awaiting_confirmation'),
-        message: customer.email_confirmed
+        message: confirmed
           ? `Customer email address (${customer.email}) is verified and confirmed.`
           : `Confirmation email sent to ${customer.email}. Awaiting customer email verification.`
       })
@@ -57,7 +58,12 @@ export default function QRReceiptModal({
 
   const token = customer.access_token || customer.token || ''
   const customerEmail = localEmailStatus?.email || customer.email || ''
-  const isConfirmed = Boolean(customer.email_confirmed || localEmailStatus?.status === 'confirmed')
+  const isConfirmed = Boolean(
+    customer.email_confirmed_at ||
+    customer.email_confirmed ||
+    localEmailStatus?.status === 'confirmed' ||
+    localEmailStatus?.emailConfirmed
+  )
   const currentStatus = isConfirmed
     ? 'confirmed'
     : (localEmailStatus?.status || customer.email_confirmation_status || (customerEmail ? 'awaiting_confirmation' : 'unconfirmed'))

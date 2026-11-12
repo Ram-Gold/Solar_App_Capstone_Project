@@ -399,7 +399,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
               <div className="flex items-center justify-between h-5 text-xs font-semibold text-jds-on-surface-variant">
                 <label htmlFor="reg-sale-email">Customer Email Address *</label>
                 {existingCustomerRecord?.email && existingCustomerRecord.email.toLowerCase() === email.trim().toLowerCase() && (
-                  existingCustomerRecord.email_confirmed ? (
+                  Boolean(existingCustomerRecord.email_confirmed_at || existingCustomerRecord.email_confirmed) ? (
                     <span className="text-[10px] font-semibold text-emerald-500 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" /> Confirmed
                     </span>

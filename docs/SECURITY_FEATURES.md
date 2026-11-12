@@ -254,3 +254,14 @@ When adding new features or modifying code in this repository, follow these stan
    * When creating `SECURITY DEFINER` functions, always add `SET search_path = ''` to prevent search path hijacking.
    * Include caller verification checks using `auth.uid()` or role checking functions.
 
+
+## Customer Password Reset (Forgot Password)
+
+* **Scope:** customer accounts only (`customer_passwords`). Staff and admin passwords are reset manually by an admin.
+* **Tokens:** 256-bit random, stored only as SHA-256 hashes in `customer_password_resets`, single use, 30 minute expiry. A new request invalidates earlier tokens. Limit of 3 requests per hour per account.
+* **Token issuance:** `create_customer_password_reset(email)` is executable by `service_role` only. It is called by the Vercel function `/api/forgot-password`, which emails the link. The raw token is never returned to a browser.
+* **Redemption:** `reset_customer_password(token, new_password)` (anon callable) validates the token, enforces the 8 character minimum and updates the bcrypt hash. `set_customer_password` enforces the same minimum.
+* **No account enumeration:** the endpoint and UI respond identically for known, unknown and rate-limited emails.
+* **Link origin:** built from the server-side `PUBLIC_SITE_URL` only, never from request headers.
+* **Environment (Vercel, server-side only):** `SUPABASE_SERVICE_ROLE_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, optional `PUBLIC_SITE_URL`.
+* **Migration:** `docs/database/migrations/customer_password_reset_migration.sql` (already applied to the `solar-app` project).

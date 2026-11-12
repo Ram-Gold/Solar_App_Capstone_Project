@@ -34,26 +34,26 @@ Customer registration/sale, portal login via QR token or password. No email send
 ## 3. New (added) components
 
 ### 3.1 Database: `docs/database/migrations/customer_email_confirmation_migration.sql`
-Run manually in the Supabase SQL Editor.
+Run manually in the Supabase SQL Editor (or executed via Supabase Management API).
 
-**New columns on `public.customers`**: `email`, `email_confirmed` (default false), `email_confirmation_status` (default `queued`), `email_verification_token` (UUID, default `gen_random_uuid()`), `email_confirmation_sent_at`, `email_confirmed_at`. Indexes: `idx_customers_email` (on `LOWER(email)`), `idx_customers_verification_token`. Existing emails are backfilled from `customer_passwords`.
+**Columns on `public.customers`**: `email` (TEXT, indexed via `idx_customers_email` on `LOWER(email)`), `email_confirmed_at` (TIMESTAMPTZ, nullable — non-null represents confirmed email). Redundant columns (`email_confirmed`, `email_confirmation_status`, `email_verification_token`, `email_confirmation_sent_at`) have been dropped. Existing emails are backfilled from `customer_passwords`.
 
-**New table `public.email_confirmation_queue`** (as created by the migration):
-`id, customer_id (FK customers, ON DELETE CASCADE), recipient_email, subject, status (queued | awaiting_confirmation | confirmed | failed), verification_token, attempts, last_error, created_at, sent_at, confirmed_at`.
+**Normalized table `public.email_confirmation_queue`** (7 core columns):
+`id, customer_id (FK customers, ON DELETE CASCADE), recipient_email, verification_token, status (queued | awaiting_confirmation | confirmed | failed), sent_at, created_at`. Redundant columns (`subject`, `attempts`, `last_error`, `confirmed_at`) have been dropped.
 RLS: authenticated (staff/admin) full access; anon `SELECT` denied (access only through RPCs).
 
 **New RPCs** (all `SECURITY DEFINER`, `search_path = ''`, granted to `anon, authenticated`):
 | Function | Behavior |
 |---|---|
-| `queue_customer_confirmation_email(p_customer_id, p_email)` | Validates email, sets `customers.email`, resets to unconfirmed/`queued`, issues a new verification token, inserts a queue row (attempts = 1). Returns `queue_id`, `access_token`, `verification_token` |
-| `mark_confirmation_email_sent(p_customer_id, p_status, p_error)` | Sets status (default `awaiting_confirmation`) on the customer and on `queued`/`failed` queue rows; stamps `sent_at` |
-| `confirm_customer_email(p_token, p_verification_token)` | Finds customer by access token; rejects mismatched verification token; sets `email_confirmed = true`, status `confirmed`, timestamps; updates queue |
+| `queue_customer_confirmation_email(p_customer_id, p_email)` | Validates email, updates `customers.email`, resets `email_confirmed_at = NULL`, issues a new verification token, inserts a queue row (`status = 'queued'`). Returns `queue_id`, `access_token`, `verification_token` |
+| `mark_confirmation_email_sent(p_customer_id, p_status, p_error)` | Sets status (default `awaiting_confirmation`) on `queued`/`failed` queue rows; stamps `sent_at` |
+| `confirm_customer_email(p_token, p_verification_token)` | Finds customer by access token; verifies token against `email_confirmation_queue.verification_token`; sets `customers.email_confirmed_at = NOW()`; updates queue status to `confirmed` |
 
 **Modified RPCs** (replaced via `CREATE OR REPLACE`):
 | Function | Change |
 |---|---|
-| `get_customer_auth_status(token)` | Now also returns `email_confirmed`, `email_confirmation_status`, `email_verification_token`, `email_confirmation_sent_at`, `email_confirmed_at`; email falls back from `customers.email` to `customer_passwords.email` |
-| `set_customer_password(...)` | Syncs email into `customers`; if the email changed, resets confirmation to `queued` with a new token and returns `email_changed` and `email_confirmed` |
+| `get_customer_auth_status(token)` | Returns `email`, `email_confirmed` (boolean derived from `email_confirmed_at IS NOT NULL`), `email_confirmed_at`, `email_confirmation_status` (derived from queue or `confirmed`), `email_verification_token`, `email_confirmation_sent_at`; email falls back from `customers.email` to `customer_passwords.email` |
+| `set_customer_password(...)` | Syncs email into `customers`; if the email changed, resets `email_confirmed_at = NULL`, enqueues a new confirmation task, and returns `email_changed` and `email_confirmed` |
 
 ### 3.2 Vercel Serverless Function
 - Implementation: `frontend/api/send-confirmation-email.js`
@@ -136,25 +136,17 @@ Status lifecycle: `queued` -> `awaiting_confirmation` -> `confirmed` (or `failed
 erDiagram
     CUSTOMERS ||--o{ EMAIL_CONFIRMATION_QUEUE : "queues (customer_id)"
     CUSTOMERS {
-        text email "NEW"
-        boolean email_confirmed "NEW"
-        text email_confirmation_status "NEW"
-        uuid email_verification_token "NEW"
-        timestamptz email_confirmation_sent_at "NEW"
-        timestamptz email_confirmed_at "NEW"
+        text email "Indexed"
+        timestamptz email_confirmed_at "Nullable (non-null = confirmed)"
     }
     EMAIL_CONFIRMATION_QUEUE {
         uuid id PK
         uuid customer_id FK
         text recipient_email
-        text subject
-        text status
-        uuid verification_token
-        integer attempts
-        text last_error
-        timestamptz created_at
+        uuid verification_token "Indexed"
+        text status "queued | awaiting_confirmation | confirmed | failed"
         timestamptz sent_at
-        timestamptz confirmed_at
+        timestamptz created_at
     }
 ```
 

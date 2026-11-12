@@ -13,6 +13,8 @@ import ProductInfoPage from './pages/ProductInfoPage'
 import AdminPage from './pages/AdminPage'
 import StaffPage from './pages/StaffPage'
 import LoginPage from './pages/LoginPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import CustomerPortalPage from './pages/CustomerPortalPage'
 import { ChatProvider } from './context/ChatContext'
 import { AuthProvider } from './context/AuthContext'
@@ -21,7 +23,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 function AppLayout() {
   const { pathname } = useLocation()
   const isDashboardRoute = pathname.startsWith('/admin') || pathname.startsWith('/staff')
-  const isLoginRoute = pathname === '/login'
+  const isLoginRoute = ['/login', '/forgot-password', '/reset-password'].includes(pathname)
   const isPortalRoute = pathname.startsWith('/portal')
   const isMatchRoute = pathname.startsWith('/match')
   const isChatRoute = pathname.startsWith('/chat')
@@ -40,6 +42,8 @@ function AppLayout() {
           <Route path="/chat" element={<ChatboxPage />} />
           <Route path="/portal" element={<CustomerPortalPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route 
             path="/admin/*" 
             element={

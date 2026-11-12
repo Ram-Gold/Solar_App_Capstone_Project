@@ -18,6 +18,7 @@ import jdSolarLogo from '../assets/jdsolarlogo.webp'
 export default function LoginPage() {
   const [searchParams] = useSearchParams()
   const isTimedOut = searchParams.get('reason') === 'timeout'
+  const isPasswordReset = searchParams.get('reason') === 'reset'
 
   const [email, setEmail] = useState(() => {
     return localStorage.getItem('jd_remembered_email') || localStorage.getItem('jd_customer_email') || ''
@@ -162,6 +163,17 @@ export default function LoginPage() {
               </motion.div>
             )}
 
+            {/* Password Reset Success Banner */}
+            {isPasswordReset && (
+              <div
+                role="status"
+                className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 text-sm mb-6"
+              >
+                <span className="font-semibold text-label-md block">Password Updated</span>
+                <span className="text-body-sm opacity-90">Sign in with your new password.</span>
+              </div>
+            )}
+
             {/* Error */}
             {error && (
               <motion.div
@@ -202,12 +214,20 @@ export default function LoginPage() {
 
               {/* Password */}
               <div className="space-y-2">
-                <label
-                  className="block text-label-sm text-jds-on-surface-variant ml-1"
-                  htmlFor="password"
-                >
-                  Password
-                </label>
+                <div className="flex items-center justify-between">
+                  <label
+                    className="block text-label-sm text-jds-on-surface-variant ml-1"
+                    htmlFor="password"
+                  >
+                    Password
+                  </label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-label-sm text-jds-secondary font-bold hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-jds-on-surface-variant group-focus-within:text-jds-secondary transition-colors">
                     <HiOutlineLockClosed className="text-xl" />
