@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import {
   ShieldCheck,
   ShieldAlert,
@@ -335,8 +335,19 @@ export default function CustomerPortalPage() {
             </button>
           </form>
 
-          <div className="text-[11px] text-jds-on-surface-variant pt-2 border-t border-jds-outline-variant/30">
-            Need help? Contact our Cavite or Quiapo branch staff for assistance.
+          <div className="pt-2 border-t border-jds-outline-variant/30 flex flex-col items-center gap-1.5 text-[11px] text-jds-on-surface-variant">
+            <div>
+              Have an email and password?{' '}
+              <Link to="/login" className="text-jds-primary font-semibold hover:underline">
+                Sign in here
+              </Link>
+            </div>
+            <div>
+              Forgot password?{' '}
+              <Link to="/forgot-password" className="text-jds-secondary font-semibold hover:underline">
+                Reset it here
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -973,10 +984,18 @@ export default function CustomerPortalPage() {
 
               {authStatus.hasPassword && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-jds-on-surface-variant" />
-                    Current Password
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-jds-on-surface-variant" />
+                      Current Password
+                    </label>
+                    <Link
+                      to="/forgot-password"
+                      className="text-[11px] text-jds-secondary font-semibold hover:underline"
+                    >
+                      Forgot?
+                    </Link>
+                  </div>
                   <input
                     type="password"
                     placeholder="Enter current password"
@@ -995,7 +1014,7 @@ export default function CustomerPortalPage() {
                 <input
                   type="password"
                   required
-                  placeholder="Minimum 6 characters"
+                  placeholder="Minimum 8 characters"
                   value={pwdNew}
                   onChange={(e) => setPwdNew(e.target.value)}
                   className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary"
