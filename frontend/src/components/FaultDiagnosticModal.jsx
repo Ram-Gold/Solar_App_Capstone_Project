@@ -25,6 +25,7 @@ import { uploadEvidenceFile, submitWarrantyClaim } from '../lib/customerService'
 import { sanitizeText } from '../lib/sanitize.js'
 import useModalBehavior from '../hooks/useModalBehavior'
 import AnimatedConfirmation from './ui/AnimatedConfirmation'
+import WarrantyTermsModal from './WarrantyTermsModal'
 import {
   DIAGNOSTIC_TREE,
   DEFAULT_CRITERIA_STATE,
@@ -236,6 +237,11 @@ export default function FaultDiagnosticModal({
   const [currentDiagnosis, setCurrentDiagnosis] = useState(null)
   const [selectedRootSymptoms, setSelectedRootSymptoms] = useState([])
 
+  // === SAFETY ACKNOWLEDGMENT & MODAL STATE ===
+  const [isActionStepsUnlocked, setIsActionStepsUnlocked] = useState(false)
+  const [isSafetyModalOpen, setIsSafetyModalOpen] = useState(false)
+  const [isWarrantyPolicyOpen, setIsWarrantyPolicyOpen] = useState(false)
+
   // === CLAIM FORM STATE (Multi-Category selection support) ===
   const [selectedCategories, setSelectedCategories] = useState([ISSUE_CATEGORIES[0].id])
   const [description, setDescription] = useState('')
@@ -246,9 +252,28 @@ export default function FaultDiagnosticModal({
   const [submittedClaimId, setSubmittedClaimId] = useState(null)
   const [isConfirmedTransition, setIsConfirmedTransition] = useState(false)
 
+  const handleClose = () => {
+    if (isWarrantyPolicyOpen) {
+      setIsWarrantyPolicyOpen(false)
+      return
+    }
+    if (isSafetyModalOpen) {
+      setIsSafetyModalOpen(false)
+      return
+    }
+    setIsSuccess(false)
+    setSubmittedClaimId(null)
+    setIsConfirmedTransition(false)
+    setDescription('')
+    setFiles([])
+    setUploadError('')
+    handleReset()
+    onClose()
+  }
+
   const { backdropProps } = useModalBehavior({
     isOpen: Boolean(isOpen && purchase),
-    onClose,
+    onClose: handleClose,
   })
 
   if (!isOpen || !purchase) return null
@@ -413,6 +438,7 @@ export default function FaultDiagnosticModal({
     if (history.length <= 1) return
     if (isSolutionView) {
       setCurrentDiagnosis(null)
+      setIsActionStepsUnlocked(false)
     }
     setHistory((prev) => prev.slice(0, -1))
   }
@@ -424,6 +450,9 @@ export default function FaultDiagnosticModal({
     setCurrentDiagnosis(null)
     setSelectedRootSymptoms([])
     setSelectedCategories([ISSUE_CATEGORIES[0].id])
+    setIsActionStepsUnlocked(false)
+    setIsSafetyModalOpen(false)
+    setIsWarrantyPolicyOpen(false)
   }
 
   // Transfer diagnostic summary into the warranty claim form
@@ -562,17 +591,6 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
     } finally {
       setIsUploading(false)
     }
-  }
-
-  const handleClose = () => {
-    setIsSuccess(false)
-    setSubmittedClaimId(null)
-    setIsConfirmedTransition(false)
-    setDescription('')
-    setFiles([])
-    setUploadError('')
-    handleReset()
-    onClose()
   }
 
   // Filter out meta navigation options (like 'Back' or 'Restart' which we handle in the wizard bar)
@@ -807,25 +825,110 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
 
                   {/* Step-by-Step DIY Remedy Card */}
                   {currentDiagnosis.remedySteps && currentDiagnosis.remedySteps.length > 0 && (
-                    <div className="p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 space-y-3">
-                      <div className="flex items-center gap-2 text-xs font-bold text-jds-on-surface uppercase tracking-wider">
-                        <Wrench className="w-4 h-4 text-jds-primary" />
-                        <span>Recommended Solution & Action Steps</span>
+                    <div className="rounded-2xl bg-jds-surface border border-jds-outline-variant/40 overflow-hidden relative">
+                      {/* Section Header */}
+                      <div className="p-5 pb-3 flex items-center justify-between gap-2 border-b border-jds-outline-variant/20">
+                        <div className="flex items-center gap-2 text-xs font-bold text-jds-on-surface uppercase tracking-wider">
+                          <Wrench className="w-4 h-4 text-jds-primary" />
+                          <span>Recommended Solution & Action Steps</span>
+                        </div>
+                        {!isActionStepsUnlocked && (
+                          <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            <span>Safety Locked</span>
+                          </span>
+                        )}
                       </div>
-                      <div className="space-y-2">
-                        {currentDiagnosis.remedySteps.map((step, idx) => (
-                          <div
-                            key={idx}
-                            className="p-3 rounded-xl bg-jds-surface-container/40 border border-jds-outline-variant/30 flex items-start gap-3"
-                          >
-                            <span className="w-6 h-6 rounded-full bg-jds-primary/10 text-jds-primary font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                              {idx + 1}
-                            </span>
-                            <span className="text-xs sm:text-sm text-jds-on-surface leading-relaxed font-medium">
-                              {renderFormattedText(step)}
-                            </span>
+
+                      {/* Steps Container: blurred when locked */}
+                      <div className="p-5 relative">
+                        <div
+                          className={`space-y-4 ${
+                            !isActionStepsUnlocked
+                              ? 'filter blur-sm select-none pointer-events-none opacity-30'
+                              : ''
+                          }`}
+                        >
+                          {/* Safety Warning BEFORE Doing Actions */}
+                          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                            <div className="text-xs space-y-0.5">
+                              <span className="font-bold text-amber-600 dark:text-amber-400 block uppercase tracking-wider text-[10px]">
+                                Safety Warning Before Doing Actions
+                              </span>
+                              <p className="text-jds-on-surface-variant leading-relaxed">
+                                Turn off main power switches and disconnect solar panel leads before touching terminals. Work on a stable surface, use insulated tools, and avoid shorting battery poles.
+                              </p>
+                            </div>
                           </div>
-                        ))}
+
+                          {/* Action Steps List */}
+                          <div className="space-y-2">
+                            {currentDiagnosis.remedySteps.map((step, idx) => (
+                              <div
+                                key={idx}
+                                className="p-3 rounded-xl bg-jds-surface-container/40 border border-jds-outline-variant/30 flex items-start gap-3"
+                              >
+                                <span className="w-6 h-6 rounded-full bg-jds-primary/10 text-jds-primary font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                                  {idx + 1}
+                                </span>
+                                <span className="text-xs sm:text-sm text-jds-on-surface leading-relaxed font-medium">
+                                  {renderFormattedText(step)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Safety Warning AFTER Doing Actions (Under everything) */}
+                          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3">
+                            <div className="flex items-start gap-2.5">
+                              <ShieldAlert className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                              <div className="text-xs space-y-1">
+                                <span className="font-bold text-rose-500 block uppercase tracking-wider text-[10px]">
+                                  Safety Warning After Doing Actions
+                                </span>
+                                <p className="text-jds-on-surface-variant leading-relaxed">
+                                  If the problem does not resolve, stop troubleshooting immediately. Do not force internal disassembly, as this risks breaking the system further. Contact the store or file a warranty claim for technician evaluation.
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => transferToClaim()}
+                              className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shrink-0 cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                            >
+                              <ShieldCheck className="w-4 h-4" />
+                              <span>File Warranty Claim</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Blur Precaution Overlay & Unlock Modal Trigger */}
+                        {!isActionStepsUnlocked && (
+                          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center bg-jds-surface/80 backdrop-blur-xs">
+                            <div className="max-w-md space-y-3 p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/60 shadow-xl">
+                              <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+                                <AlertTriangle className="w-5 h-5" />
+                              </div>
+                              <div className="space-y-1">
+                                <h4 className="text-sm font-bold text-jds-on-surface">
+                                  Action Steps Blurred for Safety Precaution
+                                </h4>
+                                <p className="text-xs text-jds-on-surface-variant leading-relaxed">
+                                  These troubleshooting steps involve hands-on equipment handling. They are blurred to prevent personal harm and system damage. Review our safety warning before proceeding.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setIsSafetyModalOpen(true)}
+                                className="w-full px-4 py-2.5 rounded-xl bg-jds-primary hover:bg-jds-primary/90 text-jds-on-primary text-xs font-semibold transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+                              >
+                                <ShieldAlert className="w-4 h-4" />
+                                <span>Review Safety Warning</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -940,6 +1043,19 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                   {currentNodeKey === 'ROOT' ? (
                     /* Step 1: Multi-Choice Primary Symptom Cards with Checkboxes & Continue Toolbar */
                     <div className="space-y-4">
+                      {/* Safety Precaution Before Troubleshooting */}
+                      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-jds-on-surface">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <div className="text-xs space-y-1">
+                          <span className="font-bold text-amber-600 dark:text-amber-400 block uppercase tracking-wider text-[11px]">
+                            Safety Precaution Before Troubleshooting
+                          </span>
+                          <p className="text-jds-on-surface-variant leading-relaxed">
+                            Solar lighting fixtures use direct current circuits and rechargeable lithium battery cells. Power off the luminaire before inspecting hardware. Never troubleshoot or handle open wiring during rainy conditions or with wet hands.
+                          </p>
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {currentOptions.map((opt) => {
                           const meta = SYMPTOM_META[opt.next] || {
@@ -1340,6 +1456,90 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
         )}
 
       </div>
+
+      {/* Safety Warning Modal */}
+      {isSafetyModalOpen && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto cursor-pointer"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="safety-warning-modal-title"
+          onClick={() => setIsSafetyModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-lg bg-jds-surface border border-rose-500/40 rounded-2xl shadow-2xl p-6 text-jds-on-surface space-y-5 animate-in fade-in duration-150 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 block">
+                  Critical Safety Advisory
+                </span>
+                <h3 id="safety-warning-modal-title" className="text-base sm:text-lg font-bold text-jds-on-surface">
+                  WARNING: Risk of Personal Harm and System Damage
+                </h3>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs text-jds-on-surface-variant leading-relaxed">
+              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-jds-on-surface font-semibold leading-relaxed">
+                WARNING: If you do this you might get harmed or risk breaking the system more. Solar electrical equipment carries direct current circuits, high capacitor storage, and lithium battery cells that cause thermal hazards or electric shocks when mishandled.
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-jds-surface-container/60 border border-jds-outline-variant/30 space-y-2">
+                <span className="font-bold text-jds-on-surface block text-[11px] uppercase tracking-wider">
+                  Store Warranty and Disqualification Policy Notice
+                </span>
+                <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
+                  Under official JD Solar policy, damage caused by customer carelessness, cracked glass, unsealed cable entries, or unauthorized component tampering disqualifies units from free replacement. If something breaks during manual handling, you already know that repairs become chargeable under store policy.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsWarrantyPolicyOpen(true)}
+                  className="text-[11px] font-semibold text-jds-primary hover:underline flex items-center gap-1 cursor-pointer pt-1"
+                >
+                  <span>Read 2-Year Warranty and Disqualification Policy</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
+                If the problem does not resolve with non-invasive checks, stop your work immediately. Contact the store directly or file a warranty claim for bench intake at our Quiapo or Cavite service hubs.
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-end gap-2.5 border-t border-jds-outline-variant/30">
+              <button
+                type="button"
+                onClick={() => setIsSafetyModalOpen(false)}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl border border-jds-outline-variant/60 hover:bg-jds-surface-container text-xs font-semibold text-jds-on-surface cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsActionStepsUnlocked(true)
+                  setIsSafetyModalOpen(false)
+                }}
+                className="w-full sm:w-auto px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold cursor-pointer transition-colors shadow-sm"
+              >
+                I Understand
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2-Year Warranty and Disqualification Terms Modal */}
+      <WarrantyTermsModal
+        isOpen={isWarrantyPolicyOpen}
+        onClose={() => setIsWarrantyPolicyOpen(false)}
+        customerName={purchase?.customer_name || ''}
+      />
     </div>
   )
 }

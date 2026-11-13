@@ -205,4 +205,197 @@ describe('FaultDiagnosticModal Multi-Choice Symptom Selection', () => {
     const emojiRegex = /\p{Extended_Pictographic}/u
     expect(emojiRegex.test(container.textContent)).toBe(false)
   })
+
+  it('renders pre-troubleshooting safety warning at Stage 1', () => {
+    render(
+      <FaultDiagnosticModal
+        isOpen={true}
+        onClose={vi.fn()}
+        purchase={mockPurchase}
+        customerToken="dummy-token"
+      />
+    )
+
+    expect(screen.getByText(/Safety Precaution Before Troubleshooting/i)).toBeTruthy()
+    expect(screen.getByText(/Solar lighting fixtures use direct current circuits and rechargeable lithium battery cells/i)).toBeTruthy()
+  })
+
+  it('blurs action steps on solution view and requires safety modal acknowledgment to unlock', () => {
+    render(
+      <FaultDiagnosticModal
+        isOpen={true}
+        onClose={vi.fn()}
+        purchase={mockPurchase}
+        customerToken="dummy-token"
+      />
+    )
+
+    // Select symptom and advance
+    const hotspotBtn = screen.getByRole('button', { name: /Panel Heat \/ Discoloration \/ Broken Glass/i })
+    fireEvent.click(hotspotBtn)
+    fireEvent.click(screen.getByRole('button', { name: /Continue Diagnostic/i }))
+
+    // Stage 2: Physical classification
+    const cellHotspotBtn = screen.getByRole('button', { name: /Brown \/ black burned spots/i })
+    fireEvent.click(cellHotspotBtn)
+
+    // Stage 3: Electrical classification
+    const darkLedBtn = screen.getByRole('button', { name: /Charging LED is completely dark/i })
+    fireEvent.click(darkLedBtn)
+
+    // Stage 4: Environmental exposure -> leads to SOLUTION
+    const sunBtn = screen.getByRole('button', { name: /Direct open sunlight exposure/i })
+    fireEvent.click(sunBtn)
+
+    // Now in SOLUTION view: action steps should be blurred with precaution overlay
+    expect(screen.getByText(/Recommended Solution & Action Steps/i)).toBeTruthy()
+    expect(screen.getByText(/Action Steps Blurred for Safety Precaution/i)).toBeTruthy()
+    expect(screen.getByText(/These troubleshooting steps involve hands-on equipment handling/i)).toBeTruthy()
+
+    // Open Safety Warning Modal
+    const reviewWarningBtn = screen.getByRole('button', { name: /Review Safety Warning/i })
+    fireEvent.click(reviewWarningBtn)
+
+    // Modal elements
+    expect(screen.getByText(/WARNING: Risk of Personal Harm and System Damage/i)).toBeTruthy()
+    expect(screen.getByText(/WARNING: If you do this you might get harmed or risk breaking the system more/i)).toBeTruthy()
+    expect(screen.getByText(/Store Warranty and Disqualification Policy Notice/i)).toBeTruthy()
+    expect(screen.getByText(/If the problem does not resolve with non-invasive checks/i)).toBeTruthy()
+
+    // Test opening the policy modal from the safety warning modal
+    const policyLinkBtn = screen.getByRole('button', { name: /Read 2-Year Warranty and Disqualification Policy/i })
+    fireEvent.click(policyLinkBtn)
+    expect(screen.getByText(/2-Year Solar Warranty & Disqualification Notice/i)).toBeTruthy()
+
+    // Close policy modal
+    const closePolicyBtns = screen.getAllByRole('button', { name: /^Close$/i })
+    fireEvent.click(closePolicyBtns[0])
+
+    // Click "I Understand" to unlock action steps
+    const understandBtn = screen.getByRole('button', { name: /I Understand/i })
+    fireEvent.click(understandBtn)
+
+    // Precaution overlay should be removed, revealing dual safety notices
+    expect(screen.queryByText(/Action Steps Blurred for Safety Precaution/i)).toBeNull()
+    expect(screen.getByText(/Safety Warning Before Doing Actions/i)).toBeTruthy()
+    expect(screen.getByText(/Safety Warning After Doing Actions/i)).toBeTruthy()
+    expect(screen.getByText(/If the problem does not resolve, stop troubleshooting immediately/i)).toBeTruthy()
+
+    // Clicking File Warranty Claim under everything transfers to claim tab
+    const claimBtns = screen.getAllByRole('button', { name: /File Warranty Claim/i })
+    fireEvent.click(claimBtns[claimBtns.length - 1])
+
+    // Should now be on the claim tab with description pre-filled
+    expect(screen.getByText(/Diagnostic Wizard Report Pre-Populated/i)).toBeTruthy()
+  })
+
+  it('relocks action steps if the troubleshooter is restarted or reset', () => {
+    render(
+      <FaultDiagnosticModal
+        isOpen={true}
+        onClose={vi.fn()}
+        purchase={mockPurchase}
+        customerToken="dummy-token"
+      />
+    )
+
+    // Navigate to solution view
+    fireEvent.click(screen.getByRole('button', { name: /Panel Heat \/ Discoloration \/ Broken Glass/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Continue Diagnostic/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Brown \/ black burned spots/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Charging LED is completely dark/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Direct open sunlight exposure/i }))
+
+    // Unlock
+    fireEvent.click(screen.getByRole('button', { name: /Review Safety Warning/i }))
+    fireEvent.click(screen.getByRole('button', { name: /I Understand/i }))
+    expect(screen.queryByText(/Action Steps Blurred for Safety Precaution/i)).toBeNull()
+
+    // Click "Troubleshoot Another Issue"
+    fireEvent.click(screen.getByRole('button', { name: /Troubleshoot Another Issue/i }))
+
+    // Should be back at Stage 1
+    expect(screen.getByText(/Safety Precaution Before Troubleshooting/i)).toBeTruthy()
+
+    // Navigate back to solution view
+    fireEvent.click(screen.getByRole('button', { name: /Panel Heat \/ Discoloration \/ Broken Glass/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Continue Diagnostic/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Brown \/ black burned spots/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Charging LED is completely dark/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Direct open sunlight exposure/i }))
+
+    // Must be blurred and locked again requiring re-acknowledgment
+    expect(screen.getByText(/Action Steps Blurred for Safety Precaution/i)).toBeTruthy()
+  })
+
+  it('closes safety warning modal on Cancel or backdrop click without unlocking action steps', () => {
+    render(
+      <FaultDiagnosticModal
+        isOpen={true}
+        onClose={vi.fn()}
+        purchase={mockPurchase}
+        customerToken="dummy-token"
+      />
+    )
+
+    // Navigate to solution view
+    fireEvent.click(screen.getByRole('button', { name: /Panel Heat \/ Discoloration \/ Broken Glass/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Continue Diagnostic/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Brown \/ black burned spots/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Charging LED is completely dark/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Direct open sunlight exposure/i }))
+
+    // Open Safety Warning Modal
+    fireEvent.click(screen.getByRole('button', { name: /Review Safety Warning/i }))
+    expect(screen.getByText(/WARNING: Risk of Personal Harm and System Damage/i)).toBeTruthy()
+
+    // Click Cancel
+    fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }))
+
+    // Modal closed, steps still blurred
+    expect(screen.queryByText(/WARNING: Risk of Personal Harm and System Damage/i)).toBeNull()
+    expect(screen.getByText(/Action Steps Blurred for Safety Precaution/i)).toBeTruthy()
+
+    // Reopen and test backdrop click
+    fireEvent.click(screen.getByRole('button', { name: /Review Safety Warning/i }))
+    expect(screen.getByText(/WARNING: Risk of Personal Harm and System Damage/i)).toBeTruthy()
+
+    const modalDialog = screen.getByRole('dialog', { name: /WARNING: Risk of Personal Harm and System Damage/i })
+    fireEvent.click(modalDialog)
+
+    // Modal closed, steps remain blurred
+    expect(screen.queryByText(/WARNING: Risk of Personal Harm and System Damage/i)).toBeNull()
+    expect(screen.getByText(/Action Steps Blurred for Safety Precaution/i)).toBeTruthy()
+  })
+
+  it('closes safety warning modal on Escape without closing parent troubleshooter', () => {
+    const handleClose = vi.fn()
+    render(
+      <FaultDiagnosticModal
+        isOpen={true}
+        onClose={handleClose}
+        purchase={mockPurchase}
+        customerToken="dummy-token"
+      />
+    )
+
+    // Navigate to solution view
+    fireEvent.click(screen.getByRole('button', { name: /Panel Heat \/ Discoloration \/ Broken Glass/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Continue Diagnostic/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Brown \/ black burned spots/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Charging LED is completely dark/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Direct open sunlight exposure/i }))
+
+    // Open Safety Warning Modal
+    fireEvent.click(screen.getByRole('button', { name: /Review Safety Warning/i }))
+    expect(screen.getByText(/WARNING: Risk of Personal Harm and System Damage/i)).toBeTruthy()
+
+    // Press Escape
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    // Safety modal should close, but parent modal onClose should NOT have been invoked
+    expect(screen.queryByText(/WARNING: Risk of Personal Harm and System Damage/i)).toBeNull()
+    expect(handleClose).not.toHaveBeenCalled()
+    expect(screen.getByText(/Solar Troubleshooting Guide/i)).toBeTruthy()
+  })
 })
