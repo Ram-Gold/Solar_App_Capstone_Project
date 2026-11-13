@@ -26,6 +26,12 @@ import {
   RefreshCw,
   CheckCircle2,
 } from 'lucide-react'
+import {
+  parseProductImages,
+  getMainProductImage,
+  serializeProductImages,
+  fetchDynamicProductImages
+} from '../../lib/productImageUtils'
 import { useAuth } from '../../context/AuthContext'
 import CategoryModal from './CategoryModal'
 import RecordSaleModal from './RecordSaleModal'
@@ -309,7 +315,7 @@ export default function ProductsScreen({ onNavigate }) {
   }
 
   // Edit Handlers with Review & Confirmation Diff
-  const handleOpenEditProduct = (product) => {
+  const handleOpenEditProduct = async (product) => {
     const prepared = {
       ...product,
       stock_quantity: getStockQuantity(product),
@@ -320,6 +326,17 @@ export default function ProductsScreen({ onNavigate }) {
     setShowConfirmModal(false)
     setPendingChanges([])
     setValidationErrors({})
+
+    // Dynamically check storage for any additional pictures (e.g. BGZ048_500_(2).png)
+    try {
+      const dynamicImages = await fetchDynamicProductImages(product, supabase)
+      if (dynamicImages.length > 1) {
+        const serialized = serializeProductImages(dynamicImages)
+        setEditingProduct((prev) => (prev && prev.id === product.id ? { ...prev, image_url: serialized } : prev))
+      }
+    } catch (err) {
+      console.warn('Could not fetch extra product pictures:', err)
+    }
   }
 
   const handleInitiateSave = () => {
@@ -450,8 +467,10 @@ export default function ProductsScreen({ onNavigate }) {
         .getPublicUrl(uniqueFileName)
 
       if (publicUrlData?.publicUrl) {
-        setEditingProduct((prev) => ({ ...prev, image_url: publicUrlData.publicUrl }))
-        showToast('Image Uploaded', 'New product preview uploaded successfully.', 'info')
+        const currentImages = parseProductImages(editingProduct?.image_url)
+        const updatedImages = [...currentImages, publicUrlData.publicUrl]
+        setEditingProduct((prev) => ({ ...prev, image_url: serializeProductImages(updatedImages) }))
+        showToast('Picture Added', 'New product picture uploaded and attached successfully.', 'info')
       }
     } catch (err) {
       console.error('Failed to upload image:', err)
@@ -460,6 +479,32 @@ export default function ProductsScreen({ onNavigate }) {
       setEditingImageUploading(false)
       if (editFileInputRef.current) editFileInputRef.current.value = ''
     }
+  }
+
+  const [newImageUrlInput, setNewImageUrlInput] = useState('')
+
+  const handleRemoveProductImage = (indexToRemove) => {
+    const list = parseProductImages(editingProduct?.image_url)
+    const updated = list.filter((_, i) => i !== indexToRemove)
+    handleFieldChange('image_url', serializeProductImages(updated), 'text')
+  }
+
+  const handleSetPrimaryProductImage = (indexToPrimary) => {
+    const list = parseProductImages(editingProduct?.image_url)
+    if (indexToPrimary <= 0 || indexToPrimary >= list.length) return
+    const target = list[indexToPrimary]
+    const remaining = list.filter((_, i) => i !== indexToPrimary)
+    const updated = [target, ...remaining]
+    handleFieldChange('image_url', serializeProductImages(updated), 'text')
+  }
+
+  const handleAddNewImageUrl = () => {
+    const trimmed = newImageUrlInput.trim()
+    if (!trimmed) return
+    const currentList = parseProductImages(editingProduct?.image_url)
+    const updated = [...currentList, trimmed]
+    handleFieldChange('image_url', serializeProductImages(updated), 'text')
+    setNewImageUrlInput('')
   }
 
   // Quick Stock Adjustment Handlers
@@ -1129,7 +1174,7 @@ export default function ProductsScreen({ onNavigate }) {
                             className="group/img block rounded-xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-jds-primary/40 transition-transform active:scale-95"
                           >
                             <img
-                              src={p.image_url || 'https://placehold.co/80x80?text=None'}
+                              src={getMainProductImage(p.image_url) || 'https://placehold.co/80x80?text=None'}
                               alt={p.name}
                               className="h-12 w-12 rounded-xl object-contain bg-black/5 border border-jds-outline-variant/30 p-1 group-hover/img:border-jds-primary transition-colors"
                               onError={(e) => {
@@ -1688,7 +1733,7 @@ export default function ProductsScreen({ onNavigate }) {
             {/* Product Summary Box */}
             <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/30 p-3.5 flex items-center gap-3">
               <img
-                src={productToDelete.image_url || 'https://placehold.co/80x80?text=None'}
+                src={getMainProductImage(productToDelete.image_url) || 'https://placehold.co/80x80?text=None'}
                 alt={productToDelete.name}
                 className="h-12 w-12 rounded-lg object-contain bg-black/5 border border-jds-outline-variant/20 shrink-0"
               />
@@ -1954,62 +1999,118 @@ export default function ProductsScreen({ onNavigate }) {
             <div className="overflow-y-auto p-6 space-y-6 flex-1 max-h-[calc(92vh-190px)]">
               {/* Product Media & Image Row (Shown in 'all' and 'general') */}
               {(activeEditTab === 'all' || activeEditTab === 'general') && (
-                <div className="rounded-2xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 p-4 space-y-3">
-                  <span className="text-label-sm font-bold uppercase tracking-wider text-jds-on-surface-variant/80">
-                    Product Image & Catalog Media
-                  </span>
-                  <div className="flex flex-col sm:flex-row items-center gap-4">
-                    {editingProduct.image_url ? (
-                      <img
-                        src={editingProduct.image_url}
-                        alt="Product preview"
-                        className="h-16 w-16 rounded-xl object-contain bg-black/5 border border-jds-outline-variant/30 shrink-0"
-                        onError={(e) => {
-                          e.target.onerror = null
-                          e.target.src = 'https://placehold.co/100x100?text=None'
-                        }}
-                      />
-                    ) : (
-                      <div className="h-16 w-16 rounded-xl bg-jds-surface-container border border-jds-outline-variant/30 flex items-center justify-center text-jds-on-surface-variant/40 shrink-0">
-                        <ImageIcon className="h-6 w-6" />
-                      </div>
-                    )}
-                    <div className="flex-1 w-full space-y-2">
-                      <input
-                        type="text"
-                        value={editingProduct.image_url ?? ''}
-                        onChange={(e) => handleFieldChange('image_url', e.target.value, 'text')}
-                        placeholder="Paste image public URL..."
-                        className="h-10 w-full rounded-xl border border-jds-outline-variant/30 bg-jds-surface px-3.5 text-xs font-mono outline-none focus:border-jds-secondary transition-all"
-                      />
-                      <div className="flex items-center gap-2">
-                        <input
-                          ref={editFileInputRef}
-                          type="file"
-                          accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
-                          onChange={handleEditImageUpload}
-                          className="hidden"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={editingImageUploading}
-                          onClick={() => editFileInputRef.current?.click()}
-                          className="h-8 text-xs gap-1.5 border-jds-outline-variant"
-                        >
-                          {editingImageUploading ? (
-                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                          ) : (
-                            <Upload className="h-3 w-3" />
-                          )}
-                          <span>Upload From Storage</span>
-                        </Button>
-                        <span className="text-[11px] text-jds-on-surface-variant/60">
-                          PNG, JPG, WebP supported
-                        </span>
-                      </div>
+                <div className="rounded-2xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-label-sm font-bold uppercase tracking-wider text-jds-on-surface-variant/80">
+                        Product Pictures & Catalog Media
+                      </span>
+                      <p className="text-xs text-jds-on-surface-variant/60 mt-0.5">
+                        Multiple pictures can be attached. The first picture serves as the primary catalog thumbnail.
+                      </p>
                     </div>
+                    <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-jds-surface-container border border-jds-outline-variant/30 text-jds-on-surface-variant">
+                      {parseProductImages(editingProduct.image_url).length} Picture{parseProductImages(editingProduct.image_url).length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+
+                  {/* Pictures Gallery Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {parseProductImages(editingProduct.image_url).map((url, idx) => (
+                      <div
+                        key={`${url}-${idx}`}
+                        className="relative group rounded-xl border border-jds-outline-variant/40 bg-white dark:bg-stone-900 overflow-hidden flex flex-col p-1.5 shadow-xs"
+                      >
+                        <div className="aspect-square w-full rounded-lg bg-black/5 flex items-center justify-center overflow-hidden relative">
+                          <img
+                            src={url}
+                            alt={`Picture ${idx + 1}`}
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              e.target.onerror = null
+                              e.target.src = 'https://placehold.co/100x100?text=None'
+                            }}
+                          />
+                          {idx === 0 && (
+                            <span className="absolute top-1 left-1 bg-jds-secondary text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-xs">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-1 text-[11px]">
+                          {idx > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSetPrimaryProductImage(idx)}
+                              className="text-jds-primary hover:underline font-semibold truncate"
+                              title="Set as primary thumbnail"
+                            >
+                              Make Primary
+                            </button>
+                          ) : (
+                            <span className="text-jds-on-surface-variant/70 font-mono text-[10px]">#1 Default</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveProductImage(idx)}
+                            className="text-jds-error/80 hover:text-jds-error p-1 rounded hover:bg-jds-error/10 transition-colors"
+                            title="Remove this picture"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Upload New Picture Tile */}
+                    <div
+                      onClick={() => editFileInputRef.current?.click()}
+                      className="border-2 border-dashed border-jds-outline-variant/50 hover:border-jds-primary/60 rounded-xl aspect-square flex flex-col items-center justify-center p-3 text-center cursor-pointer bg-jds-surface-container-lowest hover:bg-jds-primary/5 transition-all group"
+                      title="Upload new picture to Supabase Storage"
+                    >
+                      <input
+                        ref={editFileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                        onChange={handleEditImageUpload}
+                        className="hidden"
+                      />
+                      {editingImageUploading ? (
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-jds-primary border-t-transparent mb-1.5" />
+                      ) : (
+                        <Upload className="h-5 w-5 text-jds-primary mb-1.5 group-hover:scale-110 transition-transform" />
+                      )}
+                      <span className="text-xs font-semibold text-jds-on-surface">Upload Picture</span>
+                      <span className="text-[10px] text-jds-on-surface-variant/60 mt-0.5">PNG, JPG, WebP</span>
+                    </div>
+                  </div>
+
+                  {/* Add Image via URL & Raw Edit */}
+                  <div className="pt-2 border-t border-jds-outline-variant/20 flex flex-col sm:flex-row items-center gap-2">
+                    <input
+                      type="text"
+                      value={newImageUrlInput}
+                      onChange={(e) => setNewImageUrlInput(e.target.value)}
+                      placeholder="Or paste image URL (e.g. from Storage library)..."
+                      className="h-9 flex-1 w-full rounded-xl border border-jds-outline-variant/30 bg-jds-surface px-3 text-xs font-mono outline-none focus:border-jds-secondary transition-all"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleAddNewImageUrl()
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddNewImageUrl}
+                      disabled={!newImageUrlInput.trim()}
+                      className="h-9 text-xs border-jds-outline-variant w-full sm:w-auto shrink-0 gap-1.5"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add Picture URL
+                    </Button>
                   </div>
                 </div>
               )}

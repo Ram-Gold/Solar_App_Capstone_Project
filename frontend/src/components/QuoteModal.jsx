@@ -26,6 +26,7 @@ import { formatFullAddress } from '../lib/philippineAddresses'
 import { extractFacebookHandle, formatFacebookUrl } from '../lib/facebookUtils'
 import useModalBehavior from '../hooks/useModalBehavior'
 import AnimatedConfirmation from './ui/AnimatedConfirmation'
+import { getMainProductImage } from '../lib/productImageUtils'
 
 const BRANCHES = [
   {
@@ -261,7 +262,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       product_name: product?.name || (isReserve ? 'Solar Lighting Unit' : 'General Technical Consultation'),
       product_watt: product?.watt || null,
       product_price_range: product?.price_range || null,
-      product_image_url: product?.image_url || null,
+      product_image_url: getMainProductImage(product?.image_url) || null,
       quantity: Number(quantity) || 1,
       customer_name: sanitizeText(customerName, { maxLength: 100 }),
       mobile_contact: mobileContact.trim(),
@@ -416,8 +417,8 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
           <div className="mb-5 flex items-center justify-between p-3 rounded-2xl bg-stone-50 border border-stone-200/60">
             <div className="flex items-center gap-3 min-w-0">
               <div className="h-12 w-12 rounded-xl bg-white p-1 border border-stone-200/50 shrink-0 flex items-center justify-center">
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="h-full w-full object-contain" />
+                {getMainProductImage(product.image_url) ? (
+                  <img src={getMainProductImage(product.image_url)} alt={product.name} className="h-full w-full object-contain" />
                 ) : (
                   <Sparkles className="h-5 w-5 text-amber-500" />
                 )}

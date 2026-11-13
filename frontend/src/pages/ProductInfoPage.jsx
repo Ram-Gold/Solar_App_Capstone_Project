@@ -25,7 +25,13 @@ import {
   HiOutlineSwatch,
   HiOutlineCalendarDays,
   HiOutlineMapPin,
+  HiOutlineChevronLeft,
+  HiOutlineChevronRight,
 } from 'react-icons/hi2'
+import {
+  getMainProductImage,
+  fetchDynamicProductImages
+} from '../lib/productImageUtils'
 
 export default function ProductInfoPage() {
   const { id } = useParams()
@@ -33,6 +39,7 @@ export default function ProductInfoPage() {
   const { sendMessage } = useChat()
 
   const [product, setProduct] = useState(null)
+  const [productImages, setProductImages] = useState([])
   const [relatedProducts, setRelatedProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -54,6 +61,11 @@ export default function ProductInfoPage() {
           setError('Product not found.')
         } else {
           setProduct(data)
+          setSelectedThumb(0)
+
+          // Fetch dynamic pictures for this product (handles multiple pictures and staff added pictures)
+          const dynamicImgs = await fetchDynamicProductImages(data, supabase)
+          setProductImages(dynamicImgs)
 
           // Fetch related products of same type
           const { data: related } = await supabase
@@ -145,6 +157,10 @@ export default function ProductInfoPage() {
   }
 
   const specs = getSpecsList(product)
+  const activeImage = (productImages.length > 0 && productImages[selectedThumb])
+    ? productImages[selectedThumb]
+    : getMainProductImage(product?.image_url)
+  const hasMultipleImages = productImages.length > 1
 
   return (
     <div className="jds-page-bg font-inter text-jds-on-surface min-h-screen">
@@ -167,12 +183,13 @@ export default function ProductInfoPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="bg-jds-surface-container-lowest rounded-2xl overflow-hidden shadow-xs sm:shadow-sm aspect-[4/3] relative flex items-center justify-center p-4 sm:p-8">
-              {product.image_url ? (
+            {/* Main Picture Viewport */}
+            <div className="bg-jds-surface-container-lowest rounded-2xl overflow-hidden shadow-xs sm:shadow-sm aspect-[4/3] relative flex items-center justify-center p-4 sm:p-8 group">
+              {activeImage ? (
                 <img
-                  alt={product.name}
-                  className="w-full h-full object-contain"
-                  src={product.image_url}
+                  alt={`${product.name} - Picture ${selectedThumb + 1}`}
+                  className="w-full h-full object-contain transition-all duration-300"
+                  src={activeImage}
                 />
               ) : (
                 <div className="flex flex-col items-center gap-2 sm:gap-4 text-jds-on-surface-variant/30">
@@ -181,31 +198,62 @@ export default function ProductInfoPage() {
                   <span className="text-xs sm:text-body-md">{product.type}</span>
                 </div>
               )}
+
+              {/* Multi-image indicators & navigation controls (Only rendered when there are multiple pictures) */}
+              {hasMultipleImages && (
+                <>
+                  {/* Photo Counter Badge */}
+                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-xs text-white text-[11px] font-mono font-medium select-none z-10">
+                    {selectedThumb + 1} / {productImages.length}
+                  </div>
+
+                  {/* Previous Button */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedThumb((prev) => (prev > 0 ? prev - 1 : productImages.length - 1))}
+                    aria-label="Previous picture"
+                    className="absolute left-2.5 sm:left-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/85 dark:bg-stone-900/85 backdrop-blur-xs text-jds-on-surface flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-stone-800 transition-all opacity-80 group-hover:opacity-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-jds-primary z-10"
+                  >
+                    <HiOutlineChevronLeft className="text-lg sm:text-xl" />
+                  </button>
+
+                  {/* Next Button */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedThumb((prev) => (prev < productImages.length - 1 ? prev + 1 : 0))}
+                    aria-label="Next picture"
+                    className="absolute right-2.5 sm:right-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/85 dark:bg-stone-900/85 backdrop-blur-xs text-jds-on-surface flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-stone-800 transition-all opacity-80 group-hover:opacity-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-jds-primary z-10"
+                  >
+                    <HiOutlineChevronRight className="text-lg sm:text-xl" />
+                  </button>
+                </>
+              )}
             </div>
-            {/* Thumbnail Strip */}
-            <div className="flex gap-2.5 sm:gap-4 overflow-x-auto no-scrollbar pb-1">
-              {[0, 1, 2, 3].map((i) => (
-                <button
-                  key={i}
-                  onClick={() => setSelectedThumb(i)}
-                  className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 overflow-hidden bg-white cursor-pointer transition-colors flex items-center justify-center ${
-                    selectedThumb === i
-                      ? 'border-jds-secondary shadow-xs'
-                      : 'border-jds-outline-variant hover:border-jds-secondary'
-                  }`}
-                >
-                  {product.image_url ? (
+
+            {/* Thumbnail Strip: ONLY displayed when multiple pictures exist */}
+            {hasMultipleImages && (
+              <div className="flex gap-2.5 sm:gap-4 overflow-x-auto no-scrollbar pb-1">
+                {productImages.map((imgUrl, i) => (
+                  <button
+                    key={`${imgUrl}-${i}`}
+                    type="button"
+                    onClick={() => setSelectedThumb(i)}
+                    aria-label={`View picture ${i + 1}`}
+                    className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 overflow-hidden bg-white cursor-pointer transition-all flex items-center justify-center p-1 ${
+                      selectedThumb === i
+                        ? 'border-jds-secondary shadow-xs ring-2 ring-jds-secondary/30 scale-102'
+                        : 'border-jds-outline-variant/60 hover:border-jds-secondary opacity-70 hover:opacity-100'
+                    }`}
+                  >
                     <img
-                      className="w-full h-full object-cover"
-                      src={product.image_url}
+                      className="w-full h-full object-contain"
+                      src={imgUrl}
                       alt={`${product.name} view ${i + 1}`}
                     />
-                  ) : (
-                    <HiOutlineBolt className="text-xl sm:text-2xl text-jds-on-surface-variant/30" />
-                  )}
-                </button>
-              ))}
-            </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </motion.div>
 
           {/* Right: Details */}
@@ -335,7 +383,7 @@ export default function ProductInfoPage() {
                       <img
                         alt={rp.name}
                         className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-                        src={rp.image_url}
+                        src={getMainProductImage(rp.image_url)}
                       />
                     ) : (
                       <div className="flex flex-col items-center gap-2 text-jds-on-surface-variant/30">
@@ -382,7 +430,7 @@ export default function ProductInfoPage() {
       <QuoteModal
         isOpen={isQuoteModalOpen}
         onClose={() => setIsQuoteModalOpen(false)}
-        product={product}
+        product={product ? { ...product, image_url: activeImage || getMainProductImage(product.image_url) } : null}
         initialMode={modalMode}
       />
     </div>

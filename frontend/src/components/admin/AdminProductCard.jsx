@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { getStockBadgeConfig } from '../../lib/inventoryUtils'
+import { getMainProductImage } from '../../lib/productImageUtils'
 
 export default function AdminProductCard({
   product,
@@ -33,7 +34,7 @@ export default function AdminProductCard({
         {/* Card Top: Image + Status Badge + Power Rating */}
         <div className="relative rounded-xl overflow-hidden bg-black/5 dark:bg-white/5 border border-jds-outline-variant/20 h-44 flex items-center justify-center p-2">
           <img
-            src={product.image_url || 'https://placehold.co/200x200?text=None'}
+            src={getMainProductImage(product.image_url) || 'https://placehold.co/200x200?text=None'}
             alt={product.name}
             className="h-full w-full object-contain group-hover:scale-105 transition-transform duration-300"
             onError={(e) => {

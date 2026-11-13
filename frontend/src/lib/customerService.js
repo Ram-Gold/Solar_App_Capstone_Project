@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
 import { calculateExpiryDate } from './warrantyUtils'
+import { getMainProductImage } from './productImageUtils'
 import {
   sanitizeText,
   sanitizePhone,
@@ -750,7 +751,7 @@ export async function fetchCustomerPortalData(token) {
         product_id: cp.product_id,
         product_name: cp.products?.name || 'Solar Product',
         product_type: cp.products?.type || '',
-        product_image: cp.products?.image_url || null,
+        product_image: getMainProductImage(cp.products?.image_url) || null,
         watt: cp.products?.watt || '',
         serial_number: cp.serial_number,
         purchase_date: cp.purchase_date,

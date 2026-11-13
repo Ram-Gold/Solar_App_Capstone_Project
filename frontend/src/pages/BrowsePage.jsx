@@ -15,6 +15,7 @@ import MultiCriteriaMatchModal from '../components/MultiCriteriaMatchModal'
 import { useAuth } from '../context/AuthContext'
 import { getStockTier } from '../lib/inventoryUtils'
 import { getCatalogBounds } from '../lib/multiCriteriaMatcher'
+import { getMainProductImage } from '../lib/productImageUtils'
 
 const INITIAL_CATEGORIES = [
   'All Products',
@@ -418,9 +419,9 @@ export default function BrowsePage() {
                       className="bg-jds-surface-container-lowest flex flex-col border border-jds-outline-variant card-shadow rounded-lg p-2.5 sm:p-4 cursor-pointer no-underline text-inherit group hover:border-jds-primary/40 transition-colors"
                     >
                       <div className="aspect-square rounded-lg bg-jds-surface-variant mb-2 sm:mb-4 overflow-hidden relative flex items-center justify-center">
-                        {product.image_url ? (
+                        {getMainProductImage(product.image_url) ? (
                           <ProductCardImage
-                            src={product.image_url}
+                            src={getMainProductImage(product.image_url)}
                             alt={product.name}
                             priority={index < 4}
                           />

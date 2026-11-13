@@ -33,6 +33,7 @@ import { sanitizeEmail, isValidEmail } from '../lib/sanitize.js'
 import FaultDiagnosticModal from '../components/FaultDiagnosticModal'
 import WarrantyTermsModal from '../components/WarrantyTermsModal'
 import useModalBehavior from '../hooks/useModalBehavior'
+import { getMainProductImage } from '../lib/productImageUtils'
 import { useAuth } from '../context/AuthContext'
 import AnimatedConfirmation from '../components/ui/AnimatedConfirmation'
 
@@ -604,9 +605,9 @@ export default function CustomerPortalPage() {
                             {p.watt || p.product_type || 'Solar Product'}
                           </p>
                         </div>
-                        {p.product_image && (
+                        {getMainProductImage(p.product_image) && (
                           <img
-                            src={p.product_image}
+                            src={getMainProductImage(p.product_image)}
                             alt={p.product_name}
                             className="w-12 h-12 rounded-lg object-cover border border-jds-outline-variant/30 shrink-0"
                           />
