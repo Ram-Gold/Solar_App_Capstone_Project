@@ -19,14 +19,35 @@ export function getStockQuantity(product) {
 }
 
 /**
- * Returns the stock tier: 'out' (0), 'low' (1-5), or 'optimal' (>5)
+ * Returns reserved quantity for a product (units temporarily held by active reservations).
+ * Falls back to 0 if the reserved_quantity column hasn't been migrated yet.
+ */
+export function getReservedQuantity(product) {
+  if (!product) return 0
+  if (product.reserved_quantity !== undefined && product.reserved_quantity !== null && !isNaN(product.reserved_quantity)) {
+    return Math.max(0, Number(product.reserved_quantity))
+  }
+  return 0
+}
+
+/**
+ * Returns the available (unreserved) stock count.
+ * available = stock_quantity - reserved_quantity
+ */
+export function getAvailableQuantity(product) {
+  return Math.max(0, getStockQuantity(product) - getReservedQuantity(product))
+}
+
+/**
+ * Returns the stock tier based on AVAILABLE (unreserved) units:
+ * 'out' (0), 'low' (1-5), or 'optimal' (>5)
  */
 export function getStockTier(product) {
-  const qty = getStockQuantity(product)
-  if (qty <= 0 || product.in_stock === false) {
+  const available = getAvailableQuantity(product)
+  if (available <= 0 || product.in_stock === false) {
     return 'out'
   }
-  if (qty <= LOW_STOCK_THRESHOLD) {
+  if (available <= LOW_STOCK_THRESHOLD) {
     return 'low'
   }
   return 'optimal'
@@ -136,19 +157,22 @@ export function filterAndSortProducts(products, {
 }
 
 /**
- * Returns badge and row styling for inventory display
+ * Returns badge and row styling for inventory display.
+ * Uses available (unreserved) units for tier calculation.
  */
 export function getStockBadgeConfig(product) {
   const tier = getStockTier(product)
-  const qty = getStockQuantity(product)
+  const available = getAvailableQuantity(product)
+  const reserved = getReservedQuantity(product)
 
   if (tier === 'out') {
     return {
       tier,
-      quantity: qty,
-      label: 'Out of Stock',
+      quantity: available,
+      reserved,
+      label: reserved > 0 ? `Out of Stock (${reserved} Reserved)` : 'Out of Stock',
       shortLabel: 'Out of Stock',
-      subText: '0 units available',
+      subText: reserved > 0 ? `0 available · ${reserved} temporarily reserved` : '0 units available',
       badgeClass: 'bg-jds-error-container/20 text-jds-error border border-jds-error/30 font-semibold',
       rowBorderClass: 'border-l-4 border-l-jds-error',
       rowBgClass: 'bg-jds-error-container/[0.04]',
@@ -159,10 +183,11 @@ export function getStockBadgeConfig(product) {
   if (tier === 'low') {
     return {
       tier,
-      quantity: qty,
-      label: `Low Stock (${qty} left)`,
+      quantity: available,
+      reserved,
+      label: `Low Stock (${available} available${reserved > 0 ? ` · ${reserved} reserved` : ''})`,
       shortLabel: 'Low Stock',
-      subText: `${qty} unit${qty === 1 ? '' : 's'} remaining`,
+      subText: `${available} unit${available === 1 ? '' : 's'} available${reserved > 0 ? ` · ${reserved} temporarily reserved` : ''}`,
       badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-semibold',
       rowBorderClass: 'border-l-4 border-l-amber-500',
       rowBgClass: 'bg-amber-500/[0.04]',
@@ -172,10 +197,11 @@ export function getStockBadgeConfig(product) {
 
   return {
     tier,
-    quantity: qty,
-    label: 'In Stock',
+    quantity: available,
+    reserved,
+    label: `In Stock (${available} available${reserved > 0 ? ` · ${reserved} reserved` : ''})`,
     shortLabel: 'In Stock',
-    subText: `${qty} units in catalog`,
+    subText: `${available} units available${reserved > 0 ? ` · ${reserved} temporarily reserved` : ''}`,
     badgeClass: 'bg-jds-secondary-container/20 text-jds-secondary border border-jds-secondary/30 font-medium',
     rowBorderClass: '',
     rowBgClass: '',

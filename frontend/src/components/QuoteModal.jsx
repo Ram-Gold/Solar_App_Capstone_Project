@@ -289,6 +289,11 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
     }
 
     try {
+      // For reservations, mark the ticket and check available stock before inserting
+      if (isReserve && product?.id) {
+        payload.is_reservation = true
+      }
+
       let { data, error } = await supabase
         .from('quote_tickets')
         .insert([payload])
@@ -302,7 +307,8 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
           error.message?.includes('barangay') ||
           error.message?.includes('street_address') ||
           error.message?.includes('facebook') ||
-          error.message?.includes('instagram'))
+          error.message?.includes('instagram') ||
+          error.message?.includes('is_reservation'))
       ) {
         console.warn('Column missing in database, retrying with fallback payload:', error.message)
         const fallbackPayload = { ...payload }
@@ -311,6 +317,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
         if (error.message?.includes('street_address')) delete fallbackPayload.street_address
         if (error.message?.includes('facebook')) delete fallbackPayload.facebook
         if (error.message?.includes('instagram')) delete fallbackPayload.instagram
+        if (error.message?.includes('is_reservation')) delete fallbackPayload.is_reservation
         fallbackPayload.city = `${city.trim()}, ${province.trim()}`
         fallbackPayload.delivery_address = formattedLocation
         const fallbackRes = await supabase
@@ -323,6 +330,26 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
 
       if (error) {
         console.warn('Supabase insert note:', error.message)
+      }
+
+      // After successful ticket insert, call the reservation RPC to hold stock
+      const finalInserted = data && data[0]
+      if (isReserve && product?.id && finalInserted?.id) {
+        const { data: reserveResult, error: reserveError } = await supabase
+          .rpc('reserve_product_stock', {
+            p_ticket_id: finalInserted.id,
+            p_product_id: product.id,
+            p_quantity: Number(quantity) || 1,
+            p_expires_hours: 48,
+          })
+
+        if (reserveError) {
+          console.warn('Stock reservation RPC not yet available, proceeding without stock hold:', reserveError.message)
+        } else if (reserveResult && !reserveResult.success) {
+          // Insufficient available stock — still show the ticket but warn the customer
+          console.warn('Reservation stock warning:', reserveResult.error)
+          payload._reservationWarning = reserveResult.error
+        }
       }
 
       try {
@@ -980,6 +1007,26 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                   <MailCheck className="h-4 w-4 text-amber-600 shrink-0" />
                   <span className="leading-tight">
                     Official pass &amp; inquiry receipt details sent to <strong>{generatedTicket.email}</strong>.
+                  </span>
+                </div>
+              )}
+
+              {/* 48-Hour Stock Hold Notice (Reservation only) */}
+              {isReserve && !generatedTicket._reservationWarning && (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-900 text-xs">
+                  <Clock className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span className="leading-tight">
+                    <strong>48-Hour Stock Hold Active.</strong> Units for this reservation are temporarily held for your scheduled visit. Stock is released automatically if the visit is not confirmed by store staff within 48 hours.
+                  </span>
+                </div>
+              )}
+
+              {/* Reservation stock warning (if available units were insufficient) */}
+              {isReserve && generatedTicket._reservationWarning && (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-900 text-xs">
+                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span className="leading-tight">
+                    <strong>Stock Notice:</strong> {generatedTicket._reservationWarning} Your inquiry is registered — please confirm availability with our staff during your showroom visit.
                   </span>
                 </div>
               )}

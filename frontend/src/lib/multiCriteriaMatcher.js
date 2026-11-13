@@ -5,7 +5,7 @@
 // Strictly text/icon-driven, industrial tone, no emojis.
 
 import { FALLBACK_PRODUCTS } from './solarBotEngine.js'
-import { getStockQuantity, getStockTier } from './inventoryUtils.js'
+import { getStockQuantity, getStockTier, getAvailableQuantity } from './inventoryUtils.js'
 
 /**
  * Default weights for criteria evaluation (Sum = 1.0)
@@ -402,9 +402,9 @@ export function evaluateProductMatch(
 
   let compositeScore = (budgetScore * wBudget) + (locationScore * wLocation) + (powerScore * wPower)
 
-  // Stock consideration: In-stock priority
+  // Stock consideration: In-stock priority (uses available = stock_quantity - reserved_quantity)
   const stockTier = getStockTier(product)
-  const stockQty = getStockQuantity(product)
+  const stockQty = getAvailableQuantity(product)
   if (stockTier === 'out') {
     // Demote out-of-stock items so in-stock inventory wins
     compositeScore *= 0.50
