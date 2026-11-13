@@ -307,7 +307,7 @@ export default function PrototypeGuidedFlow({
                     className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer accent-amber-500"
                   />
                   <div className="flex justify-between text-[11px] text-neutral-400 mt-2 font-medium">
-                    <span>{bounds.minWatt}W Compact</span>
+                    <span>{bounds.minWatt > 0 ? `${bounds.minWatt}W` : '50W'} Compact</span>
                     <span>{midWatt}W Standard</span>
                     <span>{bounds.maxWatt}W Maximum</span>
                   </div>
@@ -380,12 +380,12 @@ export default function PrototypeGuidedFlow({
                     min={bounds.minPrice}
                     max={bounds.maxPrice}
                     step={bounds.maxPrice > 10000 ? 500 : 250}
-                    value={criteria.budget === 'any' ? bounds.maxPrice : criteria.budget}
+                    value={criteria.budget === 'any' ? bounds.maxPrice : Number(criteria.budget)}
                     onChange={(e) => {
-                      const val = Number(e.target.value)
+                      // Always keep budget numeric; 'any' is set only by preset buttons
                       onCriteriaChange({
                         ...criteria,
-                        budget: val >= bounds.maxPrice ? 'any' : val,
+                        budget: Number(e.target.value),
                       })
                     }}
                     className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer accent-amber-500"

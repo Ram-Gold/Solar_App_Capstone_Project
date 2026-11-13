@@ -214,10 +214,10 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
                     min={bounds.minPrice}
                     max={bounds.maxPrice}
                     step={bounds.maxPrice > 10000 ? 500 : 250}
-                    value={budget}
+                    value={Number(budget)}
                     onChange={(e) => {
-                      const val = Number(e.target.value)
-                      setBudget(val >= bounds.maxPrice ? 'any' : val)
+                      // Always keep budget numeric; 'any' is set only by preset buttons
+                      setBudget(Number(e.target.value))
                     }}
                     className="w-full h-2 bg-jds-surface-container-highest rounded-lg appearance-none cursor-pointer accent-jds-primary"
                   />

@@ -128,14 +128,20 @@ export function getCatalogBounds(products = []) {
     if (maxes.length > 0) maxPrice = Math.max(...maxes)
   }
 
+  // Align wattage bounds to step boundary (step = 50W) so sliders reach maxWatt exactly.
+  // e.g. minWatt=20 → alignedMin=0, maxWatt=1000 → alignedMax=1000
+  const WATT_STEP = 50
+  const alignedMinWatt = Math.floor(minWatt / WATT_STEP) * WATT_STEP
+  const alignedMaxWatt = Math.ceil(maxWatt / WATT_STEP) * WATT_STEP
+
   // Clean rounding
   const cleanMaxPrice = Math.max(minPrice, Math.ceil(maxPrice / 500) * 500)
   const cleanMinPrice = Math.max(500, Math.floor(minPrice / 500) * 500)
 
-  // Dynamically generated power presets up to maxWatt
-  const candidateWatts = [100, 200, 300, 400, 500, 600, 800, maxWatt]
+  // Dynamically generated power presets up to alignedMaxWatt
+  const candidateWatts = [100, 200, 300, 400, 500, 600, 800, alignedMaxWatt]
   const powerPresets = Array.from(
-    new Set(candidateWatts.filter((w) => w >= minWatt && w <= maxWatt))
+    new Set(candidateWatts.filter((w) => w >= alignedMinWatt && w <= alignedMaxWatt))
   ).sort((a, b) => a - b)
 
   // Dynamically generated budget presets up to cleanMaxPrice
@@ -154,8 +160,8 @@ export function getCatalogBounds(products = []) {
   ]
 
   return {
-    minWatt,
-    maxWatt,
+    minWatt: alignedMinWatt,
+    maxWatt: alignedMaxWatt,
     minPrice: cleanMinPrice,
     maxPrice: cleanMaxPrice,
     powerPresets,

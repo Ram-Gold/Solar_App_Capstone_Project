@@ -152,12 +152,12 @@ export default function PrototypeSpatialBento({
                 min={bounds.minPrice}
                 max={bounds.maxPrice}
                 step={bounds.maxPrice > 10000 ? 500 : 250}
-                value={criteria.budget}
+                value={Number(criteria.budget)}
                 onChange={(e) => {
-                  const val = Number(e.target.value)
+                  // Always keep budget numeric; 'any' is set only by preset buttons
                   onCriteriaChange({
                     ...criteria,
-                    budget: val >= bounds.maxPrice ? 'any' : val,
+                    budget: Number(e.target.value),
                   })
                 }}
                 className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer accent-amber-500"
