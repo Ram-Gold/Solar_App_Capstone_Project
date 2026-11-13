@@ -10,7 +10,7 @@ import {
   HiOutlineBolt,
   HiOutlineArrowRight,
   HiOutlineQuestionMarkCircle } from 'react-icons/hi2'
-import { matchSolarProducts } from '../lib/multiCriteriaMatcher'
+import { matchSolarProducts, getCatalogBounds } from '../lib/multiCriteriaMatcher'
 import useModalBehavior from '../hooks/useModalBehavior'
 
 const LOCATIONS = [
@@ -40,17 +40,10 @@ const LOCATIONS = [
   },
 ]
 
-const POWER_PRESETS = [100, 200, 300, 400, 500, 600, 800]
-const BUDGET_PRESETS = [
-  { label: '₱1,500', value: 1500 },
-  { label: '₱2,500', value: 2500 },
-  { label: '₱3,500', value: 3500 },
-  { label: '₱5,000', value: 5000 },
-  { label: 'Any', value: 'any' },
-]
-
 export default function MultiCriteriaMatchModal({ isOpen, onClose, products = [] }) {
   const { backdropProps } = useModalBehavior({ isOpen, onClose })
+  const bounds = useMemo(() => getCatalogBounds(products), [products])
+
   const [location, setLocation] = useState('street')
   const [powerNeeds, setPowerNeeds] = useState(300)
   const [budget, setBudget] = useState(3000)
@@ -65,8 +58,9 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
     }, {
       threshold: Number(threshold),
       limit: 6,
+      catalogBounds: bounds,
     })
-  }, [products, location, powerNeeds, budget, threshold])
+  }, [products, location, powerNeeds, budget, threshold, bounds])
 
   if (!isOpen) return null
 
@@ -160,7 +154,7 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
                     <span>2. Power Needs</span>
                   </label>
                   <span className="text-label-md font-bold text-jds-primary bg-jds-primary/10 px-2 py-0.5 rounded-lg">
-                    {powerNeeds}W
+                    {Number(powerNeeds) >= bounds.maxWatt ? `${bounds.maxWatt}W (Max Power)` : `${powerNeeds}W`}
                   </span>
                 </div>
 
@@ -170,8 +164,8 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
 
                 <input
                   type="range"
-                  min="50"
-                  max="800"
+                  min={bounds.minWatt}
+                  max={bounds.maxWatt}
                   step="50"
                   value={powerNeeds}
                   onChange={(e) => setPowerNeeds(Number(e.target.value))}
@@ -179,7 +173,7 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
                 />
 
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {POWER_PRESETS.map((preset) => (
+                  {bounds.powerPresets.map((preset) => (
                     <button
                       key={preset}
                       type="button"
@@ -204,7 +198,9 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
                     <span>3. Target Budget</span>
                   </label>
                   <span className="text-label-md font-bold text-jds-primary bg-jds-primary/10 px-2 py-0.5 rounded-lg">
-                    {budget === 'any' ? 'Any Budget' : `₱${Number(budget).toLocaleString()}`}
+                    {budget === 'any' || Number(budget) >= bounds.maxPrice
+                      ? `₱${bounds.maxPrice.toLocaleString()}+ (Any Budget)`
+                      : `₱${Number(budget).toLocaleString()}`}
                   </span>
                 </div>
 
@@ -215,17 +211,20 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
                 {budget !== 'any' && (
                   <input
                     type="range"
-                    min="1000"
-                    max="6000"
-                    step="250"
+                    min={bounds.minPrice}
+                    max={bounds.maxPrice}
+                    step={bounds.maxPrice > 10000 ? 500 : 250}
                     value={budget}
-                    onChange={(e) => setBudget(Number(e.target.value))}
+                    onChange={(e) => {
+                      const val = Number(e.target.value)
+                      setBudget(val >= bounds.maxPrice ? 'any' : val)
+                    }}
                     className="w-full h-2 bg-jds-surface-container-highest rounded-lg appearance-none cursor-pointer accent-jds-primary"
                   />
                 )}
 
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {BUDGET_PRESETS.map((b) => (
+                  {bounds.budgetPresets.map((b) => (
                     <button
                       key={b.label}
                       type="button"

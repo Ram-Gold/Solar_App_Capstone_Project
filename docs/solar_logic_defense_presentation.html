@@ -1,0 +1,3269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JD Solar Platform — Simple Math, Rules, and Security</title>
+  <style>
+    /* =========================================================================
+       CSS RESET & TYPOGRAPHY
+       Minimal Light Mode Palette (Clean White, Sharp Black, Soft Grays)
+       Strictly zero emojis. Plain language for a 5th grader. Huge numbers.
+       ========================================================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #f4f4f6;
+      --card-bg: #ffffff;
+      --surface: #f9f9fb;
+      --surface-border: #e2e2e7;
+      --surface-border-strong: #111111;
+      --text-primary: #111111;
+      --text-secondary: #3f3f46;
+      --text-muted: #71717a;
+      --accent-black: #111111;
+      --code-bg: #f1f1f4;
+      --code-border: #d4d4d8;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "SF Mono", "JetBrains Mono", "Courier New", Courier, monospace;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #deck-container {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem 1.5rem;
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      width: 100%;
+      max-width: 1200px;
+      height: 100%;
+      max-height: 690px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+      padding: 2rem 2.5rem;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      opacity: 0;
+      transform: scale(0.99);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--surface-border) transparent;
+    }
+
+    .slide.active {
+      display: flex;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .slide::-webkit-scrollbar {
+      width: 6px;
+    }
+    .slide::-webkit-scrollbar-thumb {
+      background: var(--surface-border);
+      border-radius: 3px;
+    }
+
+    .slide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #111111;
+      padding-bottom: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .slide-tagline {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.2rem;
+    }
+
+    .slide-tagline .pill {
+      background: #111111;
+      color: #ffffff;
+      padding: 0.12rem 0.45rem;
+      border-radius: 3px;
+      font-weight: 700;
+    }
+
+    .slide-title {
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .slide-section-badge {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      padding: 0.25rem 0.65rem;
+      background: #111111;
+      border-radius: 4px;
+      color: #ffffff;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      align-items: stretch;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+      align-items: stretch;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 6px;
+      padding: 1.15rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .card.highlight {
+      background: #ffffff;
+      border: 2px solid var(--surface-border-strong);
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--surface-border);
+      padding-bottom: 0.35rem;
+    }
+
+    .card-subtext {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    /* =========================================================================
+       HUGE NUMBERS & CALLOUT BADGES
+       ========================================================================= */
+    .giant-num {
+      font-size: 2.25rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: #111111;
+      line-height: 1;
+    }
+
+    .giant-num-box {
+      background: #ffffff;
+      border: 1px solid var(--surface-border);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .tag-given {
+      background: #111111;
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+    }
+
+    .tag-input {
+      background: #ffffff;
+      color: #111111;
+      border: 1.5px solid #111111;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+    }
+
+    .tag-db {
+      background: #e4e4e7;
+      color: #111111;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+    }
+
+    .tag-result {
+      background: #111111;
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+    }
+
+    .math-banner {
+      background: #f4f4f6;
+      border: 2px solid #111111;
+      padding: 1rem 1.25rem;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    .math-step {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      background: #ffffff;
+      border: 1px solid var(--surface-border);
+      padding: 0.75rem 1.15rem;
+      border-radius: 6px;
+    }
+
+    .math-step-num {
+      background: #111111;
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 0.85rem;
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .code-term {
+      font-family: var(--font-mono);
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #111111;
+    }
+
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--surface-border);
+      border-radius: 6px;
+      background: #ffffff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      text-align: left;
+    }
+
+    th {
+      background: var(--surface);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.65rem 0.85rem;
+      border-bottom: 2px solid var(--surface-border);
+    }
+
+    td {
+      padding: 0.65rem 0.85rem;
+      border-bottom: 1px solid var(--surface-border);
+      color: var(--text-secondary);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .badge-status {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .badge-pass {
+      background: #111111;
+      color: #ffffff;
+      border: 1px solid #111111;
+    }
+
+    .badge-fail {
+      background: #f4f4f6;
+      color: #71717a;
+      border: 1px solid #d4d4d8;
+    }
+
+    .badge-warn {
+      background: #f4f4f6;
+      color: #111111;
+      border: 1px dashed #71717a;
+    }
+
+    .diagram-wrapper {
+      background: #ffffff;
+      border: 1px solid var(--surface-border);
+      border-radius: 6px;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+
+    svg.diagram {
+      width: 100%;
+      max-height: 340px;
+      display: block;
+    }
+
+    /* =========================================================================
+       RANGE SLIDERS & PRESET BUTTONS (INTERACTIVE LAB)
+       ========================================================================= */
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      background: #ffffff;
+      border: 1px solid var(--surface-border);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: #e2e2e7;
+      outline: none;
+      margin: 0.35rem 0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #111111;
+      cursor: pointer;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #111111;
+      cursor: pointer;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    }
+
+    .btn-preset {
+      background: #ffffff;
+      border: 1.5px solid #111111;
+      color: #111111;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.35rem 0.65rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-preset:hover {
+      background: #111111;
+      color: #ffffff;
+    }
+
+    /* =========================================================================
+       FOOTER & NAVIGATION CONTROLS
+       ========================================================================= */
+    #deck-footer {
+      height: 52px;
+      background: #ffffff;
+      border-top: 1px solid var(--surface-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      z-index: 100;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .footer-progress-bar-bg {
+      width: 160px;
+      height: 6px;
+      background: var(--surface-border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .footer-progress-bar-fill {
+      height: 100%;
+      width: 4.76%;
+      background: #111111;
+      transition: width 0.18s ease;
+    }
+
+    .footer-center {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-nav {
+      background: #ffffff;
+      border: 1px solid var(--surface-border);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 0.35rem 0.75rem;
+      border-radius: 5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn-nav:hover {
+      background: #f4f4f6;
+      border-color: #111111;
+    }
+
+    .btn-nav:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .kbd {
+      background: #f1f1f4;
+      border: 1px solid #d4d4d8;
+      border-radius: 3px;
+      padding: 0.1rem 0.35rem;
+      font-size: 0.7rem;
+      color: #111111;
+      font-weight: 700;
+    }
+
+    @media print {
+      body {
+        overflow: visible;
+        height: auto;
+        background: #ffffff;
+      }
+      #deck-footer {
+        display: none;
+      }
+      .slide {
+        display: flex !important;
+        opacity: 1 !important;
+        position: relative !important;
+        page-break-after: always;
+        max-height: none;
+        height: 100vh;
+        margin-bottom: 2rem;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <main id="deck-container">
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 1: TITLE SLIDE
+         ----------------------------------------------------------------------- -->
+    <section class="slide active" id="slide-1" data-section="Welcome">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">JD SOLAR</span>
+            <span>CAPSTONE EXPLAINER</span>
+          </div>
+          <h1 class="slide-title">How the Computer Picks Lights, Solves Problems, and Keeps Data Safe</h1>
+        </div>
+        <div class="slide-section-badge">SLIDE 01 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card highlight" style="justify-content: center; gap: 1rem; padding: 2rem;">
+            <div style="font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.1em; color: var(--text-muted); text-transform: uppercase;">
+              Simple 5th-Grade Math & Rules
+            </div>
+            <div style="font-size: 1.5rem; font-weight: 800; line-height: 1.3;">
+              All the numbers in this app come from 3 simple places.
+            </div>
+            <p class="card-subtext">
+              We made this presentation to show you which numbers are fixed, which numbers come from the customer, and how simple multiplication and addition pick the winner.
+            </p>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+              <span class="tag-given">Given Constants</span>
+              <span class="tag-input">User Inputs</span>
+              <span class="tag-db">Database Specs</span>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 0.75rem; justify-content: center;">
+            <div class="card">
+              <div class="card-title">
+                <span>1. Product Matching</span>
+                <span class="code-term">Adding 3 Test Scores</span>
+              </div>
+              <p class="card-subtext">
+                Grade the price, grade the place, grade the brightness. Add them up like a school test.
+              </p>
+            </div>
+
+            <div class="card">
+              <div class="card-title">
+                <span>2. Finding What Broke</span>
+                <span class="code-term">Simple IF-THEN Rules</span>
+              </div>
+              <p class="card-subtext">
+                If the glass has water, stop right away. If it rained for 3 days, just wait for sunlight.
+              </p>
+            </div>
+
+            <div class="card">
+              <div class="card-title">
+                <span>3. Keeping Orders Private</span>
+                <span class="code-term">Database Locker Locks</span>
+              </div>
+              <p class="card-subtext">
+                Each customer has their own locker key. Nobody else can open your orders.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); border-top: 1px solid var(--surface-border); padding-top: 0.65rem;">
+        <span>Press [Arrow Right] or [Space] on your keyboard to turn the page</span>
+        <span>Light Mode / Zero Emojis / Big Noticeable Numbers</span>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 2: THE PROBLEM WITH SORTING BY ONE THING
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-2" data-section="Product Matching">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 1: PRODUCT MATCHING</span>
+            <span>THE PROBLEM</span>
+          </div>
+          <h2 class="slide-title">Why Sorting by Only One Number Gives You the Wrong Light</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 02 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <span>The Silly Way: Sorting by One Number</span>
+              <span class="code-term">Normal Stores</span>
+            </div>
+            <p class="card-subtext">
+              Imagine asking a store website: <em>"Show me the biggest, brightest light you have!"</em>
+            </p>
+            <div style="background: #ffffff; border: 1px solid var(--surface-border); padding: 0.85rem; font-family: var(--font-mono); font-size: 0.85rem; display: flex; flex-direction: column; gap: 0.35rem;">
+              <div>Search: "Sort by Wattage"</div>
+              <div class="giant-num" style="color: #71717a; margin: 0.35rem 0;">600 Watts</div>
+              <div style="border-top: 1px solid var(--surface-border); padding-top: 0.35rem;">
+                Why this is a terrible choice for your front gate:
+                <br>&bull; It costs 6,200 pesos (you only have 2,000 pesos).
+                <br>&bull; It weighs 30 pounds (it will break your wooden fence).
+                <br>&bull; It blinds your neighbors like a sports stadium.
+              </div>
+            </div>
+          </div>
+
+          <div class="card highlight">
+            <div class="card-title">
+              <span>The Smart Way: Balancing All 3 Needs</span>
+              <span class="code-term">Our App</span>
+            </div>
+            <p class="card-subtext">
+              A solar light is not just a light bulb. It is a panel, a battery, and a light in one unit.
+            </p>
+            <p class="card-subtext">
+              To pick the right one, the computer checks 3 questions at the exact same time:
+            </p>
+            <ul style="padding-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.4rem;">
+              <li><strong>Can you afford it?</strong> Does the price fit your budget?</li>
+              <li><strong>Does it fit the spot?</strong> Is it for a 3-meter gate or an 8-meter highway?</li>
+              <li><strong>Is it bright enough?</strong> Does it give you good light without blinding people?</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 3: WHERE EVERY NUMBER COMES FROM (THE CLARITY SLIDE)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-3" data-section="Product Matching">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 1: PRODUCT MATCHING</span>
+            <span>THE 3 SOURCES OF NUMBERS</span>
+          </div>
+          <h2 class="slide-title">Where Every Number Comes From: Is It a Given or Not?</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 03 / 21</div>
+      </div>
+      <div class="slide-body">
+        <p style="font-size: 0.95rem; color: var(--text-secondary);">
+          Every number you see in the calculation belongs to one of these 3 groups:
+        </p>
+
+        <div class="grid-3">
+          <!-- COLUMN 1: GIVENS -->
+          <div class="card highlight">
+            <div class="card-title">
+              <span>Group 1: GIVEN</span>
+              <span class="tag-given">Code Constants</span>
+            </div>
+            <p class="card-subtext">
+              Fixed in the app code by the developers. These never change:
+            </p>
+            <div class="giant-num-box">
+              <span class="giant-num">35%</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">0.35 Price Weight</span>
+            </div>
+            <div class="giant-num-box">
+              <span class="giant-num">35%</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">0.35 Place Weight</span>
+            </div>
+            <div class="giant-num-box">
+              <span class="giant-num">30%</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">0.30 Power Weight</span>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); padding-top: 0.25rem;">
+              Sum = 35 + 35 + 30 = 100%
+            </div>
+          </div>
+
+          <!-- COLUMN 2: USER INPUTS -->
+          <div class="card">
+            <div class="card-title">
+              <span>Group 2: USER INPUT</span>
+              <span class="tag-input">Typed on Screen</span>
+            </div>
+            <p class="card-subtext">
+              What the customer enters in the inquiry form:
+            </p>
+            <div class="giant-num-box">
+              <span class="giant-num">PHP 2,200</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">Max Budget</span>
+            </div>
+            <div class="giant-num-box">
+              <span class="giant-num" style="font-size: 1.4rem;">Gate (3.5m)</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">Location</span>
+            </div>
+            <div class="giant-num-box">
+              <span class="giant-num">100 W</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">Power Target</span>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); padding-top: 0.25rem;">
+              Set by user clicks and sliders
+            </div>
+          </div>
+
+          <!-- COLUMN 3: DATABASE SPECS -->
+          <div class="card">
+            <div class="card-title">
+              <span>Group 3: STORE DATABASE</span>
+              <span class="tag-db">Product Specs</span>
+            </div>
+            <p class="card-subtext">
+              What is written on the product box in the warehouse:
+            </p>
+            <div class="giant-num-box">
+              <span class="giant-num">PHP 1,800</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">Selling Price</span>
+            </div>
+            <div class="giant-num-box">
+              <span class="giant-num" style="font-size: 1.4rem;">Streetlight</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">Form Factor</span>
+            </div>
+            <div class="giant-num-box">
+              <span class="giant-num">100 W</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">LED Wattage</span>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); padding-top: 0.25rem;">
+              Stored in Supabase database
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="background: #111111; color: #ffffff;">
+          <div style="font-family: var(--font-mono); font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;">
+            <span>HOW THE GRADE IS MADE: Compare User Input vs Database Spec</span>
+            <span style="color: #a1a1aa;">1,800 is less than 2,200 &rarr; Budget Grade = 0.98!</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 4: HOW GRADES ARE BORN
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-4" data-section="Product Matching">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 1: PRODUCT MATCHING</span>
+            <span>WHERE DID 0.98 COME FROM?</span>
+          </div>
+          <h2 class="slide-title">How the Computer Turns Specs into Grades (0.0 to 1.0)</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 04 / 21</div>
+      </div>
+      <div class="slide-body">
+        <p style="font-size: 0.95rem; color: var(--text-secondary);">
+          The computer compares what the <strong>Customer Asked</strong> against what the <strong>Store Has</strong>:
+        </p>
+
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">
+              <span>Price Comparison</span>
+              <span class="tag-result">Grade 0.98</span>
+            </div>
+            <div class="giant-num" style="margin: 0.5rem 0;">0.98</div>
+            <p class="card-subtext">
+              Customer has <strong>PHP 2,200</strong>.<br>
+              Light costs <strong>PHP 1,800</strong>.<br>
+              Because 1,800 is comfortably inside the budget, it gets an almost perfect grade of <strong>0.98</strong>.
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>Place Comparison</span>
+              <span class="tag-result">Grade 1.00</span>
+            </div>
+            <div class="giant-num" style="margin: 0.5rem 0;">1.00</div>
+            <p class="card-subtext">
+              Customer needs light for a <strong>3.5m gate</strong>.<br>
+              Light is a <strong>compact streetlight</strong>.<br>
+              It fits low poles perfectly without blinding people, so it gets a full grade of <strong>1.00</strong>.
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>Power Comparison</span>
+              <span class="tag-result">Grade 1.00</span>
+            </div>
+            <div class="giant-num" style="margin: 0.5rem 0;">1.00</div>
+            <p class="card-subtext">
+              Customer asked for <strong>100 Watts</strong>.<br>
+              Light is exactly <strong>100 Watts</strong>.<br>
+              Difference is 0 watts, so it gets a 100% perfect grade of <strong>1.00</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div class="card highlight">
+          <div style="font-size: 0.9rem; color: var(--text-primary);">
+            <strong>Now we have our 3 grades:</strong> Price = <strong>0.98</strong>, Place = <strong>1.00</strong>, Brightness = <strong>1.00</strong>.
+            Next, we multiply them by the <strong>Given Weights (0.35, 0.35, 0.30)</strong>.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 5: THE MATH IN 4 SIMPLE STEPS (BIG NUMBERS)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-5" data-section="Product Matching">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 1: PRODUCT MATCHING</span>
+            <span>GRADE SCHOOL ARITHMETIC</span>
+          </div>
+          <h2 class="slide-title">The Math in 4 Steps: Multiply and Add</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 05 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div class="math-step">
+            <div class="math-step-num">1</div>
+            <div style="flex: 1;">
+              <strong>Step 1: Get the 3 grades from the comparison</strong>
+              <div style="font-size: 1.15rem; font-weight: 700; color: #111; margin-top: 0.2rem;">
+                Price Grade = 0.98 &nbsp;|&nbsp; Place Grade = 1.00 &nbsp;|&nbsp; Power Grade = 1.00
+              </div>
+            </div>
+          </div>
+
+          <div class="math-step">
+            <div class="math-step-num">2</div>
+            <div style="flex: 1;">
+              <strong>Step 2: Multiply each grade by its Given Weight (0.35, 0.35, 0.30)</strong>
+              <div style="display: flex; gap: 2rem; margin-top: 0.35rem; align-items: center;">
+                <div>
+                  <span style="font-size: 0.75rem; color: var(--text-muted);">PRICE (35%)</span><br>
+                  <span class="giant-num" style="font-size: 1.5rem;">0.98 &times; 0.35 = 0.343</span>
+                </div>
+                <div>
+                  <span style="font-size: 0.75rem; color: var(--text-muted);">PLACE (35%)</span><br>
+                  <span class="giant-num" style="font-size: 1.5rem;">1.00 &times; 0.35 = 0.350</span>
+                </div>
+                <div>
+                  <span style="font-size: 0.75rem; color: var(--text-muted);">POWER (30%)</span><br>
+                  <span class="giant-num" style="font-size: 1.5rem;">1.00 &times; 0.30 = 0.300</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-step">
+            <div class="math-step-num">3</div>
+            <div style="flex: 1;">
+              <strong>Step 3: Add the 3 answers together (Simple Addition)</strong>
+              <div class="giant-num" style="font-size: 1.75rem; margin-top: 0.25rem;">
+                0.343 + 0.350 + 0.300 = 0.993
+              </div>
+            </div>
+          </div>
+
+          <div class="math-step" style="background: #111111; color: #ffffff;">
+            <div class="math-step-num" style="background: #ffffff; color: #111111;">4</div>
+            <div style="flex: 1; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>Step 4: Multiply by 100 to show the percentage</strong>
+                <div style="font-size: 0.9rem; color: #d4d4d8;">0.993 &times; 100 = 99.3%</div>
+              </div>
+              <div class="giant-num" style="color: #ffffff; font-size: 2.5rem;">
+                99% MATCH
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 6: TESTING 3 REAL LIGHTS
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-6" data-section="Product Matching">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 1: PRODUCT MATCHING</span>
+            <span>REAL COMPARISON</span>
+          </div>
+          <h2 class="slide-title">Testing 3 Real Solar Lights from Our Catalog</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 06 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div style="background: #111111; color: #ffffff; padding: 0.65rem 1rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.85rem; display: flex; justify-content: space-between;">
+          <span>CUSTOMER WANTS: Gate Light (3.5m)</span>
+          <span>POWER: 100 Watts</span>
+          <span>BUDGET: PHP 2,200</span>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Light Candidate</th>
+                <th>Price & Watts</th>
+                <th>Price (35%)</th>
+                <th>Place (35%)</th>
+                <th>Power (30%)</th>
+                <th>Addition & Total</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight: 800; color: #111;">Light A: 100W Streetlight</td>
+                <td>PHP 1,800<br>100W</td>
+                <td>0.98 &times; 0.35<br><strong>0.343</strong></td>
+                <td>1.00 &times; 0.35<br><strong>0.350</strong></td>
+                <td>1.00 &times; 0.30<br><strong>0.300</strong></td>
+                <td style="font-family: var(--font-mono); font-weight: 800; font-size: 1rem; color: #111;">
+                  0.343 + 0.350 + 0.300<br>= <strong>99%</strong>
+                </td>
+                <td><span class="badge-status badge-pass">WINNER</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight: 800; color: #111;">Light B: 600W Highway Light</td>
+                <td>PHP 6,200<br>600W</td>
+                <td>0.10 &times; 0.35<br><strong>0.035</strong></td>
+                <td>0.30 &times; 0.35<br><strong>0.105</strong></td>
+                <td>0.20 &times; 0.30<br><strong>0.060</strong></td>
+                <td style="font-family: var(--font-mono); font-weight: 800; font-size: 1rem; color: #71717a;">
+                  0.035 + 0.105 + 0.060<br>= <strong>20%</strong>
+                </td>
+                <td><span class="badge-status badge-fail">REJECTED</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight: 800; color: #111;">Light C: 40W Floodlight</td>
+                <td>PHP 1,200<br>40W</td>
+                <td>1.00 &times; 0.35<br><strong>0.350</strong></td>
+                <td>0.85 &times; 0.35<br><strong>0.298</strong></td>
+                <td>0.40 &times; 0.30<br><strong>0.120</strong></td>
+                <td style="font-family: var(--font-mono); font-weight: 800; font-size: 1rem; color: #111;">
+                  0.350 + 0.298 + 0.120<br>= <strong>77%</strong>
+                </td>
+                <td><span class="badge-status badge-warn">BACKUP</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.45;">
+          <strong>Why Light A won:</strong> Light C was cheaper, but 40 watts is too dim. Light B had the biggest wattage number, but cost 6,200 pesos and would blind people on a low gate. Light A balanced all 3 tests and won with 99%.
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 7: STORE RULES
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-7" data-section="Product Matching">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 1: PRODUCT MATCHING</span>
+            <span>GIVEN STORE RULES</span>
+          </div>
+          <h2 class="slide-title">Two Given Rules: In-Stock Penalty and Passing Line</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 07 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card highlight">
+            <div class="card-title">
+              <span>Given Rule 1: Out of Stock Penalty</span>
+              <span class="tag-given">Given 50% Cut</span>
+            </div>
+            <div class="giant-num" style="margin: 0.5rem 0;">&times; 0.50</div>
+            <p class="card-subtext">
+              If a product gets 99%, but warehouse stock is 0:
+            </p>
+            <div style="background: #ffffff; border: 1px solid var(--surface-border); padding: 0.65rem; font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700;">
+              99% &times; 0.50 = 49.5% (Demoted!)
+            </div>
+            <p class="card-subtext">
+              Why? Nobody wants the app to recommend a light they cannot buy today. In-stock products always win.
+            </p>
+          </div>
+
+          <div class="card highlight">
+            <div class="card-title">
+              <span>Given Rule 2: The Passing Line</span>
+              <span class="tag-given">Given 70% Cutoff</span>
+            </div>
+            <div class="giant-num" style="margin: 0.5rem 0;">70%</div>
+            <p class="card-subtext">
+              Just like a school exam, a product needs at least <strong>70 points out of 100</strong> to pass.
+            </p>
+            <div style="background: #ffffff; border: 1px solid var(--surface-border); padding: 0.65rem; font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700;">
+              Score &ge; 70%: Show to customer<br>
+              Score &lt; 70%: Hidden from customer
+            </div>
+            <p class="card-subtext">
+              We never show bad recommendations.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 8: INTERACTIVE LAB (NEW INTERACTION SLIDE)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-8" data-section="Live Lab">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 1: PRODUCT MATCHING</span>
+            <span>LIVE INTERACTIVE LAB</span>
+          </div>
+          <h2 class="slide-title">Interactive Lab: Move the Sliders to Watch the Score Change Live</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 08 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2" style="gap: 1.5rem; align-items: start;">
+          <!-- CONTROLS COLUMN -->
+          <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+            <!-- SLIDER 1: PRICE -->
+            <div class="slider-group">
+              <div class="slider-header">
+                <strong>PRICE GRADE (Weight = 35%)</strong>
+                <span style="font-weight: 700;" id="val-price-text">0.98 (98%)</span>
+              </div>
+              <input type="range" id="sim-price" min="0" max="100" value="98" step="1">
+              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">
+                <span>0.0 (Too expensive)</span>
+                <span>Points: <strong id="val-price-pts" style="color: #111;">34.3</strong> / 35</span>
+                <span>1.0 (Cheap)</span>
+              </div>
+            </div>
+
+            <!-- SLIDER 2: PLACE -->
+            <div class="slider-group">
+              <div class="slider-header">
+                <strong>PLACE GRADE (Weight = 35%)</strong>
+                <span style="font-weight: 700;" id="val-place-text">1.00 (100%)</span>
+              </div>
+              <input type="range" id="sim-place" min="0" max="100" value="100" step="1">
+              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">
+                <span>0.0 (Bad fit)</span>
+                <span>Points: <strong id="val-place-pts" style="color: #111;">35.0</strong> / 35</span>
+                <span>1.0 (Perfect fit)</span>
+              </div>
+            </div>
+
+            <!-- SLIDER 3: POWER -->
+            <div class="slider-group">
+              <div class="slider-header">
+                <strong>POWER GRADE (Weight = 30%)</strong>
+                <span style="font-weight: 700;" id="val-power-text">1.00 (100%)</span>
+              </div>
+              <input type="range" id="sim-power" min="0" max="100" value="100" step="1">
+              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">
+                <span>0.0 (Too dim/strong)</span>
+                <span>Points: <strong id="val-power-pts" style="color: #111;">30.0</strong> / 30</span>
+                <span>1.0 (Exact watts)</span>
+              </div>
+            </div>
+
+            <!-- IN STOCK CHECKBOX -->
+            <div class="slider-group" style="flex-direction: row; justify-content: space-between; align-items: center; padding: 0.5rem 1rem;">
+              <label for="sim-stock" style="font-weight: 700; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" id="sim-stock" checked style="width: 18px; height: 18px; cursor: pointer;">
+                In Stock at Warehouse (Uncheck to test 50% cut)
+              </label>
+              <span id="stock-tag" class="tag-given">IN STOCK</span>
+            </div>
+
+            <!-- PRESET BUTTONS -->
+            <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+              <button type="button" class="btn-preset" data-price="98" data-place="100" data-power="100" data-stock="true">Light A (100W)</button>
+              <button type="button" class="btn-preset" data-price="10" data-place="30" data-power="20" data-stock="true">Light B (600W)</button>
+              <button type="button" class="btn-preset" data-price="100" data-place="85" data-power="40" data-stock="true">Light C (40W)</button>
+              <button type="button" class="btn-preset" data-price="98" data-place="100" data-power="100" data-stock="false">Light A (Out of Stock)</button>
+            </div>
+          </div>
+
+          <!-- LIVE SCORECARD COLUMN -->
+          <div class="card highlight" style="gap: 0.75rem; padding: 1.5rem;">
+            <div class="card-title">
+              <span>LIVE SCORECARD</span>
+              <span class="code-term">Real-Time Math</span>
+            </div>
+
+            <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">
+              ADDITION OF 3 WEIGHTED SCORES:
+            </div>
+
+            <!-- Big Addition Step -->
+            <div style="background: #f4f4f6; border: 1px solid var(--surface-border); padding: 0.75rem 1rem; border-radius: 6px;">
+              <div class="giant-num" style="font-size: 1.45rem;">
+                <span id="out-math-price">34.3</span> + <span id="out-math-place">35.0</span> + <span id="out-math-power">30.0</span>
+              </div>
+              <div style="font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700; margin-top: 0.35rem; color: #111;">
+                = <span id="out-raw-sum">99.3</span> Points (out of 100)
+              </div>
+            </div>
+
+            <!-- Stock Penalty Banner -->
+            <div id="out-stock-penalty-box" style="display: none; background: #111111; color: #ffffff; padding: 0.5rem 0.85rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.8rem;">
+              Out of Stock Penalty applied: <span id="out-calc-penalty">99.3 &times; 0.50 = 49.7</span>
+            </div>
+
+            <!-- Final Percentage Display -->
+            <div style="display: flex; align-items: baseline; justify-content: space-between; border-top: 2px solid #111111; padding-top: 0.75rem;">
+              <div>
+                <span style="font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-muted); text-transform: uppercase;">Final Match Percentage</span>
+                <div class="giant-num" style="font-size: 3.25rem; color: #111111;" id="out-final-percent">99%</div>
+              </div>
+              <div id="out-status-badge" class="badge-status badge-pass" style="font-size: 0.9rem; padding: 0.4rem 0.85rem;">
+                PASS (RECOMMENDED)
+              </div>
+            </div>
+
+            <!-- Explainer text -->
+            <p id="out-explainer-text" class="card-subtext" style="font-size: 0.85rem; margin-top: 0.25rem;">
+              This product scored 99 points. It clears the 70% passing line easily and will be recommended to the customer.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 9: STRING → NUMBER CONVERTER (HOW WORDS BECOME SCORES)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-9" data-section="Product Matching">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 1: PRODUCT MATCHING</span>
+            <span>HOW WORDS BECOME NUMBERS</span>
+          </div>
+          <h2 class="slide-title">You Type a Word — The Computer Turns It Into a Score</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 09 / 21</div>
+      </div>
+      <div class="slide-body">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+
+          <!-- BUDGET COLUMN -->
+          <div class="card" style="display:flex; flex-direction:column; gap:0.6rem;">
+            <div style="font-size:0.68rem; font-weight:800; letter-spacing:0.1em; border-bottom:2px solid #111; padding-bottom:0.3rem;">BUDGET — HOW IT PARSES</div>
+            <div style="font-size:0.75rem; color:#555; line-height:1.5;">
+              You pick a bracket like <code style="background:#f0f0f0;padding:1px 4px;">1000-2000</code>. The code strips every non-digit character and reads the two numbers.
+            </div>
+            <div style="font-family:var(--font-mono); font-size:0.72rem; background:#f4f4f6; padding:0.5rem 0.6rem; border-left:3px solid #111; line-height:1.7;">
+              <div style="color:#888;">"1000-2000" → split("-")</div>
+              <div>→ [1000, 2000]</div>
+              <div>→ avg = <strong>1500</strong></div>
+              <div style="color:#888; margin-top:0.3rem;">"3000+" → one number + "+"</div>
+              <div>→ max = 3000 × 1.4 = 4200</div>
+              <div>→ avg = <strong>3600</strong></div>
+            </div>
+            <div style="font-size:0.75rem; color:#555;">Then the product's own price_range goes through the same parse. The two averages are compared with subtraction.</div>
+
+            <!-- Live budget demo -->
+            <div style="background:#111; color:#fff; padding:0.6rem 0.75rem; border-radius:4px;">
+              <div style="font-size:0.65rem; color:#aaa; margin-bottom:0.4rem; letter-spacing:0.06em;">TRY IT — PICK A BRACKET</div>
+              <select id="budget-sel" style="width:100%; background:#222; color:#fff; border:1px solid #444; padding:0.3rem 0.4rem; font-family:var(--font-mono); font-size:0.78rem;">
+                <option value="1000-2000">1000-2000</option>
+                <option value="2500-3500">2500-3500</option>
+                <option value="3000+">3000+</option>
+                <option value="any">any</option>
+              </select>
+              <div style="margin-top:0.5rem; font-family:var(--font-mono); font-size:0.78rem; line-height:1.7;">
+                <div>Parsed avg: <span id="b-avg" style="font-size:1.1rem; font-weight:800; color:#fff;">1500</span></div>
+                <div>Product avg: <span id="b-prod-avg" style="color:#aaa;">2000 (example)</span></div>
+                <div>Budget score: <span id="b-score" style="font-size:1.4rem; font-weight:800; color:#fff;">1.00</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- LOCATION COLUMN -->
+          <div class="card" style="display:flex; flex-direction:column; gap:0.6rem;">
+            <div style="font-size:0.68rem; font-weight:800; letter-spacing:0.1em; border-bottom:2px solid #111; padding-bottom:0.3rem;">LOCATION — KEYWORD TABLE</div>
+            <div style="font-size:0.75rem; color:#555; line-height:1.5;">
+              No math at all. The word you type is matched against a lookup table the developers hard-coded.
+            </div>
+            <div style="font-family:var(--font-mono); font-size:0.72rem; background:#f4f4f6; padding:0.5rem 0.6rem; border-left:3px solid #111; line-height:1.7;">
+              <div style="color:#888;">word.includes("road")?</div>
+              <div>→ yes → start at 0.50</div>
+              <div>→ if product type="road" → <strong>1.00</strong></div>
+              <div>→ if watt &lt; 150 → <strong>0.20</strong></div>
+              <div style="color:#888; margin-top:0.3rem;">word.includes("gate")?</div>
+              <div>→ if watt 50–200 → <strong>1.00</strong></div>
+              <div>→ if watt &gt; 400 → <strong>0.30</strong></div>
+            </div>
+            <div style="font-size:0.75rem; color:#555;">The word is never turned into a number. It just picks a lane, then the product's wattage determines the final score.</div>
+
+            <!-- Live location demo -->
+            <div style="background:#111; color:#fff; padding:0.6rem 0.75rem; border-radius:4px;">
+              <div style="font-size:0.65rem; color:#aaa; margin-bottom:0.4rem; letter-spacing:0.06em;">TRY IT — PICK A LOCATION</div>
+              <select id="loc-sel" style="width:100%; background:#222; color:#fff; border:1px solid #444; padding:0.3rem 0.4rem; font-family:var(--font-mono); font-size:0.78rem;">
+                <option value="road">road / highway</option>
+                <option value="street">street / subdivision</option>
+                <option value="gate">gate / residential</option>
+                <option value="warehouse">warehouse / yard</option>
+              </select>
+              <select id="loc-watt" style="width:100%; background:#222; color:#fff; border:1px solid #444; padding:0.3rem 0.4rem; font-family:var(--font-mono); font-size:0.78rem; margin-top:0.4rem;">
+                <option value="100">Product watt: 100W</option>
+                <option value="200">Product watt: 200W</option>
+                <option value="300">Product watt: 300W</option>
+                <option value="500">Product watt: 500W</option>
+              </select>
+              <div style="margin-top:0.5rem; font-family:var(--font-mono); font-size:0.78rem; line-height:1.7;">
+                <div>Rule matched: <span id="l-rule" style="color:#aaa; font-size:0.72rem;">"road" lane</span></div>
+                <div>Location score: <span id="l-score" style="font-size:1.4rem; font-weight:800; color:#fff;">0.88</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- POWER COLUMN -->
+          <div class="card" style="display:flex; flex-direction:column; gap:0.6rem;">
+            <div style="font-size:0.68rem; font-weight:800; letter-spacing:0.1em; border-bottom:2px solid #111; padding-bottom:0.3rem;">POWER — TWO PATHS</div>
+            <div style="font-size:0.75rem; color:#555; line-height:1.5;">
+              If a number is typed → subtraction. If a word is typed → keyword table (same idea as location).
+            </div>
+            <div style="font-family:var(--font-mono); font-size:0.72rem; background:#f4f4f6; padding:0.5rem 0.6rem; border-left:3px solid #111; line-height:1.7;">
+              <div style="color:#888;">If input = "300" (a number):</div>
+              <div>diff = |product_watt − 300|</div>
+              <div>diff=0 → <strong>1.00</strong>, ≤50 → <strong>0.95</strong></div>
+              <div>≤100 → <strong>0.85</strong>, ≤200 → <strong>0.70</strong></div>
+              <div style="color:#888; margin-top:0.3rem;">If input = "high" (a word):</div>
+              <div>watt ≥ 400 → <strong>1.00</strong></div>
+              <div>watt = 300 → <strong>0.75</strong></div>
+              <div>watt &lt; 300 → <strong>0.30</strong></div>
+            </div>
+            <div style="font-size:0.75rem; color:#555;">The code checks: can this string be turned into a number? If yes → math. If no → keyword table.</div>
+
+            <!-- Live power demo -->
+            <div style="background:#111; color:#fff; padding:0.6rem 0.75rem; border-radius:4px;">
+              <div style="font-size:0.65rem; color:#aaa; margin-bottom:0.4rem; letter-spacing:0.06em;">TRY IT — PICK POWER NEED</div>
+              <select id="pow-need" style="width:100%; background:#222; color:#fff; border:1px solid #444; padding:0.3rem 0.4rem; font-family:var(--font-mono); font-size:0.78rem;">
+                <option value="300">300 (number path)</option>
+                <option value="500">500 (number path)</option>
+                <option value="low">low (word path)</option>
+                <option value="medium">medium (word path)</option>
+                <option value="high">high (word path)</option>
+              </select>
+              <select id="pow-watt" style="width:100%; background:#222; color:#fff; border:1px solid #444; padding:0.3rem 0.4rem; font-family:var(--font-mono); font-size:0.78rem; margin-top:0.4rem;">
+                <option value="100">Product watt: 100W</option>
+                <option value="200">Product watt: 200W</option>
+                <option value="300">Product watt: 300W</option>
+                <option value="500">Product watt: 500W</option>
+              </select>
+              <div style="margin-top:0.5rem; font-family:var(--font-mono); font-size:0.78rem; line-height:1.7;">
+                <div>Path used: <span id="p-path" style="color:#aaa; font-size:0.72rem;">number path</span></div>
+                <div>Power score: <span id="p-score" style="font-size:1.4rem; font-weight:800; color:#fff;">0.85</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom: Final combined score -->
+        <div class="card" style="background:#111; color:#fff; padding:0.75rem 1rem; display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap;">
+          <div style="font-size:0.72rem; color:#aaa; letter-spacing:0.06em; white-space:nowrap;">COMBINED SCORE (from above):</div>
+          <div style="font-family:var(--font-mono); font-size:0.9rem; flex:1;">
+            (<span id="cb-b" style="font-weight:800; font-size:1.1rem;">1.00</span> × 35%) + (<span id="cb-l" style="font-weight:800; font-size:1.1rem;">0.88</span> × 35%) + (<span id="cb-p" style="font-weight:800; font-size:1.1rem;">0.85</span> × 30%)
+          </div>
+          <div style="font-family:var(--font-mono); font-size:0.9rem;">= <span id="cb-total" style="font-size:2rem; font-weight:800; color:#fff;">91%</span></div>
+        </div>
+
+      </div>
+
+      <script>
+      (function() {
+        // ---- Budget logic ----
+        function parseBracket(s) {
+          if (s === 'any') return { avg: null };
+          const nums = s.split('-').map(p => parseInt(p.replace(/[^0-9]/g,''),10)).filter(n=>!isNaN(n));
+          if (nums.length >= 2) return { avg: Math.round((nums[0]+nums[1])/2) };
+          if (nums.length === 1 && s.includes('+')) return { avg: Math.round(nums[0]*1.2) };
+          return { avg: nums[0] || null };
+        }
+        function budgetScore(bracket, prodAvg) {
+          if (bracket === 'any') return 1.0;
+          const { avg: userAvg } = parseBracket(bracket);
+          if (!userAvg) return 1.0;
+          if (prodAvg <= userAvg * 1.0) return 1.0;
+          if (prodAvg <= userAvg * 1.15) return 0.80;
+          if (prodAvg <= userAvg * 1.30) return 0.65;
+          return 0.20;
+        }
+        const PROD_AVG = 2000; // fixed example product price
+        function updateBudget() {
+          const bracket = document.getElementById('budget-sel').value;
+          const { avg } = parseBracket(bracket);
+          const score = budgetScore(bracket, PROD_AVG);
+          document.getElementById('b-avg').textContent = avg ? avg.toLocaleString() : '—';
+          document.getElementById('b-score').textContent = score.toFixed(2);
+          updateCombined();
+        }
+
+        // ---- Location logic ----
+        function locationScore(loc, watt) {
+          watt = Number(watt);
+          if (loc === 'road') {
+            if (watt < 150) return { score: 0.20, rule: '"road" lane: watt<150 → 0.20' };
+            if (watt >= 400) return { score: 0.82, rule: '"road" lane: watt≥400 → 0.82' };
+            if (watt >= 300) return { score: 0.88, rule: '"road" lane: watt≥300 → 0.88' };
+            return { score: 0.50, rule: '"road" lane: default → 0.50' };
+          }
+          if (loc === 'street') {
+            if (watt >= 100 && watt <= 400) return { score: 0.85, rule: '"street" lane: 100–400W → 0.85' };
+            if (watt > 600) return { score: 0.60, rule: '"street" lane: watt>600 → 0.60' };
+            return { score: 0.50, rule: '"street" lane: default → 0.50' };
+          }
+          if (loc === 'gate') {
+            if (watt >= 50 && watt <= 200) return { score: 1.0, rule: '"gate" lane: 50–200W → 1.00' };
+            if (watt > 400) return { score: 0.30, rule: '"gate" lane: watt>400 → 0.30 (too bright)' };
+            return { score: 0.80, rule: '"gate" lane: 200–400W → 0.80' };
+          }
+          if (loc === 'warehouse') {
+            if (watt >= 300 && watt <= 1000) return { score: 1.0, rule: '"warehouse" lane: 300–1000W → 1.00' };
+            if (watt < 150) return { score: 0.25, rule: '"warehouse" lane: watt<150 → 0.25 (too weak)' };
+            return { score: 0.70, rule: '"warehouse" lane: default → 0.70' };
+          }
+          return { score: 0.80, rule: 'unknown keyword → 0.80' };
+        }
+        function updateLocation() {
+          const loc = document.getElementById('loc-sel').value;
+          const watt = document.getElementById('loc-watt').value;
+          const { score, rule } = locationScore(loc, watt);
+          document.getElementById('l-rule').textContent = rule;
+          document.getElementById('l-score').textContent = score.toFixed(2);
+          updateCombined();
+        }
+
+        // ---- Power logic ----
+        function powerScore(need, watt) {
+          watt = Number(watt);
+          if (!isNaN(Number(need))) {
+            const target = Number(need);
+            const diff = Math.abs(watt - target);
+            if (diff === 0) return { score: 1.0, path: 'number path: diff=0 → 1.00' };
+            if (diff <= 50)  return { score: 0.95, path: `number path: diff=${diff} ≤50 → 0.95` };
+            if (diff <= 100) return { score: 0.85, path: `number path: diff=${diff} ≤100 → 0.85` };
+            if (diff <= 200) return { score: 0.70, path: `number path: diff=${diff} ≤200 → 0.70` };
+            if (diff <= 300) return { score: 0.50, path: `number path: diff=${diff} ≤300 → 0.50` };
+            return { score: 0.30, path: `number path: diff=${diff} → 0.30` };
+          }
+          const tier = need.toLowerCase();
+          if (tier.includes('low')) {
+            if (watt >= 50 && watt <= 150) return { score: 1.0, path: 'word path: "low" + watt 50–150 → 1.00' };
+            return { score: 0.30, path: 'word path: "low" but watt out of range → 0.30' };
+          }
+          if (tier.includes('med')) {
+            if (watt >= 200 && watt <= 350) return { score: 1.0, path: 'word path: "medium" + watt 200–350 → 1.00' };
+            return { score: 0.40, path: 'word path: "medium" but watt out of range → 0.40' };
+          }
+          if (tier.includes('high')) {
+            if (watt >= 400) return { score: 1.0, path: 'word path: "high" + watt ≥400 → 1.00' };
+            if (watt === 300) return { score: 0.75, path: 'word path: "high" + watt=300 → 0.75' };
+            return { score: 0.30, path: 'word path: "high" but watt <300 → 0.30' };
+          }
+          return { score: 0.80, path: 'unknown → 0.80' };
+        }
+        function updatePower() {
+          const need = document.getElementById('pow-need').value;
+          const watt = document.getElementById('pow-watt').value;
+          const { score, path } = powerScore(need, watt);
+          document.getElementById('p-path').textContent = path;
+          document.getElementById('p-score').textContent = score.toFixed(2);
+          updateCombined();
+        }
+
+        // ---- Combined ----
+        function updateCombined() {
+          const b = parseFloat(document.getElementById('b-score').textContent);
+          const l = parseFloat(document.getElementById('l-score').textContent);
+          const p = parseFloat(document.getElementById('p-score').textContent);
+          const total = (b * 0.35) + (l * 0.35) + (p * 0.30);
+          document.getElementById('cb-b').textContent = b.toFixed(2);
+          document.getElementById('cb-l').textContent = l.toFixed(2);
+          document.getElementById('cb-p').textContent = p.toFixed(2);
+          document.getElementById('cb-total').textContent = Math.round(total * 100) + '%';
+        }
+
+        document.getElementById('budget-sel').addEventListener('change', updateBudget);
+        document.getElementById('loc-sel').addEventListener('change', updateLocation);
+        document.getElementById('loc-watt').addEventListener('change', updateLocation);
+        document.getElementById('pow-need').addEventListener('change', updatePower);
+        document.getElementById('pow-watt').addEventListener('change', updatePower);
+
+        // init
+        updateBudget(); updateLocation(); updatePower();
+      })();
+      </script>
+
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 10: RULE-BASED TROUBLESHOOTING (WAS SLIDE 9)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-10" data-section="Troubleshooting">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 2: TROUBLESHOOTING</span>
+            <span>WHAT IS A RULE?</span>
+          </div>
+          <h2 class="slide-title">What is a Rule-Based System? (Simple IF-THEN)</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 10 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <span>A Rule is Just Like a House Rule</span>
+              <span class="code-term">IF &rarr; THEN</span>
+            </div>
+            <p class="card-subtext">
+              You already know how rules work in everyday life:
+            </p>
+            <div style="background: #ffffff; border: 1px solid var(--surface-border); padding: 0.85rem; font-family: var(--font-mono); font-size: 0.9rem; display: flex; flex-direction: column; gap: 0.35rem;">
+              <div><strong>IF</strong> your shoes are muddy,</div>
+              <div><strong>THEN</strong> take them off before stepping inside.</div>
+            </div>
+            <p class="card-subtext">
+              Our repair code works the exact same way. No guessing. No confusion.
+            </p>
+          </div>
+
+          <div class="card highlight">
+            <div class="card-title">
+              <span>Why We Do Not Use AI Chatbots for Repairs</span>
+              <span class="code-term">Battery Safety</span>
+            </div>
+            <p class="card-subtext">
+              Why not just use an AI bot to talk to customers?
+            </p>
+            <ul style="padding-left: 1.25rem; font-size: 0.88rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.35rem;">
+              <li><strong>AI makes things up:</strong> An AI bot can hallucinate and tell a customer to poke a lithium battery. That can cause a fire.</li>
+              <li><strong>Warranty compliance:</strong> Opening the waterproof case voids the 24-month manufacturer warranty.</li>
+              <li><strong>Strict rules never hallucinate:</strong> Our code follows exact manufacturer repair guidelines every time.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 10: THE 4 HARDWARE CHECKUP PILLARS (WAS SLIDE 9)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-11" data-section="Troubleshooting">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 2: TROUBLESHOOTING</span>
+            <span>GIVEN REPAIR WEIGHTS</span>
+          </div>
+          <h2 class="slide-title">The 4 Parts of Every Solar Light Checkup</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 11 / 21</div>
+      </div>
+      <div class="slide-body">
+        <p style="font-size: 0.95rem; color: var(--text-secondary);">
+          When a light stops shining, the computer checks 4 things. The weights are <strong>Given in Code</strong>:
+        </p>
+
+        <div class="grid-2" style="gap: 1rem;">
+          <div class="card">
+            <div class="card-title">
+              <span>1. Power & Charging</span>
+              <span class="tag-given">Given 30% Weight</span>
+            </div>
+            <div class="giant-num">30%</div>
+            <p class="card-subtext">
+              Does the red charging light turn on at noon? Is the wire connected?
+            </p>
+            <div style="font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">
+              Tells us if the solar panel is producing electricity.
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>2. Water & Physical Seal</span>
+              <span class="tag-given">Given 25% Weight</span>
+            </div>
+            <div class="giant-num">25%</div>
+            <p class="card-subtext">
+              Are there water drops inside the lens? Did a rock crack the glass?
+            </p>
+            <div style="font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">
+              Water inside electricity is dangerous. This check comes first.
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>3. Weather & Sunlight</span>
+              <span class="tag-given">Given 25% Weight</span>
+            </div>
+            <div class="giant-num">25%</div>
+            <p class="card-subtext">
+              Has it rained for 3 days straight? Are tree branches shading the panel?
+            </p>
+            <div style="font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">
+              Tells us if the lamp is simply waiting for sunlight.
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>4. Switch & Battery Age</span>
+              <span class="tag-given">Given 20% Weight</span>
+            </div>
+            <div class="giant-num">20%</div>
+            <p class="card-subtext">
+              Is the power switch turned OFF? Has the battery been used for 3+ years?
+            </p>
+            <div style="font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">
+              Checks if the battery is old or turned off.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 11: THE SAFETY OVERRIDE (WAS SLIDE 10)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-12" data-section="Troubleshooting">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 2: TROUBLESHOOTING</span>
+            <span>SAFETY FIRST</span>
+          </div>
+          <h2 class="slide-title">The Safety Rule: Water and Cracks Stop Everything</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 12 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card highlight">
+            <div class="card-title">
+              <span>Safety Priority Score: 96 or Higher</span>
+              <span class="tag-given">Given Override</span>
+            </div>
+            <div class="giant-num" style="margin: 0.35rem 0;">Priority &ge; 96</div>
+            <p class="card-subtext">
+              Normally, the computer asks questions about weather and switches.
+            </p>
+            <p class="card-subtext">
+              <strong>BUT</strong> if the customer says: <em>"There is water inside the glass"</em>:
+            </p>
+            <div style="background: #f4f4f6; border: 1.5px solid #111111; padding: 0.75rem; font-family: var(--font-mono); font-size: 0.85rem;">
+              IF (Water is inside the lens) {<br>
+              &nbsp;&nbsp;STOP all other tests immediately;<br>
+              &nbsp;&nbsp;Do NOT tell them to charge it;<br>
+              &nbsp;&nbsp;Flag for warranty intake ticket;<br>
+              }
+            </div>
+            <p class="card-subtext">
+              Why? Telling someone to charge a wet battery can cause a short circuit. Safety skips all other questions.
+            </p>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fault Code</th>
+                  <th>Problem Found</th>
+                  <th>Priority</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="code-term">FLT-IP-009</td>
+                  <td>Water inside lens</td>
+                  <td><strong class="giant-num" style="font-size: 1.25rem;">98</strong></td>
+                  <td>Stop. Water leak. Free replacement.</td>
+                </tr>
+                <tr>
+                  <td class="code-term">FLT-EXT-016</td>
+                  <td>Cracked tempered glass</td>
+                  <td><strong class="giant-num" style="font-size: 1.25rem;">96</strong></td>
+                  <td>Stop. Rock hit. Warranty void.</td>
+                </tr>
+                <tr>
+                  <td class="code-term">FLT-PV-015</td>
+                  <td>Hotspot on solar panel</td>
+                  <td><strong class="giant-num" style="font-size: 1.25rem;">97</strong></td>
+                  <td>Fire risk. Unplug wire now.</td>
+                </tr>
+                <tr>
+                  <td class="code-term">FLT-BAT-008</td>
+                  <td>Battery is 3+ years old</td>
+                  <td><strong class="giant-num" style="font-size: 1.25rem;">75</strong></td>
+                  <td>Normal wear. Buy replacement battery.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 12: FLOW DIAGRAM (WAS SLIDE 11)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-13" data-section="Troubleshooting">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 2: TROUBLESHOOTING</span>
+            <span>HOW IT THINKS</span>
+          </div>
+          <h2 class="slide-title">How the Computer Solves a Problem (Step by Step)</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 13 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div class="diagram-wrapper">
+          <svg class="diagram" viewBox="0 0 960 280" xmlns="http://www.w3.org/2000/svg">
+            <rect width="960" height="280" fill="#ffffff"/>
+
+            <rect x="30" y="100" width="170" height="70" rx="6" fill="#f4f4f6" stroke="#111111" stroke-width="2"/>
+            <text x="115" y="130" fill="#111111" font-family="-apple-system, sans-serif" font-size="12" font-weight="800" text-anchor="middle">CUSTOMER SYMPTOMS</text>
+            <text x="115" y="150" fill="#71717a" font-family="monospace" font-size="10" text-anchor="middle">Step 1: What went wrong?</text>
+
+            <line x1="200" y1="135" x2="260" y2="135" stroke="#111111" stroke-width="2"/>
+            <polygon points="260,135 250,130 250,140" fill="#111111"/>
+
+            <polygon points="340,90 415,135 340,180 265,135" fill="#ffffff" stroke="#111111" stroke-width="2.5"/>
+            <text x="340" y="130" fill="#111111" font-family="-apple-system, sans-serif" font-size="12" font-weight="800" text-anchor="middle">SAFETY HAZARD?</text>
+            <text x="340" y="148" fill="#71717a" font-family="monospace" font-size="10" text-anchor="middle">Water or cracks?</text>
+
+            <line x1="340" y1="90" x2="340" y2="45" stroke="#111111" stroke-width="2"/>
+            <line x1="340" y1="45" x2="470" y2="45" stroke="#111111" stroke-width="2"/>
+            <polygon points="470,45 460,40 460,50" fill="#111111"/>
+            <text x="390" y="37" fill="#111111" font-family="monospace" font-size="11" font-weight="800">YES (Danger!)</text>
+
+            <rect x="470" y="15" width="220" height="60" rx="6" fill="#f4f4f6" stroke="#111111" stroke-width="2"/>
+            <text x="580" y="40" fill="#111111" font-family="-apple-system, sans-serif" font-size="12" font-weight="800" text-anchor="middle">STOP ALL TESTS</text>
+            <text x="580" y="58" fill="#71717a" font-family="monospace" font-size="10" text-anchor="middle">Water Leak (FLT-IP-009)</text>
+
+            <line x1="415" y1="135" x2="470" y2="135" stroke="#111111" stroke-width="2"/>
+            <polygon points="470,135 460,130 460,140" fill="#111111"/>
+            <text x="435" y="127" fill="#71717a" font-family="monospace" font-size="10" font-weight="700">NO</text>
+
+            <rect x="470" y="105" width="220" height="65" rx="6" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+            <text x="580" y="132" fill="#111111" font-family="-apple-system, sans-serif" font-size="12" font-weight="800" text-anchor="middle">CHECK 4 PILLARS</text>
+            <text x="580" y="152" fill="#71717a" font-family="monospace" font-size="9" text-anchor="middle">Power (30%) + Weather (25%) + Age (20%)</text>
+
+            <line x1="690" y1="135" x2="740" y2="135" stroke="#111111" stroke-width="2"/>
+            <polygon points="740,135 730,130 730,140" fill="#111111"/>
+
+            <rect x="740" y="85" width="200" height="100" rx="6" fill="#111111" stroke="#111111" stroke-width="2"/>
+            <text x="840" y="115" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="13" font-weight="800" text-anchor="middle">FINAL VERDICT</text>
+            <text x="840" y="138" fill="#d4d4d8" font-family="monospace" font-size="10" text-anchor="middle">&bull; Exact Fault Code</text>
+            <text x="840" y="156" fill="#d4d4d8" font-family="monospace" font-size="10" text-anchor="middle">&bull; How to fix it</text>
+            <text x="840" y="174" fill="#d4d4d8" font-family="monospace" font-size="10" text-anchor="middle">&bull; Free warranty form</text>
+
+            <line x1="690" y1="45" x2="840" y2="45" stroke="#111111" stroke-width="2"/>
+            <line x1="840" y1="45" x2="840" y2="85" stroke="#111111" stroke-width="2"/>
+            <polygon points="840,85 835,75 845,75" fill="#111111"/>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 13: WORKED DIAGNOSTIC EXAMPLE (WAS SLIDE 12)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-14" data-section="Troubleshooting">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 2: TROUBLESHOOTING</span>
+            <span>REAL CASE</span>
+          </div>
+          <h2 class="slide-title">Real Example: Rainstorm vs a Tired Old Battery</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 14 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <span>Case 1: "My light died after 2 hours!"</span>
+              <span class="code-term">Monsoon Rain</span>
+            </div>
+            <p class="card-subtext">
+              A customer calls saying their new light only stayed on for 2 hours last night.
+            </p>
+            <div style="background: #ffffff; border: 1px solid var(--surface-border); padding: 0.75rem; font-family: var(--font-mono); font-size: 0.82rem; display: flex; flex-direction: column; gap: 0.25rem;">
+              <div>1. Power: Red charging light works fine</div>
+              <div>2. Water Seal: Lens is bone dry inside</div>
+              <div>3. Weather: 3 days of rainstorm in a row</div>
+              <div>4. Age: Bought only 2 months ago</div>
+            </div>
+            <div style="border-top: 1px solid var(--surface-border); padding-top: 0.5rem; font-family: var(--font-mono); font-size: 0.95rem; font-weight: 800; color: #111;">
+              Verdict: FLT-ENV-003 (Just Needs Sunlight)
+            </div>
+            <p class="card-subtext">
+              The battery is 100% healthy. It just needs a sunny day to fill up. The customer saves money because they do not have to ship a good light back.
+            </p>
+          </div>
+
+          <div class="card highlight">
+            <div class="card-title">
+              <span>Case 2: "My light died after 2 hours in full sun!"</span>
+              <span class="code-term">Old Battery</span>
+            </div>
+            <p class="card-subtext">
+              Another customer has the same symptom, but it was sunny all week.
+            </p>
+            <div style="background: #ffffff; border: 1px solid var(--surface-border); padding: 0.75rem; font-family: var(--font-mono); font-size: 0.82rem; display: flex; flex-direction: column; gap: 0.25rem;">
+              <div>1. Power: Sun was bright all week</div>
+              <div>2. Water Seal: Lens is dry and clean</div>
+              <div>3. Weather: Full sun every day</div>
+              <div>4. Age: Bought 38 months ago (over 3 years)</div>
+            </div>
+            <div style="border-top: 1px solid var(--surface-border); padding-top: 0.5rem; font-family: var(--font-mono); font-size: 0.95rem; font-weight: 800; color: #111;">
+              Verdict: FLT-BAT-008 (Old Battery)
+            </div>
+            <p class="card-subtext">
+              After 3 years of daily recharges, lithium batteries wear out. The warranty is 2 years, so the app offers an affordable fresh battery kit.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 14: RULE-BASED MATH — HOW THE COMPUTER SCORES YOUR REPAIR
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-15" data-section="Troubleshooting">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 2: TROUBLESHOOTING</span>
+            <span>THE MATH BEHIND THE DIAGNOSIS</span>
+          </div>
+          <h2 class="slide-title">The Rule-Based Math: How the Computer Scores a Repair</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 15 / 21</div>
+      </div>
+      <div class="slide-body">
+
+        <!-- Formula bar -->
+        <div class="card" style="margin-bottom: 1rem; background: #111; color: #fff; padding: 1rem 1.25rem;">
+          <div style="font-family: var(--font-mono); font-size: 0.78rem; color: #aaa; margin-bottom: 0.4rem; letter-spacing: 0.08em;">DIAGNOSTIC SCORE FORMULA</div>
+          <div style="font-family: var(--font-mono); font-size: 1.05rem; font-weight: 700; line-height: 1.6;">
+            Score&nbsp;=&nbsp;(Electrical&nbsp;&times;&nbsp;<span style="color:#fff; font-size:1.2rem; font-weight:800;">30</span>)&nbsp;+&nbsp;(Seal&nbsp;&times;&nbsp;<span style="color:#fff; font-size:1.2rem; font-weight:800;">25</span>)&nbsp;+&nbsp;(Environment&nbsp;&times;&nbsp;<span style="color:#fff; font-size:1.2rem; font-weight:800;">25</span>)&nbsp;+&nbsp;(Control&nbsp;&times;&nbsp;<span style="color:#fff; font-size:1.2rem; font-weight:800;">20</span>)
+          </div>
+          <div style="font-size: 0.78rem; color: #aaa; margin-top: 0.5rem;">
+            Each section is scored 0 (did not match) or 1 (matched). The weights — 30, 25, 25, 20 — are <span class="tag-given" style="font-size:0.68rem; padding:1px 6px;">GIVEN</span> and never change.
+          </div>
+        </div>
+
+        <!-- Two cases side by side -->
+        <div class="grid-2">
+
+          <!-- Case 1: Monsoon Rain -->
+          <div class="card">
+            <div class="card-title">
+              <span>Case 1: Monsoon Rain</span>
+              <span class="code-term">FLT-ENV-003</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem; text-align: center; margin: 0.75rem 0;">
+              <div>
+                <div style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 0.2rem;">ELECTRICAL</div>
+                <div class="giant-num" style="font-size:1.9rem;">1.00</div>
+                <div style="font-size: 0.65rem; color: #555;">× 30 = 30</div>
+              </div>
+              <div>
+                <div style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 0.2rem;">SEAL</div>
+                <div class="giant-num" style="font-size:1.9rem;">1.00</div>
+                <div style="font-size: 0.65rem; color: #555;">× 25 = 25</div>
+              </div>
+              <div>
+                <div style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 0.2rem;">ENVIRONMENT</div>
+                <div class="giant-num" style="font-size:1.9rem; color:#aaa;">0.10</div>
+                <div style="font-size: 0.65rem; color: #555;">× 25 = 2.5</div>
+              </div>
+              <div>
+                <div style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 0.2rem;">CONTROL</div>
+                <div class="giant-num" style="font-size:1.9rem;">1.00</div>
+                <div style="font-size: 0.65rem; color: #555;">× 20 = 20</div>
+              </div>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: 0.82rem; border-top: 1px solid var(--surface-border); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.2rem;">
+              <div>30 + 25 + 2.5 + 20 = <strong>77.5 points</strong></div>
+              <div style="color: #555; font-size: 0.75rem;">+ 8 bonus (3 pillars matched) = <strong>85.5 points</strong></div>
+              <div style="font-size: 0.75rem; color: #555; margin-top: 0.1rem;">Confidence rated rule: 91%</div>
+            </div>
+            <div style="border-top: 1px solid var(--surface-border); padding-top: 0.5rem; margin-top: 0.5rem; font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800;">
+              Verdict: Just needs sunlight
+            </div>
+          </div>
+
+          <!-- Case 2: Old Battery -->
+          <div class="card highlight">
+            <div class="card-title">
+              <span>Case 2: Old Battery</span>
+              <span class="code-term">FLT-BAT-008</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem; text-align: center; margin: 0.75rem 0;">
+              <div>
+                <div style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 0.2rem;">ELECTRICAL</div>
+                <div class="giant-num" style="font-size:1.9rem;">0.80</div>
+                <div style="font-size: 0.65rem; color: #555;">× 30 = 24</div>
+              </div>
+              <div>
+                <div style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 0.2rem;">SEAL</div>
+                <div class="giant-num" style="font-size:1.9rem; color:#aaa;">0.00</div>
+                <div style="font-size: 0.65rem; color: #555;">× 25 = 0</div>
+              </div>
+              <div>
+                <div style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 0.2rem;">ENVIRONMENT</div>
+                <div class="giant-num" style="font-size:1.9rem; color:#aaa;">0.00</div>
+                <div style="font-size: 0.65rem; color: #555;">× 25 = 0</div>
+              </div>
+              <div>
+                <div style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 0.2rem;">CONTROL</div>
+                <div class="giant-num" style="font-size:1.9rem;">1.00</div>
+                <div style="font-size: 0.65rem; color: #555;">× 20 = 20</div>
+              </div>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: 0.82rem; border-top: 1px solid var(--surface-border); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.2rem;">
+              <div>24 + 0 + 0 + 20 = <strong>44 points</strong></div>
+              <div style="color: #555; font-size: 0.75rem;">No multi-pillar bonus (only 2 pillars hit)</div>
+              <div style="font-size: 0.75rem; color: #555; margin-top: 0.1rem;">Confidence rated rule: 86%</div>
+            </div>
+            <div style="border-top: 1px solid var(--surface-border); padding-top: 0.5rem; margin-top: 0.5rem; font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800;">
+              Verdict: Old battery, replace it
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Bottom callout row -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem;">
+          <div class="card" style="background: #f4f4f6; padding: 0.75rem 1rem; font-size: 0.78rem;">
+            <div style="font-weight: 700; margin-bottom: 0.3rem; letter-spacing: 0.05em; font-size: 0.72rem;">BONUS RULE (BUILT-IN)</div>
+            If 3 or more pillars all flag the same problem at the same time, the system adds <strong>+8 points</strong> as a bonus. This rewards patterns where everything lines up.
+          </div>
+          <div class="card" style="background: #111; color: #fff; padding: 0.75rem 1rem; font-size: 0.78rem;">
+            <div style="font-weight: 700; margin-bottom: 0.3rem; letter-spacing: 0.05em; font-size: 0.72rem; color: #aaa;">SAFETY SKIP RULE</div>
+            If the system detects <strong>water inside the lamp</strong> or <strong>cracked glass</strong>, this entire math step is skipped. It goes straight to "stop using this light immediately."
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 16-NEW: HOW TROUBLESHOOTING TURNS WORDS INTO SCORES (INTERACTIVE)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-16" data-section="Troubleshooting">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 2: TROUBLESHOOTING</span>
+            <span>ALL 5 QUESTIONS — WHAT EACH ONE DOES</span>
+          </div>
+          <h2 class="slide-title">Multiple Symptoms? The Computer Handles That Too.</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 16 / 21</div>
+      </div>
+
+      <div class="slide-body" style="display:flex; flex-direction:column; gap:0.65rem;">
+
+        <!-- ===== ZONE 1: SYMPTOM CHECKBOXES ===== -->
+        <div style="display:grid; grid-template-columns:auto 1fr; gap:0.75rem; align-items:start;">
+
+          <!-- Left: label + checkboxes -->
+          <div class="card" style="padding:0.7rem 0.9rem; min-width:230px;">
+            <div style="font-size:0.6rem; font-weight:800; letter-spacing:0.1em; border-bottom:2px solid #111; padding-bottom:0.3rem; margin-bottom:0.5rem;">
+              ZONE 1 — SYMPTOM GATE
+            </div>
+            <div style="font-size:0.7rem; color:#555; margin-bottom:0.5rem; line-height:1.5;">
+              Tick one or more. <strong>None of these go into the formula.</strong><br>
+              They only decide which rules are allowed to compete.
+            </div>
+            <div style="display:flex; flex-direction:column; gap:0.3rem;" id="sym-boxes">
+              <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.72rem; cursor:pointer;">
+                <input type="checkbox" value="NO_POWER" style="width:14px;height:14px;cursor:pointer;"> Light does NOT turn on at night
+              </label>
+              <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.72rem; cursor:pointer;">
+                <input type="checkbox" value="SHORT_RUNTIME" style="width:14px;height:14px;cursor:pointer;"> Shuts off after only 1–3 hours
+              </label>
+              <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.72rem; cursor:pointer;">
+                <input type="checkbox" value="DIM_FLICKER" style="width:14px;height:14px;cursor:pointer;"> Dim or flickering LEDs
+              </label>
+              <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.72rem; cursor:pointer;">
+                <input type="checkbox" value="DAYTIME_ON" style="width:14px;height:14px;cursor:pointer;"> Light stays ON in daytime
+              </label>
+              <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.72rem; cursor:pointer;">
+                <input type="checkbox" value="PHYSICAL_HOTSPOT" style="width:14px;height:14px;cursor:pointer;"> Cracked glass / burned marks
+              </label>
+              <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.72rem; cursor:pointer;">
+                <input type="checkbox" value="SENSOR_REMOTE" style="width:14px;height:14px;cursor:pointer;"> Remote / radar not responding
+              </label>
+            </div>
+          </div>
+
+          <!-- Right: what happens to the rules -->
+          <div class="card" style="padding:0.7rem 0.9rem; display:flex; flex-direction:column; gap:0.4rem;">
+            <div style="font-size:0.6rem; font-weight:800; letter-spacing:0.1em; border-bottom:2px solid #111; padding-bottom:0.3rem; margin-bottom:0.3rem;">
+              WHAT THE COMPUTER DOES WITH YOUR SYMPTOM(S)
+            </div>
+
+            <!-- Step A: sort by severity -->
+            <div style="display:grid; grid-template-columns:28px 1fr; gap:0.3rem 0.5rem; align-items:start; font-size:0.72rem; line-height:1.5;">
+              <div style="font-weight:800; font-size:1rem; color:#111; text-align:center; padding-top:1px;">1</div>
+              <div>
+                <strong>Sort by danger.</strong> If you picked more than one, the most dangerous one goes first.
+                <span style="font-family:var(--font-mono); font-size:0.65rem; color:#888; display:block;">Cracked glass &gt; No power &gt; Short runtime &gt; Dim &gt; Daytime on &gt; Remote</span>
+              </div>
+
+              <div style="font-weight:800; font-size:1rem; color:#111; text-align:center; padding-top:1px;">2</div>
+              <div>
+                <strong>Filter the 20 rules.</strong> Any rule that does not mention at least one of your symptoms is skipped immediately — before any math happens.
+              </div>
+
+              <div style="font-weight:800; font-size:1rem; color:#111; text-align:center; padding-top:1px;">3</div>
+              <div id="compound-explain" style="color:#555;">
+                <strong>Compound bonus.</strong> If you picked <strong>2 or more symptoms</strong> and the winning rule covers your most dangerous one — it gets <strong>+8 bonus points</strong> added on top of its score. Picking only one symptom: no bonus.
+              </div>
+            </div>
+
+            <!-- Live: rules unlocked -->
+            <div style="border-top:1px solid var(--surface-border); padding-top:0.4rem; margin-top:0.2rem;">
+              <div style="font-size:0.6rem; letter-spacing:0.08em; color:#888; margin-bottom:0.3rem;">RULES CURRENTLY UNLOCKED FOR COMPETITION</div>
+              <div id="rules-list" style="font-family:var(--font-mono); font-size:0.68rem; color:#333; line-height:1.7; min-height:40px;">
+                <em style="color:#aaa;">Tick at least one symptom above</em>
+              </div>
+            </div>
+
+            <!-- Compound status badge -->
+            <div id="compound-badge" style="display:none; font-family:var(--font-mono); font-size:0.72rem; padding:0.3rem 0.6rem; border:2px solid #111; font-weight:700; align-self:start;">
+              2+ SYMPTOMS SELECTED — COMPOUND BONUS (+8 pts) ACTIVE
+            </div>
+            <div id="safety-gate" style="display:none; background:#111; color:#fff; font-family:var(--font-mono); font-size:0.72rem; padding:0.3rem 0.6rem; font-weight:700;">
+              SAFETY OVERRIDE — Math will be skipped for water / cracked glass
+            </div>
+          </div>
+        </div>
+
+        <!-- Divider arrow -->
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <div style="flex:1; height:1px; background:#ccc;"></div>
+          <div style="font-size:0.65rem; font-weight:800; letter-spacing:0.08em; white-space:nowrap; color:#111;">ZONE 2 — THE 4 SCORED PILLARS &nbsp; PASS=100 &nbsp; WARNING=60 &nbsp; FAIL=20</div>
+          <div style="flex:1; height:1px; background:#ccc;"></div>
+        </div>
+
+        <!-- ===== ZONE 2: 4 PILLAR DROPDOWNS ===== -->
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:0.55rem;">
+
+          <!-- Electrical 30 -->
+          <div class="card" style="padding:0.6rem 0.65rem; display:flex; flex-direction:column; gap:0.4rem;">
+            <div style="font-size:0.6rem; font-weight:800; letter-spacing:0.08em; border-bottom:2px solid #111; padding-bottom:0.25rem;">ELECTRICAL × 30</div>
+            <select id="d-elec" style="border:1px solid #bbb; padding:0.3rem; font-family:var(--font-mono); font-size:0.65rem; background:#fff; width:100%;">
+              <option value="100">PASS — LED blinks in sun</option>
+              <option value="60">WARNING — Low voltage / shaded</option>
+              <option value="20">FAIL — LED fully dark</option>
+              <option value="20">FAIL — LED strobing</option>
+              <option value="20">FAIL — Half array dark</option>
+            </select>
+            <div style="text-align:center; padding-top:0.2rem;">
+              <div style="font-size:0.6rem; color:#888;">raw score</div>
+              <div id="e-raw" style="font-size:1.9rem; font-weight:800; font-family:var(--font-mono); line-height:1.1;">100</div>
+              <div style="font-size:0.6rem; color:#888; margin-top:0.1rem;">× 30 ÷ 100 =</div>
+              <div id="e-pts" style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color:#111;">30</div>
+              <div style="font-size:0.6rem; color:#888;">pts</div>
+            </div>
+          </div>
+
+          <!-- Physical 25 -->
+          <div class="card" style="padding:0.6rem 0.65rem; display:flex; flex-direction:column; gap:0.4rem;">
+            <div style="font-size:0.6rem; font-weight:800; letter-spacing:0.08em; border-bottom:2px solid #111; padding-bottom:0.25rem;">PHYSICAL SEAL × 25</div>
+            <select id="d-phys" style="border:1px solid #bbb; padding:0.3rem; font-family:var(--font-mono); font-size:0.65rem; background:#fff; width:100%;">
+              <option value="100">PASS — Sealed and dry</option>
+              <option value="60">WARNING — Bracket loose</option>
+              <option value="20">FAIL — Loose plug</option>
+              <option value="20" data-safety="1">FAIL — Water inside lens</option>
+              <option value="20">FAIL — Burned cell marks</option>
+              <option value="20" data-safety="1">FAIL — Glass cracked</option>
+            </select>
+            <div style="text-align:center; padding-top:0.2rem;">
+              <div style="font-size:0.6rem; color:#888;">raw score</div>
+              <div id="p-raw" style="font-size:1.9rem; font-weight:800; font-family:var(--font-mono); line-height:1.1;">100</div>
+              <div style="font-size:0.6rem; color:#888; margin-top:0.1rem;">× 25 ÷ 100 =</div>
+              <div id="p-pts" style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color:#111;">25</div>
+              <div style="font-size:0.6rem; color:#888;">pts</div>
+            </div>
+          </div>
+
+          <!-- Environmental 25 -->
+          <div class="card" style="padding:0.6rem 0.65rem; display:flex; flex-direction:column; gap:0.4rem;">
+            <div style="font-size:0.6rem; font-weight:800; letter-spacing:0.08em; border-bottom:2px solid #111; padding-bottom:0.25rem;">ENVIRONMENT × 25</div>
+            <select id="d-env" style="border:1px solid #bbb; padding:0.3rem; font-family:var(--font-mono); font-size:0.65rem; background:#fff; width:100%;">
+              <option value="100">PASS — Full sun 4–6 hrs</option>
+              <option value="60">WARNING — Rainy days</option>
+              <option value="60">WARNING — Dust on panel</option>
+              <option value="60">WARNING — Tree shadow midday</option>
+              <option value="60">WARNING — Wrong tilt angle</option>
+            </select>
+            <div style="text-align:center; padding-top:0.2rem;">
+              <div style="font-size:0.6rem; color:#888;">raw score</div>
+              <div id="v-raw" style="font-size:1.9rem; font-weight:800; font-family:var(--font-mono); line-height:1.1;">100</div>
+              <div style="font-size:0.6rem; color:#888; margin-top:0.1rem;">× 25 ÷ 100 =</div>
+              <div id="v-pts" style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color:#111;">25</div>
+              <div style="font-size:0.6rem; color:#888;">pts</div>
+            </div>
+          </div>
+
+          <!-- Control 20 -->
+          <div class="card" style="padding:0.6rem 0.65rem; display:flex; flex-direction:column; gap:0.4rem;">
+            <div style="font-size:0.6rem; font-weight:800; letter-spacing:0.08em; border-bottom:2px solid #111; padding-bottom:0.25rem;">CONTROL / AGE × 20</div>
+            <select id="d-ctrl" style="border:1px solid #bbb; padding:0.3rem; font-family:var(--font-mono); font-size:0.65rem; background:#fff; width:100%;">
+              <option value="100">PASS — Switch ON, under 2 yrs</option>
+              <option value="100">PASS — Radar eco mode active</option>
+              <option value="60">WARNING — Switch off</option>
+              <option value="60">WARNING — Remote battery dead</option>
+              <option value="60">WARNING — Out of range</option>
+              <option value="20">FAIL — Unit over 2 years old</option>
+            </select>
+            <div style="text-align:center; padding-top:0.2rem;">
+              <div style="font-size:0.6rem; color:#888;">raw score</div>
+              <div id="c-raw" style="font-size:1.9rem; font-weight:800; font-family:var(--font-mono); line-height:1.1;">100</div>
+              <div style="font-size:0.6rem; color:#888; margin-top:0.1rem;">× 20 ÷ 100 =</div>
+              <div id="c-pts" style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color:#111;">20</div>
+              <div style="font-size:0.6rem; color:#888;">pts</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== ZONE 3: RUNNING TOTAL ===== -->
+        <div class="card" style="background:#111; color:#fff; padding:0.65rem 1rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+          <div style="font-size:0.6rem; color:#aaa; letter-spacing:0.06em; white-space:nowrap;">ZONE 3 — FINAL SCORE</div>
+          <div style="font-family:var(--font-mono); font-size:0.85rem; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; flex:1;">
+            <span>(<span id="f-e" style="font-weight:800;font-size:1.1rem;">30</span></span>
+            <span>+<span id="f-p" style="font-weight:800;font-size:1.1rem;">25</span></span>
+            <span>+<span id="f-v" style="font-weight:800;font-size:1.1rem;">25</span></span>
+            <span>+<span id="f-c" style="font-weight:800;font-size:1.1rem;">20</span>)</span>
+            <span id="bonus-tag" style="display:none; color:#fff; font-size:0.78rem;">+ 8 compound bonus</span>
+            <span>= <strong id="f-total" style="font-size:2rem; color:#fff;">100</strong> pts</span>
+          </div>
+          <div>
+            <div style="font-size:0.6rem; color:#aaa; letter-spacing:0.06em;">CONFIDENCE</div>
+            <div id="f-pct" style="font-size:2.2rem; font-weight:800; font-family:var(--font-mono);">100%</div>
+          </div>
+          <div id="safety-result" style="display:none; background:#fff; color:#111; padding:0.3rem 0.6rem; font-weight:800; font-size:0.75rem; letter-spacing:0.04em;">
+            SAFETY OVERRIDE — Stop using this light immediately
+          </div>
+          <div id="f-verdict" style="font-size:0.72rem; color:#aaa; font-family:var(--font-mono); width:100%; margin-top:0.2rem;"></div>
+        </div>
+
+      </div>
+
+      <script>
+      (function() {
+        // Rule map: symptom -> rules that compete
+        const RULE_MAP = {
+          NO_POWER:        ['RULE-PWR-004  switch disengaged?', 'RULE-PV-001   open circuit?', 'RULE-ENV-003  no sun / rainy days?', 'RULE-BAT-002  BMS lockout?', 'RULE-BAT-008  old battery?'],
+          SHORT_RUNTIME:   ['RULE-ENV-003  rainy days?', 'RULE-BAT-008  old battery?', 'RULE-PV-005   dusty panel?', 'RULE-PV-006   tree shadow?', 'RULE-PV-007   bad tilt?'],
+          DIM_FLICKER:     ['RULE-SET-010  radar eco mode?', 'RULE-DRV-011  voltage ripple?', 'RULE-LED-012  LED burnout?', 'RULE-PV-005   dusty panel?'],
+          DAYTIME_ON:      ['RULE-SNS-013  photocell blocked?', 'RULE-CTL-014  MOSFET fault?'],
+          PHYSICAL_HOTSPOT:['RULE-IP-009   water ingress [SAFETY]', 'RULE-EXT-016  cracked glass [SAFETY]', 'RULE-PV-015   cell hotspot [SAFETY]', 'RULE-MNT-017  loose bracket?'],
+          SENSOR_REMOTE:   ['RULE-RMT-018  remote batteries dead?', 'RULE-RMT-019  out of range?', 'RULE-SNS-020  radar window dirty?'],
+        };
+
+        const SEVERITY = { PHYSICAL_HOTSPOT:1, NO_POWER:2, SHORT_RUNTIME:3, DIM_FLICKER:4, DAYTIME_ON:5, SENSOR_REMOTE:6 };
+
+        function getChecked() {
+          return [...document.querySelectorAll('#sym-boxes input[type=checkbox]')]
+            .filter(cb => cb.checked).map(cb => cb.value);
+        }
+
+        function getSorted(syms) {
+          return [...syms].sort((a,b) => (SEVERITY[a]||99) - (SEVERITY[b]||99));
+        }
+
+        function isSafetySelected() {
+          const opt = document.getElementById('d-phys').options[document.getElementById('d-phys').selectedIndex];
+          return opt.dataset.safety === '1';
+        }
+
+        function updateSymptoms() {
+          const checked = getChecked();
+          const sorted  = getSorted(checked);
+
+          // Build unique rule set from all checked symptoms
+          const allRules = new Map();
+          sorted.forEach(sym => {
+            (RULE_MAP[sym] || []).forEach(r => {
+              const key = r.split('  ')[0];
+              if (!allRules.has(key)) allRules.set(key, r);
+            });
+          });
+
+          const hasSafety = sorted.includes('PHYSICAL_HOTSPOT');
+          const compound  = sorted.length >= 2;
+
+          // Rules list display
+          const list = document.getElementById('rules-list');
+          if (allRules.size === 0) {
+            list.innerHTML = '<em style="color:#aaa;">Tick at least one symptom above</em>';
+          } else {
+            const highest = sorted[0];
+            list.innerHTML = [...allRules.values()].map(r => {
+              const isSafety = r.includes('[SAFETY]');
+              const ruleKey  = r.split('  ')[0];
+              const reason   = r.split('  ')[1] || '';
+              const color = isSafety ? '#111' : '#333';
+              const bg    = isSafety ? '#f4f4f6' : 'transparent';
+              return `<div style="background:${bg}; padding:1px 3px; margin-bottom:1px; color:${color};">
+                        <span style="font-weight:700;">${ruleKey}</span>
+                        <span style="color:#888;"> — ${reason}</span>
+                        ${isSafety ? '<span style="font-weight:800; font-size:0.6rem; background:#111; color:#fff; padding:0 4px; margin-left:4px;">SAFETY</span>' : ''}
+                      </div>`;
+            }).join('');
+          }
+
+          // Compound badge
+          document.getElementById('compound-badge').style.display = compound ? 'block' : 'none';
+          // Safety gate
+          document.getElementById('safety-gate').style.display = hasSafety ? 'block' : 'none';
+
+          updateScore(compound);
+        }
+
+        function updateScore(compound) {
+          const checked  = getChecked();
+          const isCompound = compound !== undefined ? compound : checked.length >= 2;
+          const safety   = isSafetySelected();
+
+          const eRaw = parseInt(document.getElementById('d-elec').value, 10);
+          const pRaw = parseInt(document.getElementById('d-phys').value, 10);
+          const vRaw = parseInt(document.getElementById('d-env').value, 10);
+          const cRaw = parseInt(document.getElementById('d-ctrl').value, 10);
+
+          const ePts = (eRaw * 30) / 100;
+          const pPts = (pRaw * 25) / 100;
+          const vPts = (vRaw * 25) / 100;
+          const cPts = (cRaw * 20) / 100;
+
+          // Color raw scores
+          function colorRaw(id, v) {
+            const el = document.getElementById(id);
+            el.textContent = v;
+            el.style.color = v === 100 ? '#111' : v === 60 ? '#777' : '#bbb';
+          }
+          colorRaw('e-raw', eRaw); colorRaw('p-raw', pRaw);
+          colorRaw('v-raw', vRaw); colorRaw('c-raw', cRaw);
+
+          document.getElementById('e-pts').textContent = ePts;
+          document.getElementById('p-pts').textContent = pPts;
+          document.getElementById('v-pts').textContent = vPts;
+          document.getElementById('c-pts').textContent = cPts;
+
+          document.getElementById('f-e').textContent = ePts;
+          document.getElementById('f-p').textContent = pPts;
+          document.getElementById('f-v').textContent = vPts;
+          document.getElementById('f-c').textContent = cPts;
+
+          const bonus = isCompound ? 8 : 0;
+          const rawTotal = ePts + pPts + vPts + cPts;
+          const total = Math.min(100, rawTotal + bonus);
+          const pct   = Math.round(total);
+
+          document.getElementById('bonus-tag').style.display = bonus ? 'inline' : 'none';
+          document.getElementById('f-total').textContent = total;
+          document.getElementById('f-pct').textContent   = pct + '%';
+
+          const safetyResult = document.getElementById('safety-result');
+          const verdictEl    = document.getElementById('f-verdict');
+          if (safety) {
+            safetyResult.style.display = 'block';
+            verdictEl.textContent = 'Formula skipped — critical physical damage overrides scoring.';
+          } else {
+            safetyResult.style.display = 'none';
+            const msg = pct >= 90 ? 'Very high confidence — a clear fault was found.'
+                       : pct >= 75 ? 'High confidence — most likely cause identified.'
+                       : pct >= 60 ? 'Moderate confidence — the best match from available info.'
+                       : 'Low confidence — answers do not point clearly to one fault.';
+            verdictEl.textContent = `Score ${pct} / 100 — ${msg}`;
+          }
+        }
+
+        // Wire up all controls
+        document.querySelectorAll('#sym-boxes input').forEach(cb => cb.addEventListener('change', updateSymptoms));
+        document.getElementById('d-elec').addEventListener('change', () => updateScore());
+        document.getElementById('d-phys').addEventListener('change', () => updateScore());
+        document.getElementById('d-env').addEventListener('change',  () => updateScore());
+        document.getElementById('d-ctrl').addEventListener('change', () => updateScore());
+
+        // Init
+        updateSymptoms();
+        updateScore();
+      })();
+      </script>
+
+    </section>
+
+        <!-- -----------------------------------------------------------------------
+         SLIDE 17: THE 20 RULES & CONFIDENCE MATH (LIVE LEADERBOARD)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-17" data-section="Troubleshooting">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 2: TROUBLESHOOTING</span>
+            <span>THE 20 RULES &amp; CONFIDENCE CALCULATION</span>
+          </div>
+          <h2 class="slide-title">The 20 Suspects: How the Computer Picks the Fault &amp; Scores Confidence</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 17 / 21</div>
+      </div>
+
+      <div class="slide-body" style="display:flex; flex-direction:column; gap:0.6rem;">
+
+        <!-- Top Formula & Confidence Math Bar -->
+        <div class="card" style="background:#111; color:#fff; padding:0.65rem 1rem; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+          <div>
+            <div style="font-size:0.6rem; color:#aaa; letter-spacing:0.08em; margin-bottom:0.2rem;">HOW CONFIDENCE % IS DETERMINED FROM THE WINNING RULE</div>
+            <div style="font-family:var(--font-mono); font-size:0.85rem; line-height:1.4;">
+              Confidence % = <span style="font-weight:800; font-size:1.05rem;">Winning Score &times; 96%</span>
+              <span style="color:#aaa; font-size:0.75rem; margin-left:0.5rem;">(Bounded between <strong>86% min</strong> and <strong>99% max</strong>)</span>
+            </div>
+          </div>
+          <div style="font-size:0.72rem; color:#ccc; max-width:380px; line-height:1.4; border-left:1px solid #333; padding-left:0.75rem;">
+            The 20 rules run in a competition. The rule that matches the most clues gets the highest score. Its score sets the confidence.
+          </div>
+        </div>
+
+        <!-- 3-Column Interactive Workspace -->
+        <div style="display:grid; grid-template-columns: 280px 1fr 310px; gap:0.65rem; align-items:stretch; min-height:430px;">
+
+          <!-- COLUMN 1: Inputs & Quick Presets -->
+          <div class="card" style="padding:0.7rem; display:flex; flex-direction:column; gap:0.5rem; overflow-y:auto; max-height:490px;">
+            <div style="font-size:0.62rem; font-weight:800; letter-spacing:0.08em; border-bottom:2px solid #111; padding-bottom:0.25rem;">
+              STEP 1: SELECT TEST CLUES
+            </div>
+
+            <!-- Preset buttons -->
+            <div style="display:flex; flex-direction:column; gap:0.25rem;">
+              <div style="font-size:0.6rem; color:#71717a; font-weight:700;">QUICK REAL-WORLD PRESETS:</div>
+              <button type="button" class="preset-btn" data-preset="monsoon" style="text-align:left; font-family:var(--font-mono); font-size:0.68rem; padding:0.3rem 0.5rem; background:#111; color:#fff; border:1px solid #111; cursor:pointer;">
+                Case A: Monsoon Rain (Stormy)
+              </button>
+              <button type="button" class="preset-btn" data-preset="battery" style="text-align:left; font-family:var(--font-mono); font-size:0.68rem; padding:0.3rem 0.5rem; background:#f4f4f6; color:#111; border:1px solid #ccc; cursor:pointer;">
+                Case B: Old Battery (3+ Years)
+              </button>
+              <button type="button" class="preset-btn" data-preset="plug" style="text-align:left; font-family:var(--font-mono); font-size:0.68rem; padding:0.3rem 0.5rem; background:#f4f4f6; color:#111; border:1px solid #ccc; cursor:pointer;">
+                Case C: Unseated Wire Plug
+              </button>
+              <button type="button" class="preset-btn" data-preset="glass" style="text-align:left; font-family:var(--font-mono); font-size:0.68rem; padding:0.3rem 0.5rem; background:#f4f4f6; color:#111; border:1px solid #ccc; cursor:pointer;">
+                Case D: Shattered Glass (Safety)
+              </button>
+              <button type="button" class="preset-btn" data-preset="switch" style="text-align:left; font-family:var(--font-mono); font-size:0.68rem; padding:0.3rem 0.5rem; background:#f4f4f6; color:#111; border:1px solid #ccc; cursor:pointer;">
+                Case E: Switch Turned OFF
+              </button>
+            </div>
+
+            <div style="border-top:1px solid var(--surface-border); padding-top:0.4rem; display:flex; flex-direction:column; gap:0.35rem;">
+              <div style="font-size:0.6rem; color:#71717a; font-weight:700;">OR FINE-TUNE CLUES:</div>
+
+              <div>
+                <label style="font-size:0.6rem; font-weight:700; display:block; margin-bottom:1px;">Symptom Observed:</label>
+                <select id="r17-sym" style="width:100%; font-family:var(--font-mono); font-size:0.65rem; padding:0.25rem; border:1px solid #ccc;">
+                  <option value="SHORT_RUNTIME">Shuts off after 1–3 hrs</option>
+                  <option value="NO_POWER">Light does NOT turn on</option>
+                  <option value="DIM_FLICKER">Dim or flickering LEDs</option>
+                  <option value="DAYTIME_ON">Light stays ON daytime</option>
+                  <option value="PHYSICAL_HOTSPOT">Cracked glass / burns</option>
+                  <option value="SENSOR_REMOTE">Remote / radar dead</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size:0.6rem; font-weight:700; display:block; margin-bottom:1px;">1. Electrical (30%):</label>
+                <select id="r17-elec" style="width:100%; font-family:var(--font-mono); font-size:0.65rem; padding:0.25rem; border:1px solid #ccc;">
+                  <option value="LED_BLINKING">LED Blinks Normally in Sun (Pass)</option>
+                  <option value="LED_DARK">LED Dark in Sun (0V Open)</option>
+                  <option value="LED_RIPPLE">LED Strobing / Pulsing</option>
+                  <option value="LED_PARTIAL_DARK">Half Array Burnt Dark</option>
+                  <option value="DAY_SUN_SHORT">Generating &gt;15V Sun Yet ON</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size:0.6rem; font-weight:700; display:block; margin-bottom:1px;">2. Physical Seal (25%):</label>
+                <select id="r17-phys" style="width:100%; font-family:var(--font-mono); font-size:0.65rem; padding:0.25rem; border:1px solid #ccc;">
+                  <option value="SEAL_INTACT">Housing Dry &amp; Sealed (Pass)</option>
+                  <option value="PLUG_LOOSE">Loose Aviation Connector</option>
+                  <option value="WATER_INGRESS">Water Inside Lens (Safety!)</option>
+                  <option value="GLASS_FRACTURE">Cracked Glass (Safety!)</option>
+                  <option value="CELL_HOTSPOT">Burned Solar Cell Marks</option>
+                  <option value="MOUNT_LOOSE">Loose Pole Bracket Bolts</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size:0.6rem; font-weight:700; display:block; margin-bottom:1px;">3. Environment (25%):</label>
+                <select id="r17-env" style="width:100%; font-family:var(--font-mono); font-size:0.65rem; padding:0.25rem; border:1px solid #ccc;">
+                  <option value="CLEAR_SUN">Full Sun (4–6+ Hours)</option>
+                  <option value="MONSOON_OVERCAST">2–3 Days Monsoon Storms</option>
+                  <option value="HEAVY_SOILING">Heavy Road Dust / Soot</option>
+                  <option value="PARTIAL_SHADING">Midday Tree Shadow</option>
+                  <option value="FLAT_NORTH_TILT">Mounted Flat / Facing North</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size:0.6rem; font-weight:700; display:block; margin-bottom:1px;">4. Control &amp; Age (20%):</label>
+                <select id="r17-ctrl" style="width:100%; font-family:var(--font-mono); font-size:0.65rem; padding:0.25rem; border:1px solid #ccc;">
+                  <option value="AUTO_NORMAL">Auto Mode • Under 2 Yrs (Pass)</option>
+                  <option value="SWITCH_OFF">Switch OFF / Not Toggled</option>
+                  <option value="RADAR_STANDBY">Radar Eco Mode Active</option>
+                  <option value="AGED_CELLS">In Service 2+ Years Old</option>
+                  <option value="REMOTE_DEAD_BAT">Remote Batteries Dead</option>
+                  <option value="REMOTE_OUT_OF_RANGE">Remote Out of Angle</option>
+                </select>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- COLUMN 2: The 20-Rule Leaderboard (The Race) -->
+          <div class="card" style="padding:0.7rem; display:flex; flex-direction:column; gap:0.4rem; overflow:hidden;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #111; padding-bottom:0.25rem;">
+              <div style="font-size:0.62rem; font-weight:800; letter-spacing:0.08em;">
+                STEP 2: THE 20 SUSPECTS LEADERBOARD (SCORED &amp; RANKED)
+              </div>
+              <div style="font-size:0.62rem; color:#71717a; font-family:var(--font-mono);">Click any rule to inspect</div>
+            </div>
+
+            <!-- Winning Banner -->
+            <div id="r17-winner-banner" style="background:#111; color:#fff; padding:0.5rem 0.75rem; border-radius:3px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size:0.58rem; color:#aaa; letter-spacing:0.06em;">RANK #1 (DIAGNOSED FAULT)</div>
+                <div id="r17-win-name" style="font-family:var(--font-mono); font-size:0.85rem; font-weight:800;">RULE-ENV-003</div>
+                <div id="r17-win-desc" style="font-size:0.68rem; color:#ccc;">Weather-Induced Solar Deficit</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:0.58rem; color:#aaa;">SYSTEM CONFIDENCE</div>
+                <div id="r17-win-conf" style="font-family:var(--font-mono); font-size:1.6rem; font-weight:800; color:#fff; line-height:1;">94%</div>
+                <div id="r17-win-score" style="font-size:0.6rem; color:#aaa; font-family:var(--font-mono);">Fit Score: 0.98</div>
+              </div>
+            </div>
+
+            <!-- Scrollable List of All 20 Rules -->
+            <div id="r17-rules-list" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:0.2rem; padding-right:2px; max-height:360px;">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- COLUMN 3: Rule Inspector ("The Given Contract") -->
+          <div class="card" style="padding:0.7rem; display:flex; flex-direction:column; gap:0.45rem; overflow-y:auto; max-height:490px; background:#fafafc;">
+            <div style="font-size:0.62rem; font-weight:800; letter-spacing:0.08em; border-bottom:2px solid #111; padding-bottom:0.25rem;">
+              STEP 3: RULE CONTRACT INSPECTOR
+            </div>
+
+            <div>
+              <div id="r17-inspect-id" style="font-family:var(--font-mono); font-size:0.95rem; font-weight:800; color:#111;">RULE-ENV-003</div>
+              <div id="r17-inspect-code" style="font-family:var(--font-mono); font-size:0.7rem; color:#71717a;">FLT-ENV-003 &bull; Priority: 80</div>
+              <div id="r17-inspect-title" style="font-size:0.75rem; font-weight:700; color:#111; margin-top:2px;">Weather-Induced Solar Deficit</div>
+              <div id="r17-inspect-desc" style="font-size:0.68rem; color:#555; line-height:1.4; margin-top:3px;">
+                2–3 consecutive cloudy or stormy days reduced battery reserves. Equipment has zero defects.
+              </div>
+            </div>
+
+            <div style="border-top:1px solid #ddd; padding-top:0.4rem;">
+              <div style="font-size:0.6rem; font-weight:800; color:#111; letter-spacing:0.06em; margin-bottom:0.25rem;">
+                GIVEN HARDWARE CHECKLIST:
+              </div>
+              <div id="r17-checklist" style="display:flex; flex-direction:column; gap:0.25rem; font-size:0.68rem; font-family:var(--font-mono);">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <div style="border-top:1px solid #ddd; padding-top:0.4rem;">
+              <div style="font-size:0.6rem; font-weight:800; color:#111; letter-spacing:0.06em; margin-bottom:0.25rem;">
+                HOW THIS RULE IS SCORED:
+              </div>
+              <div id="r17-score-breakdown" style="font-family:var(--font-mono); font-size:0.68rem; line-height:1.5; color:#333; background:#fff; border:1px solid #e2e2e7; padding:0.4rem; border-radius:3px;">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <div id="r17-safety-notice" style="display:none; background:#111; color:#fff; font-size:0.65rem; padding:0.4rem; font-weight:700; border-radius:3px;">
+              SAFETY OVERRIDE RULE — Priority &ge; 96. Bypasses regular warranty and recommends immediate decommission.
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <script>
+      (function() {
+        const ALL_20_RULES = [
+          { id: 'RULE-IP-009', code: 'FLT-IP-009', prio: 100, name: 'Water Inside Lens (IP65 Breach)', isSafety: true, symptoms: ['DIM_FLICKER','NO_POWER','SHORT_RUNTIME','DAYTIME_ON','PHYSICAL_HOTSPOT'], elec: null, phys: 'WATER_INGRESS', env: null, ctrl: null, desc: 'Water ingress through degraded rubber gasket. High danger of short circuit.' },
+          { id: 'RULE-EXT-016', code: 'FLT-EXT-016', prio: 98, name: 'Tempered Glass Fracture / Shatter', isSafety: true, symptoms: ['PHYSICAL_HOTSPOT','NO_POWER','SHORT_RUNTIME','DIM_FLICKER'], elec: null, phys: 'GLASS_FRACTURE', env: null, ctrl: null, desc: 'Panel tempered glass cracked or shattered. Voids warranty; physical hazard.' },
+          { id: 'RULE-PV-015', code: 'FLT-PV-015', prio: 96, name: 'Solar Cell Thermal Hotspot', isSafety: true, symptoms: ['PHYSICAL_HOTSPOT','SHORT_RUNTIME','NO_POWER'], elec: null, phys: 'CELL_HOTSPOT', env: null, ctrl: null, desc: 'Localized dark burn marks on solar cells. Overheating diode failure.' },
+          { id: 'RULE-PWR-004', code: 'FLT-PWR-004', prio: 85, name: 'Master Switch Disengaged (OFF)', isSafety: false, symptoms: ['NO_POWER'], elec: null, phys: null, env: null, ctrl: 'SWITCH_OFF', desc: 'The physical waterproof push button is turned OFF. Zero hardware defect.' },
+          { id: 'RULE-PV-001', code: 'FLT-PV-001', prio: 82, name: 'Aviation Connector Loose / Disconnected', isSafety: false, symptoms: ['NO_POWER','SHORT_RUNTIME'], elec: 'LED_DARK', phys: 'PLUG_LOOSE', env: null, ctrl: null, desc: 'Waterproof rotary connector collar loose or unplugged between panel and light.' },
+          { id: 'RULE-ENV-003', code: 'FLT-ENV-003', prio: 80, name: 'Monsoon Rainstorm Deficit (Zero Defect)', isSafety: false, symptoms: ['NO_POWER','SHORT_RUNTIME'], elec: 'LED_BLINKING', phys: 'SEAL_INTACT', env: 'MONSOON_OVERCAST', ctrl: 'AUTO_NORMAL', desc: '2–3 days of heavy monsoon overcast reduced battery reserves. 100% healthy.' },
+          { id: 'RULE-BAT-002', code: 'FLT-BAT-002', prio: 78, name: 'BMS Low-Voltage Lockout Sleep Mode', isSafety: false, symptoms: ['NO_POWER'], elec: 'LED_BLINKING', phys: 'SEAL_INTACT', env: 'CLEAR_SUN', ctrl: 'AUTO_NORMAL', desc: 'Battery management circuit activated low-voltage sleep protection. Needs sun soak.' },
+          { id: 'RULE-PV-005', code: 'FLT-PV-005', prio: 76, name: 'Heavy Soiling & Road Dust Attenuation', isSafety: false, symptoms: ['SHORT_RUNTIME','DIM_FLICKER','NO_POWER'], elec: 'LED_BLINKING', phys: 'SEAL_INTACT', env: 'HEAVY_SOILING', ctrl: null, desc: 'Heavy road soot or bird droppings block 40% of sun rays. Requires glass wipe.' },
+          { id: 'RULE-PV-006', code: 'FLT-PV-006', prio: 75, name: 'Midday Micro-Shading Diode Choke', isSafety: false, symptoms: ['SHORT_RUNTIME','NO_POWER'], elec: 'LED_BLINKING', phys: 'SEAL_INTACT', env: 'PARTIAL_SHADING', ctrl: null, desc: 'Tree branches or roof eaves cast shadow between 10 AM and 3 PM.' },
+          { id: 'RULE-PV-007', code: 'FLT-PV-007', prio: 74, name: 'Flat / North Sub-Optimal Tilt Angle', isSafety: false, symptoms: ['SHORT_RUNTIME'], elec: 'LED_BLINKING', phys: 'SEAL_INTACT', env: 'FLAT_NORTH_TILT', ctrl: null, desc: 'Panel mounted completely flat or facing North, lowering daily solar harvest.' },
+          { id: 'RULE-BAT-008', code: 'FLT-BAT-008', prio: 77, name: 'LiFePO4 Cell Capacity Degradation', isSafety: false, symptoms: ['SHORT_RUNTIME','NO_POWER'], elec: 'LED_BLINKING', phys: 'SEAL_INTACT', env: 'CLEAR_SUN', ctrl: 'AGED_CELLS', desc: 'Lithium battery aged over 24+ months of continuous daily charge-discharge cycles.' },
+          { id: 'RULE-SET-010', code: 'FLT-SET-010', prio: 80, name: 'Radar Eco Mode Active (Normal Operation)', isSafety: false, symptoms: ['DIM_FLICKER','SENSOR_REMOTE'], elec: 'LED_BLINKING', phys: 'SEAL_INTACT', env: null, ctrl: 'RADAR_STANDBY', desc: 'Light operates at 30% standby and 100% on motion detection. Normal behavior.' },
+          { id: 'RULE-DRV-011', code: 'FLT-DRV-011', prio: 79, name: 'LED Driver Current Ripple / Strobing', isSafety: false, symptoms: ['DIM_FLICKER'], elec: 'LED_RIPPLE', phys: 'SEAL_INTACT', env: null, ctrl: null, desc: 'Buck regulator filtering capacitor degradation causing rapid LED flicker.' },
+          { id: 'RULE-LED-012', code: 'FLT-LED-012', prio: 81, name: 'Partial LED String Array Burnout', isSafety: false, symptoms: ['DIM_FLICKER'], elec: 'LED_PARTIAL_DARK', phys: 'SEAL_INTACT', env: null, ctrl: null, desc: 'One serial diode string burnt open, leaving half of the fixture face dark.' },
+          { id: 'RULE-SNS-013', code: 'FLT-SNS-013', prio: 80, name: 'Photocell Sensor Blindness (Daytime ON)', isSafety: false, symptoms: ['DAYTIME_ON'], elec: 'DAY_BLIND_LOW_V', phys: null, env: 'PARTIAL_SHADING', ctrl: null, desc: 'Shaded solar panel senses < 5V in daytime, tricking circuit into dusk trigger.' },
+          { id: 'RULE-CTL-014', code: 'FLT-CTL-014', prio: 84, name: 'Controller Load MOSFET Short-Circuit', isSafety: false, symptoms: ['DAYTIME_ON'], elec: 'DAY_SUN_SHORT', phys: null, env: 'CLEAR_SUN', ctrl: null, desc: 'MOSFET load switch melted closed, keeping lamp illuminated continuously 24/7.' },
+          { id: 'RULE-MNT-017', code: 'FLT-MNT-017', prio: 75, name: 'Mechanical Pole Bracket Slack / Loose', isSafety: false, symptoms: ['PHYSICAL_HOTSPOT','SHORT_RUNTIME'], elec: null, phys: 'MOUNT_LOOSE', env: null, ctrl: null, desc: 'Mounting clamp bolts loosened by wind vibration; luminaire shifted off axis.' },
+          { id: 'RULE-RMT-018', code: 'FLT-RMT-018', prio: 82, name: 'Remote Control AAA Batteries Depleted', isSafety: false, symptoms: ['SENSOR_REMOTE'], elec: null, phys: null, env: null, ctrl: 'REMOTE_DEAD_BAT', desc: 'Handset AAA batteries exhausted. Fixture receiver is completely operational.' },
+          { id: 'RULE-RMT-019', code: 'FLT-RMT-019', prio: 78, name: 'Remote Aiming Beyond Infrared Range', isSafety: false, symptoms: ['SENSOR_REMOTE'], elec: null, phys: null, env: null, ctrl: 'REMOTE_OUT_OF_RANGE', desc: 'Remote handset aimed at sharp angle or beyond 6-meter optical line of sight.' },
+          { id: 'RULE-SNS-020', code: 'FLT-SNS-020', prio: 77, name: 'Radar Microwave Sensor Smudged / Dirty', isSafety: false, symptoms: ['SENSOR_REMOTE','DIM_FLICKER'], elec: null, phys: null, env: null, ctrl: 'RADAR_DISABLED', desc: 'Doppler microwave window coated with dirt or mud, impairing motion detection.' }
+        ];
+
+        let selectedRuleId = 'RULE-ENV-003';
+
+        const PRESETS = {
+          monsoon: { sym: 'SHORT_RUNTIME', elec: 'LED_BLINKING', phys: 'SEAL_INTACT', env: 'MONSOON_OVERCAST', ctrl: 'AUTO_NORMAL' },
+          battery: { sym: 'SHORT_RUNTIME', elec: 'LED_BLINKING', phys: 'SEAL_INTACT', env: 'CLEAR_SUN', ctrl: 'AGED_CELLS' },
+          plug:    { sym: 'NO_POWER', elec: 'LED_DARK', phys: 'PLUG_LOOSE', env: 'CLEAR_SUN', ctrl: 'AUTO_NORMAL' },
+          glass:   { sym: 'PHYSICAL_HOTSPOT', elec: 'LED_BLINKING', phys: 'GLASS_FRACTURE', env: 'CLEAR_SUN', ctrl: 'AUTO_NORMAL' },
+          switch:  { sym: 'NO_POWER', elec: 'LED_BLINKING', phys: 'SEAL_INTACT', env: 'CLEAR_SUN', ctrl: 'SWITCH_OFF' }
+        };
+
+        const dom = {
+          sym: document.getElementById('r17-sym'),
+          elec: document.getElementById('r17-elec'),
+          phys: document.getElementById('r17-phys'),
+          env: document.getElementById('r17-env'),
+          ctrl: document.getElementById('r17-ctrl'),
+          rulesList: document.getElementById('r17-rules-list'),
+          winName: document.getElementById('r17-win-name'),
+          winDesc: document.getElementById('r17-win-desc'),
+          winConf: document.getElementById('r17-win-conf'),
+          winScore: document.getElementById('r17-win-score'),
+          inspectId: document.getElementById('r17-inspect-id'),
+          inspectCode: document.getElementById('r17-inspect-code'),
+          inspectTitle: document.getElementById('r17-inspect-title'),
+          inspectDesc: document.getElementById('r17-inspect-desc'),
+          checklist: document.getElementById('r17-checklist'),
+          scoreBreakdown: document.getElementById('r17-score-breakdown'),
+          safetyNotice: document.getElementById('r17-safety-notice')
+        };
+
+        function scoreSingleRule(rule, state) {
+          const symptomMatches = rule.symptoms.includes(state.sym);
+          if (!symptomMatches && rule.prio < 96) {
+            return { score: 0, eligible: false, reason: 'Symptom does not match (skipped)', breakdown: { elec:0, phys:0, env:0, ctrl:0, bonus:0 } };
+          }
+
+          let weightedMatch = 0;
+          const bd = { elec: 0, phys: 0, env: 0, ctrl: 0, bonus: 0 };
+
+          // 1. Electrical (0.30)
+          if (rule.elec) {
+            if (rule.elec === state.elec) { weightedMatch += 0.30; bd.elec = 0.30; }
+            else if (state.elec === 'LED_BLINKING') { weightedMatch += 0.30 * 0.35; bd.elec = 0.105; }
+          } else {
+            weightedMatch += state.elec === 'LED_BLINKING' ? 0.30 * 0.85 : 0.30 * 0.65;
+            bd.elec = +(weightedMatch).toFixed(3);
+          }
+
+          // 2. Physical (0.25)
+          if (rule.phys) {
+            if (rule.phys === state.phys) { weightedMatch += 0.25; bd.phys = 0.25; }
+            else if (state.phys === 'SEAL_INTACT') { weightedMatch += 0.25 * 0.35; bd.phys = 0.087; }
+          } else {
+            const add = state.phys === 'SEAL_INTACT' ? 0.25 * 0.85 : 0.25 * 0.65;
+            weightedMatch += add;
+            bd.phys = +add.toFixed(3);
+          }
+
+          // 3. Environmental (0.25)
+          if (rule.env) {
+            if (rule.env === state.env) { weightedMatch += 0.25; bd.env = 0.25; }
+            else if (state.env === 'CLEAR_SUN') { weightedMatch += 0.25 * 0.35; bd.env = 0.087; }
+          } else {
+            const add = state.env === 'CLEAR_SUN' ? 0.25 * 0.85 : 0.25 * 0.65;
+            weightedMatch += add;
+            bd.env = +add.toFixed(3);
+          }
+
+          // 4. Control (0.20)
+          if (rule.ctrl) {
+            if (rule.ctrl === state.ctrl) { weightedMatch += 0.20; bd.ctrl = 0.20; }
+            else if (state.ctrl === 'AUTO_NORMAL') { weightedMatch += 0.20 * 0.35; bd.ctrl = 0.07; }
+          } else {
+            const add = state.ctrl === 'AUTO_NORMAL' ? 0.20 * 0.85 : 0.20 * 0.65;
+            weightedMatch += add;
+            bd.ctrl = +add.toFixed(3);
+          }
+
+          // Priority bonus
+          let priorityBonus = 0;
+          if (rule.prio >= 95 && rule.phys === state.phys) {
+            priorityBonus = 0.45; // Safety override!
+          } else if (symptomMatches) {
+            priorityBonus = (rule.prio / 100) * 0.12;
+          }
+          bd.bonus = +priorityBonus.toFixed(3);
+
+          const finalScore = +(weightedMatch + priorityBonus).toFixed(3);
+          return { score: finalScore, eligible: true, reason: 'Eligible', breakdown: bd };
+        }
+
+        function calculateConfidence(bestScore) {
+          return Math.min(99, Math.max(86, Math.round(Math.min(1.0, bestScore) * 96)));
+        }
+
+        function renderInspect(rule, res) {
+          dom.inspectId.textContent = rule.id;
+          dom.inspectCode.textContent = `${rule.code} • Priority: ${rule.prio}`;
+          dom.inspectTitle.textContent = rule.name;
+          dom.inspectDesc.textContent = rule.desc;
+
+          dom.safetyNotice.style.display = rule.isSafety ? 'block' : 'none';
+
+          // Checklist
+          const state = { sym: dom.sym.value, elec: dom.elec.value, phys: dom.phys.value, env: dom.env.value, ctrl: dom.ctrl.value };
+          const symOk = rule.symptoms.includes(state.sym);
+
+          function itemHtml(label, expected, userVal, weight) {
+            if (!expected) return `<div style="display:flex; justify-content:space-between; color:#71717a;"><span>${label}:</span><span>Agnostic (neutral +${weight}%)</span></div>`;
+            const ok = expected === userVal;
+            return `<div style="display:flex; justify-content:space-between; ${ok ? 'font-weight:700; color:#111;' : 'color:#999;'}">
+              <span>${label}: ${expected}</span>
+              <span>${ok ? 'MATCH (+full)' : 'MISMATCH (0)'}</span>
+            </div>`;
+          }
+
+          dom.checklist.innerHTML = `
+            <div style="display:flex; justify-content:space-between; ${symOk ? 'font-weight:700; color:#111;' : 'color:#999;'}">
+              <span>Symptom Accepted:</span>
+              <span>${symOk ? 'MATCH (Gate Open)' : 'NO MATCH (Skipped)'}</span>
+            </div>
+            ${itemHtml('Electrical', rule.elec, state.elec, 30)}
+            ${itemHtml('Physical Seal', rule.phys, state.phys, 25)}
+            ${itemHtml('Environment', rule.env, state.env, 25)}
+            ${itemHtml('Control/Age', rule.ctrl, state.ctrl, 20)}
+          `;
+
+          // Score Breakdown
+          if (!res.eligible) {
+            dom.scoreBreakdown.innerHTML = `<div style="color:#71717a;">This rule was skipped because it does not handle the symptom "${state.sym}". Score: 0.00</div>`;
+          } else {
+            const bd = res.breakdown;
+            dom.scoreBreakdown.innerHTML = `
+              <div>Electrical (30%): <strong>${bd.elec}</strong></div>
+              <div>Physical (25%): <strong>${bd.phys}</strong></div>
+              <div>Environment (25%): <strong>${bd.env}</strong></div>
+              <div>Control (20%): <strong>${bd.ctrl}</strong></div>
+              <div>Priority Bonus: <strong>+${bd.bonus}</strong></div>
+              <div style="border-top:1px solid #ccc; margin-top:2px; padding-top:2px; font-weight:800; font-size:0.75rem;">
+                Total Match Score: ${res.score}
+              </div>
+            `;
+          }
+        }
+
+        function updateAll() {
+          const state = {
+            sym: dom.sym.value,
+            elec: dom.elec.value,
+            phys: dom.phys.value,
+            env: dom.env.value,
+            ctrl: dom.ctrl.value
+          };
+
+          // Score all 20 rules
+          const ranked = ALL_20_RULES.map(rule => {
+            const res = scoreSingleRule(rule, state);
+            return { rule, res };
+          });
+
+          // Sort by score descending
+          ranked.sort((a, b) => b.res.score - a.res.score);
+
+          const winner = ranked[0];
+          const bestScore = winner.res.score;
+          const confidence = calculateConfidence(bestScore);
+
+          // Update Winner Banner
+          dom.winName.textContent = winner.rule.id;
+          dom.winDesc.textContent = winner.rule.name;
+          dom.winConf.textContent = `${confidence}%`;
+          dom.winScore.textContent = `Fit Score: ${bestScore.toFixed(3)}`;
+
+          // Render Ranked Rules List
+          dom.rulesList.innerHTML = ranked.map((item, index) => {
+            const isWinner = index === 0;
+            const isSelected = item.rule.id === selectedRuleId;
+            const r = item.rule;
+            const res = item.res;
+
+            const bg = isWinner ? '#111' : (isSelected ? '#e4e4e7' : '#f4f4f6');
+            const color = isWinner ? '#fff' : '#111';
+            const subColor = isWinner ? '#aaa' : '#71717a';
+
+            return `
+              <div class="rule-row" data-id="${r.id}" style="background:${bg}; color:${color}; padding:0.35rem 0.5rem; border-radius:3px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border:1px solid ${isSelected && !isWinner ? '#111' : 'transparent'};">
+                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:210px;">
+                  <div style="font-family:var(--font-mono); font-size:0.68rem; font-weight:${isWinner ? '800' : '600'};">
+                    #${index + 1} ${r.id} ${r.isSafety ? '<span style="background:#fff; color:#111; font-size:0.55rem; padding:0 3px; font-weight:800; border-radius:2px;">SAFETY</span>' : ''}
+                  </div>
+                  <div style="font-size:0.62rem; color:${subColor}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    ${r.name}
+                  </div>
+                </div>
+                <div style="text-align:right; font-family:var(--font-mono); font-size:0.75rem; font-weight:700; white-space:nowrap; margin-left:0.5rem;">
+                  ${res.eligible ? res.score.toFixed(2) : '<span style="font-size:0.6rem; color:#999;">SKIP</span>'}
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          // Bind row clicks
+          document.querySelectorAll('.rule-row').forEach(row => {
+            row.addEventListener('click', () => {
+              selectedRuleId = row.dataset.id;
+              updateAll();
+            });
+          });
+
+          // Update Inspector
+          const inspectedItem = ranked.find(item => item.rule.id === selectedRuleId) || winner;
+          renderInspect(inspectedItem.rule, inspectedItem.res);
+        }
+
+        // Preset button handlers
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const key = btn.dataset.preset;
+            const p = PRESETS[key];
+            if (p) {
+              dom.sym.value = p.sym;
+              dom.elec.value = p.elec;
+              dom.phys.value = p.phys;
+              dom.env.value = p.env;
+              dom.ctrl.value = p.ctrl;
+
+              document.querySelectorAll('.preset-btn').forEach(b => {
+                b.style.background = '#f4f4f6';
+                b.style.color = '#111';
+                b.style.borderColor = '#ccc';
+              });
+              btn.style.background = '#111';
+              btn.style.color = '#fff';
+              btn.style.borderColor = '#111';
+
+              updateAll();
+            }
+          });
+        });
+
+        // Dropdown change handlers
+        [dom.sym, dom.elec, dom.phys, dom.env, dom.ctrl].forEach(sel => {
+          sel.addEventListener('change', () => {
+            document.querySelectorAll('.preset-btn').forEach(b => {
+              b.style.background = '#f4f4f6';
+              b.style.color = '#111';
+              b.style.borderColor = '#ccc';
+            });
+            updateAll();
+          });
+        });
+
+        // Initialize
+        updateAll();
+      })();
+      </script>
+
+    </section>
+
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 17-ORIG: 3 DEFENSE WALLS (WAS SLIDE 14 → NOW SLIDE 17)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-18" data-section="Security">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 3: APPLICATION SECURITY</span>
+            <span>THE 3 WALLS</span>
+          </div>
+          <h2 class="slide-title">How We Protect Customer Data (3 Strong Walls)</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 18 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div class="diagram-wrapper">
+          <svg class="diagram" viewBox="0 0 960 250" xmlns="http://www.w3.org/2000/svg">
+            <rect width="960" height="250" fill="#ffffff"/>
+
+            <rect x="40" y="25" width="260" height="195" rx="6" fill="#f9f9fb" stroke="#111111" stroke-width="2"/>
+            <text x="170" y="55" fill="#111111" font-family="-apple-system, sans-serif" font-size="13" font-weight="800" text-anchor="middle">WALL 1: THE BROWSER</text>
+            <text x="170" y="75" fill="#71717a" font-family="monospace" font-size="10" text-anchor="middle">Input Cleaner (sanitize.js)</text>
+            <line x1="60" y1="90" x2="280" y2="90" stroke="#e2e2e7" stroke-width="1"/>
+            <text x="65" y="115" fill="#3f3f46" font-family="monospace" font-size="10">&bull; Erases sneaky hacker code</text>
+            <text x="65" y="140" fill="#3f3f46" font-family="monospace" font-size="10">&bull; Erases invisible fake letters</text>
+            <text x="65" y="165" fill="#3f3f46" font-family="monospace" font-size="10">&bull; Checks Philippine phone format</text>
+            <text x="65" y="190" fill="#3f3f46" font-family="monospace" font-size="10">&bull; Zero credit cards stored</text>
+
+            <line x1="300" y1="122" x2="350" y2="122" stroke="#111111" stroke-width="2"/>
+            <polygon points="350,122 340,117 340,127" fill="#111111"/>
+
+            <rect x="350" y="25" width="260" height="195" rx="6" fill="#f9f9fb" stroke="#111111" stroke-width="2"/>
+            <text x="480" y="55" fill="#111111" font-family="-apple-system, sans-serif" font-size="13" font-weight="800" text-anchor="middle">WALL 2: THE KEYS</text>
+            <text x="480" y="75" fill="#71717a" font-family="monospace" font-size="10" text-anchor="middle">Public vs Secret Keys</text>
+            <line x1="370" y1="90" x2="590" y2="90" stroke="#e2e2e7" stroke-width="1"/>
+            <text x="375" y="115" fill="#3f3f46" font-family="monospace" font-size="10">&bull; Public key is locked</text>
+            <text x="375" y="140" fill="#3f3f46" font-family="monospace" font-size="10">&bull; Secret key stays on server</text>
+            <text x="375" y="165" fill="#3f3f46" font-family="monospace" font-size="10">&bull; Unguessable random IDs</text>
+            <text x="375" y="190" fill="#3f3f46" font-family="monospace" font-size="10">&bull; Encrypted HTTPS connection</text>
+
+            <line x1="610" y1="122" x2="660" y2="122" stroke="#111111" stroke-width="2"/>
+            <polygon points="660,122 650,117 650,127" fill="#111111"/>
+
+            <rect x="660" y="25" width="260" height="195" rx="6" fill="#111111" stroke="#111111" stroke-width="2"/>
+            <text x="790" y="55" fill="#ffffff" font-family="-apple-system, sans-serif" font-size="13" font-weight="800" text-anchor="middle">WALL 3: DATABASE ENGINE</text>
+            <text x="790" y="75" fill="#a1a1aa" font-family="monospace" font-size="10" text-anchor="middle">PostgreSQL 15+ Locks</text>
+            <line x1="680" y1="90" x2="900" y2="90" stroke="#333333" stroke-width="1"/>
+            <text x="685" y="115" fill="#ffffff" font-family="monospace" font-size="10">&bull; Row Level Security (RLS)</text>
+            <text x="685" y="140" fill="#ffffff" font-family="monospace" font-size="10">&bull; Locker lock on every row</text>
+            <text x="685" y="165" fill="#ffffff" font-family="monospace" font-size="10">&bull; Bcrypt password scrambling</text>
+            <text x="685" y="190" fill="#ffffff" font-family="monospace" font-size="10">&bull; Auto-erases old quote tickets</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 15: DATABASE LOCKS: POSTGRESQL RLS (WAS SLIDE 14)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-19" data-section="Security">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 3: APPLICATION SECURITY</span>
+            <span>DATABASE LOCKS</span>
+          </div>
+          <h2 class="slide-title">Database Locks: Your Key Only Opens Your Locker</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 19 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <span>The Risky Way (Old MySQL Websites)</span>
+              <span class="code-term">Developer Must Remember</span>
+            </div>
+            <p class="card-subtext">
+              In normal websites, the programmer must remember to write:
+              <br><span class="code-term">WHERE customer_id = current_user</span>
+            </p>
+            <div style="background: #ffffff; border: 1px solid var(--surface-border); padding: 0.75rem; font-family: var(--font-mono); font-size: 0.8rem;">
+              -- If a programmer forgets one word:<br>
+              SELECT * FROM customer_purchases;<br>
+              <span style="color: #71717a;">-- Leaks every phone number and home address in the store!</span>
+            </div>
+            <p class="card-subtext">
+              The database has no lock of its own. It gives whatever is asked.
+            </p>
+          </div>
+
+          <div class="card highlight">
+            <div class="card-title">
+              <span>Our Way (PostgreSQL Row Level Security)</span>
+              <span class="code-term">Built-In Steel Lock</span>
+            </div>
+            <p class="card-subtext">
+              In our database, the lock is built right into the database engine:
+            </p>
+            <div style="background: #ffffff; border: 1px solid var(--surface-border); padding: 0.75rem; font-family: var(--font-mono); font-size: 0.8rem;">
+              CREATE POLICY customer_isolation ON customer_purchases<br>
+              FOR SELECT USING (customer_id = auth.uid());
+            </div>
+            <p class="card-subtext">
+              Even if someone types a command in their browser to steal all records, PostgreSQL blocks them and returns zero rows.
+            </p>
+          </div>
+        </div>
+
+        <div class="card" style="background: var(--surface);">
+          <div style="font-size: 0.9rem; color: var(--text-primary);">
+            <strong>Think of a school hallway:</strong> Every student has a locker. Your key only turns in your lock. Even if you walk up to student 10's locker, your key will not turn.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 16: GUESS-PROOF SECRET ID NUMBERS (UUID) (WAS SLIDE 15)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-20" data-section="Security">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">PART 3: APPLICATION SECURITY</span>
+            <span>SECRET CODES</span>
+          </div>
+          <h2 class="slide-title">Guess-Proof Secret IDs: Why We Do Not Use 1, 2, 3</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 20 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <span>The Bad Way: Simple Numbers (1, 2, 3)</span>
+              <span class="code-term">Easy to Guess</span>
+            </div>
+            <p class="card-subtext">
+              Imagine your receipt link looks like this:
+              <br><span class="code-term">solarapp.com/order?id=104</span>
+            </p>
+            <ul style="padding-left: 1.25rem; font-size: 0.88rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.35rem;">
+              <li><strong>Anyone can snoop:</strong> Someone changes the link to <span class="code-term">?id=105</span> and sees your neighbor's receipt and phone number.</li>
+              <li><strong>Competitors can count:</strong> If order is 400 on Monday and 430 on Tuesday, a competitor knows you made 30 sales.</li>
+            </ul>
+          </div>
+
+          <div class="card highlight">
+            <div class="card-title">
+              <span>Our Way: 36-Letter Random Codes (UUID v4)</span>
+              <span class="code-term">Impossible to Guess</span>
+            </div>
+            <p class="card-subtext">
+              Our app uses 128-bit random secret codes:
+            </p>
+            <div class="giant-num" style="font-size: 1.15rem; word-break: break-all; margin: 0.35rem 0;">
+              550e8400-e29b-41d4-a716-446655440000
+            </div>
+            <div class="giant-num" style="font-size: 1.6rem; margin: 0.35rem 0;">
+              5.3 &times; 10^36 Codes
+            </div>
+            <p class="card-subtext">
+              That is a 5 with 36 zeros after it. Even if a supercomputer guessed 1 billion codes every second for 1,000 years, it would never guess a single customer code.
+            </p>
+          </div>
+        </div>
+
+        <div style="background: var(--surface); border: 1px solid var(--surface-border); padding: 0.65rem 1rem; font-family: var(--font-mono); font-size: 0.8rem; display: flex; justify-content: space-between;">
+          <span>Public lights use simple numbers (1, 2, 3) for fast catalog browsing</span>
+          <span>Customer accounts & receipts use UUID codes for 100% privacy</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- -----------------------------------------------------------------------
+         SLIDE 17: CAPSTONE DEFENSE TALKING POINTS (WAS SLIDE 16)
+         ----------------------------------------------------------------------- -->
+    <section class="slide" id="slide-21" data-section="Summary">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tagline">
+            <span class="pill">SUMMARY</span>
+            <span>WHAT TO TELL THE PANEL</span>
+          </div>
+          <h2 class="slide-title">How to Answer the 3 Big Questions at Your Defense</h2>
+        </div>
+        <div class="slide-section-badge">SLIDE 21 / 21</div>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <span>Question 1: "How does your matching math work?"</span>
+              <span class="code-term">Your Answer</span>
+            </div>
+            <p class="card-subtext">
+              <strong>Say this:</strong> <em>"We give each solar light 3 test scores: price, place, and brightness. Price is worth 35 points, place is worth 35 points, and brightness is worth 30 points. We multiply each score by its percentage, add them up, and pick the light with the highest points. Lights below 70 points fail."</em>
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>Question 2: "Why use rules instead of an AI chatbot?"</span>
+              <span class="code-term">Your Answer</span>
+            </div>
+            <p class="card-subtext">
+              <strong>Say this:</strong> <em>"Solar lights contain lithium batteries. An AI chatbot can hallucinate and give dangerous advice that could cause a short circuit. Our deterministic IF-THEN rules guarantee safety, protect the 24-month warranty, and stop immediately if water or cracks are found."</em>
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>Question 3: "How do you protect customer records?"</span>
+              <span class="code-term">Your Answer</span>
+            </div>
+            <p class="card-subtext">
+              <strong>Say this:</strong> <em>"We use PostgreSQL Row Level Security so each customer's key only opens their own orders. We also use 36-letter random UUIDs so no one can guess other receipt links, and all text inputs are sanitized against hacker code."</em>
+            </p>
+          </div>
+
+          <div class="card highlight">
+            <div class="card-title">
+              <span>Where the Code Lives</span>
+              <span class="code-term">Proof in Repo</span>
+            </div>
+            <p class="card-subtext">
+              All of this is real and running in the project:
+              <br>&bull; Matching Math: <span class="code-term">frontend/src/lib/multiCriteriaMatcher.js</span>
+              <br>&bull; Diagnostic Rules: <span class="code-term">frontend/src/lib/solarDiagnosticEngine.js</span>
+              <br>&bull; Text Sanitizer: <span class="code-term">frontend/src/lib/sanitize.js</span>
+              <br>&bull; Database RLS: <span class="code-term">docs/database/migrations/</span>
+            </p>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); border-top: 1px solid var(--surface-border); padding-top: 0.65rem;">
+        <span>JD Solar Platform &bull; Simple Capstone Defense Presentation Deck</span>
+        <span>Use [Arrow Left] or [Home] to review earlier slides</span>
+      </div>
+    </section>
+
+  </main>
+
+  <footer id="deck-footer">
+    <div class="footer-left">
+      <div class="footer-progress-bar-bg">
+        <div class="footer-progress-bar-fill" id="progress-fill"></div>
+      </div>
+      <span id="slide-indicator">SLIDE 01 / 21</span>
+    </div>
+
+    <div class="footer-center">
+      <span id="current-section-label">Section: Welcome</span>
+    </div>
+
+    <div class="footer-right">
+      <button class="btn-nav" id="btn-prev" title="Previous Slide (Arrow Left)">
+        &larr; <span class="kbd">&larr;</span>
+      </button>
+      <button class="btn-nav" id="btn-next" title="Next Slide (Arrow Right / Space)">
+        <span class="kbd">&rarr;</span> &rarr;
+      </button>
+      <button class="btn-nav" id="btn-fullscreen" title="Toggle Fullscreen (F)">
+        <span class="kbd">F</span> Fullscreen
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    (function() {
+      'use strict';
+
+      const slides = document.querySelectorAll('.slide');
+      const totalSlides = slides.length;
+      let currentIndex = 0;
+
+      const progressFill = document.getElementById('progress-fill');
+      const slideIndicator = document.getElementById('slide-indicator');
+      const sectionLabel = document.getElementById('current-section-label');
+      const btnPrev = document.getElementById('btn-prev');
+      const btnNext = document.getElementById('btn-next');
+      const btnFullscreen = document.getElementById('btn-fullscreen');
+
+      function updateSlide(newIndex) {
+        if (newIndex < 0) newIndex = 0;
+        if (newIndex >= totalSlides) newIndex = totalSlides - 1;
+
+        slides[currentIndex].classList.remove('active');
+        currentIndex = newIndex;
+        slides[currentIndex].classList.add('active');
+
+        slides[currentIndex].scrollTop = 0;
+
+        const slideNumStr = String(currentIndex + 1).padStart(2, '0');
+        const totalStr = String(totalSlides).padStart(2, '0');
+        slideIndicator.textContent = `SLIDE ${slideNumStr} / ${totalStr}`;
+
+        const progressPercent = ((currentIndex + 1) / totalSlides) * 100;
+        progressFill.style.width = `${progressPercent}%`;
+
+        const section = slides[currentIndex].getAttribute('data-section') || 'JD Solar';
+        sectionLabel.textContent = `Section: ${section}`;
+
+        btnPrev.disabled = (currentIndex === 0);
+        btnNext.disabled = (currentIndex === totalSlides - 1);
+      }
+
+      function nextSlide() {
+        if (currentIndex < totalSlides - 1) {
+          updateSlide(currentIndex + 1);
+        }
+      }
+
+      function prevSlide() {
+        if (currentIndex > 0) {
+          updateSlide(currentIndex - 1);
+        }
+      }
+
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+      }
+
+      btnNext.addEventListener('click', nextSlide);
+      btnPrev.addEventListener('click', prevSlide);
+      btnFullscreen.addEventListener('click', toggleFullscreen);
+
+      window.addEventListener('keydown', function(e) {
+        // Ignore if user is inside a slider input, textarea, or button
+        if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+        switch(e.key) {
+          case 'ArrowRight':
+          case ' ':
+          case 'PageDown':
+            e.preventDefault();
+            nextSlide();
+            break;
+          case 'ArrowLeft':
+          case 'PageUp':
+            e.preventDefault();
+            prevSlide();
+            break;
+          case 'Home':
+            e.preventDefault();
+            updateSlide(0);
+            break;
+          case 'End':
+            e.preventDefault();
+            updateSlide(totalSlides - 1);
+            break;
+          case 'f':
+          case 'F':
+            e.preventDefault();
+            toggleFullscreen();
+            break;
+        }
+      });
+
+      /* =======================================================================
+         INTERACTIVE SIMULATOR LAB CONTROLLER
+         ======================================================================= */
+      const simPrice = document.getElementById('sim-price');
+      const simPlace = document.getElementById('sim-place');
+      const simPower = document.getElementById('sim-power');
+      const simStock = document.getElementById('sim-stock');
+
+      const valPriceText = document.getElementById('val-price-text');
+      const valPlaceText = document.getElementById('val-place-text');
+      const valPowerText = document.getElementById('val-power-text');
+
+      const valPricePts = document.getElementById('val-price-pts');
+      const valPlacePts = document.getElementById('val-place-pts');
+      const valPowerPts = document.getElementById('val-power-pts');
+
+      const outMathPrice = document.getElementById('out-math-price');
+      const outMathPlace = document.getElementById('out-math-place');
+      const outMathPower = document.getElementById('out-math-power');
+      const outRawSum = document.getElementById('out-raw-sum');
+
+      const outStockPenaltyBox = document.getElementById('out-stock-penalty-box');
+      const outCalcPenalty = document.getElementById('out-calc-penalty');
+      const outFinalPercent = document.getElementById('out-final-percent');
+      const outStatusBadge = document.getElementById('out-status-badge');
+      const outExplainerText = document.getElementById('out-explainer-text');
+      const stockTag = document.getElementById('stock-tag');
+
+      function updateSimulator() {
+        if (!simPrice) return;
+
+        const pVal = parseInt(simPrice.value, 10);
+        const lVal = parseInt(simPlace.value, 10);
+        const wVal = parseInt(simPower.value, 10);
+        const inStock = simStock.checked;
+
+        // Decimal grades
+        const pGrade = (pVal / 100);
+        const lGrade = (lVal / 100);
+        const wGrade = (wVal / 100);
+
+        // Grade labels
+        valPriceText.textContent = `${pGrade.toFixed(2)} (${pVal}%)`;
+        valPlaceText.textContent = `${lGrade.toFixed(2)} (${lVal}%)`;
+        valPowerText.textContent = `${wGrade.toFixed(2)} (${wVal}%)`;
+
+        // Points (Grade x Weight x 100)
+        // Price weight = 0.35 (max 35 pts)
+        // Place weight = 0.35 (max 35 pts)
+        // Power weight = 0.30 (max 30 pts)
+        const pricePts = (pGrade * 35);
+        const placePts = (lGrade * 35);
+        const powerPts = (wGrade * 30);
+
+        valPricePts.textContent = pricePts.toFixed(1);
+        valPlacePts.textContent = placePts.toFixed(1);
+        valPowerPts.textContent = powerPts.toFixed(1);
+
+        outMathPrice.textContent = pricePts.toFixed(1);
+        outMathPlace.textContent = placePts.toFixed(1);
+        outMathPower.textContent = powerPts.toFixed(1);
+
+        const rawSum = pricePts + placePts + powerPts;
+        outRawSum.textContent = rawSum.toFixed(1);
+
+        let finalScore = rawSum;
+        if (!inStock) {
+          finalScore = rawSum * 0.50;
+          outStockPenaltyBox.style.display = 'block';
+          outCalcPenalty.textContent = `${rawSum.toFixed(1)} x 0.50 = ${finalScore.toFixed(1)} Points`;
+          stockTag.textContent = 'OUT OF STOCK';
+          stockTag.className = 'badge-status badge-fail';
+        } else {
+          outStockPenaltyBox.style.display = 'none';
+          stockTag.textContent = 'IN STOCK';
+          stockTag.className = 'tag-given';
+        }
+
+        const finalPercent = Math.round(finalScore);
+        outFinalPercent.textContent = `${finalPercent}%`;
+
+        // Passing threshold is 70%
+        if (finalPercent >= 70) {
+          outStatusBadge.textContent = 'PASS (RECOMMENDED)';
+          outStatusBadge.className = 'badge-status badge-pass';
+          outExplainerText.textContent = `This product scored ${finalPercent} points. It clears the 70% passing cutoff easily and will be recommended to the customer.`;
+        } else {
+          outStatusBadge.textContent = 'FAIL (REJECTED)';
+          outStatusBadge.className = 'badge-status badge-fail';
+          if (!inStock) {
+            outExplainerText.textContent = `Score dropped to ${finalPercent}% because warehouse quantity is 0 (cut in half). The app hides this product to prevent unfulfillable orders.`;
+          } else {
+            outExplainerText.textContent = `This product scored only ${finalPercent} points (below 70%). The app filters it out because it fails the customer's needs.`;
+          }
+        }
+      }
+
+      if (simPrice) {
+        simPrice.addEventListener('input', updateSimulator);
+        simPlace.addEventListener('input', updateSimulator);
+        simPower.addEventListener('input', updateSimulator);
+        simStock.addEventListener('change', updateSimulator);
+
+        // Preset button listeners
+        const presetBtns = document.querySelectorAll('.btn-preset');
+        presetBtns.forEach(btn => {
+          btn.addEventListener('click', function() {
+            simPrice.value = this.getAttribute('data-price');
+            simPlace.value = this.getAttribute('data-place');
+            simPower.value = this.getAttribute('data-power');
+            simStock.checked = (this.getAttribute('data-stock') === 'true');
+            updateSimulator();
+          });
+        });
+
+        // Initialize simulator values
+        updateSimulator();
+      }
+
+      updateSlide(0);
+    })();
+  </script>
+</body>
+</html>

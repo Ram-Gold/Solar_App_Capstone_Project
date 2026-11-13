@@ -15,7 +15,7 @@ import {
   HiOutlineArrowPath,
   HiOutlineCheck,
 } from 'react-icons/hi2'
-import { matchSolarProducts } from '../lib/multiCriteriaMatcher'
+import { matchSolarProducts, getCatalogBounds } from '../lib/multiCriteriaMatcher'
 
 const LOCATIONS = [
   {
@@ -44,15 +44,6 @@ const LOCATIONS = [
   },
 ]
 
-const POWER_PRESETS = [100, 200, 300, 400, 500, 600, 800, 1000]
-const BUDGET_PRESETS = [
-  { label: '₱1,500', value: 1500 },
-  { label: '₱2,500', value: 2500 },
-  { label: '₱3,500', value: 3500 },
-  { label: '₱5,000', value: 5000 },
-  { label: 'Any', value: 'any' },
-]
-
 export default function MultiCriteriaWizard({
   products = [],
   onInjectToChat,
@@ -61,6 +52,7 @@ export default function MultiCriteriaWizard({
   standalone = false,
   consultButtonLabel = 'Inject Results into Chat Assistant',
 }) {
+  const bounds = useMemo(() => getCatalogBounds(products), [products])
   const [step, setStep] = useState(1) // 1: Location, 2: Power, 3: Budget, 4: Results
   const [location, setLocation] = useState('street')
   const [powerNeeds, setPowerNeeds] = useState(300)
@@ -80,9 +72,10 @@ export default function MultiCriteriaWizard({
       {
         threshold: Number(threshold),
         limit: 4,
+        catalogBounds: bounds,
       }
     )
-  }, [products, location, powerNeeds, budget, threshold])
+  }, [products, location, powerNeeds, budget, threshold, bounds])
 
   const handleInject = () => {
     if (!onInjectToChat) return
@@ -297,14 +290,14 @@ export default function MultiCriteriaWizard({
                           Target Wattage Output
                         </span>
                         <span className="text-label-lg font-extrabold text-jds-primary bg-jds-primary/10 px-3 py-1 rounded-xl">
-                          {powerNeeds}W
+                          {Number(powerNeeds) >= bounds.maxWatt ? `${bounds.maxWatt}W (Max Power)` : `${powerNeeds}W`}
                         </span>
                       </div>
 
                       <input
                         type="range"
-                        min="50"
-                        max="800"
+                        min={bounds.minWatt}
+                        max={bounds.maxWatt}
                         step="50"
                         value={powerNeeds}
                         onChange={(e) => setPowerNeeds(Number(e.target.value))}
@@ -312,7 +305,7 @@ export default function MultiCriteriaWizard({
                       />
 
                       <div className="flex flex-wrap gap-1.5 pt-1">
-                        {POWER_PRESETS.map((preset) => (
+                        {bounds.powerPresets.map((preset) => (
                           <button
                             key={preset}
                             type="button"
@@ -375,24 +368,29 @@ export default function MultiCriteriaWizard({
                           Maximum Target Unit Price
                         </span>
                         <span className="text-label-lg font-extrabold text-jds-primary bg-jds-primary/10 px-3 py-1 rounded-xl">
-                          {budget === 'any' ? 'Any Budget' : `₱${Number(budget).toLocaleString()}`}
+                          {budget === 'any' || Number(budget) >= bounds.maxPrice
+                            ? `₱${bounds.maxPrice.toLocaleString()}+ (Any Budget)`
+                            : `₱${Number(budget).toLocaleString()}`}
                         </span>
                       </div>
 
                       {budget !== 'any' && (
                         <input
                           type="range"
-                          min="1000"
-                          max="6000"
-                          step="250"
+                          min={bounds.minPrice}
+                          max={bounds.maxPrice}
+                          step={bounds.maxPrice > 10000 ? 500 : 250}
                           value={budget}
-                          onChange={(e) => setBudget(Number(e.target.value))}
+                          onChange={(e) => {
+                            const val = Number(e.target.value)
+                            setBudget(val >= bounds.maxPrice ? 'any' : val)
+                          }}
                           className="w-full h-2 bg-jds-surface-container-highest rounded-lg appearance-none cursor-pointer accent-jds-primary"
                         />
                       )}
 
                       <div className="flex flex-wrap gap-1.5 pt-1">
-                        {BUDGET_PRESETS.map((b) => (
+                        {bounds.budgetPresets.map((b) => (
                           <button
                             key={b.label}
                             type="button"

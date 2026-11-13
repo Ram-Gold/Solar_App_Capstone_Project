@@ -25,6 +25,8 @@ export const FALLBACK_PRODUCTS = [
   { id: 21, name: "Solar Streetlight 800W", type: "Solar Streetlight", watt: 800, price_range: "3000+", waterproof_grade: "IP65", battery: "72000mAh LiFePO4", material: "Die Cast Aluminum" },
   { id: 22, name: "Solar Streetlight 500W", type: "Solar Streetlight", watt: 500, price_range: "1000-2000", waterproof_grade: "IP65", material: "Aluminum" },
   { id: 23, name: "Solar Streetlight 600W", type: "Solar Streetlight", watt: 600, price_range: "2500-3500", waterproof_grade: "IP65", battery: "60000mAh LiFePO4", material: "Die Cast Aluminum" },
+  { id: 81, name: "Solar Floodlight JDL 1000W", type: "Solar Floodlight JDL", watt: 1000, price_range: "3500-5000", waterproof_grade: "IP67", battery: "3.2V, 48Ah", material: "Aluminum + Glass", solar_panel: "6V 55W", charging_type: "Solar charging" },
+  { id: 88, name: "KKSKY Solar Floodlight 1000W", type: "KKSKY Solar Floodlight", watt: 1000, price_range: "3500-4500", waterproof_grade: "IP67", battery: "35Ah", solar_panel: "6V / 35W", charging_type: "Solar charging" },
 ]
 
 export const DECISION_TREE = {

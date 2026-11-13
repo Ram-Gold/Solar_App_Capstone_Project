@@ -39,19 +39,34 @@ import AnimatedConfirmation from '../components/ui/AnimatedConfirmation'
 export default function CustomerPortalPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { setCustomerSession, signOut } = useAuth()
+  const { user, role, loading: authLoading, setCustomerSession, signOut } = useAuth()
   const [token, setToken] = useState(() => {
-    const urlToken = searchParams.get('token')
-    if (urlToken) {
-      try {
-        localStorage.setItem('jd_customer_token', urlToken)
-      } catch (e) {
-        console.warn('Could not save token to localStorage', e)
-      }
-      return urlToken
-    }
-    return localStorage.getItem('jd_customer_token') || ''
+    const urlToken = searchParams.get('token') || searchParams.get('uuid')
+    return urlToken || localStorage.getItem('jd_customer_token') || ''
   })
+
+  // Security guard: If user is not authenticated, redirect to login with forwarded parameters
+  useEffect(() => {
+    if (!authLoading && !user) {
+      const forwardToken = searchParams.get('token') || searchParams.get('uuid') || ''
+      const confirmParam = searchParams.get('confirm_email') || ''
+      const q = new URLSearchParams()
+      if (forwardToken) q.set('token', forwardToken)
+      if (confirmParam) q.set('confirm_email', confirmParam)
+      const qStr = q.toString() ? `?${q.toString()}` : ''
+      navigate(`/login${qStr}`, { replace: true })
+    }
+  }, [authLoading, user, navigate, searchParams])
+
+  // Prevent cross-customer session hijacking: If logged in as customer A but viewing token B
+  useEffect(() => {
+    if (!authLoading && user && role === 'customer') {
+      const urlToken = searchParams.get('token') || searchParams.get('uuid')
+      if (urlToken && user.id && urlToken !== user.id) {
+        navigate(`/login?token=${encodeURIComponent(urlToken)}`, { replace: true })
+      }
+    }
+  }, [authLoading, user, role, searchParams, navigate])
 
   const [portalData, setPortalData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -208,8 +223,16 @@ export default function CustomerPortalPage() {
     e.preventDefault()
     const clean = manualTokenInput.trim()
     if (!clean) return
-    localStorage.setItem('jd_customer_token', clean)
-    setToken(clean)
+    if (!user) {
+      navigate(`/login?token=${encodeURIComponent(clean)}`)
+      return
+    }
+    if (role === 'admin' || role === 'staff') {
+      setToken(clean)
+    } else {
+      // Customer must authenticate with the requested account
+      navigate(`/login?token=${encodeURIComponent(clean)}`)
+    }
   }
 
   const handleClaimSubmitted = () => {

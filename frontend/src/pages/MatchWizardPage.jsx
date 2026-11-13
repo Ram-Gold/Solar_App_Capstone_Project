@@ -7,12 +7,14 @@ import {
   Info,
 } from 'lucide-react'
 import { useChat } from '../context/ChatContext'
-import { matchSolarProducts } from '../lib/multiCriteriaMatcher'
+import { matchSolarProducts, getCatalogBounds } from '../lib/multiCriteriaMatcher'
 import PrototypeGuidedFlow, { LOCATIONS } from '../components/matcher/PrototypeGuidedFlow'
 
 export default function MatchWizardPage() {
   const navigate = useNavigate()
   const { products, setInitialMessage } = useChat()
+
+  const catalogBounds = useMemo(() => getCatalogBounds(products), [products])
 
   // Criteria state
   const [criteria, setCriteria] = useState({
@@ -34,9 +36,10 @@ export default function MatchWizardPage() {
       {
         threshold: Number(criteria.threshold),
         limit: 4,
+        catalogBounds,
       }
     )
-  }, [products, criteria])
+  }, [products, criteria, catalogBounds])
 
   const handleConsultAssistant = () => {
     const locLabel = LOCATIONS.find((l) => l.id === criteria.location)?.label || criteria.location
@@ -112,6 +115,7 @@ export default function MatchWizardPage() {
             onCriteriaChange={setCriteria}
             matchResult={matchResult}
             onConsultAssistant={handleConsultAssistant}
+            catalogBounds={catalogBounds}
           />
         </motion.div>
 

@@ -9,7 +9,8 @@ import {
   ArrowUpRight,
   ShieldCheck,
   MessageSquare } from 'lucide-react'
-import { LOCATIONS, BUDGET_PRESETS } from './PrototypeGuidedFlow'
+import { LOCATIONS } from './PrototypeGuidedFlow'
+import { getCatalogBounds } from '../../lib/multiCriteriaMatcher'
 
 export default function PrototypeSpatialBento({
   criteria,
@@ -17,6 +18,7 @@ export default function PrototypeSpatialBento({
   matchResult,
   onConsultAssistant,
 }) {
+  const bounds = matchResult?.catalogBounds || getCatalogBounds()
   const [injected, setInjected] = useState(false)
 
   const handleConsult = () => {
@@ -84,15 +86,17 @@ export default function PrototypeSpatialBento({
                 <span>02 · Power & Lumens</span>
               </span>
               <span className="text-sm font-semibold text-neutral-900 dark:text-white">
-                {criteria.powerNeeds}W
+                {Number(criteria.powerNeeds) >= bounds.maxWatt
+                  ? `${bounds.maxWatt}W (Max Power)`
+                  : `${criteria.powerNeeds}W`}
               </span>
             </div>
 
             <div className="pt-1">
               <input
                 type="range"
-                min="50"
-                max="800"
+                min={bounds.minWatt}
+                max={bounds.maxWatt}
                 step="50"
                 value={criteria.powerNeeds}
                 onChange={(e) =>
@@ -106,7 +110,7 @@ export default function PrototypeSpatialBento({
             </div>
 
             <div className="flex flex-wrap gap-1.5 pt-1">
-              {[150, 300, 500, 800].map((preset) => (
+              {bounds.powerPresets.map((preset) => (
                 <button
                   key={preset}
                   type="button"
@@ -136,29 +140,32 @@ export default function PrototypeSpatialBento({
                 <span>03 · Unit Investment</span>
               </span>
               <span className="text-sm font-semibold text-neutral-900 dark:text-white">
-                {criteria.budget === 'any' ? 'Unconstrained' : `₱${Number(criteria.budget).toLocaleString()}`}
+                {criteria.budget === 'any' || Number(criteria.budget) >= bounds.maxPrice
+                  ? `₱${bounds.maxPrice.toLocaleString()}+ (Any)`
+                  : `₱${Number(criteria.budget).toLocaleString()}`}
               </span>
             </div>
 
             {criteria.budget !== 'any' && (
               <input
                 type="range"
-                min="1000"
-                max="6000"
-                step="250"
+                min={bounds.minPrice}
+                max={bounds.maxPrice}
+                step={bounds.maxPrice > 10000 ? 500 : 250}
                 value={criteria.budget}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const val = Number(e.target.value)
                   onCriteriaChange({
                     ...criteria,
-                    budget: Number(e.target.value),
+                    budget: val >= bounds.maxPrice ? 'any' : val,
                   })
-                }
+                }}
                 className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer accent-amber-500"
               />
             )}
 
             <div className="flex flex-wrap gap-1.5">
-              {BUDGET_PRESETS.map((b) => (
+              {bounds.budgetPresets.map((b) => (
                 <button
                   key={b.label}
                   type="button"

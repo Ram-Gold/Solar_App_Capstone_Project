@@ -9,7 +9,8 @@ import {
   ArrowUpRight,
   ShieldCheck,
   MessageSquare } from 'lucide-react'
-import { LOCATIONS, POWER_PRESETS, BUDGET_PRESETS } from './PrototypeGuidedFlow'
+import { LOCATIONS } from './PrototypeGuidedFlow'
+import { getCatalogBounds } from '../../lib/multiCriteriaMatcher'
 
 export default function PrototypeSpotlightMatrix({
   criteria,
@@ -17,6 +18,7 @@ export default function PrototypeSpotlightMatrix({
   matchResult,
   onConsultAssistant,
 }) {
+  const bounds = matchResult?.catalogBounds || getCatalogBounds()
   const [activeDrawer, setActiveDrawer] = useState(null) // 'location' | 'power' | 'budget' | null
   const [injected, setInjected] = useState(false)
 
@@ -136,12 +138,14 @@ export default function PrototypeSpotlightMatrix({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-xs font-semibold text-neutral-900 dark:text-white">
                     <span>Illumination Wattage</span>
-                    <span className="text-amber-600 font-bold">{criteria.powerNeeds}W</span>
+                    <span className="text-amber-600 font-bold">
+                      {Number(criteria.powerNeeds) >= bounds.maxWatt ? `${bounds.maxWatt}W (Max Power)` : `${criteria.powerNeeds}W`}
+                    </span>
                   </div>
                   <input
                     type="range"
-                    min="50"
-                    max="800"
+                    min={bounds.minWatt}
+                    max={bounds.maxWatt}
                     step="50"
                     value={criteria.powerNeeds}
                     onChange={(e) =>
@@ -153,7 +157,7 @@ export default function PrototypeSpotlightMatrix({
                     className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none accent-amber-500 cursor-pointer"
                   />
                   <div className="flex flex-wrap gap-1.5 justify-center">
-                    {POWER_PRESETS.map((p) => (
+                    {bounds.powerPresets.map((p) => (
                       <button
                         key={p}
                         type="button"
@@ -176,27 +180,30 @@ export default function PrototypeSpotlightMatrix({
                   <div className="flex items-center justify-between text-xs font-semibold text-neutral-900 dark:text-white">
                     <span>Unit Target Investment</span>
                     <span className="text-amber-600 font-bold">
-                      {criteria.budget === 'any' ? 'Any Budget' : `₱${Number(criteria.budget).toLocaleString()}`}
+                      {criteria.budget === 'any' || Number(criteria.budget) >= bounds.maxPrice
+                        ? `₱${bounds.maxPrice.toLocaleString()}+ (Any Budget)`
+                        : `₱${Number(criteria.budget).toLocaleString()}`}
                     </span>
                   </div>
                   {criteria.budget !== 'any' && (
                     <input
                       type="range"
-                      min="1000"
-                      max="6000"
-                      step="250"
+                      min={bounds.minPrice}
+                      max={bounds.maxPrice}
+                      step={bounds.maxPrice > 10000 ? 500 : 250}
                       value={criteria.budget}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const val = Number(e.target.value)
                         onCriteriaChange({
                           ...criteria,
-                          budget: Number(e.target.value),
+                          budget: val >= bounds.maxPrice ? 'any' : val,
                         })
-                      }
+                      }}
                       className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none accent-amber-500 cursor-pointer"
                     />
                   )}
                   <div className="flex flex-wrap gap-1.5 justify-center">
-                    {BUDGET_PRESETS.map((b) => (
+                    {bounds.budgetPresets.map((b) => (
                       <button
                         key={b.label}
                         type="button"

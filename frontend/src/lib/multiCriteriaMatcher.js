@@ -53,17 +53,23 @@ export function isSolarCandidate(product) {
 }
 
 /**
- * Extracts numeric pricing information from price_range string
+ * Extracts numeric pricing information from product price_range or price column.
  * Examples: "1500-2500" -> { min: 1500, max: 2500, avg: 2000, hasPrice: true }
- *           "3000+"     -> { min: 3000, max: 4500, avg: 3500, hasPrice: true }
+ *           "3000+"     -> { min: 3000, max: 4500, avg: 3750, hasPrice: true }
+ *           "5,000 - 8,000" -> { min: 5000, max: 8000, avg: 6500, hasPrice: true }
  * If missing, returns { min: null, max: null, avg: null, hasPrice: false } without ghost pricing.
  */
 export function parseProductPrice(product) {
-  if (!product?.price_range) {
+  if (!product) {
     return { min: null, max: null, avg: null, hasPrice: false }
   }
 
-  const raw = String(product.price_range)
+  const rawVal = product.price_range ?? product.price ?? product.unit_price
+  if (rawVal === undefined || rawVal === null || rawVal === '') {
+    return { min: null, max: null, avg: null, hasPrice: false }
+  }
+
+  const raw = String(rawVal).trim()
   const numbers = raw
     .split('-')
     .map((s) => parseInt(s.replace(/[^0-9]/g, ''), 10))
@@ -81,12 +87,80 @@ export function parseProductPrice(product) {
   if (numbers.length === 1) {
     const val = numbers[0]
     if (raw.includes('+')) {
-      return { min: val, max: val * 1.4, avg: Math.round(val * 1.2), hasPrice: true }
+      return { min: val, max: Math.round(val * 1.5), avg: Math.round(val * 1.25), hasPrice: true }
     }
     return { min: val, max: val, avg: val, hasPrice: true }
   }
 
   return { min: null, max: null, avg: null, hasPrice: false }
+}
+
+/**
+ * Derives dynamic catalog bounds (min/max wattages and min/max prices) directly
+ * from the live database products list.
+ * Automatically aligns sliders and indicators to the biggest database values.
+ */
+export function getCatalogBounds(products = []) {
+  const catalog = Array.isArray(products) && products.length > 0 ? products : FALLBACK_PRODUCTS
+
+  let minWatt = 50
+  let maxWatt = 1000
+  let minPrice = 1000
+  let maxPrice = 5000
+
+  const validWatts = catalog
+    .map((p) => Number(p?.watt))
+    .filter((w) => !isNaN(w) && w > 0)
+
+  if (validWatts.length > 0) {
+    minWatt = Math.min(...validWatts)
+    maxWatt = Math.max(...validWatts)
+  }
+
+  const validPrices = catalog
+    .map((p) => parseProductPrice(p))
+    .filter((p) => p.hasPrice && p.max !== null)
+
+  if (validPrices.length > 0) {
+    const mins = validPrices.map((p) => p.min).filter((n) => n !== null && n > 0)
+    const maxes = validPrices.map((p) => p.max).filter((n) => n !== null && n > 0)
+    if (mins.length > 0) minPrice = Math.min(...mins)
+    if (maxes.length > 0) maxPrice = Math.max(...maxes)
+  }
+
+  // Clean rounding
+  const cleanMaxPrice = Math.max(minPrice, Math.ceil(maxPrice / 500) * 500)
+  const cleanMinPrice = Math.max(500, Math.floor(minPrice / 500) * 500)
+
+  // Dynamically generated power presets up to maxWatt
+  const candidateWatts = [100, 200, 300, 400, 500, 600, 800, maxWatt]
+  const powerPresets = Array.from(
+    new Set(candidateWatts.filter((w) => w >= minWatt && w <= maxWatt))
+  ).sort((a, b) => a - b)
+
+  // Dynamically generated budget presets up to cleanMaxPrice
+  const step = cleanMaxPrice > 6000 ? 1500 : 1000
+  const presetValues = []
+  for (let val = Math.max(1500, cleanMinPrice); val < cleanMaxPrice; val += step) {
+    presetValues.push(val)
+  }
+  if (!presetValues.includes(cleanMaxPrice)) {
+    presetValues.push(cleanMaxPrice)
+  }
+
+  const budgetPresets = [
+    ...presetValues.map((v) => ({ label: `₱${v.toLocaleString()}`, value: v })),
+    { label: 'Any', value: 'any' },
+  ]
+
+  return {
+    minWatt,
+    maxWatt,
+    minPrice: cleanMinPrice,
+    maxPrice: cleanMaxPrice,
+    powerPresets,
+    budgetPresets,
+  }
 }
 
 /**
@@ -156,15 +230,25 @@ export function scoreLocationFit(product, targetLocation) {
 /**
  * Power Needs Scorer (Range: 0.0 to 1.0)
  * Evaluates illumination adequacy against user's wattage target or power tier.
+ * When the slider is sinagad (maxed out to maxWatt or above), it automatically prioritizes
+ * and assigns 100% (1.0) compatibility to the biggest wattage luminaires in the Supabase database.
  */
-export function scorePowerFit(product, powerNeeds) {
+export function scorePowerFit(product, powerNeeds, maxWatt = null) {
   if (!powerNeeds && powerNeeds !== 0) return 1.0
   const productWatt = Number(product.watt) || 100
 
-  // If powerNeeds is a numeric target wattage (e.g., 300, 500)
+  // If powerNeeds is a numeric target wattage (e.g., 300, 500, or maxed out)
   if (typeof powerNeeds === 'number' || !isNaN(Number(powerNeeds))) {
     const target = Number(powerNeeds)
     if (target <= 0) return 1.0
+
+    // Automatic adjustment when slider is pulled to the maximum (sinagad):
+    // Prioritize the biggest wattage models in the catalog
+    if (maxWatt && target >= maxWatt) {
+      if (productWatt >= maxWatt) return 1.0
+      const ratio = productWatt / maxWatt
+      return Math.max(0.40, Number((0.60 + ratio * 0.40).toFixed(2)))
+    }
 
     const diff = Math.abs(productWatt - target)
     if (diff === 0) return 1.0
@@ -187,9 +271,10 @@ export function scorePowerFit(product, powerNeeds) {
     if (productWatt === 150 || productWatt === 400) return 0.80
     return 0.40
   }
-  if (tier.includes('high') || tier.includes('heavy') || tier.includes('industrial')) {
-    if (productWatt >= 400) return 1.0
-    if (productWatt === 300) return 0.75
+  if (tier.includes('high') || tier.includes('heavy') || tier.includes('industrial') || tier.includes('max')) {
+    if (productWatt >= (maxWatt || 400)) return 1.0
+    if (productWatt >= 400) return 0.90
+    if (productWatt >= 300) return 0.75
     return 0.30
   }
 
@@ -199,10 +284,11 @@ export function scorePowerFit(product, powerNeeds) {
 /**
  * Budget Scorer (Range: 0.0 to 1.0)
  * Evaluates financial affordability against user's budget ceiling or budget bracket.
- * If price is unlisted (pending store owner determination), returns a cautious neutral score (0.75)
- * so it remains discoverable upon store inquiry without displacing confirmed in-budget models.
+ * If user pulls the slider to maxPrice or selects 'any', all catalog products are considered within budget.
+ * In-budget products receive a full 1.0 score without penalty for being cheaper than the ceiling.
+ * If price is unlisted (pending store owner determination), returns a cautious neutral score (0.75).
  */
-export function scoreBudgetFit(product, userBudget) {
+export function scoreBudgetFit(product, userBudget, maxPrice = null) {
   if (!userBudget && userBudget !== 0) return 1.0
   if (userBudget === 'any') return 1.0
 
@@ -213,15 +299,19 @@ export function scoreBudgetFit(product, userBudget) {
     return 0.75
   }
 
-  // If userBudget is a numeric ceiling (e.g., 2500)
+  // If userBudget is a numeric ceiling (e.g., 2500 or maxed out)
   if (typeof userBudget === 'number' || !isNaN(Number(userBudget))) {
     const budgetCeiling = Number(userBudget)
     if (budgetCeiling <= 0) return 1.0
 
-    // Entire price range is strictly within budget
+    // Automatic adjustment when budget slider is sinagad (at or above max catalog price)
+    if (maxPrice && budgetCeiling >= maxPrice) {
+      return 1.0
+    }
+
+    // Entire price range is strictly within budget - full affordability utility
     if (prodMax <= budgetCeiling) {
-      const ratio = prodAvg / budgetCeiling
-      return Math.min(1.0, 0.90 + ratio * 0.10)
+      return 1.0
     }
 
     // Minimum price is within budget, but upper bracket slightly crosses
@@ -265,10 +355,19 @@ export function scoreBudgetFit(product, userBudget) {
 /**
  * Evaluates a single product candidate and returns detailed sub-scores and justification
  */
-export function evaluateProductMatch(product, criteria = {}, weights = DEFAULT_CRITERIA_WEIGHTS) {
+export function evaluateProductMatch(
+  product,
+  criteria = {},
+  weights = DEFAULT_CRITERIA_WEIGHTS,
+  context = {}
+) {
   const locationScore = scoreLocationFit(product, criteria.location)
-  const powerScore = scorePowerFit(product, criteria.powerNeeds ?? criteria.watt ?? criteria.minWatt)
-  const budgetScore = scoreBudgetFit(product, criteria.budget)
+  const powerScore = scorePowerFit(
+    product,
+    criteria.powerNeeds ?? criteria.watt ?? criteria.minWatt,
+    context.maxWatt
+  )
+  const budgetScore = scoreBudgetFit(product, criteria.budget, context.maxPrice)
 
   // Normalize weights
   const totalWeight = weights.budget + weights.location + weights.power
@@ -293,12 +392,34 @@ export function evaluateProductMatch(product, criteria = {}, weights = DEFAULT_C
   if (stockTier === 'out') {
     reasons.push('Out of stock at branch')
   } else {
-    if (budgetScore >= 0.85) reasons.push('Well within your budget')
-    else if (budgetScore >= 0.65) reasons.push('Close to target price')
-    else if (!product.price_range) reasons.push('Price confirmed at store')
+    if (budgetScore >= 0.85) {
+      if (
+        criteria.budget === 'any' ||
+        (context.maxPrice && Number(criteria.budget) >= context.maxPrice)
+      ) {
+        reasons.push('Within maximum budget capacity')
+      } else {
+        reasons.push('Well within your budget')
+      }
+    } else if (budgetScore >= 0.65) {
+      reasons.push('Close to target price')
+    } else if (!product.price_range) {
+      reasons.push('Price confirmed at store')
+    }
 
     if (locationScore >= 0.85) reasons.push('Ideal optics for this location')
-    if (powerScore >= 0.85) reasons.push(`Optimal ${product.watt || ''}W illumination`)
+
+    if (powerScore >= 0.85) {
+      if (
+        context.maxWatt &&
+        Number(criteria.powerNeeds) >= context.maxWatt &&
+        Number(product.watt) >= context.maxWatt
+      ) {
+        reasons.push(`Top-tier ${product.watt}W maximum output`)
+      } else {
+        reasons.push(`Optimal ${product.watt || ''}W illumination`)
+      }
+    }
   }
 
   const explanation = reasons.length > 0 ? reasons.join(' · ') : 'Compatible solar model'
@@ -327,11 +448,12 @@ export function evaluateProductMatch(product, criteria = {}, weights = DEFAULT_C
  *
  * @param {Array} products - Catalog product list
  * @param {Object} criteria - { budget, location, powerNeeds }
- * @param {Object} options - { threshold, weights, limit, requireInStock }
- * @returns {Object} { matches, thresholdUsed, totalEvaluated, criteriaApplied }
+ * @param {Object} options - { threshold, weights, limit, requireInStock, catalogBounds }
+ * @returns {Object} { matches, thresholdUsed, totalEvaluated, criteriaApplied, catalogBounds }
  */
 export function matchSolarProducts(products = [], criteria = {}, options = {}) {
   const catalog = products && products.length > 0 ? products : FALLBACK_PRODUCTS
+  const bounds = options.catalogBounds || getCatalogBounds(catalog)
   const threshold = typeof options.threshold === 'number' ? options.threshold : DEFAULT_MATCH_THRESHOLD
   const weights = options.weights || DEFAULT_CRITERIA_WEIGHTS
   const limit = options.limit || 4
@@ -354,8 +476,13 @@ export function matchSolarProducts(products = [], criteria = {}, options = {}) {
     validCandidates = catalog.filter(isSolarCandidate)
   }
 
-  // 4. Evaluate all candidates
-  const evaluated = validCandidates.map((p) => evaluateProductMatch(p, criteria, weights))
+  // 4. Evaluate all candidates with dynamic catalog bounds context
+  const evaluated = validCandidates.map((p) =>
+    evaluateProductMatch(p, criteria, weights, {
+      maxWatt: bounds.maxWatt,
+      maxPrice: bounds.maxPrice,
+    })
+  )
 
   // 5. Sort by composite score descending
   evaluated.sort((a, b) => b.compositeScore - a.compositeScore)
@@ -377,5 +504,6 @@ export function matchSolarProducts(products = [], criteria = {}, options = {}) {
     thresholdRelaxed,
     totalEvaluated: validCandidates.length,
     criteriaApplied: criteria,
+    catalogBounds: bounds,
   }
 }

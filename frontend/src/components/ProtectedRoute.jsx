@@ -1,8 +1,9 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function ProtectedRoute({ children, allowedRoles }) {
   const { user, role, loading } = useAuth()
+  const location = useLocation()
 
   if (loading) {
     return (
@@ -13,7 +14,8 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    const search = location.search || ''
+    return <Navigate to={`/login${search}`} replace />
   }
 
   if (allowedRoles && !allowedRoles.includes(role)) {

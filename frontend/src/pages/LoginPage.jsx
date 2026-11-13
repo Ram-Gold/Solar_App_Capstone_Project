@@ -2,7 +2,11 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
-import { loginCustomerWithPassword } from '../lib/customerService'
+import {
+  loginCustomerWithPassword,
+  getCustomerAuthStatus,
+  setCustomerPassword
+} from '../lib/customerService'
 import { motion } from 'framer-motion'
 import PrivacyPolicyModal from '../components/PrivacyPolicyModal'
 import TermsOfServiceModal from '../components/TermsOfServiceModal'
@@ -12,6 +16,8 @@ import {
   HiOutlineArrowRight,
   HiOutlineArrowLeft,
   HiOutlineSun,
+  HiOutlineShieldCheck,
+  HiOutlineKey,
 } from 'react-icons/hi2'
 import jdSolarLogo from '../assets/jdsolarlogo.webp'
 
@@ -19,11 +25,20 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams()
   const isTimedOut = searchParams.get('reason') === 'timeout'
   const isPasswordReset = searchParams.get('reason') === 'reset'
+  const forwardedToken = (searchParams.get('token') || searchParams.get('uuid') || '').trim()
+  const forwardedConfirm = (searchParams.get('confirm_email') || '').trim()
 
   const [email, setEmail] = useState(() => {
     return localStorage.getItem('jd_remembered_email') || localStorage.getItem('jd_customer_email') || ''
   })
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [forwardedAuth, setForwardedAuth] = useState(null)
+  const [resolvingForwarded, setResolvingForwarded] = useState(Boolean(forwardedToken))
+  const [showManualToken, setShowManualToken] = useState(false)
+  const [manualTokenVal, setManualTokenVal] = useState('')
+  const [manualTokenLoading, setManualTokenLoading] = useState(false)
+
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [remember, setRemember] = useState(true)
@@ -39,6 +54,98 @@ export default function LoginPage() {
     }
   }, [email])
 
+  // Resolve forwarded UUID access token
+  useEffect(() => {
+    if (!forwardedToken) {
+      setForwardedAuth(null)
+      setResolvingForwarded(false)
+      return
+    }
+
+    let mounted = true
+
+    async function resolveToken() {
+      try {
+        setResolvingForwarded(true)
+        const authStatus = await getCustomerAuthStatus(forwardedToken)
+        if (!mounted) return
+
+        let resolvedEmail = authStatus?.email || ''
+        const hasPwd = Boolean(authStatus?.hasPassword)
+
+        if (!resolvedEmail) {
+          try {
+            const { data: custRow } = await supabase
+              .from('customers')
+              .select('email')
+              .eq('access_token', forwardedToken)
+              .maybeSingle()
+            if (custRow?.email) {
+              resolvedEmail = custRow.email
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        setForwardedAuth({
+          token: forwardedToken,
+          hasPassword: hasPwd,
+          email: resolvedEmail
+        })
+
+        if (resolvedEmail) {
+          setEmail(resolvedEmail)
+        }
+      } catch (err) {
+        console.warn('Failed to resolve forwarded token:', err)
+      } finally {
+        if (mounted) setResolvingForwarded(false)
+      }
+    }
+
+    resolveToken()
+    return () => {
+      mounted = false
+    }
+  }, [forwardedToken])
+
+  const handleVerifyManualToken = async (e) => {
+    e.preventDefault()
+    const clean = manualTokenVal.trim()
+    if (!clean) return
+    setError('')
+    setManualTokenLoading(true)
+    try {
+      const authStatus = await getCustomerAuthStatus(clean)
+      let resolvedEmail = authStatus?.email || ''
+      if (!resolvedEmail) {
+        try {
+          const { data: custRow } = await supabase
+            .from('customers')
+            .select('email')
+            .eq('access_token', clean)
+            .maybeSingle()
+          if (custRow?.email) resolvedEmail = custRow.email
+        } catch {
+          // ignore
+        }
+      }
+
+      setForwardedAuth({
+        token: clean,
+        hasPassword: Boolean(authStatus?.hasPassword),
+        email: resolvedEmail
+      })
+      if (resolvedEmail) setEmail(resolvedEmail)
+      navigate(`/login?token=${encodeURIComponent(clean)}`, { replace: true })
+    } catch {
+      setError('Could not verify access token.')
+    } finally {
+      setManualTokenLoading(false)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -49,7 +156,38 @@ export default function LoginPage() {
     localStorage.setItem('jd_last_activity_timestamp', Date.now().toString())
 
     try {
-      // 1. First attempt customer login via customer authentication
+      // 1. First-time account activation for customer with forwarded token but no password
+      if (forwardedToken && forwardedAuth && !forwardedAuth.hasPassword) {
+        if (!password || password.length < 8) {
+          setError('Password must be at least 8 characters.')
+          setLoading(false)
+          return
+        }
+        if (password !== confirmPassword) {
+          setError('New password and confirmation do not match.')
+          setLoading(false)
+          return
+        }
+
+        await setCustomerPassword({
+          token: forwardedToken,
+          email: normalizedEmail,
+          password
+        })
+
+        if (setCustomerSession) {
+          setCustomerSession(forwardedToken, normalizedEmail)
+        } else {
+          localStorage.setItem('jd_customer_token', forwardedToken)
+          localStorage.setItem('jd_customer_email', normalizedEmail)
+        }
+
+        const confirmSuffix = forwardedConfirm ? `&confirm_email=${encodeURIComponent(forwardedConfirm)}` : ''
+        navigate(`/portal?token=${encodeURIComponent(forwardedToken)}${confirmSuffix}`)
+        return
+      }
+
+      // 2. Customer password login
       const custRes = await loginCustomerWithPassword(normalizedEmail, password)
       if (custRes?.token) {
         if (setCustomerSession) {
@@ -58,14 +196,16 @@ export default function LoginPage() {
           localStorage.setItem('jd_customer_token', custRes.token)
           localStorage.setItem('jd_customer_email', normalizedEmail)
         }
-        navigate(`/portal?token=${custRes.token}`)
+        const activeToken = forwardedToken || custRes.token
+        const confirmSuffix = forwardedConfirm ? `&confirm_email=${encodeURIComponent(forwardedConfirm)}` : ''
+        navigate(`/portal?token=${encodeURIComponent(activeToken)}${confirmSuffix}`)
         return
       }
 
-      // 2. Otherwise attempt Supabase staff/admin authentication
-      const { data, error } = await signIn(normalizedEmail, password)
-      if (error) {
-        setError(error.message)
+      // 3. Otherwise attempt Supabase staff/admin authentication
+      const { data, error: signInError } = await signIn(normalizedEmail, password)
+      if (signInError) {
+        setError(signInError.message)
       } else {
         const userId = data?.user?.id
         if (userId) {
@@ -106,6 +246,8 @@ export default function LoginPage() {
     }
   }
 
+  const isFirstTimeActivation = Boolean(forwardedToken && forwardedAuth && !forwardedAuth.hasPassword)
+
   return (
     <div className="bg-jds-surface font-inter text-jds-on-surface min-h-screen flex flex-col">
       {/* Minimal Header */}
@@ -142,9 +284,47 @@ export default function LoginPage() {
             <div className="text-center mb-8">
               <h1 className="text-headline-lg text-jds-on-surface mb-2">Portal Login</h1>
               <p className="text-body-md text-jds-on-surface-variant">
-                Access your solar dashboard, warranties, or staff panel.
+                {isFirstTimeActivation
+                  ? 'Activate and secure your customer dashboard.'
+                  : 'Access your solar dashboard, warranties, or staff panel.'}
               </p>
             </div>
+
+            {/* Forwarded UUID Banner: Existing Account with Password */}
+            {forwardedToken && forwardedAuth?.hasPassword && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-3.5 p-4 rounded-xl bg-jds-primary/10 border border-jds-primary/30 text-jds-on-surface text-sm mb-6 shadow-sm"
+              >
+                <HiOutlineShieldCheck className="text-xl text-jds-primary mt-0.5 flex-shrink-0" />
+                <div className="flex flex-col text-left">
+                  <span className="font-semibold text-label-md text-jds-primary">Account Verified</span>
+                  <span className="text-body-sm text-jds-on-surface-variant leading-relaxed mt-0.5">
+                    Customer record found. Please enter your account password to authenticate and access your dashboard.
+                  </span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Forwarded UUID Banner: First-Time Activation */}
+            {isFirstTimeActivation && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-3.5 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-jds-on-surface text-sm mb-6 shadow-sm"
+              >
+                <HiOutlineKey className="text-xl text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="flex flex-col text-left">
+                  <span className="font-semibold text-label-md text-amber-700 dark:text-amber-300">
+                    First-Time Account Activation
+                  </span>
+                  <span className="text-body-sm text-jds-on-surface-variant leading-relaxed mt-0.5">
+                    Please create a password (minimum 8 characters) to secure your account and access your dashboard.
+                  </span>
+                </div>
+              </motion.div>
+            )}
 
             {/* Session Timeout Banner */}
             {isTimedOut && (
@@ -219,14 +399,16 @@ export default function LoginPage() {
                     className="block text-label-sm text-jds-on-surface-variant ml-1"
                     htmlFor="password"
                   >
-                    Password
+                    {isFirstTimeActivation ? 'Create Password' : 'Password'}
                   </label>
-                  <Link
-                    to="/forgot-password"
-                    className="text-label-sm text-jds-secondary font-bold hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
+                  {!isFirstTimeActivation && (
+                    <Link
+                      to="/forgot-password"
+                      className="text-label-sm text-jds-secondary font-bold hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  )}
                 </div>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-jds-on-surface-variant group-focus-within:text-jds-secondary transition-colors">
@@ -239,42 +421,121 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     required
                     type="password"
+                    minLength={8}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
               </div>
 
+              {/* Confirm Password (for first-time activation) */}
+              {isFirstTimeActivation && (
+                <div className="space-y-2">
+                  <label
+                    className="block text-label-sm text-jds-on-surface-variant ml-1"
+                    htmlFor="confirmPassword"
+                  >
+                    Confirm Password
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-jds-on-surface-variant group-focus-within:text-jds-secondary transition-colors">
+                      <HiOutlineLockClosed className="text-xl" />
+                    </div>
+                    <input
+                      className="w-full pl-11 pr-4 py-3.5 bg-jds-surface-variant/30 border-none focus:ring-2 focus:ring-jds-secondary focus:bg-jds-surface-container-lowest rounded-lg text-body-md text-jds-on-surface transition-all placeholder:text-jds-on-surface-variant/50 outline-none"
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      placeholder="••••••••"
+                      required
+                      type="password"
+                      minLength={8}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Remember */}
-              <div className="flex items-center gap-3 px-1">
-                <input
-                  className="w-5 h-5 rounded border-jds-outline-variant text-jds-primary focus:ring-jds-primary"
-                  id="remember"
-                  name="remember"
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                />
-                <label
-                  className="text-label-md text-jds-on-surface-variant cursor-pointer"
-                  htmlFor="remember"
-                >
-                  Remember this device
-                </label>
-              </div>
+              {!isFirstTimeActivation && (
+                <div className="flex items-center gap-3 px-1">
+                  <input
+                    className="w-5 h-5 rounded border-jds-outline-variant text-jds-primary focus:ring-jds-primary"
+                    id="remember"
+                    name="remember"
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                  />
+                  <label
+                    className="text-label-md text-jds-on-surface-variant cursor-pointer"
+                    htmlFor="remember"
+                  >
+                    Remember this device
+                  </label>
+                </div>
+              )}
 
               {/* Submit */}
               <button
-                className="w-full py-4 bg-jds-primary-container hover:bg-jds-primary transition-all duration-300 rounded-lg text-jds-on-primary-container hover:text-jds-on-primary text-[16px] font-bold shadow-sm hover:shadow-md flex items-center justify-center gap-2 group disabled:opacity-60"
+                className="w-full py-4 bg-jds-primary-container hover:bg-jds-primary transition-all duration-300 rounded-lg text-jds-on-primary-container hover:text-jds-on-primary text-[16px] font-bold shadow-sm hover:shadow-md flex items-center justify-center gap-2 group disabled:opacity-60 cursor-pointer"
                 type="submit"
-                disabled={loading}
+                disabled={loading || resolvingForwarded}
               >
-                {loading ? 'Signing in...' : 'Sign In to Dashboard'}
+                {loading
+                  ? 'Authenticating...'
+                  : isFirstTimeActivation
+                    ? 'Activate Account & Sign In'
+                    : 'Sign In to Dashboard'}
                 {!loading && (
                   <HiOutlineArrowRight className="group-hover:translate-x-1 transition-transform" />
                 )}
               </button>
             </form>
+
+            {/* Manual Token Verification Section */}
+            <div className="mt-6 pt-5 border-t border-jds-outline-variant/30 text-center">
+              <button
+                type="button"
+                onClick={() => setShowManualToken(!showManualToken)}
+                className="text-label-sm text-jds-primary hover:underline font-medium cursor-pointer"
+              >
+                {showManualToken
+                  ? 'Hide Access Key Lookup'
+                  : 'Have a Purchase Receipt Access Token (UUID)?'}
+              </button>
+
+              {showManualToken && (
+                <form onSubmit={handleVerifyManualToken} className="mt-3.5 space-y-2 text-left">
+                  <label
+                    className="block text-label-sm text-jds-on-surface-variant ml-1"
+                    htmlFor="manualTokenInput"
+                  >
+                    Customer Access Token (UUID)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      id="manualTokenInput"
+                      type="text"
+                      value={manualTokenVal}
+                      onChange={(e) => setManualTokenVal(e.target.value)}
+                      placeholder="Paste UUID token..."
+                      className="w-full px-3.5 py-2.5 bg-jds-surface-variant/30 rounded-lg text-body-sm font-mono text-jds-on-surface outline-none focus:ring-2 focus:ring-jds-primary"
+                    />
+                    <button
+                      type="submit"
+                      disabled={manualTokenLoading}
+                      className="px-4 py-2.5 bg-jds-primary text-jds-on-primary font-semibold text-xs rounded-lg hover:bg-jds-primary/90 shrink-0 cursor-pointer disabled:opacity-60"
+                    >
+                      {manualTokenLoading ? 'Checking...' : 'Lookup'}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
+                    Verifying your token identifies your account. Password authentication is still required to access the dashboard.
+                  </p>
+                </form>
+              )}
+            </div>
           </div>
 
           {/* Branding Accent */}
@@ -282,7 +543,7 @@ export default function LoginPage() {
             <div className="flex items-center gap-6 opacity-30">
               <HiOutlineSun className="text-3xl text-jds-primary" />
               <div className="h-6 w-[1px] bg-jds-outline" />
-              <span className="text-label-sm tracking-widest uppercase">Admin Portal v2.4</span>
+              <span className="text-label-sm tracking-widest uppercase">Solar Portal Authentication</span>
             </div>
           </div>
         </motion.div>

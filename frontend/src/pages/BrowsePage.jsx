@@ -14,6 +14,7 @@ import {
 import MultiCriteriaMatchModal from '../components/MultiCriteriaMatchModal'
 import { useAuth } from '../context/AuthContext'
 import { getStockTier } from '../lib/inventoryUtils'
+import { getCatalogBounds } from '../lib/multiCriteriaMatcher'
 
 const INITIAL_CATEGORIES = [
   'All Products',
@@ -88,10 +89,13 @@ export default function BrowsePage() {
   const [showFilters, setShowFilters] = useState(false)
   const [powerFilter, setPowerFilter] = useState('All Power')
   const [waterproofFilter, setWaterproofFilter] = useState('All Ratings')
-  const [maxPriceFilter, setMaxPriceFilter] = useState(50000)
+  const [maxPriceFilter, setMaxPriceFilter] = useState(null)
   const [batteryFilter, setBatteryFilter] = useState('All')
   const [showMatcher, setShowMatcher] = useState(false)
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE)
+
+  const catalogBounds = getCatalogBounds(products)
+  const isMaxPriceUnconstrained = maxPriceFilter === null || maxPriceFilter >= catalogBounds.maxPrice
 
   useEffect(() => {
     setVisibleCount(ITEMS_PER_PAGE)
@@ -162,7 +166,7 @@ export default function BrowsePage() {
       }
 
       let matchesMaxPrice = true
-      if (maxPriceFilter < 50000) {
+      if (!isMaxPriceUnconstrained) {
         let pPrice = 0
         if (p.price_range) {
           const numbers = p.price_range.split('-').map(s => parseInt(s.replace(/[^0-9]/g, ''))).filter(n => !isNaN(n))
@@ -322,16 +326,19 @@ export default function BrowsePage() {
               <div className="flex items-center justify-between">
                 <h3 className="text-xs sm:text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Max Price</h3>
                 <span className="text-xs sm:text-body-sm font-semibold text-jds-secondary">
-                  {maxPriceFilter >= 50000 ? 'Any Price' : `₱${maxPriceFilter}`}
+                  {isMaxPriceUnconstrained ? 'Any Price' : `₱${Number(maxPriceFilter).toLocaleString()}`}
                 </span>
               </div>
               <input
                 type="range"
-                min="500"
-                max="50000"
-                step="500"
-                value={maxPriceFilter}
-                onChange={(e) => setMaxPriceFilter(Number(e.target.value))}
+                min={catalogBounds.minPrice}
+                max={catalogBounds.maxPrice}
+                step={catalogBounds.maxPrice > 10000 ? 500 : 250}
+                value={isMaxPriceUnconstrained ? catalogBounds.maxPrice : maxPriceFilter}
+                onChange={(e) => {
+                  const val = Number(e.target.value)
+                  setMaxPriceFilter(val >= catalogBounds.maxPrice ? null : val)
+                }}
                 className="w-full h-1.5 sm:h-2 bg-jds-surface-variant rounded-lg appearance-none cursor-pointer accent-jds-secondary"
               />
             </div>

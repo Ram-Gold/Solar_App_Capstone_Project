@@ -40,7 +40,14 @@ function AppLayout() {
           <Route path="/match" element={<MatchWizardPage />} />
           <Route path="/product/:id" element={<ProductInfoPage />} />
           <Route path="/chat" element={<ChatboxPage />} />
-          <Route path="/portal" element={<CustomerPortalPage />} />
+          <Route 
+            path="/portal" 
+            element={
+              <ProtectedRoute allowedRoles={['customer', 'admin', 'staff']}>
+                <CustomerPortalPage />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />

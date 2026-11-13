@@ -12,6 +12,8 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 
+import { getCatalogBounds } from '../../lib/multiCriteriaMatcher'
+
 export const LOCATIONS = [
   {
     id: 'road',
@@ -89,8 +91,12 @@ export default function PrototypeGuidedFlow({
   matchResult,
   // eslint-disable-next-line no-unused-vars
   onConsultAssistant,
+  catalogBounds,
 }) {
   const [currentStep, setCurrentStep] = useState(1)
+  const bounds = catalogBounds || matchResult?.catalogBounds || getCatalogBounds()
+  const midWatt = Math.round((bounds.minWatt + bounds.maxWatt) / 2)
+  const midPrice = Math.round((bounds.minPrice + bounds.maxPrice) / 2)
 
   const steps = [
     { num: 1, label: 'Environment' },
@@ -278,7 +284,9 @@ export default function PrototypeGuidedFlow({
                     <span className="text-xl sm:text-2xl font-normal text-amber-600 ml-1">W</span>
                   </span>
                   <span className="text-xs text-neutral-400 mt-1">
-                    Estimated {criteria.powerNeeds * 15} – {criteria.powerNeeds * 22} Lumens
+                    {Number(criteria.powerNeeds) >= bounds.maxWatt
+                      ? `Maximum database wattage (${bounds.maxWatt}W industrial class)`
+                      : `Estimated ${criteria.powerNeeds * 15} – ${criteria.powerNeeds * 22} Lumens`}
                   </span>
                 </div>
 
@@ -286,8 +294,8 @@ export default function PrototypeGuidedFlow({
                 <div className="px-2 pt-2">
                   <input
                     type="range"
-                    min="50"
-                    max="800"
+                    min={bounds.minWatt}
+                    max={bounds.maxWatt}
                     step="50"
                     value={criteria.powerNeeds}
                     onChange={(e) =>
@@ -299,9 +307,9 @@ export default function PrototypeGuidedFlow({
                     className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer accent-amber-500"
                   />
                   <div className="flex justify-between text-[11px] text-neutral-400 mt-2 font-medium">
-                    <span>50W Compact</span>
-                    <span>400W Medium</span>
-                    <span>800W High Mast</span>
+                    <span>{bounds.minWatt}W Compact</span>
+                    <span>{midWatt}W Standard</span>
+                    <span>{bounds.maxWatt}W Maximum</span>
                   </div>
                 </div>
 
@@ -354,11 +362,13 @@ export default function PrototypeGuidedFlow({
               <div className="max-w-md mx-auto p-6 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200/70 dark:border-neutral-800 text-center space-y-4">
                 <div className="inline-flex flex-col items-center">
                   <span className="text-4xl sm:text-5xl font-semibold tracking-tight text-neutral-900 dark:text-white">
-                    {criteria.budget === 'any' ? 'Unconstrained' : `₱${Number(criteria.budget).toLocaleString()}`}
+                    {criteria.budget === 'any' || Number(criteria.budget) >= bounds.maxPrice
+                      ? `₱${bounds.maxPrice.toLocaleString()}+`
+                      : `₱${Number(criteria.budget).toLocaleString()}`}
                   </span>
                   <span className="text-xs text-neutral-400 mt-1">
-                    {criteria.budget === 'any'
-                      ? 'Displaying all matching tiers'
+                    {criteria.budget === 'any' || Number(criteria.budget) >= bounds.maxPrice
+                      ? `Maximum database price range (₱${bounds.maxPrice.toLocaleString()}+ / all tiers)`
                       : 'Target ceiling per lighting unit'}
                   </span>
                 </div>
@@ -367,22 +377,23 @@ export default function PrototypeGuidedFlow({
                 <div className="px-2 pt-2">
                   <input
                     type="range"
-                    min="1000"
-                    max="6000"
-                    step="250"
-                    value={criteria.budget === 'any' ? 3500 : criteria.budget}
-                    onChange={(e) =>
+                    min={bounds.minPrice}
+                    max={bounds.maxPrice}
+                    step={bounds.maxPrice > 10000 ? 500 : 250}
+                    value={criteria.budget === 'any' ? bounds.maxPrice : criteria.budget}
+                    onChange={(e) => {
+                      const val = Number(e.target.value)
                       onCriteriaChange({
                         ...criteria,
-                        budget: Number(e.target.value),
+                        budget: val >= bounds.maxPrice ? 'any' : val,
                       })
-                    }
+                    }}
                     className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer accent-amber-500"
                   />
                   <div className="flex justify-between text-[11px] text-neutral-400 mt-2 font-medium">
-                    <span>₱1,000</span>
-                    <span>₱3,500</span>
-                    <span>₱6,000</span>
+                    <span>₱{bounds.minPrice.toLocaleString()}</span>
+                    <span>₱{midPrice.toLocaleString()}</span>
+                    <span>₱{bounds.maxPrice.toLocaleString()}+</span>
                   </div>
                 </div>
               </div>
