@@ -276,18 +276,22 @@ export default function PrototypeGuidedFlow({
                 </p>
               </div>
 
-              {/* Minimal Numeric Readout Card */}
-              <div className="max-w-md mx-auto p-6 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200/70 dark:border-neutral-800 text-center">
-                <div className="flex flex-col items-center w-full min-h-[76px] justify-center mb-5">
-                  <span className="text-4xl sm:text-5xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
-                    {criteria.powerNeeds}
-                    <span className="text-xl sm:text-2xl font-normal text-amber-600 ml-1">W</span>
-                  </span>
-                  <span className="text-xs text-neutral-400 mt-2 min-h-[16px] leading-none">
-                    {Number(criteria.powerNeeds) >= bounds.maxWatt
-                      ? `Maximum database wattage (${bounds.maxWatt}W industrial class)`
-                      : `Estimated ${criteria.powerNeeds * 15} – ${criteria.powerNeeds * 22} Lumens`}
-                  </span>
+              {/* Minimal Numeric Readout Card — grid rows lock height so slider never causes reflow */}
+              <div className="w-full p-6 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200/70 dark:border-neutral-800 text-center">
+                <div className="grid text-center mb-4" style={{ gridTemplateRows: '3.5rem 1rem', gap: '0.375rem' }}>
+                  <div className="flex items-end justify-center overflow-hidden">
+                    <span className="text-4xl sm:text-5xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
+                      {criteria.powerNeeds}
+                    </span>
+                    <span className="text-xl sm:text-2xl font-normal text-amber-600 ml-1 leading-none mb-0.5">W</span>
+                  </div>
+                  <div className="flex items-center justify-center overflow-hidden">
+                    <span className="text-xs text-neutral-400 leading-none truncate">
+                      {Number(criteria.powerNeeds) >= bounds.maxWatt
+                        ? `Max wattage — ${bounds.maxWatt}W industrial class`
+                        : `Estimated ${criteria.powerNeeds * 15}\u2013${criteria.powerNeeds * 22} Lumens`}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Tactile Slider */}
@@ -358,19 +362,23 @@ export default function PrototypeGuidedFlow({
                 </p>
               </div>
 
-              {/* Minimal Budget Display Card */}
-              <div className="max-w-md mx-auto p-6 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200/70 dark:border-neutral-800 text-center">
-                <div className="flex flex-col items-center w-full min-h-[76px] justify-center mb-5">
-                  <span className="text-4xl sm:text-5xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
-                    {criteria.budget === 'any' || Number(criteria.budget) >= bounds.maxPrice
-                      ? `₱${bounds.maxPrice.toLocaleString()}+`
-                      : `₱${Number(criteria.budget).toLocaleString()}`}
-                  </span>
-                  <span className="text-xs text-neutral-400 mt-2 min-h-[16px] leading-none">
-                    {criteria.budget === 'any' || Number(criteria.budget) >= bounds.maxPrice
-                      ? `Maximum database price range (₱${bounds.maxPrice.toLocaleString()}+ / all tiers)`
-                      : 'Target ceiling per lighting unit'}
-                  </span>
+              {/* Minimal Budget Display Card — grid rows lock height, card never resizes on slider drag */}
+              <div className="w-full p-6 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200/70 dark:border-neutral-800 text-center">
+                <div className="grid text-center mb-4" style={{ gridTemplateRows: '3.5rem 1rem', gap: '0.375rem' }}>
+                  <div className="flex items-end justify-center overflow-hidden">
+                    <span className="text-4xl sm:text-5xl font-semibold tracking-tight text-neutral-900 dark:text-white tabular-nums leading-none">
+                      {criteria.budget === 'any' || Number(criteria.budget) >= bounds.maxPrice
+                        ? `₱${bounds.maxPrice.toLocaleString()}+`
+                        : `₱${Number(criteria.budget).toLocaleString()}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center overflow-hidden">
+                    <span className="text-xs text-neutral-400 leading-none truncate">
+                      {criteria.budget === 'any' || Number(criteria.budget) >= bounds.maxPrice
+                        ? `Maximum price range — all tiers`
+                        : 'Target ceiling per lighting unit'}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Tactile Slider */}
