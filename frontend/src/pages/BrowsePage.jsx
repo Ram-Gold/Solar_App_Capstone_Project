@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
@@ -14,7 +14,7 @@ import {
 import MultiCriteriaMatchModal from '../components/MultiCriteriaMatchModal'
 import { useAuth } from '../context/AuthContext'
 import { getStockTier } from '../lib/inventoryUtils'
-import { parseProductPrice } from '../lib/multiCriteriaMatcher'
+import { getCatalogBounds, parseProductPrice } from '../lib/multiCriteriaMatcher'
 import { getMainProductImage } from '../lib/productImageUtils'
 
 const INITIAL_CATEGORIES = [
@@ -90,38 +90,17 @@ export default function BrowsePage() {
   const [showFilters, setShowFilters] = useState(false)
   const [powerFilter, setPowerFilter] = useState('All Power')
   const [waterproofFilter, setWaterproofFilter] = useState('All Ratings')
-  const [minPriceInput, setMinPriceInput] = useState('')
-  const [maxPriceInput, setMaxPriceInput] = useState('')
-  const [appliedPriceRange, setAppliedPriceRange] = useState({ min: null, max: null })
+  const [budgetFilter, setBudgetFilter] = useState(null)
   const [batteryFilter, setBatteryFilter] = useState('All')
   const [showMatcher, setShowMatcher] = useState(false)
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE)
 
-  const handleApplyPrice = () => {
-    const minVal = minPriceInput.trim() !== '' ? parseInt(minPriceInput.replace(/[^0-9]/g, ''), 10) : null
-    const maxVal = maxPriceInput.trim() !== '' ? parseInt(maxPriceInput.replace(/[^0-9]/g, ''), 10) : null
-
-    const validMin = minVal !== null && !isNaN(minVal) ? minVal : null
-    const validMax = maxVal !== null && !isNaN(maxVal) ? maxVal : null
-
-    if (validMin !== null && validMax !== null && validMin > validMax) {
-      setAppliedPriceRange({ min: validMax, max: validMin })
-      setMinPriceInput(String(validMax))
-      setMaxPriceInput(String(validMin))
-    } else {
-      setAppliedPriceRange({ min: validMin, max: validMax })
-    }
-  }
-
-  const handleResetPrice = () => {
-    setMinPriceInput('')
-    setMaxPriceInput('')
-    setAppliedPriceRange({ min: null, max: null })
-  }
+  const catalogBounds = useMemo(() => getCatalogBounds(products), [products])
+  const isBudgetUnconstrained = budgetFilter === null || budgetFilter >= catalogBounds.maxPrice
 
   useEffect(() => {
     setVisibleCount(ITEMS_PER_PAGE)
-  }, [search, activeCategory, sortBy, powerFilter, waterproofFilter, appliedPriceRange, batteryFilter])
+  }, [search, activeCategory, sortBy, powerFilter, waterproofFilter, budgetFilter, batteryFilter])
 
   useEffect(() => {
     const query = searchParams.get('search')
@@ -187,21 +166,15 @@ export default function BrowsePage() {
         matchesWaterproof = p.waterproof_grade === waterproofFilter
       }
 
-      let matchesPrice = true
-      const isPriceConstrained = appliedPriceRange.min !== null || appliedPriceRange.max !== null
-      if (isPriceConstrained) {
+      let matchesBudget = true
+      if (!isBudgetUnconstrained) {
         const parsed = parseProductPrice(p)
         if (!parsed.hasPrice) {
-          matchesPrice = false
+          matchesBudget = false
         } else {
           const { min: pMin, max: pMax } = parsed
-          const filterMin = appliedPriceRange.min
-          const filterMax = appliedPriceRange.max
-          // Strict baseline: Min price filter requires product starting price to be at or above filterMin
-          const matchesMin = filterMin === null || (pMin !== null && pMin >= filterMin)
-          // Budget affordability: Max price filter requires product entry price to be within filterMax
-          const matchesMax = filterMax === null || (pMin !== null && pMin <= filterMax)
-          matchesPrice = matchesMin && matchesMax
+          // Range inclusion: Target budget must fall within the product price range [min, max]
+          matchesBudget = pMin !== null && pMax !== null && pMin <= budgetFilter && budgetFilter <= pMax
         }
       }
 
@@ -212,7 +185,7 @@ export default function BrowsePage() {
         matchesBattery = !p.battery || p.battery.trim() === '' || p.battery.toLowerCase() === 'none'
       }
 
-      return matchesSearch && matchesCategory && matchesPower && matchesWaterproof && matchesPrice && matchesBattery
+      return matchesSearch && matchesCategory && matchesPower && matchesWaterproof && matchesBudget && matchesBattery
     })
     .sort((a, b) => {
       if (sortBy === 'watt-low') return (a.watt || 0) - (b.watt || 0)
@@ -351,61 +324,45 @@ export default function BrowsePage() {
               </div>
             </div>
 
-            {/* Price Range Filter */}
+            {/* Target Budget Slider */}
             <div className="flex flex-col gap-2.5 sm:gap-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs sm:text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Price Range</h3>
-                {(appliedPriceRange.min !== null || appliedPriceRange.max !== null) && (
+                <h3 className="text-xs sm:text-label-md text-jds-on-surface font-bold uppercase tracking-wider">Target Budget</h3>
+                {!isBudgetUnconstrained && (
                   <button
                     type="button"
-                    onClick={handleResetPrice}
+                    onClick={() => setBudgetFilter(null)}
                     className="text-[11px] text-jds-primary hover:underline font-semibold cursor-pointer"
                   >
                     Reset
                   </button>
                 )}
               </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  handleApplyPrice()
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-jds-on-surface-variant font-medium">Budget per unit</span>
+                <span className="text-xs font-bold text-jds-primary bg-jds-primary/10 px-2.5 py-0.5 rounded-lg">
+                  {isBudgetUnconstrained
+                    ? `₱${catalogBounds.maxPrice.toLocaleString()}+ (Any Budget)`
+                    : `₱${Number(budgetFilter).toLocaleString()}`}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={catalogBounds.minPrice}
+                max={catalogBounds.maxPrice}
+                step={250}
+                value={isBudgetUnconstrained ? catalogBounds.maxPrice : budgetFilter}
+                onChange={(e) => {
+                  const val = Number(e.target.value)
+                  setBudgetFilter(val >= catalogBounds.maxPrice ? null : val)
                 }}
-                className="flex flex-col gap-2 sm:gap-2.5"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="₱ MIN"
-                      aria-label="Minimum price in Philippine Pesos"
-                      value={minPriceInput}
-                      onChange={(e) => setMinPriceInput(e.target.value.replace(/[^0-9]/g, ''))}
-                      className="w-full px-2.5 py-1.5 sm:py-2 bg-jds-surface-container-lowest border border-jds-outline-variant/60 rounded-md text-xs text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary focus:ring-1 focus:ring-jds-primary transition-colors text-center font-medium"
-                    />
-                  </div>
-                  <span className="text-jds-on-surface-variant/40 text-xs font-bold shrink-0">—</span>
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="₱ MAX"
-                      aria-label="Maximum price in Philippine Pesos"
-                      value={maxPriceInput}
-                      onChange={(e) => setMaxPriceInput(e.target.value.replace(/[^0-9]/g, ''))}
-                      className="w-full px-2.5 py-1.5 sm:py-2 bg-jds-surface-container-lowest border border-jds-outline-variant/60 rounded-md text-xs text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary focus:ring-1 focus:ring-jds-primary transition-colors text-center font-medium"
-                    />
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  className="w-full py-2 sm:py-2.5 bg-jds-primary hover:bg-jds-primary/90 text-white font-bold rounded-md text-xs uppercase tracking-wider transition-all active:scale-[0.99] cursor-pointer shadow-xs"
-                >
-                  APPLY
-                </button>
-              </form>
+                className="w-full h-1.5 sm:h-2 bg-jds-surface-variant rounded-lg appearance-none cursor-pointer accent-jds-primary"
+                aria-label="Target budget slider in Philippine Pesos"
+              />
+              <div className="flex items-center justify-between text-[10px] text-jds-on-surface-variant/60 font-mono">
+                <span>₱{catalogBounds.minPrice.toLocaleString()}</span>
+                <span>Any Budget</span>
+              </div>
             </div>
 
             {/* Battery Filter */}
@@ -568,7 +525,7 @@ export default function BrowsePage() {
                     setActiveCategory('All Products')
                     setPowerFilter('All Power')
                     setWaterproofFilter('All Ratings')
-                    handleResetPrice()
+                    setBudgetFilter(null)
                     setBatteryFilter('All')
                   }}
                   className="border border-jds-secondary text-jds-secondary px-6 py-2 rounded-lg text-label-md hover:bg-jds-secondary hover:text-white transition-colors"

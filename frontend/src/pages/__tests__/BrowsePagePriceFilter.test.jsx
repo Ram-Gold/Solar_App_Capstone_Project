@@ -31,6 +31,17 @@ const mockProducts = [
     waterproof_grade: 'IP67',
     in_stock: true,
   },
+  {
+    id: 4,
+    name: 'Unpriced Consultative Streetlight 600W',
+    type: 'Solar Streetlight',
+    watt: 600,
+    price_range: null,
+    min_price: null,
+    max_price: null,
+    waterproof_grade: 'IP65',
+    in_stock: true,
+  },
 ]
 
 vi.mock('../../context/AuthContext', () => ({
@@ -57,7 +68,7 @@ vi.mock('../../lib/supabaseClient', () => ({
   },
 }))
 
-describe('BrowsePage Price Range Filter', () => {
+describe('BrowsePage Target Budget Slider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -76,31 +87,51 @@ describe('BrowsePage Price Range Filter', () => {
     )
   }
 
-  it('renders MIN, MAX inputs and APPLY button according to reference specification', async () => {
+  it('renders Target Budget slider with real-time value and Any Budget unconstrained state', async () => {
     renderBrowsePage()
 
     await waitFor(() => {
       expect(screen.getByText('Solar Streetlight 100W')).toBeDefined()
     })
 
-    expect(screen.getByPlaceholderText('₱ MIN')).toBeDefined()
-    expect(screen.getByPlaceholderText('₱ MAX')).toBeDefined()
-    expect(screen.getByRole('button', { name: /apply/i })).toBeDefined()
+    expect(screen.getByLabelText(/target budget slider in philippine pesos/i)).toBeDefined()
+    expect(screen.getAllByText(/Any Budget/i).length).toBeGreaterThanOrEqual(1)
+    // Unpriced units are visible in Any Budget mode
+    expect(screen.getByText('Unpriced Consultative Streetlight 600W')).toBeDefined()
   })
 
-  it('correctly matches products when MAX is set to 1000 (resolving the upper-bound exclusion bug)', async () => {
+  it('dynamically matches products whose price range encloses the budget slider value (1500)', async () => {
     renderBrowsePage()
 
     await waitFor(() => {
       expect(screen.getByText('Solar Streetlight 100W')).toBeDefined()
     })
 
-    const maxInput = screen.getByPlaceholderText('₱ MAX')
-    const applyBtn = screen.getByRole('button', { name: /apply/i })
+    const slider = screen.getByLabelText(/target budget slider in philippine pesos/i)
 
-    // Set MAX = 1000. Products with starting price <= 1000 (e.g. 1000-2000) are affordable.
-    fireEvent.change(maxInput, { target: { value: '1000' } })
-    fireEvent.click(applyBtn)
+    // Move slider to 1500. 1000 <= 1500 <= 2000 matches!
+    fireEvent.change(slider, { target: { value: '1500' } })
+
+    await waitFor(() => {
+      expect(screen.getByText('Solar Streetlight 100W')).toBeDefined()
+      expect(screen.queryByText('Aviation Aluminum Solar Road Light 300W')).toBeNull()
+      expect(screen.queryByText('Heavy Industrial Floodlight 1000W')).toBeNull()
+      // Specific budget excludes unpriced models
+      expect(screen.queryByText('Unpriced Consultative Streetlight 600W')).toBeNull()
+    })
+  })
+
+  it('correctly matches at lower boundary (1000) resolving the 1000 pesos slider bug', async () => {
+    renderBrowsePage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Solar Streetlight 100W')).toBeDefined()
+    })
+
+    const slider = screen.getByLabelText(/target budget slider in philippine pesos/i)
+
+    // Set slider to 1000. Under min <= budget <= max, 1000 <= 1000 <= 2000 is true!
+    fireEvent.change(slider, { target: { value: '1000' } })
 
     await waitFor(() => {
       expect(screen.getByText('Solar Streetlight 100W')).toBeDefined()
@@ -109,46 +140,37 @@ describe('BrowsePage Price Range Filter', () => {
     })
   })
 
-  it('excludes products when MIN is set to 1500 if their starting price is lower (e.g. 1000-2000)', async () => {
+  it('dynamically switches active products when dragged to 3000', async () => {
     renderBrowsePage()
 
     await waitFor(() => {
       expect(screen.getByText('Solar Streetlight 100W')).toBeDefined()
     })
 
-    const minInput = screen.getByPlaceholderText('₱ MIN')
-    const applyBtn = screen.getByRole('button', { name: /apply/i })
+    const slider = screen.getByLabelText(/target budget slider in philippine pesos/i)
 
-    // Set MIN = 1500. Solar Streetlight 100W (1000-2000) starts at 1000, so it must be excluded.
-    fireEvent.change(minInput, { target: { value: '1500' } })
-    fireEvent.click(applyBtn)
-
-    await waitFor(() => {
-      expect(screen.queryByText('Solar Streetlight 100W')).toBeNull()
-      expect(screen.getByText('Aviation Aluminum Solar Road Light 300W')).toBeDefined()
-      expect(screen.getByText('Heavy Industrial Floodlight 1000W')).toBeDefined()
-    })
-  })
-
-  it('filters by range (2100 - 3400) and displays the Reset button', async () => {
-    renderBrowsePage()
-
-    await waitFor(() => {
-      expect(screen.getByText('Solar Streetlight 100W')).toBeDefined()
-    })
-
-    const minInput = screen.getByPlaceholderText('₱ MIN')
-    const maxInput = screen.getByPlaceholderText('₱ MAX')
-    const applyBtn = screen.getByRole('button', { name: /apply/i })
-
-    fireEvent.change(minInput, { target: { value: '2100' } })
-    fireEvent.change(maxInput, { target: { value: '3400' } })
-    fireEvent.click(applyBtn)
+    // Drag to 3000. 2500 <= 3000 <= 3500 matches! 1000-2000 is excluded.
+    fireEvent.change(slider, { target: { value: '3000' } })
 
     await waitFor(() => {
       expect(screen.queryByText('Solar Streetlight 100W')).toBeNull()
       expect(screen.getByText('Aviation Aluminum Solar Road Light 300W')).toBeDefined()
       expect(screen.queryByText('Heavy Industrial Floodlight 1000W')).toBeNull()
+    })
+  })
+
+  it('clicking Reset or sliding to max returns to unconstrained Any Budget mode', async () => {
+    renderBrowsePage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Solar Streetlight 100W')).toBeDefined()
+    })
+
+    const slider = screen.getByLabelText(/target budget slider in philippine pesos/i)
+
+    fireEvent.change(slider, { target: { value: '2500' } })
+
+    await waitFor(() => {
       expect(screen.getByRole('button', { name: /reset/i })).toBeDefined()
     })
 
@@ -159,31 +181,8 @@ describe('BrowsePage Price Range Filter', () => {
       expect(screen.getByText('Solar Streetlight 100W')).toBeDefined()
       expect(screen.getByText('Aviation Aluminum Solar Road Light 300W')).toBeDefined()
       expect(screen.getByText('Heavy Industrial Floodlight 1000W')).toBeDefined()
+      expect(screen.getByText('Unpriced Consultative Streetlight 600W')).toBeDefined()
       expect(screen.queryByRole('button', { name: /reset/i })).toBeNull()
-    })
-  })
-
-  it('automatically swaps MIN and MAX if user enters MIN > MAX', async () => {
-    renderBrowsePage()
-
-    await waitFor(() => {
-      expect(screen.getByText('Solar Streetlight 100W')).toBeDefined()
-    })
-
-    const minInput = screen.getByPlaceholderText('₱ MIN')
-    const maxInput = screen.getByPlaceholderText('₱ MAX')
-    const applyBtn = screen.getByRole('button', { name: /apply/i })
-
-    // User accidentally inverted them
-    fireEvent.change(minInput, { target: { value: '5000' } })
-    fireEvent.change(maxInput, { target: { value: '3500' } })
-    fireEvent.click(applyBtn)
-
-    await waitFor(() => {
-      expect(screen.getByText('Heavy Industrial Floodlight 1000W')).toBeDefined()
-      expect(screen.queryByText('Solar Streetlight 100W')).toBeNull()
-      expect(minInput.value).toBe('3500')
-      expect(maxInput.value).toBe('5000')
     })
   })
 })
