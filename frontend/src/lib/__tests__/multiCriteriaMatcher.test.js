@@ -297,4 +297,142 @@ describe('Dynamic Catalog Bounds & Max-Value Sliders (MCDSS)', () => {
     expect(evaluated.priceInfo.isUnlisted).toBe(true)
     expect(evaluated.explanation).toContain('Price confirmed at store branch via inquiry')
   })
+
+  describe('Comprehensive Multi-Criteria Budget Boundary Tests (MCDSS Affordability Ceiling)', () => {
+    const catalog = [
+      {
+        id: 101,
+        name: 'Entry Solar Streetlight 100W',
+        watt: 100,
+        min_price: 1000,
+        max_price: 2000,
+        price_range: '1000-2000',
+        in_stock: true,
+        type: 'Solar Streetlight',
+        waterproof_grade: 'IP65',
+        solar_panel: 'Silicon',
+        charging_type: 'Solar',
+      },
+      {
+        id: 102,
+        name: 'Mid Solar Streetlight 300W',
+        watt: 300,
+        min_price: 2500,
+        max_price: 3500,
+        price_range: '2500-3500',
+        in_stock: true,
+        type: 'Solar Streetlight',
+        waterproof_grade: 'IP65',
+        solar_panel: 'Silicon',
+        charging_type: 'Solar',
+      },
+      {
+        id: 103,
+        name: 'Industrial High Mast 800W',
+        watt: 800,
+        min_price: 5000,
+        max_price: 7500,
+        price_range: '5000-7500',
+        in_stock: true,
+        type: 'Solar Streetlight',
+        waterproof_grade: 'IP67',
+        solar_panel: 'Silicon',
+        charging_type: 'Solar',
+      },
+      {
+        id: 104,
+        name: 'Custom Consultative Luminaire 600W',
+        watt: 600,
+        min_price: null,
+        max_price: null,
+        price_range: null,
+        in_stock: true,
+        type: 'Solar Streetlight',
+        waterproof_grade: 'IP67',
+        solar_panel: 'Silicon',
+        charging_type: 'Solar',
+      },
+    ]
+
+    const bounds = getCatalogBounds(catalog)
+
+    it('evaluates budget at 1000 pesos boundary without false rejection', () => {
+      const p100W = catalog[0] // 1000 - 2000
+      // At budget 1000, min_price (1000) <= 1000, so entry price fits: score is 0.85
+      const score = scoreBudgetFit(p100W, 1000, bounds.maxPrice)
+      expect(score).toBe(0.85)
+
+      // Expensive products exceed 1000 and trigger Budget Compromise
+      const match = matchSolarProducts(catalog, { location: 'street', powerNeeds: 100, budget: 1000 }, { threshold: 0.1, catalogBounds: bounds })
+      const topPick = match.matches.find((m) => m.product.id === 101)
+      expect(topPick).toBeDefined()
+      expect(topPick.compromise.hasCompromise).toBe(false)
+    })
+
+    it('evaluates budget at 1500 pesos boundary where 1000-2000 is comfortably accessible', () => {
+      const p100W = catalog[0] // 1000 - 2000
+      const score = scoreBudgetFit(p100W, 1500, bounds.maxPrice)
+      expect(score).toBe(0.85)
+
+      const match = matchSolarProducts(catalog, { location: 'street', powerNeeds: 100, budget: 1500 }, { threshold: 0.5, catalogBounds: bounds })
+      const p100Match = match.matches.find((m) => m.product.id === 101)
+      expect(p100Match.breakdown.budgetScore).toBe(85)
+      expect(p100Match.compromise.hasCompromise).toBe(false)
+    })
+
+    it('evaluates budget at 2000 pesos boundary awarding 100% affordability to 1000-2000 product', () => {
+      const p100W = catalog[0] // 1000 - 2000
+      // Max price is 2000 <= budget 2000 -> full 1.00 affordability
+      const score = scoreBudgetFit(p100W, 2000, bounds.maxPrice)
+      expect(score).toBe(1.0)
+
+      // 2500 - 3500 exceeds 2000 by 500 (25% over) -> triggers Budget Compromise
+      const p300W = catalog[1]
+      const score300 = scoreBudgetFit(p300W, 2000, bounds.maxPrice)
+      expect(score300).toBe(0.40)
+    })
+
+    it('evaluates budget at 3000 pesos boundary and proves lack of upscale bias', () => {
+      // 1000-2000 luminaire is completely affordable (100% budget fit)
+      const p100Score = scoreBudgetFit(catalog[0], 3000, bounds.maxPrice)
+      expect(p100Score).toBe(1.0)
+
+      // 2500-3500 luminaire starting price fits (85% budget fit)
+      const p300Score = scoreBudgetFit(catalog[1], 3000, bounds.maxPrice)
+      expect(p300Score).toBe(0.85)
+
+      // Run full MCDSS matching: cheaper luminaire is not penalized for costing less
+      const match = matchSolarProducts(catalog, { location: 'street', powerNeeds: 100, budget: 3000 }, { threshold: 0.5, catalogBounds: bounds })
+      const p100Match = match.matches.find((m) => m.product.id === 101)
+      expect(p100Match.breakdown.budgetScore).toBe(100)
+    })
+
+    it('evaluates sinagad / unconstrained Any Budget mode awarding 100% budget fit to all items', () => {
+      catalog.forEach((p) => {
+        // 'any' sets 100% for all products including unpriced
+        const scoreAny = scoreBudgetFit(p, 'any', bounds.maxPrice)
+        expect(scoreAny).toBe(1.0)
+
+        // Numeric slider pulled to maxPrice awards 100% to all priced products, while unlisted retains 70% neutral
+        const scoreMax = scoreBudgetFit(p, bounds.maxPrice, bounds.maxPrice)
+        if (p.min_price !== null) {
+          expect(scoreMax).toBe(1.0)
+        } else {
+          expect(scoreMax).toBe(0.70)
+        }
+      })
+    })
+
+    it('handles NULL consultative pricing neutrally (70%) without ghost calculations', () => {
+      const pConsultative = catalog[3]
+      const score = scoreBudgetFit(pConsultative, 3000, bounds.maxPrice)
+      expect(score).toBe(0.70)
+
+      const match = matchSolarProducts(catalog, { location: 'street', powerNeeds: 600, budget: 3000 }, { threshold: 0.5, catalogBounds: bounds })
+      const consultMatch = match.matches.find((m) => m.product.id === 104)
+      expect(consultMatch.breakdown.budgetScore).toBe(70)
+      expect(consultMatch.priceInfo.isUnlisted).toBe(true)
+      expect(consultMatch.explanation).toContain('Price confirmed at store branch via inquiry')
+    })
+  })
 })

@@ -786,11 +786,11 @@
               <span class="tag-db">Product Specs</span>
             </div>
             <p class="card-subtext">
-              What is written on the product box in the warehouse:
+              What is stored in the Supabase products table:
             </p>
             <div class="giant-num-box">
-              <span class="giant-num">PHP 1,800</span>
-              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">Selling Price</span>
+              <span class="giant-num" style="font-size: 1.35rem;">PHP 1,000 – 2,000</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">min_price to max_price</span>
             </div>
             <div class="giant-num-box">
               <span class="giant-num" style="font-size: 1.4rem;">Streetlight</span>
@@ -801,7 +801,7 @@
               <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">LED Wattage</span>
             </div>
             <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); padding-top: 0.25rem;">
-              Stored in Supabase database
+              Structured numeric columns (or NULL if consultative)
             </div>
           </div>
         </div>
@@ -809,7 +809,7 @@
         <div class="card" style="background: #111111; color: #ffffff;">
           <div style="font-family: var(--font-mono); font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;">
             <span>HOW THE GRADE IS MADE: Compare User Input vs Database Spec</span>
-            <span style="color: #a1a1aa;">1,800 is less than 2,200 &rarr; Budget Grade = 0.98!</span>
+            <span style="color: #a1a1aa;">Max price 2,000 &le; 2,200 Budget &rarr; Budget Grade = 1.00 (100% Affordable)!</span>
           </div>
         </div>
       </div>
@@ -823,7 +823,7 @@
         <div>
           <div class="slide-tagline">
             <span class="pill">PART 1: PRODUCT MATCHING</span>
-            <span>WHERE DID 0.98 COME FROM?</span>
+            <span>AFFORDABILITY CEILING UTILITY</span>
           </div>
           <h2 class="slide-title">How the Computer Turns Specs into Grades (0.0 to 1.0)</h2>
         </div>
@@ -837,14 +837,14 @@
         <div class="grid-3">
           <div class="card">
             <div class="card-title">
-              <span>Price Comparison</span>
-              <span class="tag-result">Grade 0.98</span>
+              <span>Price Affordability</span>
+              <span class="tag-result">Grade 1.00</span>
             </div>
-            <div class="giant-num" style="margin: 0.5rem 0;">0.98</div>
+            <div class="giant-num" style="margin: 0.5rem 0;">1.00</div>
             <p class="card-subtext">
               Customer has <strong>PHP 2,200</strong>.<br>
-              Light costs <strong>PHP 1,800</strong>.<br>
-              Because 1,800 is comfortably inside the budget, it gets an almost perfect grade of <strong>0.98</strong>.
+              Light costs <strong>PHP 1,000 – 2,000</strong>.<br>
+              Because the entire price bracket is inside the budget, it gets a full grade of <strong>1.00</strong>. Cheaper lights are never penalized!
             </p>
           </div>
 
@@ -877,7 +877,7 @@
 
         <div class="card highlight">
           <div style="font-size: 0.9rem; color: var(--text-primary);">
-            <strong>Now we have our 3 grades:</strong> Price = <strong>0.98</strong>, Place = <strong>1.00</strong>, Brightness = <strong>1.00</strong>.
+            <strong>Now we have our 3 grades:</strong> Price = <strong>1.00</strong>, Place = <strong>1.00</strong>, Brightness = <strong>1.00</strong>.
             Next, we multiply them by the <strong>Given Weights (0.35, 0.35, 0.30)</strong>.
           </div>
         </div>
@@ -905,7 +905,7 @@
             <div style="flex: 1;">
               <strong>Step 1: Get the 3 grades from the comparison</strong>
               <div style="font-size: 1.15rem; font-weight: 700; color: #111; margin-top: 0.2rem;">
-                Price Grade = 0.98 &nbsp;|&nbsp; Place Grade = 1.00 &nbsp;|&nbsp; Power Grade = 1.00
+                Price Grade = 1.00 &nbsp;|&nbsp; Place Grade = 1.00 &nbsp;|&nbsp; Power Grade = 1.00
               </div>
             </div>
           </div>
@@ -917,7 +917,7 @@
               <div style="display: flex; gap: 2rem; margin-top: 0.35rem; align-items: center;">
                 <div>
                   <span style="font-size: 0.75rem; color: var(--text-muted);">PRICE (35%)</span><br>
-                  <span class="giant-num" style="font-size: 1.5rem;">0.98 &times; 0.35 = 0.343</span>
+                  <span class="giant-num" style="font-size: 1.5rem;">1.00 &times; 0.35 = 0.350</span>
                 </div>
                 <div>
                   <span style="font-size: 0.75rem; color: var(--text-muted);">PLACE (35%)</span><br>
@@ -936,7 +936,7 @@
             <div style="flex: 1;">
               <strong>Step 3: Add the 3 answers together (Simple Addition)</strong>
               <div class="giant-num" style="font-size: 1.75rem; margin-top: 0.25rem;">
-                0.343 + 0.350 + 0.300 = 0.993
+                0.350 + 0.350 + 0.300 = 1.000
               </div>
             </div>
           </div>
@@ -946,10 +946,10 @@
             <div style="flex: 1; display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <strong>Step 4: Multiply by 100 to show the percentage</strong>
-                <div style="font-size: 0.9rem; color: #d4d4d8;">0.993 &times; 100 = 99.3%</div>
+                <div style="font-size: 0.9rem; color: #d4d4d8;">1.000 &times; 100 = 100.0%</div>
               </div>
               <div class="giant-num" style="color: #ffffff; font-size: 2.5rem;">
-                99% MATCH
+                100% MATCH
               </div>
             </div>
           </div>
@@ -983,7 +983,7 @@
             <thead>
               <tr>
                 <th>Light Candidate</th>
-                <th>Price & Watts</th>
+                <th>Price Range & Watts</th>
                 <th>Price (35%)</th>
                 <th>Place (35%)</th>
                 <th>Power (30%)</th>
@@ -994,29 +994,29 @@
             <tbody>
               <tr>
                 <td style="font-weight: 800; color: #111;">Light A: 100W Streetlight</td>
-                <td>PHP 1,800<br>100W</td>
-                <td>0.98 &times; 0.35<br><strong>0.343</strong></td>
+                <td>PHP 1,000 – 2,000<br>100W</td>
+                <td>1.00 &times; 0.35<br><strong>0.350</strong></td>
                 <td>1.00 &times; 0.35<br><strong>0.350</strong></td>
                 <td>1.00 &times; 0.30<br><strong>0.300</strong></td>
                 <td style="font-family: var(--font-mono); font-weight: 800; font-size: 1rem; color: #111;">
-                  0.343 + 0.350 + 0.300<br>= <strong>99%</strong>
+                  0.350 + 0.350 + 0.300<br>= <strong>100%</strong>
                 </td>
                 <td><span class="badge-status badge-pass">WINNER</span></td>
               </tr>
               <tr>
                 <td style="font-weight: 800; color: #111;">Light B: 600W Highway Light</td>
-                <td>PHP 6,200<br>600W</td>
+                <td>PHP 5,000 – 7,500<br>600W</td>
                 <td>0.10 &times; 0.35<br><strong>0.035</strong></td>
                 <td>0.30 &times; 0.35<br><strong>0.105</strong></td>
                 <td>0.20 &times; 0.30<br><strong>0.060</strong></td>
                 <td style="font-family: var(--font-mono); font-weight: 800; font-size: 1rem; color: #71717a;">
-                  0.035 + 0.105 + 0.060<br>= <strong>20%</strong>
+                  0.035 + 0.105 + 0.060<br>= <strong>20%</strong><br><small style="color: #e11d48;">Budget Compromise</small>
                 </td>
                 <td><span class="badge-status badge-fail">REJECTED</span></td>
               </tr>
               <tr>
                 <td style="font-weight: 800; color: #111;">Light C: 40W Floodlight</td>
-                <td>PHP 1,200<br>40W</td>
+                <td>PHP 1,000 – 1,500<br>40W</td>
                 <td>1.00 &times; 0.35<br><strong>0.350</strong></td>
                 <td>0.85 &times; 0.35<br><strong>0.298</strong></td>
                 <td>0.40 &times; 0.30<br><strong>0.120</strong></td>
@@ -1030,7 +1030,7 @@
         </div>
 
         <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.45;">
-          <strong>Why Light A won:</strong> Light C was cheaper, but 40 watts is too dim. Light B had the biggest wattage number, but cost 6,200 pesos and would blind people on a low gate. Light A balanced all 3 tests and won with 99%.
+          <strong>Why Light A won:</strong> Light A's price range (1,000-2,000) was fully affordable under 2,200 and matched the 100W target at 3.5m. Light C was also affordable, but 40W was under-powered. Light B exceeded the budget by over 100%, triggering a Budget Compromise and discordance penalty. Consultative unpriced lights (NULL) receive a 0.70 baseline.
         </div>
       </div>
     </section>
@@ -1045,7 +1045,7 @@
             <span class="pill">PART 1: PRODUCT MATCHING</span>
             <span>GIVEN STORE RULES</span>
           </div>
-          <h2 class="slide-title">Two Given Rules: In-Stock Penalty and Passing Line</h2>
+          <h2 class="slide-title">Four Key Store Rules: Stock, Threshold, Compromise, and Unpriced</h2>
         </div>
         <div class="slide-section-badge">SLIDE 07 / 21</div>
       </div>
@@ -1053,36 +1053,70 @@
         <div class="grid-2">
           <div class="card highlight">
             <div class="card-title">
-              <span>Given Rule 1: Out of Stock Penalty</span>
-              <span class="tag-given">Given 50% Cut</span>
+              <span>Rule 1: Out of Stock Penalty</span>
+              <span class="tag-given">50% Cut</span>
             </div>
             <div class="giant-num" style="margin: 0.5rem 0;">&times; 0.50</div>
             <p class="card-subtext">
-              If a product gets 99%, but warehouse stock is 0:
+              If a product gets 100%, but warehouse stock is 0:
             </p>
             <div style="background: #ffffff; border: 1px solid var(--surface-border); padding: 0.65rem; font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700;">
-              99% &times; 0.50 = 49.5% (Demoted!)
+              100% &times; 0.50 = 50.0% (Demoted!)
             </div>
             <p class="card-subtext">
-              Why? Nobody wants the app to recommend a light they cannot buy today. In-stock products always win.
+              In-stock inventory always wins so customers only see available lights.
             </p>
           </div>
 
           <div class="card highlight">
             <div class="card-title">
-              <span>Given Rule 2: The Passing Line</span>
-              <span class="tag-given">Given 70% Cutoff</span>
+              <span>Rule 2: The Passing Line</span>
+              <span class="tag-given">70% Cutoff</span>
             </div>
             <div class="giant-num" style="margin: 0.5rem 0;">70%</div>
             <p class="card-subtext">
-              Just like a school exam, a product needs at least <strong>70 points out of 100</strong> to pass.
+              Just like a school exam, a product needs at least <strong>70 points out of 100</strong> to qualify.
             </p>
             <div style="background: #ffffff; border: 1px solid var(--surface-border); padding: 0.65rem; font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700;">
               Score &ge; 70%: Show to customer<br>
               Score &lt; 70%: Hidden from customer
             </div>
             <p class="card-subtext">
-              We never show bad recommendations.
+              We never recommend poor technical fits.
+            </p>
+          </div>
+
+          <div class="card highlight">
+            <div class="card-title">
+              <span>Rule 3: Budget Compromise & Discordance</span>
+              <span class="tag-given">&times; 0.85 Penalty</span>
+            </div>
+            <div class="giant-num" style="margin: 0.5rem 0;">&gt; 20% Over</div>
+            <p class="card-subtext">
+              If starting price exceeds budget by &gt; 20%, app flags a <strong>Budget Compromise</strong> and applies a 15% discordance reduction.
+            </p>
+            <div style="background: #ffffff; border: 1px solid var(--surface-border); padding: 0.65rem; font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700;">
+              Score &times; 0.85 (Discordance penalty)
+            </div>
+            <p class="card-subtext">
+              Prevents high wattage from masking severe financial overshoots.
+            </p>
+          </div>
+
+          <div class="card highlight">
+            <div class="card-title">
+              <span>Rule 4: Neutral Consultative Baseline</span>
+              <span class="tag-given">0.70 Grade</span>
+            </div>
+            <div class="giant-num" style="margin: 0.5rem 0;">0.70</div>
+            <p class="card-subtext">
+              Custom high-mast towers with unlisted prices (NULL in database) are evaluated neutrally.
+            </p>
+            <div style="background: #ffffff; border: 1px solid var(--surface-border); padding: 0.65rem; font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700;">
+              Budget Grade = 0.70 (Inquire at Branch)
+            </div>
+            <p class="card-subtext">
+              Allows industrial infrastructure units to compete fairly on optics and power.
             </p>
           </div>
         </div>
@@ -1160,10 +1194,10 @@
 
             <!-- PRESET BUTTONS -->
             <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-              <button type="button" class="btn-preset" data-price="98" data-place="100" data-power="100" data-stock="true">Light A (100W)</button>
+              <button type="button" class="btn-preset" data-price="100" data-place="100" data-power="100" data-stock="true">Light A (100W)</button>
               <button type="button" class="btn-preset" data-price="10" data-place="30" data-power="20" data-stock="true">Light B (600W)</button>
               <button type="button" class="btn-preset" data-price="100" data-place="85" data-power="40" data-stock="true">Light C (40W)</button>
-              <button type="button" class="btn-preset" data-price="98" data-place="100" data-power="100" data-stock="false">Light A (Out of Stock)</button>
+              <button type="button" class="btn-preset" data-price="100" data-place="100" data-power="100" data-stock="false">Light A (Out of Stock)</button>
             </div>
           </div>
 
@@ -1233,32 +1267,37 @@
 
           <!-- BUDGET COLUMN -->
           <div class="card" style="display:flex; flex-direction:column; gap:0.6rem;">
-            <div style="font-size:0.68rem; font-weight:800; letter-spacing:0.1em; border-bottom:2px solid #111; padding-bottom:0.3rem;">BUDGET — HOW IT PARSES</div>
+            <div style="font-size:0.68rem; font-weight:800; letter-spacing:0.1em; border-bottom:2px solid #111; padding-bottom:0.3rem;">BUDGET — AFFORDABILITY CEILING</div>
             <div style="font-size:0.75rem; color:#555; line-height:1.5;">
-              You pick a bracket like <code style="background:#f0f0f0;padding:1px 4px;">1000-2000</code>. The code strips every non-digit character and reads the two numbers.
+              Customer selects a target budget ceiling. The database reads product <code style="background:#f0f0f0;padding:1px 4px;">min_price</code> and <code style="background:#f0f0f0;padding:1px 4px;">max_price</code>.
             </div>
             <div style="font-family:var(--font-mono); font-size:0.72rem; background:#f4f4f6; padding:0.5rem 0.6rem; border-left:3px solid #111; line-height:1.7;">
-              <div style="color:#888;">"1000-2000" → split("-")</div>
-              <div>→ [1000, 2000]</div>
-              <div>→ avg = <strong>1500</strong></div>
-              <div style="color:#888; margin-top:0.3rem;">"3000+" → one number + "+"</div>
-              <div>→ max = 3000 × 1.4 = 4200</div>
-              <div>→ avg = <strong>3600</strong></div>
+              <div style="color:#888;">Rule: No penalty for cheaper lights</div>
+              <div>• max &le; budget &rarr; <strong>1.00</strong> (Fully affordable)</div>
+              <div>• min &le; budget &lt; max &rarr; <strong>0.85</strong> (Entry fits)</div>
+              <div>• min &gt; budget &rarr; <strong>0.65 / 0.40 / 0.10</strong> (Over budget)</div>
+              <div>• unpriced (NULL) &rarr; <strong>0.70</strong> (Inquire at Branch)</div>
             </div>
-            <div style="font-size:0.75rem; color:#555;">Then the product's own price_range goes through the same parse. The two averages are compared with subtraction.</div>
+            <div style="font-size:0.75rem; color:#555;">Prevents upscale bias: capable lights costing less than the budget are rewarded with full 100% financial utility.</div>
 
             <!-- Live budget demo -->
             <div style="background:#111; color:#fff; padding:0.6rem 0.75rem; border-radius:4px;">
-              <div style="font-size:0.65rem; color:#aaa; margin-bottom:0.4rem; letter-spacing:0.06em;">TRY IT — PICK A BRACKET</div>
+              <div style="font-size:0.65rem; color:#aaa; margin-bottom:0.4rem; letter-spacing:0.06em;">TRY IT — SET TARGET BUDGET</div>
               <select id="budget-sel" style="width:100%; background:#222; color:#fff; border:1px solid #444; padding:0.3rem 0.4rem; font-family:var(--font-mono); font-size:0.78rem;">
-                <option value="1000-2000">1000-2000</option>
-                <option value="2500-3500">2500-3500</option>
-                <option value="3000+">3000+</option>
-                <option value="any">any</option>
+                <option value="2000">Target Budget: PHP 2,000</option>
+                <option value="1500">Target Budget: PHP 1,500</option>
+                <option value="1000">Target Budget: PHP 1,000</option>
+                <option value="3000">Target Budget: PHP 3,000</option>
+                <option value="any">Target Budget: Any Budget</option>
+              </select>
+              <select id="budget-prod" style="width:100%; background:#222; color:#fff; border:1px solid #444; padding:0.3rem 0.4rem; font-family:var(--font-mono); font-size:0.78rem; margin-top:0.4rem;">
+                <option value="1000-2000">Product: PHP 1,000 – 2,000</option>
+                <option value="2500-3500">Product: PHP 2,500 – 3,500</option>
+                <option value="5000-7500">Product: PHP 5,000 – 7,500</option>
+                <option value="null">Product: Unpriced (Consultative)</option>
               </select>
               <div style="margin-top:0.5rem; font-family:var(--font-mono); font-size:0.78rem; line-height:1.7;">
-                <div>Parsed avg: <span id="b-avg" style="font-size:1.1rem; font-weight:800; color:#fff;">1500</span></div>
-                <div>Product avg: <span id="b-prod-avg" style="color:#aaa;">2000 (example)</span></div>
+                <div>Evaluation: <span id="b-eval" style="color:#aaa; font-size:0.72rem;">Pmax &le; Budget (100% Affordable)</span></div>
                 <div>Budget score: <span id="b-score" style="font-size:1.4rem; font-weight:800; color:#fff;">1.00</span></div>
               </div>
             </div>
@@ -1358,29 +1397,32 @@
 
       <script>
       (function() {
-        // ---- Budget logic ----
-        function parseBracket(s) {
-          if (s === 'any') return { avg: null };
-          const nums = s.split('-').map(p => parseInt(p.replace(/[^0-9]/g,''),10)).filter(n=>!isNaN(n));
-          if (nums.length >= 2) return { avg: Math.round((nums[0]+nums[1])/2) };
-          if (nums.length === 1 && s.includes('+')) return { avg: Math.round(nums[0]*1.2) };
-          return { avg: nums[0] || null };
+        // ---- Budget logic (Affordability Ceiling) ----
+        function calculateBudgetScore(userBudget, prodRange) {
+          if (userBudget === 'any') return { score: 1.0, status: 'Any budget unconstrained' };
+          if (prodRange === 'null') return { score: 0.70, status: 'Unpriced (Inquire at Branch)' };
+
+          const parts = prodRange.split('-').map(Number);
+          const pMin = parts[0];
+          const pMax = parts[1] || pMin;
+          const budget = Number(userBudget);
+
+          if (pMax <= budget) {
+            return { score: 1.0, status: 'Pmax <= Budget (100% Affordable)' };
+          }
+          if (pMin <= budget) {
+            return { score: 0.85, status: 'Pmin <= Budget (Entry price fits)' };
+          }
+          const over = (pMin - budget) / budget;
+          if (over <= 0.15) return { score: 0.65, status: `Over budget by ${Math.round(over * 100)}% (Compromise)` };
+          if (over <= 0.30) return { score: 0.40, status: `Over budget by ${Math.round(over * 100)}% (Compromise)` };
+          return { score: 0.10, status: `Over budget by ${Math.round(over * 100)}% (Compromise)` };
         }
-        function budgetScore(bracket, prodAvg) {
-          if (bracket === 'any') return 1.0;
-          const { avg: userAvg } = parseBracket(bracket);
-          if (!userAvg) return 1.0;
-          if (prodAvg <= userAvg * 1.0) return 1.0;
-          if (prodAvg <= userAvg * 1.15) return 0.80;
-          if (prodAvg <= userAvg * 1.30) return 0.65;
-          return 0.20;
-        }
-        const PROD_AVG = 2000; // fixed example product price
         function updateBudget() {
-          const bracket = document.getElementById('budget-sel').value;
-          const { avg } = parseBracket(bracket);
-          const score = budgetScore(bracket, PROD_AVG);
-          document.getElementById('b-avg').textContent = avg ? avg.toLocaleString() : '—';
+          const budgetVal = document.getElementById('budget-sel').value;
+          const prodVal = document.getElementById('budget-prod').value;
+          const { score, status } = calculateBudgetScore(budgetVal, prodVal);
+          document.getElementById('b-eval').textContent = status;
           document.getElementById('b-score').textContent = score.toFixed(2);
           updateCombined();
         }
@@ -1471,6 +1513,7 @@
         }
 
         document.getElementById('budget-sel').addEventListener('change', updateBudget);
+        document.getElementById('budget-prod').addEventListener('change', updateBudget);
         document.getElementById('loc-sel').addEventListener('change', updateLocation);
         document.getElementById('loc-watt').addEventListener('change', updateLocation);
         document.getElementById('pow-need').addEventListener('change', updatePower);
@@ -2974,7 +3017,7 @@
               <span class="code-term">Your Answer</span>
             </div>
             <p class="card-subtext">
-              <strong>Say this:</strong> <em>"We give each solar light 3 test scores: price, place, and brightness. Price is worth 35 points, place is worth 35 points, and brightness is worth 30 points. We multiply each score by its percentage, add them up, and pick the light with the highest points. Lights below 70 points fail."</em>
+              <strong>Say this:</strong> <em>"We give each solar light 3 test scores: price, place, and brightness. Price is worth 35 points, place is 35 points, and brightness is 30 points. For pricing, we use an Affordability Ceiling: lights within the customer's budget get full points (saving them money without upscale bias), while lights exceeding budget receive distance penalties and a Budget Compromise flag. Consultative unpriced lights receive a neutral 70% score. We multiply each score by its percentage, add them up, and recommend lights above the 70% passing line."</em>
             </p>
           </div>
 
