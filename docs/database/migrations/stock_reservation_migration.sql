@@ -344,6 +344,137 @@ COMMENT ON FUNCTION public.release_product_reservation(BIGINT) IS
 
 
 -- ==============================================================================
+-- SECTION 5b: fulfill_reservation_sale()
+-- ==============================================================================
+-- Atomically fulfills a reservation during physical sale checkout:
+-- 1. Deducts physical inventory (stock_quantity = stock_quantity - sold_qty)
+-- 2. Decrements reserved_quantity hold (reserved_quantity = reserved_quantity - sold_qty)
+-- 3. Increments product sales count
+-- 4. Marks the quote_ticket as 'Completed' and clears active reservation flag
+--
+-- Parameters:
+--   p_ticket_id   BIGINT - Optional ID of the quote_ticket being fulfilled (can be NULL for direct walk-in)
+--   p_product_id  BIGINT - ID of the product sold
+--   p_quantity    INT    - Number of units sold (default 1)
+--
+-- Returns: JSONB
+--   { "success": true, "new_stock": N, "new_reserved": N, "new_sales": N }
+-- ==============================================================================
+
+CREATE OR REPLACE FUNCTION public.fulfill_reservation_sale(
+  p_ticket_id  BIGINT DEFAULT NULL,
+  p_product_id BIGINT DEFAULT NULL,
+  p_quantity   INT DEFAULT 1
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_sold_qty     INT := GREATEST(1, COALESCE(p_quantity, 1));
+  v_prod_id      BIGINT := p_product_id;
+  v_stock_qty    INT;
+  v_reserved_qty INT;
+  v_sales_qty    INT;
+  v_new_stock    INT;
+  v_new_reserved INT;
+  v_new_sales    INT;
+  v_ticket_found BOOLEAN := FALSE;
+  v_is_res       BOOLEAN := FALSE;
+BEGIN
+  -- If ticket ID is provided but product_id is null, resolve from ticket
+  IF p_ticket_id IS NOT NULL THEN
+    SELECT TRUE, product_id, is_reservation
+    INTO   v_ticket_found, v_prod_id, v_is_res
+    FROM   public.quote_tickets
+    WHERE  id = p_ticket_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RETURN jsonb_build_object(
+        'success', FALSE,
+        'error',   'Reservation ticket not found.'
+      );
+    END IF;
+  END IF;
+
+  IF v_prod_id IS NULL THEN
+    RETURN jsonb_build_object(
+      'success', FALSE,
+      'error',   'Product ID is required to fulfill sale.'
+    );
+  END IF;
+
+  -- Lock product row for atomic inventory update
+  SELECT stock_quantity, reserved_quantity, COALESCE(sales, 0)
+  INTO   v_stock_qty, v_reserved_qty, v_sales_qty
+  FROM   public.products
+  WHERE  id = v_prod_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object(
+      'success', FALSE,
+      'error',   'Product not found in catalog.'
+    );
+  END IF;
+
+  -- Compute new stock values
+  v_new_stock    := GREATEST(0, v_stock_qty - v_sold_qty);
+  v_new_sales    := v_sales_qty + v_sold_qty;
+  
+  -- If this was an active reservation, release the hold
+  IF v_is_res THEN
+    v_new_reserved := GREATEST(0, v_reserved_qty - v_sold_qty);
+  ELSE
+    v_new_reserved := LEAST(v_reserved_qty, v_new_stock);
+  END IF;
+
+  -- Update product
+  UPDATE public.products
+  SET
+    stock_quantity    = v_new_stock,
+    reserved_quantity = v_new_reserved,
+    sales             = v_new_sales,
+    in_stock          = (v_new_stock > 0)
+  WHERE id = v_prod_id;
+
+  -- If quote ticket was linked, mark as Completed
+  IF p_ticket_id IS NOT NULL THEN
+    UPDATE public.quote_tickets
+    SET
+      status                 = 'Completed',
+      is_reservation         = FALSE,
+      reservation_expires_at = NULL,
+      updated_at             = NOW()
+    WHERE id = p_ticket_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success',      TRUE,
+    'product_id',   v_prod_id,
+    'new_stock',    v_new_stock,
+    'new_reserved', v_new_reserved,
+    'new_sales',    v_new_sales,
+    'ticket_closed', p_ticket_id IS NOT NULL
+  );
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+      'success', FALSE,
+      'error',   'Fulfill sale error: ' || SQLERRM
+    );
+END;
+$$;
+
+COMMENT ON FUNCTION public.fulfill_reservation_sale(BIGINT, BIGINT, INT) IS
+  'Fulfills a sale by deducting stock_quantity, releasing any reservation hold, '
+  'incrementing sales count, and marking any linked quote_ticket as Completed.';
+
+
+-- ==============================================================================
 -- SECTION 6: Updated purge_inactive_quote_tickets()
 -- ==============================================================================
 -- Extends the existing purge job to:

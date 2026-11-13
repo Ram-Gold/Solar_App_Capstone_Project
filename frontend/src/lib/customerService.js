@@ -446,6 +446,7 @@ export async function registerCustomerAndSale({
   email,
   branchLocation = 'Cavite',
   items = [], // [{ productId, serialNumber, warrantyMonths, purchaseDate }]
+  ticketId = null,
   onEmailStatusChange = null
 }) {
   const phone = sanitizePhone(phoneNumber)
@@ -618,6 +619,56 @@ export async function registerCustomerAndSale({
       ...customer,
       email: customer.email || cleanEmail
     }
+  }
+
+  // 5. Deduct inventory and fulfill any linked reservation ticket in Supabase
+  try {
+    for (const item of items) {
+      if (item.productId) {
+        const pId = Number(item.productId)
+        const tId = ticketId ? Number(ticketId) : null
+        const { error: fulfillErr } = await supabase.rpc('fulfill_reservation_sale', {
+          p_ticket_id: tId,
+          p_product_id: pId,
+          p_quantity: 1
+        })
+
+        if (fulfillErr) {
+          console.warn('RPC fulfill_reservation_sale fallback:', fulfillErr.message)
+          // Fallback direct product update if RPC fails
+          const { data: prod } = await supabase
+            .from('products')
+            .select('id, stock_quantity, sales')
+            .eq('id', pId)
+            .maybeSingle()
+
+          if (prod) {
+            const nextStock = Math.max(0, (Number(prod.stock_quantity) || 1) - 1)
+            await supabase
+              .from('products')
+              .update({
+                stock_quantity: nextStock,
+                sales: (Number(prod.sales) || 0) + 1,
+                in_stock: nextStock > 0
+              })
+              .eq('id', pId)
+          }
+
+          if (tId) {
+            await supabase
+              .from('quote_tickets')
+              .update({
+                status: 'Completed',
+                is_reservation: false,
+                reservation_expires_at: null
+              })
+              .eq('id', tId)
+          }
+        }
+      }
+    }
+  } catch (stockErr) {
+    console.warn('Stock decrement on sale registration notice:', stockErr)
   }
 
   return {
@@ -1318,6 +1369,23 @@ export async function setCustomerPassword({ token, email, password, currentPassw
             email_confirmation_status: 'awaiting_confirmation'
           })
         }
+
+        // Seamlessly sync with native Supabase Auth
+        try {
+          await supabase.auth.signUp({
+            email: cleanEmail,
+            password: password,
+            options: {
+              data: {
+                role: 'customer',
+                access_token: token
+              }
+            }
+          })
+        } catch (authSyncErr) {
+          console.warn('Supabase Auth user sync note:', authSyncErr)
+        }
+
         return { success: true, email: cleanEmail, emailChanged, message: rpcData.message }
       } else {
         throw new Error(rpcData.error || 'Failed to update password.')
@@ -1368,6 +1436,33 @@ export async function loginCustomerWithPassword(email, password) {
     return { token: null, customer: null, error: new Error('Email and password are required.') }
   }
 
+  // 1. Attempt native Supabase Auth sign-in first
+  try {
+    const { data: supaAuth, error: supaErr } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password
+    })
+    if (!supaErr && supaAuth?.user) {
+      const { data: custRow } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('email', cleanEmail)
+        .maybeSingle()
+
+      if (custRow?.access_token) {
+        return {
+          token: custRow.access_token,
+          customer: custRow,
+          authUser: supaAuth.user,
+          error: null
+        }
+      }
+    }
+  } catch (nativeAuthErr) {
+    console.warn('Native Supabase Auth attempt note:', nativeAuthErr)
+  }
+
+  // 2. Fallback to customer_passwords RPC
   try {
     const { data: rpcData, error: rpcError } = await supabase.rpc('customer_login', {
       p_email: cleanEmail,

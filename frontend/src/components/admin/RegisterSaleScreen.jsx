@@ -10,7 +10,10 @@ import {
   User,
   Mail,
   Clock,
-  Package } from 'lucide-react'
+  Package,
+  Ticket,
+  X
+} from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { searchCustomerByPhone, registerCustomerAndSale } from '../../lib/customerService'
 import {
@@ -36,6 +39,12 @@ export default function RegisterSaleScreen({ onNavigate }) {
   const [isReturningCustomer, setIsReturningCustomer] = useState(false)
   const [existingCustomerRecord, setExistingCustomerRecord] = useState(null)
 
+  // Reservation fulfillment state
+  const [activeReservations, setActiveReservations] = useState([])
+  const [loadingReservations, setLoadingReservations] = useState(false)
+  const [selectedReservationId, setSelectedReservationId] = useState('')
+  const [selectedReservation, setSelectedReservation] = useState(null)
+
   // Catalog products for selection
   const [catalogProducts, setCatalogProducts] = useState([])
   const [loadingProducts, setLoadingProducts] = useState(true)
@@ -55,6 +64,30 @@ export default function RegisterSaleScreen({ onNavigate }) {
   const [errorMessage, setErrorMessage] = useState('')
   const [qrModalData, setQrModalData] = useState(null)
   const [liveEmailStatus, setLiveEmailStatus] = useState(null)
+
+  // Fetch pending reservations on mount
+  useEffect(() => {
+    async function loadActiveReservations() {
+      try {
+        setLoadingReservations(true)
+        const { data, error } = await supabase
+          .from('quote_tickets')
+          .select('id, ticket_code, customer_name, mobile_contact, email, product_id, product_name, quantity, store_branch, is_reservation, status')
+          .eq('status', 'Pending')
+          .order('id', { ascending: false })
+
+        if (!error && data) {
+          const resOnly = data.filter(t => t.is_reservation || (t.ticket_code && t.ticket_code.includes('RES')))
+          setActiveReservations(resOnly)
+        }
+      } catch (err) {
+        console.warn('Failed to load active reservations:', err)
+      } finally {
+        setLoadingReservations(false)
+      }
+    }
+    loadActiveReservations()
+  }, [])
 
   // Fetch catalog products on mount
   useEffect(() => {
@@ -118,6 +151,45 @@ export default function RegisterSaleScreen({ onNavigate }) {
 
     return () => clearTimeout(timer)
   }, [phoneNumber])
+
+  const handleSelectReservation = (ticketId) => {
+    setSelectedReservationId(ticketId)
+    if (!ticketId) {
+      setSelectedReservation(null)
+      return
+    }
+
+    const ticket = activeReservations.find(t => String(t.id) === String(ticketId))
+    if (ticket) {
+      setSelectedReservation(ticket)
+      if (ticket.customer_name) setFullName(ticket.customer_name)
+      if (ticket.mobile_contact) setPhoneNumber(sanitizePhone(ticket.mobile_contact))
+      if (ticket.email) setEmail(ticket.email)
+      if (ticket.store_branch) {
+        setBranchLocation(ticket.store_branch.toLowerCase().includes('quiapo') ? 'Quiapo' : 'Cavite')
+      }
+
+      if (ticket.product_id) {
+        const prod = catalogProducts.find(p => String(p.id) === String(ticket.product_id))
+        const qty = Math.max(1, Number(ticket.quantity) || 1)
+        const newItems = []
+        for (let i = 0; i < qty; i++) {
+          newItems.push({
+            productId: String(ticket.product_id),
+            serialNumber: '',
+            warrantyMonths: prod?.default_warranty_months || 24,
+            purchaseDate: new Date().toISOString().split('T')[0]
+          })
+        }
+        setItems(newItems)
+      }
+    }
+  }
+
+  const handleClearReservation = () => {
+    setSelectedReservationId('')
+    setSelectedReservation(null)
+  }
 
   const handleAddItem = () => {
     const defaultProd = catalogProducts[0]
@@ -230,6 +302,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
         email: cleanEmail,
         branchLocation,
         items,
+        ticketId: selectedReservation?.id || null,
         onEmailStatusChange: (statusUpdate) => {
           setLiveEmailStatus(statusUpdate)
           setQrModalData(prev =>
@@ -258,6 +331,8 @@ export default function RegisterSaleScreen({ onNavigate }) {
   const handleResetForm = () => {
     setQrModalData(null)
     setLiveEmailStatus(null)
+    setSelectedReservationId('')
+    setSelectedReservation(null)
     setPhoneNumber('')
     setPhoneTouched(false)
     setFullName('')
@@ -317,6 +392,54 @@ export default function RegisterSaleScreen({ onNavigate }) {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
+
+        {/* CARD 0: Online Reservation Link (Optional) */}
+        <div className="p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-bold text-jds-on-surface">
+              <Ticket className="w-4 h-4 text-jds-primary" />
+              <span>Fulfill Online Stock Reservation (Optional)</span>
+            </div>
+            {selectedReservation && (
+              <button
+                type="button"
+                onClick={handleClearReservation}
+                className="text-xs text-rose-600 hover:underline font-semibold flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                Clear Reservation Link
+              </button>
+            )}
+          </div>
+
+          <p className="text-xs text-jds-on-surface-variant">
+            If the customer holds a 48-hour reservation ticket (JDS-RES-*), select it below. Customer contact details and reserved items will auto-populate, and the stock hold will convert into an in-store sale.
+          </p>
+
+          <div className="grid grid-cols-1 gap-2">
+            <select
+              value={selectedReservationId}
+              onChange={(e) => handleSelectReservation(e.target.value)}
+              className="w-full bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl px-3.5 py-2.5 text-xs font-medium text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
+            >
+              <option value="">Direct Walk-In Sale (No Prior Reservation)</option>
+              {activeReservations.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.ticket_code} — {t.customer_name} ({t.product_name} × {t.quantity || 1}) [{t.store_branch || 'Store'}]
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedReservation && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                <strong>Linked Reservation: {selectedReservation.ticket_code}</strong>. The 48-hour stock hold will be released, inventory will be deducted, and the ticket will be marked Completed upon sale registration.
+              </span>
+            </div>
+          )}
+        </div>
 
         {/* CARD 1: Customer Information */}
         <div className="p-6 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-4">
