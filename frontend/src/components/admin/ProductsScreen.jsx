@@ -45,13 +45,15 @@ import {
   SORT_OPTIONS,
 } from '../../lib/inventoryUtils'
 import { sanitizeText, sanitizeNumber } from '../../lib/sanitize.js'
+import { parseProductPrice } from '../../lib/multiCriteriaMatcher'
 import useModalBehavior from '../../hooks/useModalBehavior'
 import AnimatedConfirmation from '../ui/AnimatedConfirmation'
 
 export const EDIT_FIELDS = [
   { key: 'name', label: 'Product Name', type: 'text', group: 'general' },
   { key: 'type', label: 'Category Type', type: 'text', group: 'general' },
-  { key: 'price_range', label: 'Price Range', type: 'text', group: 'general' },
+  { key: 'min_price', label: 'Min Price (₱)', type: 'number', group: 'general' },
+  { key: 'max_price', label: 'Max Price (₱)', type: 'number', group: 'general' },
   { key: 'recommended_usage', label: 'Recommended Usage', type: 'text', group: 'general' },
   { key: 'ideal_location', label: 'Ideal Location', type: 'text', group: 'general' },
   { key: 'place_of_use', label: 'Place of Use / Recommended Sites', type: 'text', group: 'general' },
@@ -316,8 +318,22 @@ export default function ProductsScreen({ onNavigate }) {
 
   // Edit Handlers with Review & Confirmation Diff
   const handleOpenEditProduct = async (product) => {
+    let minPrice = product.min_price !== undefined && product.min_price !== null ? product.min_price : ''
+    let maxPrice = product.max_price !== undefined && product.max_price !== null ? product.max_price : ''
+
+    // If numeric columns are empty but price_range has a string, populate defaults
+    if ((minPrice === '' || maxPrice === '') && product.price_range) {
+      const parsed = parseProductPrice(product)
+      if (parsed.hasPrice) {
+        if (minPrice === '' && parsed.min !== null) minPrice = parsed.min
+        if (maxPrice === '' && parsed.max !== null) maxPrice = parsed.max
+      }
+    }
+
     const prepared = {
       ...product,
+      min_price: minPrice,
+      max_price: maxPrice,
       stock_quantity: getStockQuantity(product),
     }
     setEditingProduct(prepared)
@@ -393,11 +409,43 @@ export default function ProductsScreen({ onNavigate }) {
         rest.sales = sanitizeNumber(rest.sales, { min: 0, integer: true, fallback: 0 })
       }
 
-      const { data, error } = await supabase
+      // Synchronize min_price, max_price, and price_range
+      const minP = rest.min_price !== undefined && rest.min_price !== '' && rest.min_price !== null
+        ? sanitizeNumber(rest.min_price, { min: 0, fallback: null })
+        : null
+      const maxP = rest.max_price !== undefined && rest.max_price !== '' && rest.max_price !== null
+        ? sanitizeNumber(rest.max_price, { min: 0, fallback: null })
+        : null
+
+      rest.min_price = minP
+      rest.max_price = maxP
+
+      if (minP !== null && maxP !== null) {
+        rest.price_range = minP === maxP ? String(minP) : `${minP}-${maxP}`
+      } else if (minP !== null) {
+        rest.price_range = `${minP}+`
+      } else if (maxP !== null) {
+        rest.price_range = `Up to ${maxP}`
+      } else {
+        rest.price_range = null // if there's no price then keep it that way
+      }
+
+      let { data, error } = await supabase
         .from('products')
         .update(rest)
         .eq('id', id)
         .select()
+
+      if (error && (error.message?.includes('min_price') || error.message?.includes('max_price'))) {
+        const { min_price, max_price, ...legacyRest } = rest
+        const retry = await supabase
+          .from('products')
+          .update(legacyRest)
+          .eq('id', id)
+          .select()
+        data = retry.data
+        error = retry.error
+      }
 
       if (error) throw error
 
@@ -1199,10 +1247,16 @@ export default function ProductsScreen({ onNavigate }) {
                             </button>
                             <div className="flex items-center gap-2 text-xs text-jds-on-surface-variant font-mono">
                               <span>ID: {p.id}</span>
-                              {p.price_range && (
+                              {(p.min_price || p.price_range) && (
                                 <>
                                   <span>&bull;</span>
-                                  <span className="text-jds-primary font-semibold">{p.price_range}</span>
+                                  <span className="text-jds-primary font-semibold">
+                                    {p.min_price && p.max_price
+                                      ? `₱${Number(p.min_price).toLocaleString()} - ₱${Number(p.max_price).toLocaleString()}`
+                                      : p.min_price
+                                        ? `₱${Number(p.min_price).toLocaleString()}+`
+                                        : `₱${p.price_range}`}
+                                  </span>
                                 </>
                               )}
                             </div>
@@ -2118,22 +2172,24 @@ export default function ProductsScreen({ onNavigate }) {
               {/* Dynamic Field Grid */}
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {EDIT_FIELDS.filter((f) => activeEditTab === 'all' || f.group === activeEditTab).map((f) => (
-                  <div key={f.key} className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-label-sm font-bold text-jds-on-surface-variant/80">
+                  <div key={f.key} className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-label-sm font-bold text-jds-on-surface-variant/80 truncate">
                         {f.label}
                       </label>
                       {f.key === 'type' && (
-                        <span className="text-[11px] text-jds-on-surface-variant/60 font-medium">Add via +</span>
+                        <span className="text-[11px] text-jds-on-surface-variant/60 font-medium whitespace-nowrap shrink-0">
+                          Add via +
+                        </span>
                       )}
                     </div>
 
                     {f.key === 'type' ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <select
                           value={editingProduct.type ?? ''}
                           onChange={(e) => handleFieldChange('type', e.target.value, 'text')}
-                          className="h-11 flex-1 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-3 text-body-md outline-none focus:bg-jds-surface-container-lowest focus:border-jds-secondary transition-all"
+                          className="h-11 min-w-0 flex-1 w-full rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-3 text-body-md outline-none focus:bg-jds-surface-container-lowest focus:border-jds-secondary transition-all cursor-pointer truncate"
                         >
                           <option value="">Select Category</option>
                           {categories.map((c) => (
@@ -2145,7 +2201,7 @@ export default function ProductsScreen({ onNavigate }) {
                         <button
                           type="button"
                           onClick={() => setIsCategoryModalOpen(true)}
-                          className="h-11 w-11 flex items-center justify-center rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 hover:bg-jds-primary/10 hover:border-jds-primary hover:text-jds-primary text-jds-on-surface-variant transition-all shrink-0"
+                          className="h-11 w-11 flex items-center justify-center rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 hover:bg-jds-primary/10 hover:border-jds-primary hover:text-jds-primary text-jds-on-surface-variant transition-all shrink-0 cursor-pointer"
                           title="Manage Categories"
                         >
                           <Plus className="h-5 w-5" />
@@ -2156,10 +2212,11 @@ export default function ProductsScreen({ onNavigate }) {
                         type={f.type}
                         value={editingProduct[f.key] ?? ''}
                         onChange={(e) => handleFieldChange(f.key, e.target.value, f.type)}
-                        className={`h-11 w-full rounded-xl border bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:bg-jds-surface-container-lowest transition-all ${validationErrors[f.key]
-                          ? 'border-jds-error focus:border-jds-error focus:ring-1 focus:ring-jds-error/20'
-                          : 'border-jds-outline-variant/30 focus:border-jds-secondary'
-                          }`}
+                        className={`h-11 w-full min-w-0 rounded-xl border bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:bg-jds-surface-container-lowest transition-all ${
+                          validationErrors[f.key]
+                            ? 'border-jds-error focus:border-jds-error focus:ring-1 focus:ring-jds-error/20'
+                            : 'border-jds-outline-variant/30 focus:border-jds-secondary'
+                        }`}
                       />
                     )}
 

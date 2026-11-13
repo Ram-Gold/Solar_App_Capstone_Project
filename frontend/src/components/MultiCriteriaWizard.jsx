@@ -475,38 +475,63 @@ export default function MultiCriteriaWizard({
                           >
                             <div>
                               <div className="flex items-center justify-between gap-2 mb-1.5">
-                                <span
-                                  className={`text-[11px] font-extrabold px-2 py-0.5 rounded-full border ${
-                                    item.matchPercentage >= 85
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                      : item.matchPercentage >= 70
-                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                      : 'bg-slate-50 text-slate-700 border-slate-200'
-                                  }`}
-                                >
-                                  {item.matchPercentage}% Match {idx === 0 && '· Top Pick'}
-                                </span>
-                                <span className="text-label-sm font-bold text-jds-primary">
-                                  ₱{p.price_range}
-                                </span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span
+                                    className={`text-[11px] font-extrabold px-2 py-0.5 rounded-full border ${
+                                      item.matchPercentage >= 85
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : item.matchPercentage >= 70
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                        : 'bg-slate-50 text-slate-700 border-slate-200'
+                                    }`}
+                                  >
+                                    {item.matchPercentage}% Match {idx === 0 && !item.compromise?.hasCompromise && '· Top Pick'}
+                                  </span>
+                                  {item.compromise?.hasCompromise && (
+                                    <span className="text-[10px] bg-amber-500/15 text-amber-800 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
+                                      {item.compromise.label}
+                                    </span>
+                                  )}
+                                  {item.priceInfo?.isUnlisted && (
+                                    <span className="text-[10px] bg-amber-500/15 text-amber-800 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
+                                      Price upon Inquiry
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <span className="text-label-sm font-bold text-jds-primary block">
+                                    {p.price_range ? `₱${p.price_range}` : 'Inquire for price'}
+                                  </span>
+                                  <span className="text-[9px] text-jds-on-surface-variant/70 block">
+                                    Prices may vary
+                                  </span>
+                                </div>
                               </div>
 
                               <h5 className="text-label-md font-bold text-jds-on-surface line-clamp-1 mb-1">
                                 {p.name}
                               </h5>
 
+                              <p className="text-[11px] text-jds-on-surface-variant/80 mb-2 line-clamp-2">
+                                {item.explanation}
+                              </p>
+
                               <div className="grid grid-cols-3 gap-1 bg-jds-surface-container-lowest p-1.5 rounded-xl mb-2 text-center text-[10px]">
-                                <div>
+                                <div className={item.compromise?.type === 'budget' ? 'bg-amber-500/10 border border-amber-500/30 rounded-lg p-0.5' : ''}>
                                   <span className="text-jds-on-surface-variant/70">Budget</span>
-                                  <div className="font-bold text-jds-on-surface">{item.breakdown.budgetScore}%</div>
+                                  <div className={`font-bold ${item.compromise?.type === 'budget' ? 'text-amber-700' : 'text-jds-on-surface'}`}>
+                                    {item.breakdown.budgetScore}%
+                                  </div>
                                 </div>
                                 <div>
                                   <span className="text-jds-on-surface-variant/70">Location</span>
                                   <div className="font-bold text-jds-on-surface">{item.breakdown.locationScore}%</div>
                                 </div>
-                                <div>
+                                <div className={item.compromise?.type === 'wattage' ? 'bg-amber-500/10 border border-amber-500/30 rounded-lg p-0.5' : ''}>
                                   <span className="text-jds-on-surface-variant/70">Power</span>
-                                  <div className="font-bold text-jds-on-surface">{item.breakdown.powerScore}%</div>
+                                  <div className={`font-bold ${item.compromise?.type === 'wattage' ? 'text-amber-700' : 'text-jds-on-surface'}`}>
+                                    {item.breakdown.powerScore}%
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -515,11 +540,16 @@ export default function MultiCriteriaWizard({
                               to={`/product/${p.id}`}
                               className="text-center text-xs font-bold py-1.5 rounded-lg border border-jds-secondary text-jds-secondary hover:bg-jds-secondary hover:text-white transition-colors"
                             >
-                              View Product Details
+                              {item.priceInfo?.isUnlisted ? 'Inquire for pricing' : 'View Product Details'}
                             </Link>
                           </div>
                         )
                       })}
+                    </div>
+
+                    {/* Disclaimer Footnote */}
+                    <div className="text-[11px] text-jds-on-surface-variant/75 pt-1 pb-1">
+                      Prices are approximate brackets and prices may vary depending on mounting bracket options and store inspection.
                     </div>
 
                     {/* Bottom Action Bar */}

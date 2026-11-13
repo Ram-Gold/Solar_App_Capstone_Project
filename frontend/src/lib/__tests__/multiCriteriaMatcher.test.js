@@ -96,6 +96,19 @@ describe('Dynamic Catalog Bounds & Max-Value Sliders (MCDSS)', () => {
       avg: null,
       hasPrice: false,
     })
+    // Test structured numeric bounds support
+    expect(parseProductPrice({ min_price: 1800, max_price: 3200 })).toEqual({
+      min: 1800,
+      max: 3200,
+      avg: 2500,
+      hasPrice: true,
+    })
+    expect(parseProductPrice({ min_price: 2500, max_price: null })).toEqual({
+      min: 2500,
+      max: 2500,
+      avg: 2500,
+      hasPrice: true,
+    })
   })
 
   it('automatically awards 100% (1.0) power score to biggest wattage products when slider is sinagad (maxed out)', () => {
@@ -157,5 +170,131 @@ describe('Dynamic Catalog Bounds & Max-Value Sliders (MCDSS)', () => {
     expect(topMatch.product.watt).toBe(1000)
     expect(topMatch.breakdown.powerScore).toBe(100)
     expect(result.catalogBounds.maxWatt).toBe(1000)
+  })
+
+  it('detects a Budget Compromise and applies discordance penalty when budget is strictly below product minimum price', () => {
+    const bounds = getCatalogBounds(mockProducts)
+    const expensiveProduct = mockProducts[3] // 1000W, price 5000-7500
+
+    const result = matchSolarProducts(
+      [expensiveProduct],
+      {
+        location: 'commercial',
+        powerNeeds: 1000,
+        budget: 2000, // strictly below 5000
+      },
+      {
+        threshold: 0.20,
+        catalogBounds: bounds,
+      }
+    )
+
+    const evaluated = result.matches[0]
+    expect(evaluated.compromise.hasCompromise).toBe(true)
+    expect(evaluated.compromise.type).toBe('budget')
+    expect(evaluated.compromise.label).toBe('Budget Compromise')
+    expect(evaluated.compromise.overAmount).toBe(3000)
+    expect(evaluated.compromise.summary).toContain('Exceeds target budget by ₱3,000')
+  })
+
+  it('does not flag Budget Compromise when target budget falls within the product price range', () => {
+    const bounds = getCatalogBounds(mockProducts)
+    const midProduct = mockProducts[1] // 300W, price 2500-3500
+
+    const result = matchSolarProducts(
+      [midProduct],
+      {
+        location: 'street',
+        powerNeeds: 300,
+        budget: 3000, // within 2500 - 3500
+      },
+      {
+        threshold: 0.50,
+        catalogBounds: bounds,
+      }
+    )
+
+    const evaluated = result.matches[0]
+    expect(evaluated.compromise.hasCompromise).toBe(false)
+  })
+
+  it('detects a Wattage Compromise when an under-powered luminaire is evaluated for a high-mast roadway', () => {
+    const bounds = getCatalogBounds(mockProducts)
+    const weakProduct = mockProducts[0] // 100W luminaire
+
+    const result = matchSolarProducts(
+      [weakProduct],
+      {
+        location: 'highway', // requires high pole and >300W
+        powerNeeds: 800,
+        budget: 5000,
+      },
+      {
+        threshold: 0.20,
+        catalogBounds: bounds,
+      }
+    )
+
+    const evaluated = result.matches[0]
+    expect(evaluated.compromise.hasCompromise).toBe(true)
+    expect(evaluated.compromise.type).toBe('wattage')
+    expect(evaluated.compromise.label).toBe('Wattage Compromise')
+    expect(evaluated.compromise.summary).toContain('Below recommended illumination')
+  })
+
+  it('tolerates over-wattage without flagging any compromise', () => {
+    const bounds = getCatalogBounds(mockProducts)
+    const strongProduct = mockProducts[2] // 800W luminaire
+
+    const result = matchSolarProducts(
+      [strongProduct],
+      {
+        location: 'commercial',
+        powerNeeds: 300, // user requested 300W, product is 800W
+        budget: 'any',
+      },
+      {
+        threshold: 0.20,
+        catalogBounds: bounds,
+      }
+    )
+
+    const evaluated = result.matches[0]
+    // Over-wattage should not trigger a wattage compromise
+    expect(evaluated.compromise.type).not.toBe('wattage')
+  })
+
+  it('assigns 70% neutral budget fit and marks isUnlisted for products without a price', () => {
+    const unlistedProduct = {
+      id: 99,
+      name: 'Custom High-Mast Solar Tower',
+      type: 'Solar Tower',
+      watt: 600,
+      price_range: null,
+      waterproof_grade: 'IP67',
+      solar_panel: 'Monocrystalline',
+      charging_type: 'Solar charging',
+      in_stock: true,
+      stock_quantity: 4,
+    }
+
+    const bounds = getCatalogBounds([unlistedProduct])
+    const result = matchSolarProducts(
+      [unlistedProduct],
+      {
+        location: 'commercial',
+        powerNeeds: 600,
+        budget: 3000,
+      },
+      {
+        threshold: 0.30,
+        catalogBounds: bounds,
+      }
+    )
+
+    const evaluated = result.matches[0]
+    expect(evaluated.breakdown.budgetScore).toBe(70)
+    expect(evaluated.priceInfo.isUnlisted).toBe(true)
+    expect(evaluated.explanation).toContain('Price confirmed at store branch via inquiry')
   })
 })

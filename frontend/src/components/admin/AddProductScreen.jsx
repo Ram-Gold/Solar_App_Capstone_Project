@@ -24,6 +24,8 @@ export default function AddProductScreen({ onNavigate }) {
     charging_type: 'Solar Charging',
     smd_lamp_beads: '',
     lighting_time: '',
+    min_price: '',
+    max_price: '',
     price_range: '',
     size: '',
     stock_quantity: 15,
@@ -130,7 +132,18 @@ export default function AddProductScreen({ onNavigate }) {
       charging_type: form.charging_type ? sanitizeText(form.charging_type, { maxLength: 100 }) : null,
       smd_lamp_beads: form.smd_lamp_beads ? sanitizeText(form.smd_lamp_beads, { maxLength: 100 }) : null,
       lighting_time: form.lighting_time ? sanitizeText(form.lighting_time, { maxLength: 100 }) : null,
-      price_range: form.price_range ? sanitizeText(form.price_range, { maxLength: 100 }) : null,
+      min_price: form.min_price !== '' && form.min_price !== null ? sanitizeNumber(form.min_price, { min: 0, fallback: null }) : null,
+      max_price: form.max_price !== '' && form.max_price !== null ? sanitizeNumber(form.max_price, { min: 0, fallback: null }) : null,
+      price_range: (() => {
+        const minP = form.min_price !== '' && form.min_price !== null ? sanitizeNumber(form.min_price, { min: 0, fallback: null }) : null
+        const maxP = form.max_price !== '' && form.max_price !== null ? sanitizeNumber(form.max_price, { min: 0, fallback: null }) : null
+        if (minP !== null && maxP !== null) {
+          return minP === maxP ? String(minP) : `${minP}-${maxP}`
+        }
+        if (minP !== null) return `${minP}+`
+        if (maxP !== null) return `Up to ${maxP}`
+        return form.price_range ? sanitizeText(form.price_range, { maxLength: 100 }) : null
+      })(),
       size: form.size ? sanitizeText(form.size, { maxLength: 100 }) : null,
       stock_quantity: stockQty,
       in_stock: inStock,
@@ -139,8 +152,8 @@ export default function AddProductScreen({ onNavigate }) {
     }
 
     let { error: insertError } = await supabase.from('products').insert([payload])
-    if (insertError && insertError.message && insertError.message.includes('stock_quantity')) {
-      const { stock_quantity, ...fallbackPayload } = payload
+    if (insertError && (insertError.message?.includes('min_price') || insertError.message?.includes('max_price') || insertError.message?.includes('stock_quantity'))) {
+      const { min_price, max_price, stock_quantity, ...fallbackPayload } = payload
       const retry = await supabase.from('products').insert([fallbackPayload])
       insertError = retry.error
     }
@@ -255,8 +268,29 @@ export default function AddProductScreen({ onNavigate }) {
             <input value={form.lighting_time} onChange={(e) => handleChange('lighting_time', e.target.value)} className={inputClass} placeholder="12~16 hours" />
           </div>
           <div className="space-y-2">
-            <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Price Range</label>
-            <input value={form.price_range} onChange={(e) => handleChange('price_range', e.target.value)} className={inputClass} placeholder="e.g. 5,000 - 8,000" />
+            <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Price Range (₱ Min & Max)</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                step="50"
+                value={form.min_price}
+                onChange={(e) => handleChange('min_price', e.target.value)}
+                className={inputClass}
+                placeholder="Min ₱ (Leave empty if unpriced)"
+              />
+              <span className="text-jds-on-surface-variant/40 font-bold shrink-0">—</span>
+              <input
+                type="number"
+                min="0"
+                step="50"
+                value={form.max_price}
+                onChange={(e) => handleChange('max_price', e.target.value)}
+                className={inputClass}
+                placeholder="Max ₱ (Leave empty if unpriced)"
+              />
+            </div>
+            <p className="text-[11px] text-jds-on-surface-variant/60">Leave both blank if unit requires direct consultation / custom quotation.</p>
           </div>
           <div className="space-y-2">
             <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Size / Dimensions</label>

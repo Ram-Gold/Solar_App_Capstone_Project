@@ -1585,22 +1585,24 @@ export default function DashboardScreen({ onNavigate }) {
               {/* Dynamic Field Grid */}
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {EDIT_FIELDS.filter((f) => activeEditTab === 'all' || f.group === activeEditTab).map((f) => (
-                  <div key={f.key} className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-label-sm font-bold text-jds-on-surface-variant/80">
+                  <div key={f.key} className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-label-sm font-bold text-jds-on-surface-variant/80 truncate">
                         {f.label}
                       </label>
                       {f.key === 'type' && (
-                        <span className="text-[11px] text-jds-on-surface-variant/60 font-medium">Add via +</span>
+                        <span className="text-[11px] text-jds-on-surface-variant/60 font-medium whitespace-nowrap shrink-0">
+                          Add via +
+                        </span>
                       )}
                     </div>
 
                     {f.key === 'type' ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <select
                           value={editingProduct.type ?? ''}
                           onChange={(e) => handleFieldChange('type', e.target.value, 'text')}
-                          className="h-11 flex-1 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-3 text-body-md outline-none focus:bg-jds-surface-container-lowest focus:border-jds-secondary transition-all cursor-pointer"
+                          className="h-11 min-w-0 flex-1 w-full rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-3 text-body-md outline-none focus:bg-jds-surface-container-lowest focus:border-jds-secondary transition-all cursor-pointer truncate"
                         >
                           <option value="">Select Category</option>
                           {categories.map((c) => (
@@ -1623,7 +1625,7 @@ export default function DashboardScreen({ onNavigate }) {
                         type={f.type}
                         value={editingProduct[f.key] ?? ''}
                         onChange={(e) => handleFieldChange(f.key, e.target.value, f.type)}
-                        className={`h-11 w-full rounded-xl border bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:bg-jds-surface-container-lowest transition-all ${
+                        className={`h-11 w-full min-w-0 rounded-xl border bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:bg-jds-surface-container-lowest transition-all ${
                           validationErrors[f.key]
                             ? 'border-jds-error focus:border-jds-error focus:ring-1 focus:ring-jds-error/20'
                             : 'border-jds-outline-variant/30 focus:border-jds-secondary'

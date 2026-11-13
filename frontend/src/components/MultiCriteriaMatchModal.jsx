@@ -297,8 +297,8 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
                   >
                     <div>
                       {/* Top Badge Row */}
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5">
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span
                             className={`text-label-sm font-extrabold px-2.5 py-0.5 rounded-full border ${
                               item.matchPercentage >= 85
@@ -310,15 +310,30 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
                           >
                             {item.matchPercentage}% Match
                           </span>
-                          {isTopPick && (
+                          {isTopPick && !item.compromise?.hasCompromise && (
                             <span className="text-[11px] bg-jds-primary-container text-jds-on-primary-container px-2 py-0.5 rounded-full font-bold">
                               Best Fit
                             </span>
                           )}
+                          {item.compromise?.hasCompromise && (
+                            <span className="text-[11px] bg-amber-500/15 text-amber-800 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
+                              {item.compromise.label}
+                            </span>
+                          )}
+                          {item.priceInfo?.isUnlisted && (
+                            <span className="text-[11px] bg-amber-500/15 text-amber-800 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
+                              Price upon Inquiry
+                            </span>
+                          )}
                         </div>
-                        <span className="text-label-md font-bold text-jds-primary">
-                          ₱{product.price_range}
-                        </span>
+                        <div className="text-right shrink-0">
+                          <span className="text-label-md font-bold text-jds-primary block">
+                            {product.price_range ? `₱${product.price_range}` : 'Inquire for price'}
+                          </span>
+                          <span className="text-[10px] text-jds-on-surface-variant/70 block">
+                            Prices may vary
+                          </span>
+                        </div>
                       </div>
 
                       {/* Product Name */}
@@ -333,17 +348,21 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
 
                       {/* Criteria Score Mini-Bars */}
                       <div className="grid grid-cols-3 gap-2 bg-jds-surface-container-lowest p-2 rounded-xl mb-3 border border-jds-outline-variant/20">
-                        <div>
+                        <div className={item.compromise?.type === 'budget' ? 'bg-amber-500/10 border border-amber-500/30 p-1 rounded-lg' : ''}>
                           <div className="text-[10px] text-jds-on-surface-variant font-medium">Budget Fit</div>
-                          <div className="text-label-sm font-bold text-jds-on-surface">{item.breakdown.budgetScore}%</div>
+                          <div className={`text-label-sm font-bold ${item.compromise?.type === 'budget' ? 'text-amber-700' : 'text-jds-on-surface'}`}>
+                            {item.breakdown.budgetScore}%
+                          </div>
                         </div>
                         <div>
                           <div className="text-[10px] text-jds-on-surface-variant font-medium">Location Fit</div>
                           <div className="text-label-sm font-bold text-jds-on-surface">{item.breakdown.locationScore}%</div>
                         </div>
-                        <div>
+                        <div className={item.compromise?.type === 'wattage' ? 'bg-amber-500/10 border border-amber-500/30 p-1 rounded-lg' : ''}>
                           <div className="text-[10px] text-jds-on-surface-variant font-medium">Power Fit</div>
-                          <div className="text-label-sm font-bold text-jds-on-surface">{item.breakdown.powerScore}%</div>
+                          <div className={`text-label-sm font-bold ${item.compromise?.type === 'wattage' ? 'text-amber-700' : 'text-jds-on-surface'}`}>
+                            {item.breakdown.powerScore}%
+                          </div>
                         </div>
                       </div>
 
@@ -369,7 +388,7 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
                       onClick={onClose}
                       className="w-full flex items-center justify-center gap-1.5 text-label-sm font-bold py-2 px-3 rounded-xl bg-jds-primary/10 text-jds-primary hover:bg-jds-primary hover:text-white transition-all text-center"
                     >
-                      <span>View Specifications</span>
+                      <span>{item.priceInfo?.isUnlisted ? 'Inquire for pricing' : 'View Specifications'}</span>
                       <HiOutlineArrowRight className="text-sm" />
                     </Link>
                   </div>
@@ -379,14 +398,19 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-3 border-t border-jds-outline-variant/20 bg-jds-surface-container-lowest flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs text-jds-on-surface-variant">
-              <HiOutlineQuestionMarkCircle className="text-base" />
-              <span>Multi-criteria weights: Budget (35%), Location (35%), Power Needs (30%)</span>
+          <div className="px-6 py-3 border-t border-jds-outline-variant/20 bg-jds-surface-container-lowest flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="space-y-0.5 text-xs text-jds-on-surface-variant">
+              <div className="flex items-center gap-1.5">
+                <HiOutlineQuestionMarkCircle className="text-base shrink-0" />
+                <span>Multi-criteria weights: Budget (35%), Location (35%), Power Needs (30%)</span>
+              </div>
+              <div className="text-[11px] text-jds-on-surface-variant/75 pl-5">
+                Price note: Listed values are general ranges and prices may vary depending on mounting brackets and store branch inspection.
+              </div>
             </div>
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-jds-surface-container-high hover:bg-jds-surface-container-highest text-jds-on-surface rounded-xl text-label-sm font-bold transition-colors"
+              className="self-end sm:self-auto px-4 py-2 bg-jds-surface-container-high hover:bg-jds-surface-container-highest text-jds-on-surface rounded-xl text-label-sm font-bold transition-colors"
             >
               Close
             </button>

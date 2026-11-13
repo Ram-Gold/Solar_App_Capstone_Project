@@ -64,8 +64,14 @@ export default function AdminProductCard({
           >
             {product.name}
           </h4>
-          {product.price_range && (
-            <p className="text-xs font-semibold text-jds-primary mt-0.5">{product.price_range}</p>
+          {(product.min_price || product.price_range) && (
+            <p className="text-xs font-semibold text-jds-primary mt-0.5">
+              {product.min_price && product.max_price
+                ? `₱${Number(product.min_price).toLocaleString()} - ₱${Number(product.max_price).toLocaleString()}`
+                : product.min_price
+                  ? `₱${Number(product.min_price).toLocaleString()}+`
+                  : `₱${product.price_range}`}
+            </p>
           )}
         </div>
 

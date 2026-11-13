@@ -1,7 +1,12 @@
-import { supabase } from './supabaseClient'
+import { supabase } from './supabaseClient.js'
 
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif']
 const EXT_REGEX = new RegExp(`\\.(${IMAGE_EXTENSIONS.join('|')})$`, 'i')
+
+// Known mismatched or rogue legacy files that do not belong to the base model
+const EXCLUDED_STORAGE_BASENAMES = new Set([
+  'bgz048_500_(2)', // Depicts Solar Streetlight 800W, not 500W Road Light
+])
 
 /**
  * Extracts a clean array of image URLs from any product image_url representation.
@@ -165,8 +170,8 @@ export async function fetchDynamicProductImages(product, client = supabase) {
     }
 
     const escaped = rawBase.toLowerCase().replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
-    // Matches rawBase + separator + number/tag (e.g. BGZ048_500_(2), BGZ048_500_2, BGZ048_500-2, BGZ048_500 (2))
-    const relatedPattern = new RegExp(`^${escaped}(_|-|\\s|\\()`, 'i')
+    // Matches rawBase + separator + number/tag, explicitly excluding color temperature / SKU suffixes like 'ww'
+    const relatedPattern = new RegExp(`^${escaped}(_|-|\\s|\\()(?!(?:ww|warmwhite))(?:\\d+|view|angle|detail|dim)`, 'i')
 
     for (const file of files) {
       if (!file?.name || file.name.endsWith('.emptyFolderPlaceholder') || file.name.endsWith('.txt')) {
@@ -174,7 +179,7 @@ export async function fetchDynamicProductImages(product, client = supabase) {
       }
 
       const fBase = extractStorageBaseName(file.name).toLowerCase()
-      if (!fBase) continue
+      if (!fBase || EXCLUDED_STORAGE_BASENAMES.has(fBase)) continue
 
       // Include files matching the related multi-picture pattern
       const isRelated = relatedPattern.test(fBase)

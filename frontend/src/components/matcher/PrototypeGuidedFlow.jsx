@@ -475,11 +475,21 @@ export default function PrototypeGuidedFlow({
                     <div className="p-5 sm:p-6 lg:p-7">
                       {/* Top Status Bar within Hero Card */}
                       <div className="flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-neutral-100 dark:border-neutral-800">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
                             <ShieldCheck className="size-3.5 stroke-[2.2]" />
                             <span>Top Recommended Model</span>
                           </span>
+                          {topMatch.compromise?.hasCompromise && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                              {topMatch.compromise.label}
+                            </span>
+                          )}
+                          {topMatch.priceInfo?.isUnlisted && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                              Price upon Inquiry
+                            </span>
+                          )}
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                             <Check className="size-3 stroke-[2.5]" />
                             <span>In Stock at Branch</span>
@@ -490,8 +500,11 @@ export default function PrototypeGuidedFlow({
                           <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 block">
                             Price Range
                           </span>
-                          <span className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
-                            {formatPriceRange(topMatch.product.price_range)}
+                          <span className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white block">
+                            {topMatch.product.price_range ? formatPriceRange(topMatch.product.price_range) : 'Inquire for price'}
+                          </span>
+                          <span className="text-[10px] text-neutral-500 dark:text-neutral-400 block">
+                            Prices may vary
                           </span>
                         </div>
                       </div>
@@ -624,12 +637,31 @@ export default function PrototypeGuidedFlow({
                             >
                               <div>
                                 <div className="flex items-start justify-between gap-2 mb-1.5">
-                                  <h6 className="text-xs font-semibold text-neutral-900 dark:text-white line-clamp-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                                    {p.name}
-                                  </h6>
-                                  <span className="text-xs font-bold text-neutral-900 dark:text-white shrink-0">
-                                    {formatPriceRange(p.price_range)}
-                                  </span>
+                                  <div>
+                                    <h6 className="text-xs font-semibold text-neutral-900 dark:text-white line-clamp-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                                      {p.name}
+                                    </h6>
+                                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                      {item.compromise?.hasCompromise && (
+                                        <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 rounded-full">
+                                          {item.compromise.label}
+                                        </span>
+                                      )}
+                                      {item.priceInfo?.isUnlisted && (
+                                        <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 rounded-full">
+                                          Price upon Inquiry
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <span className="text-xs font-bold text-neutral-900 dark:text-white block">
+                                      {p.price_range ? formatPriceRange(p.price_range) : 'Inquire'}
+                                    </span>
+                                    <span className="text-[9px] text-neutral-400 block">
+                                      Prices may vary
+                                    </span>
+                                  </div>
                                 </div>
                                 <div className="flex items-center gap-2 mb-2 text-[10px] text-neutral-400 font-medium">
                                   <span>{p.watt}W · {p.waterproof_grade || 'IP65'}</span>

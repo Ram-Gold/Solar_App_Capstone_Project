@@ -64,6 +64,22 @@ export function parseProductPrice(product) {
     return { min: null, max: null, avg: null, hasPrice: false }
   }
 
+  // Prefer structured numeric columns if available
+  if (product.min_price !== undefined && product.min_price !== null && product.min_price !== '') {
+    const numMin = Number(product.min_price)
+    if (!isNaN(numMin) && numMin > 0) {
+      const numMax = product.max_price !== undefined && product.max_price !== null && product.max_price !== '' && !isNaN(Number(product.max_price))
+        ? Number(product.max_price)
+        : numMin
+      return {
+        min: numMin,
+        max: numMax,
+        avg: Math.round((numMin + numMax) / 2),
+        hasPrice: true,
+      }
+    }
+  }
+
   const rawVal = product.price_range ?? product.price ?? product.unit_price
   if (rawVal === undefined || rawVal === null || rawVal === '') {
     return { min: null, max: null, avg: null, hasPrice: false }
@@ -300,9 +316,9 @@ export function scoreBudgetFit(product, userBudget, maxPrice = null) {
 
   const { min: prodMin, max: prodMax, avg: prodAvg, hasPrice } = parseProductPrice(product)
 
-  // Unlisted pricing: final price decided by owner and store branch
+  // Unlisted pricing: final price decided by owner and store branch upon inquiry
   if (!hasPrice) {
-    return 0.75
+    return 0.70
   }
 
   // If userBudget is a numeric ceiling (e.g., 2500 or maxed out)
@@ -367,6 +383,9 @@ export function evaluateProductMatch(
   weights = DEFAULT_CRITERIA_WEIGHTS,
   context = {}
 ) {
+  const priceInfo = parseProductPrice(product)
+  const isPriceUnlisted = !priceInfo.hasPrice
+
   const locationScore = scoreLocationFit(product, criteria.location)
   const powerScore = scorePowerFit(
     product,
@@ -391,6 +410,67 @@ export function evaluateProductMatch(
     compositeScore *= 0.50
   }
 
+  // Compromise and Discordance Detection
+  let compromise = null
+  const budgetCeiling = Number(criteria.budget)
+
+  // 1. Budget Compromise: user budget is strictly below product minimum price
+  if (!isPriceUnlisted && criteria.budget && criteria.budget !== 'any' && !isNaN(budgetCeiling) && budgetCeiling > 0) {
+    if (priceInfo.min && priceInfo.min > budgetCeiling) {
+      const overAmount = priceInfo.min - budgetCeiling
+      const overPercent = overAmount / budgetCeiling
+
+      compromise = {
+        hasCompromise: true,
+        type: 'budget',
+        label: 'Budget Compromise',
+        severity: overPercent > 0.30 ? 'high' : 'moderate',
+        overAmount,
+        summary: `Exceeds target budget by ₱${overAmount.toLocaleString()} to deliver ${product.watt ? `${product.watt}W` : 'required'} output.`,
+      }
+
+      // Discordance penalty: reduce score when budget ceiling is exceeded by >20%
+      // This prevents high location/power scores from masking budget failures
+      if (overPercent > 0.20) {
+        compositeScore *= 0.85
+      }
+    }
+  }
+
+  // 2. Wattage Compromise: luminaire is under-powered for mounting height/location
+  if (!compromise) {
+    const prodWatt = Number(product.watt) || 0
+    const loc = String(criteria.location || '').toLowerCase()
+    const targetWatt = criteria.powerNeeds && criteria.powerNeeds !== 'any' ? Number(criteria.powerNeeds) : 0
+    const isHighwayOrRoad = loc.includes('road') || loc.includes('highway')
+    const isCommercial = loc.includes('commercial') || loc.includes('parking') || loc.includes('warehouse')
+
+    if (
+      (isHighwayOrRoad && prodWatt < 200) ||
+      (isCommercial && prodWatt < 150) ||
+      (targetWatt >= 300 && (targetWatt - prodWatt) >= 200)
+    ) {
+      compromise = {
+        hasCompromise: true,
+        type: 'wattage',
+        label: 'Wattage Compromise',
+        severity: 'moderate',
+        summary: 'Below recommended illumination for this pole height and location.',
+      }
+      compositeScore *= 0.90
+    }
+  }
+
+  if (!compromise) {
+    compromise = {
+      hasCompromise: false,
+      type: null,
+      label: null,
+      severity: null,
+      summary: null,
+    }
+  }
+
   const matchPercentage = Math.round(compositeScore * 100)
 
   // Generate clear reason explanation
@@ -398,7 +478,11 @@ export function evaluateProductMatch(
   if (stockTier === 'out') {
     reasons.push('Out of stock at branch')
   } else {
-    if (budgetScore >= 0.85) {
+    if (compromise.hasCompromise) {
+      reasons.push(compromise.summary)
+    } else if (isPriceUnlisted) {
+      reasons.push('Price confirmed at store branch via inquiry')
+    } else if (budgetScore >= 0.85) {
       if (
         criteria.budget === 'any' ||
         (context.maxPrice && Number(criteria.budget) >= context.maxPrice)
@@ -409,8 +493,6 @@ export function evaluateProductMatch(
       }
     } else if (budgetScore >= 0.65) {
       reasons.push('Close to target price')
-    } else if (!product.price_range) {
-      reasons.push('Price confirmed at store')
     }
 
     if (locationScore >= 0.85) reasons.push('Ideal optics for this location')
@@ -443,6 +525,11 @@ export function evaluateProductMatch(
       tier: stockTier,
       quantity: stockQty,
       inStock: stockTier !== 'out',
+    },
+    compromise,
+    priceInfo: {
+      ...priceInfo,
+      isUnlisted: isPriceUnlisted,
     },
     explanation,
   }

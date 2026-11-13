@@ -121,7 +121,7 @@ describe('productImageUtils', () => {
       expect(images).toEqual(['https://storage.supabase.co/product-images/BGZ048_200.webp'])
     })
 
-    it('dynamically appends related multi-picture files uploaded to storage', async () => {
+    it('dynamically appends related multi-picture files uploaded to storage while excluding rogue and SKU-variant assets', async () => {
       const mockClient = {
         storage: {
           from: vi.fn().mockReturnValue({
@@ -129,8 +129,10 @@ describe('productImageUtils', () => {
               data: [
                 { name: 'BGZ048_500.png' },
                 { name: 'BGZ048_500.webp' },
-                { name: 'BGZ048_500_(2).png' },
-                { name: 'BGZ048_500_3.jpg' }
+                { name: 'BGZ048_500_(2).png' }, // Rogue asset: must be excluded
+                { name: 'BGZ048_500_ww.png' }, // Warm white variant: must be excluded
+                { name: 'BGZ048_500_3.jpg' },
+                { name: 'BGZ048_500_view2.png' }
               ],
               error: null
             }),
@@ -149,8 +151,8 @@ describe('productImageUtils', () => {
       const images = await fetchDynamicProductImages(product, mockClient)
       expect(images).toEqual([
         'https://storage.supabase.co/product-images/BGZ048_500.webp',
-        'https://storage.supabase.co/product-images/BGZ048_500_(2).png',
-        'https://storage.supabase.co/product-images/BGZ048_500_3.jpg'
+        'https://storage.supabase.co/product-images/BGZ048_500_3.jpg',
+        'https://storage.supabase.co/product-images/BGZ048_500_view2.png'
       ])
     })
   })

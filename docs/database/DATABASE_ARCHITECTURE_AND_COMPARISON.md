@@ -209,6 +209,8 @@ erDiagram
         varchar(100) smd_lamp_beads
         varchar(50) lighting_time
         varchar(100) price_range
+        numeric min_price
+        numeric max_price
         varchar(150) recommended_usage
         varchar(150) ideal_location
         int default_warranty_months
@@ -364,6 +366,8 @@ erDiagram
         text smd_lamp_beads
         text lighting_time
         text price_range
+        numeric min_price
+        numeric max_price
         text recommended_usage
         text ideal_location
         integer default_warranty_months
@@ -538,6 +542,8 @@ erDiagram
 | `smd_lamp_beads` | `TEXT` | `VARCHAR(100)` | `NULL` | LED chip model and bead density |
 | `lighting_time` | `TEXT` | `VARCHAR(50)` | `NULL` | Operating duration on full battery |
 | `price_range` | `TEXT` | `VARCHAR(100)` | `NULL` | Estimated retail price bracket |
+| `min_price` | `NUMERIC(12,2)` | `DECIMAL(12,2)` | `NULL` | Lower bound procurement price (PHP) |
+| `max_price` | `NUMERIC(12,2)` | `DECIMAL(12,2)` | `NULL` | Upper bound kit procurement price (PHP) |
 | `recommended_usage`| `TEXT` | `VARCHAR(150)` | `NULL` | Recommended operational deployment |
 | `ideal_location` | `TEXT` | `VARCHAR(150)` | `NULL` | Suggested installation environment |
 | `default_warranty_months`| `INTEGER` | `INT` | `DEFAULT 12` | Standard coverage duration in months |
