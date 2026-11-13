@@ -14,8 +14,8 @@ export function getStockQuantity(product) {
   if (product.stock_quantity !== undefined && product.stock_quantity !== null && !isNaN(product.stock_quantity)) {
     return Math.max(0, Number(product.stock_quantity))
   }
-  // Safe fallback if database column does not exist yet
-  return product.in_stock ? 10 : 0
+  // Safe fallback if database column does not exist yet or legacy mock data
+  return product.in_stock !== false ? 10 : 0
 }
 
 /**
@@ -36,6 +36,67 @@ export function getReservedQuantity(product) {
  */
 export function getAvailableQuantity(product) {
   return Math.max(0, getStockQuantity(product) - getReservedQuantity(product))
+}
+
+/**
+ * Returns branch-specific stock, reserved, and available counts.
+ * Supported branches: 'Quiapo' (default) and 'Cavite'.
+ */
+export function getBranchStock(product, branch = 'Quiapo') {
+  if (!product) return { stock: 0, reserved: 0, available: 0 }
+
+  const branchStr = String(branch || '').toLowerCase()
+  const isCavite = branchStr.includes('cavite')
+
+  if (isCavite) {
+    const stock = product.stock_cavite !== undefined && product.stock_cavite !== null && !isNaN(product.stock_cavite)
+      ? Math.max(0, Number(product.stock_cavite))
+      : 0
+    const reserved = product.reserved_cavite !== undefined && product.reserved_cavite !== null && !isNaN(product.reserved_cavite)
+      ? Math.max(0, Number(product.reserved_cavite))
+      : 0
+    return {
+      branch: 'Cavite Hub',
+      stock,
+      reserved,
+      available: Math.max(0, stock - reserved),
+    }
+  }
+
+  // Quiapo (Main retail showroom)
+  const stock = product.stock_quiapo !== undefined && product.stock_quiapo !== null && !isNaN(product.stock_quiapo)
+    ? Math.max(0, Number(product.stock_quiapo))
+    : getStockQuantity(product)
+  const reserved = product.reserved_quiapo !== undefined && product.reserved_quiapo !== null && !isNaN(product.reserved_quiapo)
+    ? Math.max(0, Number(product.reserved_quiapo))
+    : getReservedQuantity(product)
+
+  return {
+    branch: 'Quiapo Showroom',
+    stock,
+    reserved,
+    available: Math.max(0, stock - reserved),
+  }
+}
+
+/**
+ * Returns comprehensive breakdown across Quiapo and Cavite branches.
+ */
+export function getBranchBreakdown(product) {
+  const quiapo = getBranchStock(product, 'Quiapo')
+  const cavite = getBranchStock(product, 'Cavite')
+  const totalStock = getStockQuantity(product)
+  const totalReserved = getReservedQuantity(product)
+  const totalAvailable = getAvailableQuantity(product)
+
+  return {
+    quiapo,
+    cavite,
+    totalStock,
+    totalReserved,
+    totalAvailable,
+    hasCaviteStock: cavite.stock > 0 || cavite.available > 0,
+  }
 }
 
 /**
@@ -164,14 +225,18 @@ export function getStockBadgeConfig(product) {
   const tier = getStockTier(product)
   const available = getAvailableQuantity(product)
   const reserved = getReservedQuantity(product)
+  const total = getStockQuantity(product)
+  const breakdown = getBranchBreakdown(product)
 
   if (tier === 'out') {
     return {
       tier,
       quantity: available,
+      total,
       reserved,
+      breakdown,
       label: reserved > 0 ? `Out of Stock (${reserved} Reserved)` : 'Out of Stock',
-      shortLabel: 'Out of Stock',
+      shortLabel: reserved > 0 ? 'Fully Reserved' : 'Out of Stock',
       subText: reserved > 0 ? `0 available · ${reserved} temporarily reserved` : '0 units available',
       badgeClass: 'bg-jds-error-container/20 text-jds-error border border-jds-error/30 font-semibold',
       rowBorderClass: 'border-l-4 border-l-jds-error',
@@ -184,7 +249,9 @@ export function getStockBadgeConfig(product) {
     return {
       tier,
       quantity: available,
+      total,
       reserved,
+      breakdown,
       label: `Low Stock (${available} available${reserved > 0 ? ` · ${reserved} reserved` : ''})`,
       shortLabel: 'Low Stock',
       subText: `${available} unit${available === 1 ? '' : 's'} available${reserved > 0 ? ` · ${reserved} temporarily reserved` : ''}`,
@@ -198,7 +265,9 @@ export function getStockBadgeConfig(product) {
   return {
     tier,
     quantity: available,
+    total,
     reserved,
+    breakdown,
     label: `In Stock (${available} available${reserved > 0 ? ` · ${reserved} reserved` : ''})`,
     shortLabel: 'In Stock',
     subText: `${available} units available${reserved > 0 ? ` · ${reserved} temporarily reserved` : ''}`,
@@ -213,17 +282,18 @@ export function getStockBadgeConfig(product) {
  * Executes a manual customer sale for a product:
  * Decrements stock_quantity, increments sales, and updates in_stock status.
  */
-export async function executeManualSale(supabaseClient, product, unitsSold = 1) {
+export async function executeManualSale(supabaseClient, product, unitsSold = 1, branch = 'Quiapo') {
   if (!product || !product.id) {
     throw new Error('Valid product is required.')
   }
 
+  const currentAvailable = getAvailableQuantity(product)
   const currentStock = getStockQuantity(product)
   const currentSales = Number(product.sales || 0)
   const qtyToDeduct = Math.max(1, Number(unitsSold) || 1)
 
-  if (currentStock < qtyToDeduct) {
-    throw new Error(`Insufficient inventory. Current stock is ${currentStock} units.`)
+  if (currentAvailable < qtyToDeduct) {
+    throw new Error(`Insufficient available inventory. Only ${currentAvailable} unreserved unit(s) available for walk-in sale (${getReservedQuantity(product)} reserved).`)
   }
 
   const newStock = Math.max(0, currentStock - qtyToDeduct)
@@ -236,21 +306,28 @@ export async function executeManualSale(supabaseClient, product, unitsSold = 1) 
     in_stock: newInStock,
   }
 
+  const isCavite = String(branch || '').toLowerCase().includes('cavite')
+  if (isCavite) {
+    const caviteStock = product.stock_cavite !== undefined ? Math.max(0, Number(product.stock_cavite) - qtyToDeduct) : 0
+    updatePayload.stock_cavite = caviteStock
+  } else {
+    const quiapoStock = product.stock_quiapo !== undefined ? Math.max(0, Number(product.stock_quiapo) - qtyToDeduct) : newStock
+    updatePayload.stock_quiapo = quiapoStock
+  }
+
   let { data, error } = await supabaseClient
     .from('products')
     .update(updatePayload)
     .eq('id', product.id)
     .select()
 
-  if (error && error.message && error.message.includes('stock_quantity')) {
-    // Graceful fallback if stock_quantity column is pending migration
-    const fallbackPayload = {
-      sales: newSales,
-      in_stock: newInStock,
-    }
+  if (error && error.message && (error.message.includes('stock_quiapo') || error.message.includes('stock_cavite'))) {
+    // Fallback if branch columns are not yet in payload
+    delete updatePayload.stock_quiapo
+    delete updatePayload.stock_cavite
     const retry = await supabaseClient
       .from('products')
-      .update(fallbackPayload)
+      .update(updatePayload)
       .eq('id', product.id)
       .select()
     error = retry.error
@@ -272,4 +349,3 @@ export async function executeManualSale(supabaseClient, product, unitsSold = 1) 
     newInStock: updatedRecord.in_stock !== undefined ? updatedRecord.in_stock : newInStock,
   }
 }
-

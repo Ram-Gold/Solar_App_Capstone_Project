@@ -146,14 +146,19 @@ export default function AddProductScreen({ onNavigate }) {
       })(),
       size: form.size ? sanitizeText(form.size, { maxLength: 100 }) : null,
       stock_quantity: stockQty,
+      stock_quiapo: stockQty,
+      stock_cavite: 0,
+      reserved_quantity: 0,
+      reserved_quiapo: 0,
+      reserved_cavite: 0,
       in_stock: inStock,
       sales: sanitizeNumber(form.sales, { min: 0, integer: true, fallback: 0 }),
       image_url: form.image_url ? form.image_url.trim() : null,
     }
 
     let { error: insertError } = await supabase.from('products').insert([payload])
-    if (insertError && (insertError.message?.includes('min_price') || insertError.message?.includes('max_price') || insertError.message?.includes('stock_quantity'))) {
-      const { min_price, max_price, stock_quantity, ...fallbackPayload } = payload
+    if (insertError && (insertError.message?.includes('min_price') || insertError.message?.includes('max_price') || insertError.message?.includes('stock_') || insertError.message?.includes('reserved_'))) {
+      const { min_price, max_price, stock_quantity, stock_quiapo, stock_cavite, reserved_quantity, reserved_quiapo, reserved_cavite, ...fallbackPayload } = payload
       const retry = await supabase.from('products').insert([fallbackPayload])
       insertError = retry.error
     }

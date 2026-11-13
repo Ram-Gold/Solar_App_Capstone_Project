@@ -32,6 +32,11 @@ import {
   getMainProductImage,
   fetchDynamicProductImages
 } from '../lib/productImageUtils'
+import {
+  getStockBadgeConfig,
+  getBranchBreakdown,
+  getAvailableQuantity
+} from '../lib/inventoryUtils'
 
 export default function ProductInfoPage() {
   const { id } = useParams()
@@ -46,6 +51,10 @@ export default function ProductInfoPage() {
   const [selectedThumb, setSelectedThumb] = useState(0)
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState('reserve')
+  const [showBranchTooltip, setShowBranchTooltip] = useState(false)
+
+  const stockBadge = product ? getStockBadgeConfig(product) : null
+  const branchBreakdown = product ? getBranchBreakdown(product) : null
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -118,7 +127,13 @@ export default function ProductInfoPage() {
       { label: 'Warranty', value: p.warranty || '2 Years (Case-by-case evaluation)', icon: HiOutlineShieldCheck },
       { label: 'Life Span', value: p.life_span, icon: HiOutlineCalendarDays },
       { label: 'Place of Use', value: p.place_of_use, icon: HiOutlineMapPin },
-      { label: 'Availability', value: p.in_stock ? 'In Stock' : 'Out of Stock', icon: HiOutlineShieldCheck },
+      {
+        label: 'Availability',
+        value: stockBadge
+          ? `${stockBadge.quantity} unit${stockBadge.quantity === 1 ? '' : 's'} available (Quiapo: ${branchBreakdown?.quiapo.available || 0}${branchBreakdown?.hasCaviteStock ? `, Cavite: ${branchBreakdown.cavite.available}` : ''})`
+          : (p.in_stock ? 'In Stock' : 'Out of Stock'),
+        icon: HiOutlineShieldCheck,
+      },
     ].filter(spec => spec.value)
   }
 
@@ -265,7 +280,7 @@ export default function ProductInfoPage() {
           >
             {/* Header */}
             <div className="flex flex-col gap-2 sm:gap-3">
-              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <span className="bg-jds-secondary-fixed text-jds-on-secondary-fixed-variant px-2.5 py-0.5 rounded-full text-[11px] sm:text-label-sm uppercase tracking-wider font-semibold">
                   {product.type}
                 </span>
@@ -274,13 +289,59 @@ export default function ProductInfoPage() {
                     {product.waterproof_grade}
                   </span>
                 )}
-                <span className={`px-2.5 py-0.5 rounded-full text-[11px] sm:text-label-sm font-semibold ${
-                  product.in_stock
-                    ? 'bg-jds-secondary-container/20 text-jds-secondary'
-                    : 'bg-jds-error-container/20 text-jds-error'
-                }`}>
-                  {product.in_stock ? 'In Stock' : 'Out of Stock'}
-                </span>
+                <div className="relative inline-flex items-center gap-1.5">
+                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] sm:text-label-sm font-semibold ${
+                    stockBadge?.tier === 'out'
+                      ? 'bg-jds-error-container/20 text-jds-error'
+                      : stockBadge?.tier === 'low'
+                        ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                        : 'bg-jds-secondary-container/20 text-jds-secondary'
+                  }`}>
+                    {stockBadge?.tier === 'out'
+                      ? (stockBadge.reserved > 0 ? `Out of Stock (${stockBadge.reserved} Reserved)` : 'Out of Stock')
+                      : `In Stock (${stockBadge.quantity} available)`}
+                  </span>
+
+                  {/* Branch Breakdown "Where?" Popover / Hover Button */}
+                  <div className="relative inline-block">
+                    <button
+                      type="button"
+                      onMouseEnter={() => setShowBranchTooltip(true)}
+                      onMouseLeave={() => setShowBranchTooltip(false)}
+                      onClick={() => setShowBranchTooltip(!showBranchTooltip)}
+                      className="px-2 py-0.5 rounded-full text-[10px] sm:text-label-sm font-bold bg-jds-surface-container-high text-jds-on-surface hover:bg-jds-surface-container-highest transition-colors flex items-center gap-1 border border-jds-outline-variant/30 cursor-pointer"
+                      title="View branch showroom stock"
+                    >
+                      <HiOutlineMapPin className="text-xs text-jds-primary" />
+                      <span>Where?</span>
+                    </button>
+
+                    {showBranchTooltip && branchBreakdown && (
+                      <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-64 p-3 rounded-xl bg-jds-surface border border-jds-outline-variant/60 shadow-lg text-xs z-30 space-y-2">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant">
+                          Showroom Availability
+                        </div>
+                        <div className="flex items-center justify-between py-1 border-b border-jds-outline-variant/10">
+                          <span className="font-semibold text-jds-on-surface">Quiapo Showroom</span>
+                          <span className={`font-mono font-bold ${branchBreakdown.quiapo.available > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-stone-400'}`}>
+                            {branchBreakdown.quiapo.available > 0 ? `${branchBreakdown.quiapo.available} available` : '0 available'}
+                          </span>
+                        </div>
+                        {branchBreakdown.hasCaviteStock && (
+                          <div className="flex items-center justify-between py-1 border-b border-jds-outline-variant/10">
+                            <span className="font-semibold text-jds-on-surface">Cavite Hub</span>
+                            <span className={`font-mono font-bold ${branchBreakdown.cavite.available > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-stone-400'}`}>
+                              {branchBreakdown.cavite.available > 0 ? `${branchBreakdown.cavite.available} available` : '0 available'}
+                            </span>
+                          </div>
+                        )}
+                        <div className="text-[10px] text-jds-on-surface-variant/80 pt-0.5 leading-tight">
+                          Units are held only after staff confirmation of your visit.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <h1 className="text-xl sm:text-2xl md:text-headline-xl text-jds-on-surface font-extrabold tracking-tight">{product.name}</h1>
               {product.price_range ? (
@@ -322,7 +383,7 @@ export default function ProductInfoPage() {
             {/* Dual CTA Actions */}
             <div className="flex flex-col gap-2.5 sm:gap-3 mt-2 sm:mt-4">
               {/* Primary Action: Reserve for Store Pickup */}
-              {product.in_stock ? (
+              {(stockBadge?.quantity || 0) > 0 && product.in_stock !== false ? (
                 <button
                   onClick={() => {
                     setModalMode('reserve')
@@ -339,7 +400,7 @@ export default function ProductInfoPage() {
                   className="w-full py-3 sm:py-3.5 bg-stone-200 text-stone-500 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 text-xs sm:text-sm border border-stone-300"
                 >
                   <HiOutlineLockClosed className="text-base sm:text-lg" />
-                  <span>Out of Stock (Pickup Unavailable)</span>
+                  <span>{stockBadge?.reserved > 0 ? 'Fully Reserved (Pickup Unavailable)' : 'Out of Stock (Pickup Unavailable)'}</span>
                 </button>
               )}
 

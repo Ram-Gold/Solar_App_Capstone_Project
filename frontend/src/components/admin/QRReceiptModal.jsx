@@ -10,6 +10,9 @@ import {
   User,
   Key,
   Mail,
+  Lock,
+  Eye,
+  EyeOff,
   Clock,
   CheckCircle2,
   RefreshCw
@@ -24,7 +27,8 @@ export default function QRReceiptModal({
   customer,
   purchases = [],
   qrUrl,
-  emailConfirmation = null
+  emailConfirmation = null,
+  assignedPassword = null
 }) {
   const { backdropProps } = useModalBehavior({
     isOpen: Boolean(isOpen && customer),
@@ -32,6 +36,8 @@ export default function QRReceiptModal({
   })
   const [copiedLink, setCopiedLink] = useState(false)
   const [copiedToken, setCopiedToken] = useState(false)
+  const [copiedPassword, setCopiedPassword] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [resendingEmail, setResendingEmail] = useState(false)
   const [localEmailStatus, setLocalEmailStatus] = useState(null)
 
@@ -103,6 +109,13 @@ export default function QRReceiptModal({
     navigator.clipboard.writeText(token)
     setCopiedToken(true)
     setTimeout(() => setCopiedToken(false), 2000)
+  }
+
+  const handleCopyPassword = () => {
+    if (!assignedPassword) return
+    navigator.clipboard.writeText(assignedPassword)
+    setCopiedPassword(true)
+    setTimeout(() => setCopiedPassword(false), 2000)
   }
 
   const handlePrint = () => {
@@ -259,6 +272,66 @@ export default function QRReceiptModal({
             </p>
           </div>
 
+          {/* Customer Credentials Box */}
+          {customerEmail && (
+            <div className="p-4 rounded-xl bg-jds-surface-container/60 border border-jds-outline-variant/40 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-jds-on-surface flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-jds-primary" />
+                  Customer Login Credentials
+                </span>
+                <span className="text-[10px] uppercase font-semibold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                  Supabase Auth
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1">
+                    <Mail className="w-3 h-3" /> Login Email
+                  </span>
+                  <div className="font-mono text-jds-on-surface bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-2.5 py-1.5 truncate">
+                    {customerEmail}
+                  </div>
+                </div>
+
+                {assignedPassword && (
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1">
+                      <Key className="w-3 h-3" /> Assigned Password
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="font-mono text-jds-on-surface bg-jds-surface border border-jds-outline-variant/40 rounded-lg px-2.5 py-1.5 flex-1 select-all font-semibold">
+                        {showPassword ? assignedPassword : '••••••••'}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="p-1.5 rounded-lg border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container text-jds-on-surface-variant hover:text-jds-on-surface transition-colors cursor-pointer"
+                        title={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCopyPassword}
+                        className="px-2.5 py-1.5 rounded-lg bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 text-[11px] font-semibold transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
+                        title="Copy password"
+                      >
+                        {copiedPassword ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                        {copiedPassword ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-[11px] text-jds-on-surface-variant">
+                The customer can use these credentials to log in at /login. A confirmation notification has also been dispatched to their email address.
+              </p>
+            </div>
+          )}
+
           {/* Customer & Branch Details */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl bg-jds-surface-container/40 border border-jds-outline-variant/30 text-sm">
             <div className="space-y-1">
@@ -346,6 +419,8 @@ export default function QRReceiptModal({
           <div className="text-left space-y-1 mb-3 text-[11px]">
             <div><strong>Customer:</strong> {customer.full_name || customer.name}</div>
             <div><strong>Contact:</strong> {customer.phone_number || customer.phone}</div>
+            {customerEmail && <div><strong>Login Email:</strong> {customerEmail}</div>}
+            {assignedPassword && <div><strong>Portal Password:</strong> <span className="font-mono font-bold">{assignedPassword}</span></div>}
             <div><strong>Date:</strong> {new Date().toLocaleDateString('en-PH')}</div>
             <div><strong>Branch:</strong> {purchases[0]?.branch_location || 'Cavite'}</div>
           </div>
@@ -374,7 +449,7 @@ export default function QRReceiptModal({
             />
             <div className="text-[10px] font-bold mt-2">SCAN TO ACCESS DASHBOARD</div>
             <div className="text-[9px] text-gray-500 text-center mt-1">
-              Check active warranty, view purchases & submit fault diagnostics anytime.
+              Check active warranty, submit fault diagnostics, or sign in anytime at jdforcesolar.com/login.
             </div>
           </div>
 

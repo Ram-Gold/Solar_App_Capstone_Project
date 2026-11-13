@@ -9,6 +9,8 @@ import {
 import { supabase } from '../../lib/supabaseClient'
 import {
   getStockQuantity,
+  getAvailableQuantity,
+  getReservedQuantity,
   executeManualSale,
   LOW_STOCK_THRESHOLD
 } from '../../lib/inventoryUtils'
@@ -39,15 +41,18 @@ export default function RecordSaleModal({ product, onClose, onSaleSuccess }) {
   if (!product) return null
 
   const currentStock = getStockQuantity(product)
+  const currentReserved = getReservedQuantity(product)
+  const currentAvailable = getAvailableQuantity(product)
   const currentSales = Number(product.sales || 0)
-  const isOutOfStock = currentStock <= 0
-  const maxSellable = Math.max(0, currentStock)
+  const isOutOfStock = currentAvailable <= 0
+  const maxSellable = Math.max(0, currentAvailable)
 
   const projectedStock = Math.max(0, currentStock - (Number(unitsSold) || 0))
+  const projectedAvailable = Math.max(0, currentAvailable - (Number(unitsSold) || 0))
   const projectedSales = currentSales + (Number(unitsSold) || 0)
 
-  const willBeLowStock = projectedStock > 0 && projectedStock <= LOW_STOCK_THRESHOLD
-  const willBeOutOfStock = projectedStock === 0
+  const willBeLowStock = projectedAvailable > 0 && projectedAvailable <= LOW_STOCK_THRESHOLD
+  const willBeOutOfStock = projectedAvailable === 0
 
   const handleUnitsChange = (val) => {
     setErrorMsg('')
@@ -56,18 +61,18 @@ export default function RecordSaleModal({ product, onClose, onSaleSuccess }) {
       return
     }
     const num = Math.max(1, Number(val))
-    if (num > currentStock) {
-      setUnitsSold(currentStock)
-      setErrorMsg(`Maximum available inventory is ${currentStock} units.`)
+    if (num > currentAvailable) {
+      setUnitsSold(currentAvailable)
+      setErrorMsg(`Maximum unreserved inventory available for walk-in sale is ${currentAvailable} unit(s)${currentReserved > 0 ? ` (${currentReserved} held for reservations)` : ''}.`)
     } else {
       setUnitsSold(num)
     }
   }
 
   const handlePresetClick = (qty) => {
-    if (qty > currentStock) {
-      setUnitsSold(currentStock)
-      setErrorMsg(`Selected preset capped at current inventory of ${currentStock} units.`)
+    if (qty > currentAvailable) {
+      setUnitsSold(currentAvailable)
+      setErrorMsg(`Selected preset capped at current available inventory of ${currentAvailable} units.`)
     } else {
       setUnitsSold(qty)
       setErrorMsg('')
@@ -84,8 +89,8 @@ export default function RecordSaleModal({ product, onClose, onSaleSuccess }) {
       return
     }
 
-    if (qty > currentStock) {
-      setErrorMsg(`Cannot sell ${qty} units. Only ${currentStock} units in stock.`)
+    if (qty > currentAvailable) {
+      setErrorMsg(`Cannot sell ${qty} units for direct walk-in. Only ${currentAvailable} unreserved unit(s) available (${currentReserved} held for reservations).`)
       return
     }
 
@@ -187,17 +192,23 @@ export default function RecordSaleModal({ product, onClose, onSaleSuccess }) {
             )}
 
             {/* Current Stats */}
-            <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-jds-surface-container-low/40 border border-jds-outline-variant/20 text-xs">
+            <div className="grid grid-cols-3 gap-2.5 p-3.5 rounded-xl bg-jds-surface-container-low/40 border border-jds-outline-variant/20 text-xs">
               <div>
-                <span className="text-jds-on-surface-variant font-medium">Current Stock</span>
-                <div className="text-base font-bold font-mono text-jds-on-surface mt-0.5">
-                  {currentStock} unit{currentStock === 1 ? '' : 's'}
+                <span className="text-jds-on-surface-variant font-medium">Total Stock</span>
+                <div className="text-sm font-bold font-mono text-jds-on-surface mt-0.5">
+                  {currentStock}
                 </div>
               </div>
               <div>
-                <span className="text-jds-on-surface-variant font-medium">Recorded Sales</span>
-                <div className="text-base font-bold font-mono text-jds-on-surface mt-0.5">
-                  {currentSales} unit{currentSales === 1 ? '' : 's'}
+                <span className="text-jds-on-surface-variant font-medium">Available</span>
+                <div className="text-sm font-bold font-mono text-emerald-700 dark:text-emerald-400 mt-0.5">
+                  {currentAvailable} {currentReserved > 0 && <span className="text-[10px] text-amber-600 font-normal">({currentReserved} res)</span>}
+                </div>
+              </div>
+              <div>
+                <span className="text-jds-on-surface-variant font-medium">Total Sales</span>
+                <div className="text-sm font-bold font-mono text-jds-on-surface mt-0.5">
+                  {currentSales}
                 </div>
               </div>
             </div>

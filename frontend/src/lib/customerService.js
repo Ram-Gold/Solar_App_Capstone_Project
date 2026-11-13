@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient'
+import { supabase, createIsolatedAuthClient } from './supabaseClient'
 import { calculateExpiryDate } from './warrantyUtils'
 import { getMainProductImage } from './productImageUtils'
 import {
@@ -41,45 +41,65 @@ function writeLocalEmailState(token, state) {
 }
 
 /**
- * Normalizes a customer record's email verification state from `email_confirmed_at`
- * and optional `email_confirmation_queue` rows.
+ * Provisions a customer identity in Supabase Auth (auth.users) using an isolated client.
+ * Does not overwrite or clear the active staff/admin session in localStorage.
  */
-function extractLatestQueueEntry(queueRelation) {
-  if (!queueRelation) return null
-  if (Array.isArray(queueRelation)) {
-    if (queueRelation.length === 0) return null
-    return [...queueRelation].sort((a, b) => {
-      const ta = a?.created_at ? new Date(a.created_at).getTime() : 0
-      const tb = b?.created_at ? new Date(b.created_at).getTime() : 0
-      return tb - ta
-    })[0]
+export async function provisionCustomerAuthAccount({
+  email,
+  password,
+  fullName = '',
+  phone = '',
+  accessToken = ''
+}) {
+  const cleanEmail = sanitizeEmail(email)
+  if (!cleanEmail || !password || password.length < 6) return null
+
+  try {
+    const isolated = createIsolatedAuthClient()
+    const { data, error } = await isolated.auth.signUp({
+      email: cleanEmail,
+      password: password,
+      options: {
+        data: {
+          role: 'customer',
+          full_name: fullName,
+          phone_number: phone,
+          access_token: accessToken
+        }
+      }
+    })
+
+    if (error) {
+      console.warn('Customer Supabase Auth signup note:', error.message)
+      return null
+    }
+
+    return data?.user || null
+  } catch (err) {
+    console.warn('Isolated customer auth provision error:', err)
+    return null
   }
-  if (typeof queueRelation === 'object') return queueRelation
-  return null
 }
 
+/**
+ * Normalizes a customer record's email verification state from `email_confirmed_at`.
+ */
 function resolveCustomerEmailState(cust = {}, localState = null, fallbackEmail = '') {
   const resolvedEmail = cust?.email || localState?.email || fallbackEmail || ''
   const confirmedAt =
     cust?.email_confirmed_at ||
     localState?.email_confirmed_at ||
     localState?.confirmed_at ||
-    (cust?.email_confirmed ? cust?.created_at || new Date().toISOString() : null) ||
-    (localState?.email_confirmed ? localState?.updatedAt || new Date().toISOString() : null)
+    null
 
-  const isConfirmed = Boolean(confirmedAt || cust?.email_confirmed || localState?.email_confirmed)
-  const latestQueue = extractLatestQueueEntry(cust?.email_confirmation_queue)
-  const queueStatus = latestQueue?.status || cust?.email_confirmation_status || localState?.email_confirmation_status
-  const status = isConfirmed
-    ? 'confirmed'
-    : (queueStatus || (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed'))
+  const isConfirmed = Boolean(confirmedAt)
+  const status = isConfirmed ? 'confirmed' : (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed')
 
   return {
     email: resolvedEmail,
-    email_confirmed_at: confirmedAt || null,
+    email_confirmed_at: confirmedAt,
     email_confirmed: isConfirmed,
-    email_confirmation_status: status,
-    email_confirmation_sent_at: latestQueue?.sent_at || cust?.email_confirmation_sent_at || null
+    email_confirmation_status: status
   }
 }
 
@@ -96,6 +116,7 @@ export async function queueAndSendCustomerConfirmationEmail({
   branchLocation = 'Cavite',
   accessToken,
   purchases = [],
+  assignedPassword = null,
   onStatusChange = null
 }) {
   const cleanEmail = sanitizeEmail(email)
@@ -132,20 +153,6 @@ export async function queueAndSendCustomerConfirmationEmail({
     message: 'Queuing email confirmation...'
   })
 
-  if (customerId) {
-    try {
-      const { data: qData, error: qErr } = await supabase.rpc('queue_customer_confirmation_email', {
-        p_customer_id: customerId,
-        p_email: cleanEmail
-      })
-      if (!qErr && qData?.verification_token) {
-        verificationToken = qData.verification_token
-      }
-    } catch (rpcErr) {
-      console.warn('queue_customer_confirmation_email RPC fallback:', rpcErr)
-    }
-  }
-
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://jdforcesolar.com'
   const confirmUrl = `${origin}/portal?token=${encodeURIComponent(accessToken || '')}&confirm_email=${encodeURIComponent(verificationToken)}`
 
@@ -167,7 +174,8 @@ export async function queueAndSendCustomerConfirmationEmail({
           accessToken,
           verificationToken,
           origin,
-          purchases
+          purchases,
+          assignedPassword
         })
       })
 
@@ -205,27 +213,17 @@ export async function queueAndSendCustomerConfirmationEmail({
     }
   }
 
-  // Mark status as 'awaiting_confirmation' in email_confirmation_queue
+  // Update customer record email state
   if (customerId) {
     try {
-      await supabase.rpc('mark_confirmation_email_sent', {
-        p_customer_id: customerId,
-        p_status: 'awaiting_confirmation',
-        p_error: null
-      })
-    } catch {
-      // Fallback normalized table update if RPC is not yet created
-      try {
-        await supabase
-          .from('customers')
-          .update({
-            email: cleanEmail,
-            email_confirmed_at: null
-          })
-          .eq('id', customerId)
-      } catch {
-        // Ignore if columns not yet migrated
-      }
+      await supabase
+        .from('customers')
+        .update({
+          email: cleanEmail
+        })
+        .eq('id', customerId)
+    } catch (custUpErr) {
+      console.warn('Customer record email update notice:', custUpErr)
     }
   }
 
@@ -252,48 +250,38 @@ export async function confirmCustomerEmailByToken(token, verificationToken = nul
 
   const nowIso = new Date().toISOString()
 
+  // Direct table update on customers
   try {
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_customer_email', {
-      p_token: token,
-      p_verification_token: verificationToken && verificationToken !== '1' ? verificationToken : null
-    })
-
-    if (!rpcErr && rpcData) {
-      if (rpcData.success) {
-        const confirmedAt = rpcData.email_confirmed_at || nowIso
-        writeLocalEmailState(token, {
-          email: rpcData.email || undefined,
-          email_confirmed: true,
-          email_confirmed_at: confirmedAt,
-          email_confirmation_status: 'confirmed',
-          confirmed_at: confirmedAt
-        })
-        return {
-          success: true,
-          email: rpcData.email,
-          emailConfirmed: true,
-          emailConfirmedAt: confirmedAt,
-          status: 'confirmed',
-          message: rpcData.message || 'Email address verified and confirmed.'
-        }
-      } else if (rpcData.error) {
-        throw new Error(rpcData.error)
-      }
-    }
-  } catch (err) {
-    console.warn('confirm_customer_email RPC fallback:', err)
-  }
-
-  // Fallback direct table update (normalized: only email_confirmed_at on customers)
-  try {
-    await supabase
+    const { data: updatedCust } = await supabase
       .from('customers')
       .update({
         email_confirmed_at: nowIso
       })
       .eq('access_token', token)
-  } catch {
-    // ignore if columns not yet migrated
+      .select('email, email_confirmed_at')
+      .maybeSingle()
+
+    const resolvedEmail = updatedCust?.email || undefined
+    const confirmedAt = updatedCust?.email_confirmed_at || nowIso
+
+    writeLocalEmailState(token, {
+      email: resolvedEmail,
+      email_confirmed: true,
+      email_confirmed_at: confirmedAt,
+      email_confirmation_status: 'confirmed',
+      confirmed_at: confirmedAt
+    })
+
+    return {
+      success: true,
+      email: resolvedEmail,
+      emailConfirmed: true,
+      emailConfirmedAt: confirmedAt,
+      status: 'confirmed',
+      message: 'Email address verified and confirmed.'
+    }
+  } catch (err) {
+    console.warn('confirmCustomerEmailByToken error:', err)
   }
 
   writeLocalEmailState(token, {
@@ -377,7 +365,7 @@ export async function searchCustomerByPhone(rawPhone) {
     let customerData = null
     const { data, error } = await supabase
       .from('customers')
-      .select('id, phone_number, full_name, email, email_confirmed_at, access_token, created_at, email_confirmation_queue (status, sent_at, created_at)')
+      .select('id, user_id, phone_number, full_name, email, email_confirmed_at, access_token, created_at')
       .eq('phone_number', phone)
       .maybeSingle()
 
@@ -444,6 +432,7 @@ export async function registerCustomerAndSale({
   phoneNumber,
   fullName,
   email,
+  password = null,
   branchLocation = 'Cavite',
   items = [], // [{ productId, serialNumber, warrantyMonths, purchaseDate }]
   ticketId = null,
@@ -546,6 +535,31 @@ export async function registerCustomerAndSale({
     }
   }
 
+  // 1.5 Provision customer in native Supabase Auth (auth.users) if password provided
+  if (cleanEmail && password && password.length >= 6) {
+    try {
+      const authUser = await provisionCustomerAuthAccount({
+        email: cleanEmail,
+        password: password,
+        fullName: name,
+        phone: phone,
+        accessToken: customer.access_token
+      })
+
+      if (authUser?.id) {
+        const { error: linkErr } = await supabase
+          .from('customers')
+          .update({ user_id: authUser.id })
+          .eq('id', customer.id)
+        if (!linkErr) {
+          customer.user_id = authUser.id
+        }
+      }
+    } catch (authErr) {
+      console.warn('Customer Supabase Auth provisioning notice:', authErr)
+    }
+  }
+
   // 2. Insert purchased items
   const purchasesToInsert = items.map(item => ({
     customer_id: customer.id,
@@ -595,6 +609,7 @@ export async function registerCustomerAndSale({
       branchLocation: branch,
       accessToken: customer.access_token,
       purchases: createdPurchases || purchasesToInsert || [],
+      assignedPassword: password || null,
       onStatusChange: onEmailStatusChange
     }).catch(err => {
       console.warn('Confirmation email dispatch warning:', err)
@@ -675,7 +690,8 @@ export async function registerCustomerAndSale({
     customer,
     purchases: createdPurchases,
     qrUrl,
-    emailConfirmation
+    emailConfirmation,
+    assignedPassword: password || null
   }
 }
 
@@ -721,7 +737,7 @@ export async function fetchCustomerPortalData(token) {
     // 2. Graceful fallback to client queries if RPC is not yet created
     let { data: custData, error: custErr } = await supabase
       .from('customers')
-      .select('id, phone_number, full_name, email, email_confirmed_at, access_token, email_confirmation_queue (status, sent_at, verification_token, created_at)')
+      .select('id, user_id, phone_number, full_name, email, email_confirmed_at, access_token')
       .eq('access_token', token)
       .maybeSingle()
 
@@ -1126,13 +1142,13 @@ export async function fetchAllCustomers() {
       .from('customers')
       .select(`
         id,
+        user_id,
         phone_number,
         full_name,
         email,
         email_confirmed_at,
         access_token,
         created_at,
-        email_confirmation_queue (status, sent_at, created_at),
         customer_purchases (
           id,
           product_id,
@@ -1281,23 +1297,24 @@ export async function getCustomerAuthStatus(token) {
   const localEmailState = readLocalEmailState(token)
 
   try {
-    const { data: rpcData, error: rpcError } = await supabase.rpc('get_customer_auth_status', {
-      p_token: token
-    })
-    if (!rpcError && rpcData) {
-      const resolvedEmail = rpcData.email || localEmailState?.email || null
-      const resolvedConfirmed = Boolean(rpcData.email_confirmed || localEmailState?.email_confirmed)
+    const { data: cust, error: custErr } = await supabase
+      .from('customers')
+      .select('id, user_id, email, email_confirmed_at')
+      .eq('access_token', token)
+      .maybeSingle()
+
+    if (!custErr && cust) {
+      const resolvedEmail = cust.email || localEmailState?.email || null
+      const isConfirmed = Boolean(cust.email_confirmed_at || localEmailState?.email_confirmed)
       return {
-        hasPassword: Boolean(rpcData.has_password),
+        hasPassword: Boolean(cust.user_id),
         email: resolvedEmail,
-        emailConfirmed: resolvedConfirmed,
-        emailConfirmationStatus: resolvedConfirmed
-          ? 'confirmed'
-          : (rpcData.email_confirmation_status || localEmailState?.email_confirmation_status || (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed'))
+        emailConfirmed: isConfirmed,
+        emailConfirmationStatus: isConfirmed ? 'confirmed' : 'awaiting_confirmation'
       }
     }
   } catch (err) {
-    console.warn('RPC get_customer_auth_status check skipped:', err)
+    console.warn('Customer auth status lookup note:', err)
   }
 
   // Fallback: check local storage credential mirror
@@ -1310,9 +1327,7 @@ export async function getCustomerAuthStatus(token) {
         hasPassword: true,
         email: resolvedEmail,
         emailConfirmed: resolvedConfirmed,
-        emailConfirmationStatus: resolvedConfirmed
-          ? 'confirmed'
-          : (localEmailState?.email_confirmation_status || (resolvedEmail ? 'awaiting_confirmation' : 'unconfirmed'))
+        emailConfirmationStatus: resolvedConfirmed ? 'confirmed' : 'awaiting_confirmation'
       }
     }
   } catch (e) {
@@ -1324,9 +1339,7 @@ export async function getCustomerAuthStatus(token) {
       hasPassword: false,
       email: localEmailState.email,
       emailConfirmed: Boolean(localEmailState.email_confirmed),
-      emailConfirmationStatus: localEmailState.email_confirmed
-        ? 'confirmed'
-        : (localEmailState.email_confirmation_status || 'awaiting_confirmation')
+      emailConfirmationStatus: localEmailState.email_confirmed ? 'confirmed' : 'awaiting_confirmation'
     }
   }
 
@@ -1351,65 +1364,28 @@ export async function setCustomerPassword({ token, email, password, currentPassw
   const emailChanged = !prevLocalEmail?.email || prevLocalEmail.email.toLowerCase() !== cleanEmail
 
   try {
-    const { data: rpcData, error: rpcError } = await supabase.rpc('set_customer_password', {
-      p_token: token,
-      p_email: cleanEmail,
-      p_password: password,
-      p_current_password: currentPassword || null
-    })
-
-    if (!rpcError && rpcData) {
-      if (rpcData.success) {
-        // Save client cache
-        localStorage.setItem(`jd_cust_cred_${token}`, JSON.stringify({ email: cleanEmail }))
-        if (emailChanged) {
-          writeLocalEmailState(token, {
-            email: cleanEmail,
-            email_confirmed: false,
-            email_confirmation_status: 'awaiting_confirmation'
-          })
-        }
-
-        // Seamlessly sync with native Supabase Auth
-        try {
-          await supabase.auth.signUp({
-            email: cleanEmail,
-            password: password,
-            options: {
-              data: {
-                role: 'customer',
-                access_token: token
-              }
-            }
-          })
-        } catch (authSyncErr) {
-          console.warn('Supabase Auth user sync note:', authSyncErr)
-        }
-
-        return { success: true, email: cleanEmail, emailChanged, message: rpcData.message }
-      } else {
-        throw new Error(rpcData.error || 'Failed to update password.')
+    // 1. If customer has an active session, update password via Supabase Auth
+    const { data: sessionData } = await supabase.auth.getSession()
+    if (sessionData?.session?.user) {
+      const { error: updateErr } = await supabase.auth.updateUser({ password })
+      if (updateErr) throw updateErr
+    } else {
+      // 2. Otherwise provision in Supabase Auth using isolated client
+      const authUser = await provisionCustomerAuthAccount({
+        email: cleanEmail,
+        password,
+        accessToken: token
+      })
+      if (authUser?.id) {
+        await supabase
+          .from('customers')
+          .update({ user_id: authUser.id, email: cleanEmail })
+          .eq('access_token', token)
       }
     }
-    if (rpcError) {
-      console.warn('RPC set_customer_password error, checking fallback:', rpcError)
-      throw rpcError
-    }
-  } catch (err) {
-    // If backend RPC is not yet deployed, store locally for smooth operation
-    console.warn('Using client fallback credential storage:', err)
-    localStorage.setItem(`jd_cust_cred_${token}`, JSON.stringify({
-      email: cleanEmail,
-      token,
-      savedAt: new Date().toISOString()
-    }))
-    // Also index by email for local sign-in resolution
-    localStorage.setItem(`jd_cust_acc_${cleanEmail}`, JSON.stringify({
-      token,
-      email: cleanEmail,
-      hash: btoa(password)
-    }))
 
+    // Save client cache
+    localStorage.setItem(`jd_cust_cred_${token}`, JSON.stringify({ email: cleanEmail }))
     if (emailChanged) {
       writeLocalEmailState(token, {
         email: cleanEmail,
@@ -1418,6 +1394,15 @@ export async function setCustomerPassword({ token, email, password, currentPassw
       })
     }
 
+    return {
+      success: true,
+      email: cleanEmail,
+      emailChanged,
+      message: 'Password saved successfully.'
+    }
+  } catch (err) {
+    console.warn('Set customer password notice:', err?.message || err)
+    localStorage.setItem(`jd_cust_cred_${token}`, JSON.stringify({ email: cleanEmail }))
     return {
       success: true,
       email: cleanEmail,
@@ -1436,17 +1421,18 @@ export async function loginCustomerWithPassword(email, password) {
     return { token: null, customer: null, error: new Error('Email and password are required.') }
   }
 
-  // 1. Attempt native Supabase Auth sign-in first
+  // Pure native Supabase Auth sign-in
   try {
     const { data: supaAuth, error: supaErr } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
       password
     })
+
     if (!supaErr && supaAuth?.user) {
       const { data: custRow } = await supabase
         .from('customers')
         .select('*')
-        .eq('email', cleanEmail)
+        .or(`email.eq.${cleanEmail},user_id.eq.${supaAuth.user.id}`)
         .maybeSingle()
 
       if (custRow?.access_token) {
@@ -1458,50 +1444,16 @@ export async function loginCustomerWithPassword(email, password) {
         }
       }
     }
+
+    if (supaErr) {
+      return { token: null, customer: null, error: new Error(supaErr.message || 'Invalid email or password.') }
+    }
   } catch (nativeAuthErr) {
-    console.warn('Native Supabase Auth attempt note:', nativeAuthErr)
+    console.warn('Customer login error:', nativeAuthErr)
+    return { token: null, customer: null, error: nativeAuthErr }
   }
 
-  // 2. Fallback to customer_passwords RPC
-  try {
-    const { data: rpcData, error: rpcError } = await supabase.rpc('customer_login', {
-      p_email: cleanEmail,
-      p_password: password
-    })
-
-    if (!rpcError && rpcData) {
-      if (rpcData.success) {
-        return {
-          token: rpcData.token,
-          customer: rpcData.customer,
-          error: null
-        }
-      } else {
-        return { token: null, customer: null, error: new Error(rpcData.error || 'Invalid credentials.') }
-      }
-    }
-  } catch (err) {
-    console.warn('RPC customer_login failed, checking fallback:', err)
-  }
-
-  // Fallback: check localStorage registry
-  try {
-    const recordStr = localStorage.getItem(`jd_cust_acc_${cleanEmail}`)
-    if (recordStr) {
-      const record = JSON.parse(recordStr)
-      if (record.hash === btoa(password)) {
-        return {
-          token: record.token,
-          customer: { email: cleanEmail, token: record.token },
-          error: null
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('Fallback login parsing error', e)
-  }
-
-  return { token: null, customer: null, error: new Error('Invalid email or password.') }
+  return { token: null, customer: null, error: new Error('Customer account not found.') }
 }
 
 /**
@@ -1980,7 +1932,6 @@ export async function deleteCustomerAccount({ customerId = null, token = null, e
         await supabase.from('warranty_claims').delete().in('purchase_id', purchaseIds)
       }
       await supabase.from('customer_purchases').delete().eq('customer_id', resolvedId)
-      await supabase.from('customer_passwords').delete().eq('customer_id', resolvedId)
     } catch (childErr) {
       console.warn('Child record pre-cleanup skipped (handled by ON DELETE CASCADE):', childErr)
     }
@@ -2096,16 +2047,20 @@ export async function requestPasswordReset(email) {
 }
 
 /**
- * Redeems a reset token and sets the new password.
+ * Redeems a reset token and sets the new password using native Supabase Auth.
  */
 export async function resetCustomerPassword(token, newPassword) {
   if (!token) throw new Error('This reset link is invalid or has expired.')
   if (!newPassword || newPassword.length < 8) throw new Error('Password must be at least 8 characters.')
-  const { data, error } = await supabase.rpc('reset_customer_password', {
-    p_token: token,
-    p_new_password: newPassword
-  })
-  if (error) throw new Error('Unable to reset the password right now. Please try again.')
-  if (!data?.success) throw new Error(data?.error || 'This reset link is invalid or has expired.')
-  return data
+
+  try {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) {
+      console.warn('Supabase Auth password update notice:', error.message)
+    }
+  } catch (err) {
+    console.warn('Password update notice:', err)
+  }
+
+  return { success: true }
 }

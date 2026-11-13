@@ -27,7 +27,8 @@ export function buildAccountCreationEmailHtml({
   portalUrl,
   confirmUrl,
   qrCodeDataUrl = null,
-  purchases = []
+  purchases = [],
+  assignedPassword = null
 }) {
   const safeName = escapeHtml(customerName || 'Valued Customer')
   const safeEmail = escapeHtml(email || '')
@@ -36,6 +37,7 @@ export function buildAccountCreationEmailHtml({
   const safeToken = escapeHtml(accessToken || '')
   const safePortalUrl = escapeHtml(portalUrl || '')
   const safeConfirmUrl = escapeHtml(confirmUrl || safePortalUrl)
+  const safePassword = assignedPassword ? escapeHtml(assignedPassword) : null
 
   // Build itemized purchase receipt rows if purchases are available
   const hasPurchases = Array.isArray(purchases) && purchases.length > 0
@@ -133,6 +135,14 @@ export function buildAccountCreationEmailHtml({
                         <td style="color:#78716c;">Registered Email:</td>
                         <td style="font-weight:600;">${safeEmail}</td>
                       </tr>
+                      ${
+                        safePassword
+                          ? `<tr>
+                        <td style="color:#78716c;">Portal Password:</td>
+                        <td style="font-family:monospace;font-size:13px;font-weight:700;color:#1c1917;">${safePassword}</td>
+                      </tr>`
+                          : ''
+                      }
                       <tr>
                         <td style="color:#78716c;">Mobile Contact:</td>
                         <td style="font-family:monospace;font-weight:600;">${safePhone}</td>
@@ -484,7 +494,9 @@ export default async function handler(req, res) {
       deliveryAddress,
       delivery_address,
       facebook,
-      purchases
+      purchases,
+      assignedPassword,
+      password
     } = body
 
     const recipientEmail = email || body.to
@@ -556,7 +568,8 @@ export default async function handler(req, res) {
         portalUrl,
         confirmUrl,
         qrCodeDataUrl,
-        purchases: purchases || []
+        purchases: purchases || [],
+        assignedPassword: assignedPassword || password || null
       })
     }
 

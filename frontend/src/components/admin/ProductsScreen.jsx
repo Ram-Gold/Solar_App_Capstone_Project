@@ -76,7 +76,9 @@ export const EDIT_FIELDS = [
   { key: 'waterproof_grade', label: 'Waterproof Grade', type: 'text', group: 'physical' },
   { key: 'method_control', label: 'Control Method', type: 'text', group: 'physical' },
 
-  { key: 'stock_quantity', label: 'Stock Quantity (Units)', type: 'number', group: 'inventory' },
+  { key: 'stock_quantity', label: 'Total Physical Stock (Combined)', type: 'number', group: 'inventory' },
+  { key: 'stock_quiapo', label: 'Stock · Quiapo Showroom', type: 'number', group: 'inventory' },
+  { key: 'stock_cavite', label: 'Stock · Cavite Hub', type: 'number', group: 'inventory' },
   { key: 'sales', label: 'Total Sales', type: 'number', group: 'inventory' },
   { key: 'warranty', label: 'Warranty Terms', type: 'text', group: 'inventory' },
   { key: 'default_warranty_months', label: 'Warranty (Months)', type: 'number', group: 'inventory' },

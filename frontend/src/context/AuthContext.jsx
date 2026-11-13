@@ -38,12 +38,12 @@ export const AuthProvider = ({ children }) => {
         return 'staff'
       }
 
-      // Check customer accounts by auth user id if table/column exists
+      // Check customer accounts by auth user id (user_id column or id column)
       try {
         const { data: custData, error: custErr } = await supabase
           .from('customers')
-          .select('id, access_token')
-          .eq('id', userId)
+          .select('id, user_id, access_token')
+          .or(`user_id.eq.${userId},id.eq.${userId}`)
           .maybeSingle()
 
         if (!custErr && custData) {

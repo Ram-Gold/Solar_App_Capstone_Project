@@ -9,6 +9,10 @@ import {
   Phone,
   User,
   Mail,
+  Lock,
+  RefreshCw,
+  Eye,
+  EyeOff,
   Clock,
   Package,
   Ticket,
@@ -16,6 +20,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { searchCustomerByPhone, registerCustomerAndSale } from '../../lib/customerService'
+import { getAvailableQuantity, getReservedQuantity } from '../../lib/inventoryUtils'
 import {
   sanitizePhone,
   isValidPhone,
@@ -34,6 +39,8 @@ export default function RegisterSaleScreen({ onNavigate }) {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [emailTouched, setEmailTouched] = useState(false)
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [branchLocation, setBranchLocation] = useState('Cavite')
   const [isSearchingPhone, setIsSearchingPhone] = useState(false)
   const [isReturningCustomer, setIsReturningCustomer] = useState(false)
@@ -73,7 +80,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
         const { data, error } = await supabase
           .from('quote_tickets')
           .select('id, ticket_code, customer_name, mobile_contact, email, product_id, product_name, quantity, store_branch, is_reservation, status')
-          .eq('status', 'Pending')
+          .in('status', ['Pending', 'Confirmed'])
           .order('id', { ascending: false })
 
         if (!error && data) {
@@ -96,7 +103,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
         setLoadingProducts(true)
         const { data, error } = await supabase
           .from('products')
-          .select('id, name, type, watt, default_warranty_months, image_url')
+          .select('id, name, type, watt, default_warranty_months, image_url, stock_quantity, reserved_quantity, in_stock, stock_quiapo, stock_cavite, reserved_quiapo, reserved_cavite')
           .order('name', { ascending: true })
 
         if (error) throw error
@@ -261,6 +268,17 @@ export default function RegisterSaleScreen({ onNavigate }) {
     })
   }
 
+  const handleAutoGeneratePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+    let suffix = ''
+    for (let i = 0; i < 4; i++) {
+      suffix += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    const generated = `Solar${suffix}!`
+    setPassword(generated)
+    setShowPassword(true)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setErrorMessage('')
@@ -294,12 +312,28 @@ export default function RegisterSaleScreen({ onNavigate }) {
       return
     }
 
+    // Direct walk-in sales must not deplete temporarily reserved units
+    if (!selectedReservation) {
+      for (const it of items) {
+        const prod = catalogProducts.find(p => String(p.id) === String(it.productId))
+        if (prod) {
+          const avail = getAvailableQuantity(prod)
+          if (avail <= 0) {
+            setErrorMessage(`Cannot complete direct walk-in sale for "${prod.name}". Available inventory is 0 (${getReservedQuantity(prod)} unit(s) are held for customer appointments). If this customer holds a reservation pass, please link it above.`)
+            return
+          }
+        }
+      }
+    }
+
     try {
       setSubmitting(true)
+      const finalPassword = password.trim() || `Solar${Math.floor(1000 + Math.random() * 9000)}!`
       const result = await registerCustomerAndSale({
         phoneNumber,
         fullName,
         email: cleanEmail,
+        password: finalPassword,
         branchLocation,
         items,
         ticketId: selectedReservation?.id || null,
@@ -319,7 +353,10 @@ export default function RegisterSaleScreen({ onNavigate }) {
         }
       })
 
-      setQrModalData(result)
+      setQrModalData({
+        ...result,
+        assignedPassword: result?.assignedPassword || finalPassword
+      })
     } catch (err) {
       console.error('Registration failed:', err)
       setErrorMessage(err.message || 'Failed to complete registration and generate QR.')
@@ -338,6 +375,8 @@ export default function RegisterSaleScreen({ onNavigate }) {
     setFullName('')
     setEmail('')
     setEmailTouched(false)
+    setPassword('')
+    setShowPassword(false)
     setIsReturningCustomer(false)
     setExistingCustomerRecord(null)
     setErrorMessage('')
@@ -458,7 +497,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
             {/* Phone */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between h-5 text-xs font-semibold text-jds-on-surface-variant">
@@ -559,9 +598,47 @@ export default function RegisterSaleScreen({ onNavigate }) {
                 </p>
               ) : (
                 <p className="text-[11px] text-jds-on-surface-variant">
-                  Account creation & warranty portal confirmation will be sent to this address.
+                  Account login and warranty portal link will be emailed to this address.
                 </p>
               )}
+            </div>
+
+            {/* Portal Login Password */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between h-5 text-xs font-semibold text-jds-on-surface-variant">
+                <label htmlFor="reg-sale-password">Portal Password</label>
+                <button
+                  type="button"
+                  onClick={handleAutoGeneratePassword}
+                  className="text-[11px] font-semibold text-jds-primary hover:text-jds-primary/80 transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Generate a secure temporary password"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Auto-Generate
+                </button>
+              </div>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-jds-on-surface-variant absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  id="reg-sale-password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Auto-generated if blank"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full h-11 bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl pl-9 pr-10 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-jds-on-surface-variant hover:text-jds-on-surface p-1 rounded-md transition-colors"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <p className="text-[11px] text-jds-on-surface-variant">
+                Printed on the receipt pass for customer sign-in at /login.
+              </p>
             </div>
           </div>
         </div>
@@ -599,11 +676,15 @@ export default function RegisterSaleScreen({ onNavigate }) {
                     onChange={(e) => handleItemChange(idx, 'productId', e.target.value)}
                     className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-xl px-3 py-2 text-sm text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer truncate"
                   >
-                    {catalogProducts.map(prod => (
-                      <option key={prod.id} value={prod.id}>
-                        {prod.name} ({prod.watt || prod.type})
-                      </option>
-                    ))}
+                    {catalogProducts.map(prod => {
+                      const avail = getAvailableQuantity(prod)
+                      const res = getReservedQuantity(prod)
+                      return (
+                        <option key={prod.id} value={prod.id}>
+                          {prod.name} ({prod.watt ? `${prod.watt}W` : prod.type}) — Available: {avail}{res > 0 ? ` (${res} reserved)` : ''}
+                        </option>
+                      )
+                    })}
                   </select>
                 </div>
 
@@ -689,6 +770,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
           purchases={qrModalData.purchases}
           qrUrl={qrModalData.qrUrl}
           emailConfirmation={qrModalData.emailConfirmation || liveEmailStatus}
+          assignedPassword={qrModalData.assignedPassword}
         />
       )}
     </div>

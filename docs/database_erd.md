@@ -3,14 +3,14 @@
 ```erDiagram
     AUTH_USERS ||--o| ADMINS : "is (1:1 via id)"
     AUTH_USERS ||--o| STAFF : "is (1:1 via id)"
+    AUTH_USERS ||--o{ CUSTOMERS : "authenticates (1:M via user_id)"
     
-    CUSTOMERS ||--o| CUSTOMER_PASSWORDS : "authenticates (1:1 via customer_id)"
     CUSTOMERS ||--o{ CUSTOMER_PURCHASES : "owns (1:M via customer_id)"
-    CUSTOMERS ||--o{ EMAIL_CONFIRMATION_QUEUE : "queues (1:M via customer_id)"
     PRODUCTS ||--o{ CUSTOMER_PURCHASES : "sold as (1:M via product_id)"
     CUSTOMER_PURCHASES ||--o{ WARRANTY_CLAIMS : "covers (1:M via purchase_id)"
     
     PRODUCTS ||--o{ QUOTE_TICKETS : "inquired (1:M via product_id)"
+    PRODUCTS ||--|| PRODUCTS_AVAILABLE_STOCK : "projects view (1:1 via id)"
 
     AUTH_USERS {
         uuid id PK
@@ -48,6 +48,13 @@
         text battery
         boolean in_stock
         integer stock_quantity
+        integer reserved_quantity
+        integer stock_quiapo
+        integer stock_cavite
+        integer reserved_quiapo
+        integer reserved_cavite
+        numeric min_price
+        numeric max_price
         text waterproof_grade
         text method_control
         text material
@@ -70,12 +77,25 @@
         text place_of_use
         text power_source
     }
+    PRODUCTS_AVAILABLE_STOCK {
+        integer id PK
+        text name
+        integer stock_quantity
+        integer reserved_quantity
+        integer available_stock
+        boolean in_stock
+    }
     CUSTOMERS {
         uuid id PK
         text phone_number UK
         text full_name
+        uuid user_id FK
         text email
+        boolean email_confirmed
         timestamptz email_confirmed_at
+        text email_confirmation_status
+        uuid email_verification_token
+        timestamptz email_confirmation_sent_at
         uuid access_token UK
         text province
         text city
@@ -83,23 +103,6 @@
         text street_address
         text facebook
         timestamptz created_at
-    }
-    EMAIL_CONFIRMATION_QUEUE {
-        uuid id PK
-        uuid customer_id FK
-        text recipient_email
-        uuid verification_token
-        text status
-        timestamptz sent_at
-        timestamptz created_at
-    }
-    CUSTOMER_PASSWORDS {
-        uuid id PK
-        uuid customer_id FK
-        text email UK
-        text password_hash
-        timestamptz created_at
-        timestamptz updated_at
     }
     CUSTOMER_PURCHASES {
         uuid id PK

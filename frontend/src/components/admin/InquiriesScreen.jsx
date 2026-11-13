@@ -32,6 +32,13 @@ import {
   getInquiryStatusConfig,
   getInactiveInquiriesSummary,
   isEligibleForAutoPurge } from '../../lib/inquiryStatusUtils'
+import {
+  getBranchStock,
+  getAvailableQuantity,
+  getStockQuantity,
+  getReservedQuantity,
+  getBranchBreakdown
+} from '../../lib/inventoryUtils'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 import useModalBehavior from '../../hooks/useModalBehavior'
 import PhilippineAddressSelect from '../ui/PhilippineAddressSelect'
@@ -425,6 +432,9 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
   const [modalStatus, setModalStatus] = useState('Pending')
   const [modalBranch, setModalBranch] = useState('')
   const [modalStaffNotes, setModalStaffNotes] = useState('')
+  const [modalHoldStock, setModalHoldStock] = useState(false)
+  const [modalHoldQty, setModalHoldQty] = useState(1)
+  const [productsList, setProductsList] = useState([])
   const [modalSaving, setModalSaving] = useState(false)
   const [modalError, setModalError] = useState('')
   const [modalSuccess, setModalSuccess] = useState('')
@@ -542,6 +552,14 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
 
       if (!error && data) {
         fetched = data
+      }
+
+      // Also fetch products for inventory verification
+      try {
+        const { data: pData } = await supabase.from('products').select('*')
+        if (pData) setProductsList(pData)
+      } catch (pErr) {
+        console.warn('Failed to load products in inquiries:', pErr)
       }
 
       // Merge local fallback records if not in database
@@ -886,9 +904,37 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
     setModalStatus(normalizeInquiryStatus(inquiry.status))
     setModalBranch(inquiry.store_branch || 'Cavite Distribution Hub')
     setModalStaffNotes(inquiry.staff_notes || inquiry.notes || '')
+    setModalHoldStock(Boolean(inquiry.is_reservation))
+    setModalHoldQty(Number(inquiry.quantity) || 1)
     setModalError('')
     setModalSuccess('')
     setCopiedCode(false)
+  }
+
+  // Direct manual release of inventory hold
+  const handleReleaseHoldDirectly = async () => {
+    if (!selectedInquiry || !selectedInquiry.id) return
+    try {
+      setModalSaving(true)
+      const { error } = await supabase.rpc('release_product_reservation', {
+        p_ticket_id: selectedInquiry.id
+      })
+      if (error) throw error
+
+      setModalHoldStock(false)
+      setSelectedInquiry((prev) => ({ ...prev, is_reservation: false, reservation_expires_at: null }))
+      setInquiries((prev) =>
+        prev.map((t) => (t.id === selectedInquiry.id ? { ...t, is_reservation: false, reservation_expires_at: null } : t))
+      )
+      setModalSuccess('Showroom stock hold released successfully.')
+      showToast(`Hold released for ticket ${selectedInquiry.ticket_code}.`)
+      loadInquiries()
+    } catch (err) {
+      console.error('Failed to release hold:', err)
+      setModalError(err.message || 'Failed to release reservation hold.')
+    } finally {
+      setModalSaving(false)
+    }
   }
 
   // Save changes to database
@@ -933,6 +979,48 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         updated_at: new Date().toISOString()
       }
 
+      // Match product from productsList
+      const matchedProd = productsList.find((p) =>
+        (selectedInquiry.product_id && String(p.id) === String(selectedInquiry.product_id)) ||
+        (p.name && selectedInquiry.product_name && p.name.trim().toLowerCase() === selectedInquiry.product_name.trim().toLowerCase())
+      )
+
+      // Handle stock reservation transition
+      const wasReservation = Boolean(selectedInquiry.is_reservation)
+      const shouldHold = Boolean(modalHoldStock) && modalStatus !== 'Cancelled'
+
+      if (shouldHold && !wasReservation && matchedProd && selectedInquiry.id) {
+        // Staff is explicitly activating stock hold
+        const { data: resResult, error: resErr } = await supabase.rpc('reserve_product_stock', {
+          p_ticket_id: selectedInquiry.id,
+          p_product_id: matchedProd.id,
+          p_quantity: Math.max(1, Number(modalHoldQty) || 1),
+          p_expires_hours: 48
+        })
+
+        if (resErr) {
+          throw new Error('Failed to hold stock: ' + resErr.message)
+        } else if (resResult && !resResult.success) {
+          throw new Error(resResult.error || 'Cannot reserve stock: insufficient available units.')
+        }
+
+        updates.is_reservation = true
+        updates.quantity = Math.max(1, Number(modalHoldQty) || 1)
+        updates.reservation_expires_at = resResult?.expires_at || null
+      } else if ((!shouldHold || modalStatus === 'Cancelled') && wasReservation && selectedInquiry.id) {
+        // Staff is releasing stock hold
+        const { error: relErr } = await supabase.rpc('release_product_reservation', {
+          p_ticket_id: selectedInquiry.id
+        })
+        if (relErr) {
+          console.warn('Non-fatal release error:', relErr.message)
+        }
+        updates.is_reservation = false
+        updates.reservation_expires_at = null
+      } else if (shouldHold && wasReservation) {
+        updates.quantity = Math.max(1, Number(modalHoldQty) || 1)
+      }
+
       if (selectedInquiry.id) {
         const { error } = await supabase
           .from('quote_tickets')
@@ -951,11 +1039,13 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         )
       )
 
+      setSelectedInquiry((prev) => (prev ? { ...prev, ...updates } : null))
       setModalSuccess('Inquiry schedule and status updated.')
       showToast(`Inquiry ${selectedInquiry.ticket_code} updated successfully.`)
+      loadInquiries()
     } catch (err) {
       console.error('Failed to update inquiry in Supabase:', err)
-      setModalError('Failed to save changes to database.')
+      setModalError(err.message || 'Failed to save changes to database.')
     } finally {
       setModalSaving(false)
     }
@@ -1905,8 +1995,15 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                           <div className="font-mono font-bold text-xs text-jds-on-surface">
                             {q.ticket_code}
                           </div>
-                          <div className="text-[10px] text-jds-on-surface-variant mt-0.5">
-                            {isPickup ? 'Store Pickup' : 'Consultation'}
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] text-jds-on-surface-variant">
+                              {isPickup ? 'Store Pickup' : 'Consultation'}
+                            </span>
+                            {q.is_reservation && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400">
+                                Held: {q.quantity || 1}
+                              </span>
+                            )}
                           </div>
                         </TableCell>
 
@@ -2057,20 +2154,109 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
               </button>
             </div>
 
-            {/* Product Summary */}
-            <div className="p-3.5 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/20 space-y-1">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
-                Inquired Equipment & Purpose
-              </div>
-              <div className="font-bold text-sm text-jds-on-surface">
-                {selectedInquiry.product_name}
-              </div>
-              <div className="text-xs text-jds-on-surface-variant flex items-center gap-2">
-                <span>Quantity: {selectedInquiry.quantity || 1}</span>
-                {selectedInquiry.product_watt && <span>• {selectedInquiry.product_watt}W</span>}
-                <span>• {selectedInquiry.purpose_of_visitation || 'Consultation'}</span>
-              </div>
-            </div>
+            {/* Product Summary & Inventory Hold Gate */}
+            {(() => {
+              const matchedProd = productsList.find((p) =>
+                (selectedInquiry.product_id && String(p.id) === String(selectedInquiry.product_id)) ||
+                (p.name && selectedInquiry.product_name && p.name.trim().toLowerCase() === selectedInquiry.product_name.trim().toLowerCase())
+              )
+              const bStock = matchedProd ? getBranchStock(matchedProd, modalBranch) : null
+
+              return (
+                <div className="p-3.5 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/20 space-y-3">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
+                      Inquired Equipment & Purpose
+                    </div>
+                    <div className="font-bold text-sm text-jds-on-surface">
+                      {selectedInquiry.product_name}
+                    </div>
+                    <div className="text-xs text-jds-on-surface-variant flex items-center gap-2 mt-0.5">
+                      <span>Inquired Quantity: {selectedInquiry.quantity || 1}</span>
+                      {selectedInquiry.product_watt && <span>• {selectedInquiry.product_watt}W</span>}
+                      <span>• {selectedInquiry.purpose_of_visitation || 'Consultation'}</span>
+                    </div>
+                  </div>
+
+                  {/* Real-time Inventory Status at Selected Branch */}
+                  {matchedProd && bStock && (
+                    <div className="pt-2 border-t border-jds-outline-variant/15 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-jds-on-surface-variant font-medium">Branch Inventory ({modalBranch.includes('Quiapo') ? 'Quiapo Showroom' : 'Cavite Hub'}):</span>
+                        <span className="font-bold font-mono text-jds-on-surface">
+                          {bStock.stock} in store
+                        </span>
+                        <span className="text-jds-on-surface-variant font-medium">·</span>
+                        <span className={`font-mono font-bold ${bStock.available > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
+                          {bStock.available} available
+                        </span>
+                        {bStock.reserved > 0 && (
+                          <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
+                            ({bStock.reserved} reserved)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Staff Stock Hold Toggle Section */}
+                  <div className="p-3 rounded-xl bg-jds-surface border border-jds-outline-variant/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="hold-stock-toggle"
+                          checked={modalHoldStock}
+                          onChange={(e) => setModalHoldStock(e.target.checked)}
+                          className="h-4 w-4 rounded border-jds-outline-variant text-jds-primary focus:ring-jds-primary cursor-pointer"
+                        />
+                        <label htmlFor="hold-stock-toggle" className="text-xs font-bold text-jds-on-surface cursor-pointer select-none">
+                          Hold Stock for Pickup
+                        </label>
+                      </div>
+
+                      {selectedInquiry.is_reservation && (
+                        <button
+                          type="button"
+                          onClick={handleReleaseHoldDirectly}
+                          disabled={modalSaving}
+                          className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                          title="Release current inventory hold back to available stock"
+                        >
+                          Release Hold
+                        </button>
+                      )}
+                    </div>
+
+                    {modalHoldStock ? (
+                      <div className="text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>
+                            Locking <strong>{modalHoldQty} unit(s)</strong> at {modalBranch.includes('Quiapo') ? 'Quiapo Showroom' : 'Cavite Hub'}.
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-stone-600 dark:text-stone-300 font-semibold">Hold Qty:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max={matchedProd ? Math.max(1, bStock?.stock || 99) : 99}
+                            value={modalHoldQty}
+                            onChange={(e) => setModalHoldQty(Math.max(1, Number(e.target.value) || 1))}
+                            className="w-14 text-center font-bold font-mono text-xs p-1 rounded border border-emerald-300 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-jds-on-surface-variant">
+                        Unchecked: Consultation only (physical inventory remains freely available to walk-in customers).
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Customer Location & Address Details */}
             <div className="p-3.5 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/20 space-y-2">

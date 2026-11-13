@@ -217,7 +217,11 @@ export default function LoginPage() {
           }
 
           // Check if user is a customer linked to auth.users
-          const { data: custRow } = await supabase.from('customers').select('access_token').eq('id', userId).maybeSingle()
+          const { data: custRow } = await supabase
+            .from('customers')
+            .select('access_token')
+            .or(`id.eq.${userId},user_id.eq.${userId}`)
+            .maybeSingle()
           if (custRow?.access_token) {
             localStorage.setItem('jd_customer_token', custRow.access_token)
             navigate(`/portal?token=${custRow.access_token}`)

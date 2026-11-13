@@ -21,7 +21,9 @@ export default function AdminProductCard({
   showDelete = false,
 }) {
   const badge = getStockBadgeConfig(product)
-  const stockQty = badge.quantity
+  const availableQty = badge.quantity
+  const totalStockQty = badge.total
+  const reservedQty = badge.reserved
   const salesQty = Number(product.sales || 0)
 
   return (
@@ -79,11 +81,11 @@ export default function AdminProductCard({
         <div className="rounded-xl border border-jds-outline-variant/20 bg-jds-surface-container-low/20 p-2.5 space-y-2">
           {/* Inventory Stock Stepper */}
           <div className="flex items-center justify-between text-xs font-medium">
-            <span className="text-jds-on-surface-variant">Inventory Stock:</span>
+            <span className="text-jds-on-surface-variant">Total Physical Stock:</span>
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                disabled={stockQty <= 0}
+                disabled={totalStockQty <= 0}
                 onClick={(e) => {
                   e.stopPropagation()
                   onRequestDirectStockChange?.(product, -1)
@@ -102,7 +104,7 @@ export default function AdminProductCard({
                 className="font-mono font-bold text-jds-on-surface cursor-pointer px-1.5 py-0.5 rounded hover:bg-jds-surface-container hover:text-jds-primary transition-colors text-xs"
                 title="Click number to open full stock adjustment modal"
               >
-                {stockQty}
+                {totalStockQty}
               </span>
               <button
                 type="button"
@@ -119,8 +121,32 @@ export default function AdminProductCard({
             </div>
           </div>
 
+          {/* Reserved & Available Stock Indicators */}
+          <div className="pt-1.5 border-t border-jds-outline-variant/15 flex flex-wrap items-center justify-between gap-1 text-[11px]">
+            <div className="flex items-center gap-1">
+              <span className="text-jds-on-surface-variant font-medium">Available:</span>
+              <span className={`font-mono font-bold ${availableQty > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
+                {availableQty}
+              </span>
+            </div>
+
+            {reservedQty > 0 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 font-bold text-[10px]">
+                Temporarily Reserved: {reservedQty}
+              </span>
+            )}
+          </div>
+
+          {/* Branch breakdown indicator if Cavite has stock */}
+          {badge.breakdown?.hasCaviteStock && (
+            <div className="text-[10px] text-jds-on-surface-variant/80 flex items-center justify-between pt-0.5">
+              <span>Quiapo: {badge.breakdown.quiapo.available}</span>
+              <span>Cavite: {badge.breakdown.cavite.available}</span>
+            </div>
+          )}
+
           {/* Recorded Sales Stepper */}
-          <div className="flex items-center justify-between text-xs pt-1 border-t border-jds-outline-variant/15 font-medium">
+          <div className="flex items-center justify-between text-xs pt-1.5 border-t border-jds-outline-variant/15 font-medium">
             <span className="text-jds-on-surface-variant">Recorded Sales:</span>
             <div className="flex items-center gap-1.5">
               <button
@@ -148,13 +174,13 @@ export default function AdminProductCard({
               </span>
               <button
                 type="button"
-                disabled={stockQty <= 0}
+                disabled={availableQty <= 0}
                 onClick={(e) => {
                   e.stopPropagation()
                   onRequestDirectSaleChange?.(product, +1)
                 }}
                 className="h-6 w-6 rounded flex items-center justify-center border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition-all disabled:opacity-30 disabled:pointer-events-none text-xs cursor-pointer"
-                title="Record 1 sale (-1 stock)"
+                title={availableQty <= 0 ? 'No unreserved units available to sell' : 'Record 1 walk-in sale (-1 stock)'}
                 aria-label="Record sale"
               >
                 <Plus className="h-3 w-3" />
@@ -169,13 +195,13 @@ export default function AdminProductCard({
         <Button
           variant="outline"
           size="sm"
-          disabled={stockQty === 0}
+          disabled={availableQty <= 0}
           onClick={(e) => {
             e.stopPropagation()
             onOpenRecordSale?.(product)
           }}
           className="flex-1 text-xs font-semibold h-8 gap-1 border-jds-outline-variant hover:border-emerald-500 hover:text-emerald-600 disabled:opacity-40 cursor-pointer"
-          title={stockQty === 0 ? 'Out of Stock - Cannot record sale' : 'Record Customer Sale'}
+          title={availableQty <= 0 ? (reservedQty > 0 ? 'All units temporarily reserved - Cannot record walk-in sale' : 'Out of Stock - Cannot record sale') : 'Record Customer Sale'}
         >
           <ShoppingBag className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
           <span>Sale</span>

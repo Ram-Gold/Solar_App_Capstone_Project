@@ -23,6 +23,7 @@ import { normalizePhMobile, isValidPhMobile } from '../lib/phoneUtils'
 import { sanitizeText, sanitizeEmail, isValidEmail } from '../lib/sanitize.js'
 import PhilippineAddressSelect from './ui/PhilippineAddressSelect'
 import { formatFullAddress } from '../lib/philippineAddresses'
+import { getBranchStock } from '../lib/inventoryUtils'
 import { extractFacebookHandle, formatFacebookUrl } from '../lib/facebookUtils'
 import useModalBehavior from '../hooks/useModalBehavior'
 import AnimatedConfirmation from './ui/AnimatedConfirmation'
@@ -332,25 +333,9 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
         console.warn('Supabase insert note:', error.message)
       }
 
-      // After successful ticket insert, call the reservation RPC to hold stock
+      // Online inquiries enter as 'Pending Review' without immediately locking inventory.
+      // Showroom staff verifies customer intent and explicitly activates the stock hold.
       const finalInserted = data && data[0]
-      if (isReserve && product?.id && finalInserted?.id) {
-        const { data: reserveResult, error: reserveError } = await supabase
-          .rpc('reserve_product_stock', {
-            p_ticket_id: finalInserted.id,
-            p_product_id: product.id,
-            p_quantity: Number(quantity) || 1,
-            p_expires_hours: 48,
-          })
-
-        if (reserveError) {
-          console.warn('Stock reservation RPC not yet available, proceeding without stock hold:', reserveError.message)
-        } else if (reserveResult && !reserveResult.success) {
-          // Insufficient available stock — still show the ticket but warn the customer
-          console.warn('Reservation stock warning:', reserveResult.error)
-          payload._reservationWarning = reserveResult.error
-        }
-      }
 
       try {
         const stored = JSON.parse(localStorage.getItem('jds_local_quotes') || '[]')
@@ -709,6 +694,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               <div className="space-y-2">
                 {BRANCHES.map((b) => {
                   const isSelected = selectedBranch === b.name
+                  const bStock = product ? getBranchStock(product, b.name) : null
                   return (
                     <div
                       key={b.id}
@@ -720,12 +706,21 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                         : 'border-stone-200 bg-stone-50/50 hover:border-stone-300'
                         }`}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <Building2 className={`h-4 w-4 ${isSelected ? (isReserve ? 'text-amber-600' : 'text-blue-600') : 'text-stone-400'}`} />
-                          <p className="text-xs font-bold text-stone-900">{b.name}</p>
+                          <Building2 className={`h-4 w-4 shrink-0 ${isSelected ? (isReserve ? 'text-amber-600' : 'text-blue-600') : 'text-stone-400'}`} />
+                          <div>
+                            <p className="text-xs font-bold text-stone-900">{b.name}</p>
+                            {bStock && (
+                              <p className={`text-[11px] font-medium ${bStock.available > 0 ? 'text-emerald-700' : 'text-stone-500'}`}>
+                                {bStock.available > 0
+                                  ? `${bStock.available} unit(s) available for pickup`
+                                  : 'Out of stock at this branch (consultation only)'}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-stone-600 border border-stone-200">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-stone-600 border border-stone-200 shrink-0">
                           {b.badge}
                         </span>
                       </div>
@@ -1011,22 +1006,12 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 </div>
               )}
 
-              {/* 48-Hour Stock Hold Notice (Reservation only) */}
-              {isReserve && !generatedTicket._reservationWarning && (
-                <div className="flex items-start gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-900 text-xs">
-                  <Clock className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+              {/* Reservation Review Notice */}
+              {isReserve && (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-300 text-xs">
+                  <Clock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                   <span className="leading-tight">
-                    <strong>48-Hour Stock Hold Active.</strong> Units for this reservation are temporarily held for your scheduled visit. Stock is released automatically if the visit is not confirmed by store staff within 48 hours.
-                  </span>
-                </div>
-              )}
-
-              {/* Reservation stock warning (if available units were insufficient) */}
-              {isReserve && generatedTicket._reservationWarning && (
-                <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-900 text-xs">
-                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-                  <span className="leading-tight">
-                    <strong>Stock Notice:</strong> {generatedTicket._reservationWarning} Your inquiry is registered — please confirm availability with our staff during your showroom visit.
+                    <strong>Reservation Hold Review:</strong> Your pickup request has been filed with our showroom. Staff will review and confirm your inventory hold. Physical units are held for you upon staff confirmation.
                   </span>
                 </div>
               )}
