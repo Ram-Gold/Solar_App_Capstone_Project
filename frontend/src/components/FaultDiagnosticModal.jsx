@@ -238,6 +238,7 @@ export default function FaultDiagnosticModal({
   const [selectedRootSymptoms, setSelectedRootSymptoms] = useState([])
 
   // === SAFETY ACKNOWLEDGMENT & MODAL STATE ===
+  const [isPreTroubleshootUnlocked, setIsPreTroubleshootUnlocked] = useState(false)
   const [isActionStepsUnlocked, setIsActionStepsUnlocked] = useState(false)
   const [isSafetyModalOpen, setIsSafetyModalOpen] = useState(false)
   const [isWarrantyPolicyOpen, setIsWarrantyPolicyOpen] = useState(false)
@@ -450,6 +451,7 @@ export default function FaultDiagnosticModal({
     setCurrentDiagnosis(null)
     setSelectedRootSymptoms([])
     setSelectedCategories([ISSUE_CATEGORIES[0].id])
+    setIsPreTroubleshootUnlocked(false)
     setIsActionStepsUnlocked(false)
     setIsSafetyModalOpen(false)
     setIsWarrantyPolicyOpen(false)
@@ -621,9 +623,6 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                 <h2 className="text-base font-bold text-jds-on-surface truncate">
                   Solar Troubleshooting Guide
                 </h2>
-                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-jds-primary/10 text-jds-primary border border-jds-primary/20">
-                  Deterministic Rule-Based
-                </span>
               </div>
               <p className="text-xs text-jds-on-surface-variant truncate">
                 Unit: <strong className="text-jds-on-surface font-semibold">{purchase.product_name}</strong> • {productContext.formFactorLabel}
@@ -683,9 +682,6 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
             >
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>File Warranty Claim</span>
-              {currentDiagnosis && (
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              )}
             </button>
           </div>
 
@@ -760,17 +756,7 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                 <div className="space-y-5 animate-in fade-in duration-200">
                   {/* Top Verdict Card */}
                   <div className="p-5 rounded-2xl bg-jds-surface-container-low border border-jds-outline-variant/40 space-y-3.5 shadow-xs">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-jds-primary/10 text-jds-primary border border-jds-primary/20">
-                          {currentDiagnosis.faultCode || 'FAULT-RESOLVED'}
-                        </span>
-                        {currentDiagnosis.confidence && (
-                          <span className="text-[11px] font-semibold text-jds-on-surface-variant">
-                            {currentDiagnosis.confidence} Rule Confidence
-                          </span>
-                        )}
-                      </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       <span
                         className={`text-xs font-bold px-2.5 py-1 rounded-full border ${currentDiagnosis.severity === 'critical'
                           ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
@@ -832,12 +818,6 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                           <Wrench className="w-4 h-4 text-jds-primary" />
                           <span>Recommended Solution & Action Steps</span>
                         </div>
-                        {!isActionStepsUnlocked && (
-                          <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3" />
-                            <span>Safety Locked</span>
-                          </span>
-                        )}
                       </div>
 
                       {/* Steps Container: blurred when locked */}
@@ -850,10 +830,10 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                           }`}
                         >
                           {/* Safety Warning BEFORE Doing Actions */}
-                          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5">
-                            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5">
+                            <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                             <div className="text-xs space-y-0.5">
-                              <span className="font-bold text-amber-600 dark:text-amber-400 block uppercase tracking-wider text-[10px]">
+                              <span className="font-bold text-rose-600 dark:text-rose-400 block uppercase tracking-wider text-[10px]">
                                 Safety Warning Before Doing Actions
                               </span>
                               <p className="text-jds-on-surface-variant leading-relaxed">
@@ -905,14 +885,14 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
 
                         {/* Blur Precaution Overlay & Unlock Modal Trigger */}
                         {!isActionStepsUnlocked && (
-                          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center bg-jds-surface/80 backdrop-blur-xs">
-                            <div className="max-w-md space-y-3 p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/60 shadow-xl">
-                              <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+                          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center bg-jds-surface/85 backdrop-blur-xs">
+                            <div className="max-w-md space-y-3 p-5 rounded-2xl bg-jds-surface border border-rose-500/40 shadow-xl">
+                              <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
                                 <AlertTriangle className="w-5 h-5" />
                               </div>
                               <div className="space-y-1">
-                                <h4 className="text-sm font-bold text-jds-on-surface">
-                                  Action Steps Blurred for Safety Precaution
+                                <h4 className="text-sm font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
+                                  Warning
                                 </h4>
                                 <p className="text-xs text-jds-on-surface-variant leading-relaxed">
                                   These troubleshooting steps involve hands-on equipment handling. They are blurred to prevent personal harm and system damage. Review our safety warning before proceeding.
@@ -921,7 +901,7 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                               <button
                                 type="button"
                                 onClick={() => setIsSafetyModalOpen(true)}
-                                className="w-full px-4 py-2.5 rounded-xl bg-jds-primary hover:bg-jds-primary/90 text-jds-on-primary text-xs font-semibold transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+                                className="w-full px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
                               >
                                 <ShieldAlert className="w-4 h-4" />
                                 <span>Review Safety Warning</span>
@@ -930,62 +910,6 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                           </div>
                         )}
                       </div>
-                    </div>
-                  )}
-
-                  {/* Telemetry Benchmarks */}
-                  {currentDiagnosis.telemetry && (
-                    <div className="p-4 rounded-xl bg-jds-surface-container-low/50 border border-jds-outline-variant/30 space-y-2">
-                      <div className="text-[11px] font-bold text-jds-on-surface uppercase tracking-wider flex items-center gap-1.5">
-                        <Activity className="w-3.5 h-3.5 text-jds-primary" />
-                        <span>Inferred Hardware Telemetry Benchmarks</span>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                        <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/30">
-                          <span className="text-jds-on-surface-variant block text-[10px]">PV Circuit:</span>
-                          <strong className="text-jds-on-surface font-semibold truncate block">
-                            {renderFormattedText(currentDiagnosis.telemetry.pvEfficiency)}
-                          </strong>
-                        </div>
-                        <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/30">
-                          <span className="text-jds-on-surface-variant block text-[10px]">Battery Voltage:</span>
-                          <strong className="text-jds-on-surface font-semibold truncate block">
-                            {renderFormattedText(currentDiagnosis.telemetry.batteryVoltage)}
-                          </strong>
-                        </div>
-                        <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/30">
-                          <span className="text-jds-on-surface-variant block text-[10px]">Controller / BMS:</span>
-                          <strong className="text-jds-on-surface font-semibold truncate block">
-                            {renderFormattedText(currentDiagnosis.telemetry.bmsState)}
-                          </strong>
-                        </div>
-                        <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/30">
-                          <span className="text-jds-on-surface-variant block text-[10px]">IP Weather Seal:</span>
-                          <strong className="text-jds-on-surface font-semibold truncate block">
-                            {renderFormattedText(currentDiagnosis.telemetry.ipIntegrity)}
-                          </strong>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Warranty Evaluation Banner */}
-                  {currentDiagnosis.warrantyEvaluation && (
-                    <div
-                      className={`p-3.5 rounded-xl border text-xs space-y-1 ${currentDiagnosis.warrantyEvaluation.eligible
-                        ? 'bg-emerald-500/10 border-emerald-500/25 text-jds-on-surface'
-                        : currentDiagnosis.warrantyEvaluation.status === 'DISQUALIFIED_IMPACT'
-                          ? 'bg-rose-500/10 border-rose-500/25 text-jds-on-surface'
-                          : 'bg-jds-surface-container/60 border-jds-outline-variant/30 text-jds-on-surface'
-                        }`}
-                    >
-                      <div className="font-bold flex items-center gap-1.5">
-                        <ShieldCheck className="w-4 h-4 text-jds-primary shrink-0" />
-                        <span>Warranty Evaluation: {renderFormattedText(currentDiagnosis.warrantyEvaluation.verdictLabel)}</span>
-                      </div>
-                      <p className="text-xs text-jds-on-surface-variant leading-relaxed pl-5">
-                        {renderFormattedText(currentDiagnosis.warrantyEvaluation.policyReason)}
-                      </p>
                     </div>
                   )}
 
@@ -1042,103 +966,125 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                   {/* Multiple Choices */}
                   {currentNodeKey === 'ROOT' ? (
                     /* Step 1: Multi-Choice Primary Symptom Cards with Checkboxes & Continue Toolbar */
-                    <div className="space-y-4">
-                      {/* Safety Precaution Before Troubleshooting */}
-                      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-jds-on-surface">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                        <div className="text-xs space-y-1">
-                          <span className="font-bold text-amber-600 dark:text-amber-400 block uppercase tracking-wider text-[11px]">
-                            Safety Precaution Before Troubleshooting
-                          </span>
-                          <p className="text-jds-on-surface-variant leading-relaxed">
-                            Solar lighting fixtures use direct current circuits and rechargeable lithium battery cells. Power off the luminaire before inspecting hardware. Never troubleshoot or handle open wiring during rainy conditions or with wet hands.
-                          </p>
-                        </div>
-                      </div>
+                    <div className="relative rounded-2xl overflow-hidden">
+                      <div
+                        className={`space-y-4 ${
+                          !isPreTroubleshootUnlocked
+                            ? 'filter blur-sm select-none pointer-events-none opacity-30'
+                            : ''
+                        }`}
+                      >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {currentOptions.map((opt) => {
+                            const meta = SYMPTOM_META[opt.next] || {
+                              icon: AlertTriangle,
+                              label: opt.label,
+                              desc: 'Reported hardware symptom',
+                            }
+                            const Icon = meta.icon
+                            const isSelected = selectedRootSymptoms.some((s) => s.next === opt.next)
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {currentOptions.map((opt) => {
-                          const meta = SYMPTOM_META[opt.next] || {
-                            icon: AlertTriangle,
-                            label: opt.label,
-                            desc: 'Reported hardware symptom',
-                          }
-                          const Icon = meta.icon
-                          const isSelected = selectedRootSymptoms.some((s) => s.next === opt.next)
-
-                          return (
-                            <button
-                              key={opt.next}
-                              type="button"
-                              onClick={() => toggleRootSymptom(opt)}
-                              aria-pressed={isSelected}
-                              className={`p-4 rounded-2xl border transition-all text-left group flex items-start gap-3.5 shadow-2xs hover:shadow-sm active:scale-[0.99] cursor-pointer ${
-                                isSelected
-                                  ? 'border-jds-primary bg-jds-primary/5 ring-1 ring-jds-primary/30'
-                                  : 'border-jds-outline-variant/50 bg-jds-surface hover:border-jds-primary/60 hover:bg-jds-primary/[0.02]'
-                              }`}
-                            >
-                              <div
-                                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                            return (
+                              <button
+                                key={opt.next}
+                                type="button"
+                                onClick={() => toggleRootSymptom(opt)}
+                                aria-pressed={isSelected}
+                                className={`p-4 rounded-2xl border transition-all text-left group flex items-start gap-3.5 shadow-2xs hover:shadow-sm active:scale-[0.99] cursor-pointer ${
                                   isSelected
-                                    ? 'bg-jds-primary text-jds-on-primary'
-                                    : 'bg-jds-surface-container group-hover:bg-jds-primary/10 group-hover:text-jds-primary text-jds-on-surface-variant'
+                                    ? 'border-jds-primary bg-jds-primary/5 ring-1 ring-jds-primary/30'
+                                    : 'border-jds-outline-variant/50 bg-jds-surface hover:border-jds-primary/60 hover:bg-jds-primary/[0.02]'
                                 }`}
                               >
-                                <Icon className="w-5 h-5" />
-                              </div>
-                              <div className="min-w-0 flex-1">
                                 <div
-                                  className={`text-xs sm:text-sm font-bold transition-colors leading-snug ${
-                                    isSelected ? 'text-jds-primary' : 'text-jds-on-surface group-hover:text-jds-primary'
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                    isSelected
+                                      ? 'bg-jds-primary text-jds-on-primary'
+                                      : 'bg-jds-surface-container group-hover:bg-jds-primary/10 group-hover:text-jds-primary text-jds-on-surface-variant'
                                   }`}
                                 >
-                                  {renderFormattedText(meta.label)}
+                                  <Icon className="w-5 h-5" />
                                 </div>
-                                <p className="text-[11px] text-jds-on-surface-variant mt-1 leading-relaxed line-clamp-2">
-                                  {renderFormattedText(meta.desc)}
-                                </p>
-                              </div>
-                              <div
-                                className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5 transition-all ${
-                                  isSelected
-                                    ? 'bg-jds-primary border-jds-primary text-jds-on-primary shadow-2xs'
-                                    : 'border-jds-outline-variant/80 group-hover:border-jds-primary/60 bg-jds-surface'
-                                }`}
-                              >
-                                {isSelected && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
-                              </div>
-                            </button>
-                          )
-                        })}
+                                <div className="min-w-0 flex-1">
+                                  <div
+                                    className={`text-xs sm:text-sm font-bold transition-colors leading-snug ${
+                                      isSelected ? 'text-jds-primary' : 'text-jds-on-surface group-hover:text-jds-primary'
+                                    }`}
+                                  >
+                                    {renderFormattedText(meta.label)}
+                                  </div>
+                                  <p className="text-[11px] text-jds-on-surface-variant mt-1 leading-relaxed line-clamp-2">
+                                    {renderFormattedText(meta.desc)}
+                                  </p>
+                                </div>
+                                <div
+                                  className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                                    isSelected
+                                      ? 'bg-jds-primary border-jds-primary text-jds-on-primary shadow-2xs'
+                                      : 'border-jds-outline-variant/80 group-hover:border-jds-primary/60 bg-jds-surface'
+                                  }`}
+                                >
+                                  {isSelected && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        {/* Multi-Selection Action Toolbar */}
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-2xl bg-jds-surface-container-low/60 border border-jds-outline-variant/40">
+                          <div className="text-xs text-jds-on-surface-variant flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-jds-primary shrink-0" />
+                            {selectedRootSymptoms.length === 0 ? (
+                              <span>Select one or more symptoms above to proceed</span>
+                            ) : (
+                              <span className="font-semibold text-jds-on-surface">
+                                {selectedRootSymptoms.length} symptom{selectedRootSymptoms.length > 1 ? 's' : ''} selected
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            disabled={selectedRootSymptoms.length === 0}
+                            onClick={handleContinueRootSymptoms}
+                            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-bold text-xs sm:text-sm hover:bg-jds-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <span>
+                              {selectedRootSymptoms.length <= 1
+                                ? 'Continue Diagnostic'
+                                : `Continue with ${selectedRootSymptoms.length} Symptoms`}
+                            </span>
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
-                      {/* Multi-Selection Action Toolbar */}
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-2xl bg-jds-surface-container-low/60 border border-jds-outline-variant/40">
-                        <div className="text-xs text-jds-on-surface-variant flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-jds-primary shrink-0" />
-                          {selectedRootSymptoms.length === 0 ? (
-                            <span>Select one or more symptoms above to proceed</span>
-                          ) : (
-                            <span className="font-semibold text-jds-on-surface">
-                              {selectedRootSymptoms.length} symptom{selectedRootSymptoms.length > 1 ? 's' : ''} selected
-                            </span>
-                          )}
+                      {/* Blur Precaution Overlay before troubleshooting starts */}
+                      {!isPreTroubleshootUnlocked && (
+                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center bg-jds-surface/85 backdrop-blur-xs">
+                          <div className="max-w-md space-y-3 p-5 rounded-2xl bg-jds-surface border border-rose-500/40 shadow-xl">
+                            <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
+                              <AlertTriangle className="w-5 h-5" />
+                            </div>
+                            <div className="space-y-1">
+                              <h4 className="text-sm font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
+                                Warning
+                              </h4>
+                              <p className="text-xs text-jds-on-surface-variant leading-relaxed">
+                                Solar troubleshooting involves electrical circuits, lithium battery cells, and live DC connections. Review our safety precautions before handling equipment.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setIsSafetyModalOpen(true)}
+                              className="w-full px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <ShieldAlert className="w-4 h-4" />
+                              <span>Review Safety Warning</span>
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          disabled={selectedRootSymptoms.length === 0}
-                          onClick={handleContinueRootSymptoms}
-                          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-bold text-xs sm:text-sm hover:bg-jds-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          <span>
-                            {selectedRootSymptoms.length <= 1
-                              ? 'Continue Diagnostic'
-                              : `Continue with ${selectedRootSymptoms.length} Symptoms`}
-                          </span>
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
+                      )}
                     </div>
                   ) : (
                     /* Subsequent Steps: Clean Multiple Choice Tiles */
@@ -1522,7 +1468,11 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
               <button
                 type="button"
                 onClick={() => {
-                  setIsActionStepsUnlocked(true)
+                  if (!isPreTroubleshootUnlocked) {
+                    setIsPreTroubleshootUnlocked(true)
+                  } else {
+                    setIsActionStepsUnlocked(true)
+                  }
                   setIsSafetyModalOpen(false)
                 }}
                 className="w-full sm:w-auto px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold cursor-pointer transition-colors shadow-sm"

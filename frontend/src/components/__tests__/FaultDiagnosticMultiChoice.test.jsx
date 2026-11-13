@@ -216,8 +216,9 @@ describe('FaultDiagnosticModal Multi-Choice Symptom Selection', () => {
       />
     )
 
-    expect(screen.getByText(/Safety Precaution Before Troubleshooting/i)).toBeTruthy()
-    expect(screen.getByText(/Solar lighting fixtures use direct current circuits and rechargeable lithium battery cells/i)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /^Warning$/i })).toBeTruthy()
+    expect(screen.getByText(/Solar troubleshooting involves electrical circuits, lithium battery cells/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Review Safety Warning/i })).toBeTruthy()
   })
 
   it('blurs action steps on solution view and requires safety modal acknowledgment to unlock', () => {
@@ -229,6 +230,10 @@ describe('FaultDiagnosticModal Multi-Choice Symptom Selection', () => {
         customerToken="dummy-token"
       />
     )
+
+    // Unlock pre-troubleshooting safety warning
+    fireEvent.click(screen.getByRole('button', { name: /Review Safety Warning/i }))
+    fireEvent.click(screen.getByRole('button', { name: /I Understand/i }))
 
     // Select symptom and advance
     const hotspotBtn = screen.getByRole('button', { name: /Panel Heat \/ Discoloration \/ Broken Glass/i })
@@ -249,7 +254,7 @@ describe('FaultDiagnosticModal Multi-Choice Symptom Selection', () => {
 
     // Now in SOLUTION view: action steps should be blurred with precaution overlay
     expect(screen.getByText(/Recommended Solution & Action Steps/i)).toBeTruthy()
-    expect(screen.getByText(/Action Steps Blurred for Safety Precaution/i)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /^Warning$/i })).toBeTruthy()
     expect(screen.getByText(/These troubleshooting steps involve hands-on equipment handling/i)).toBeTruthy()
 
     // Open Safety Warning Modal
@@ -276,7 +281,7 @@ describe('FaultDiagnosticModal Multi-Choice Symptom Selection', () => {
     fireEvent.click(understandBtn)
 
     // Precaution overlay should be removed, revealing dual safety notices
-    expect(screen.queryByText(/Action Steps Blurred for Safety Precaution/i)).toBeNull()
+    expect(screen.queryByRole('heading', { name: /^Warning$/i })).toBeNull()
     expect(screen.getByText(/Safety Warning Before Doing Actions/i)).toBeTruthy()
     expect(screen.getByText(/Safety Warning After Doing Actions/i)).toBeTruthy()
     expect(screen.getByText(/If the problem does not resolve, stop troubleshooting immediately/i)).toBeTruthy()
@@ -299,6 +304,10 @@ describe('FaultDiagnosticModal Multi-Choice Symptom Selection', () => {
       />
     )
 
+    // Unlock pre-troubleshooting warning
+    fireEvent.click(screen.getByRole('button', { name: /Review Safety Warning/i }))
+    fireEvent.click(screen.getByRole('button', { name: /I Understand/i }))
+
     // Navigate to solution view
     fireEvent.click(screen.getByRole('button', { name: /Panel Heat \/ Discoloration \/ Broken Glass/i }))
     fireEvent.click(screen.getByRole('button', { name: /Continue Diagnostic/i }))
@@ -306,16 +315,20 @@ describe('FaultDiagnosticModal Multi-Choice Symptom Selection', () => {
     fireEvent.click(screen.getByRole('button', { name: /Charging LED is completely dark/i }))
     fireEvent.click(screen.getByRole('button', { name: /Direct open sunlight exposure/i }))
 
-    // Unlock
+    // Solution view: Unlock
     fireEvent.click(screen.getByRole('button', { name: /Review Safety Warning/i }))
     fireEvent.click(screen.getByRole('button', { name: /I Understand/i }))
-    expect(screen.queryByText(/Action Steps Blurred for Safety Precaution/i)).toBeNull()
+    expect(screen.queryByRole('heading', { name: /^Warning$/i })).toBeNull()
 
     // Click "Troubleshoot Another Issue"
     fireEvent.click(screen.getByRole('button', { name: /Troubleshoot Another Issue/i }))
 
-    // Should be back at Stage 1
-    expect(screen.getByText(/Safety Precaution Before Troubleshooting/i)).toBeTruthy()
+    // Should be back at Stage 1, relocked with warning
+    expect(screen.getByRole('heading', { name: /^Warning$/i })).toBeTruthy()
+
+    // Unlock again to proceed
+    fireEvent.click(screen.getByRole('button', { name: /Review Safety Warning/i }))
+    fireEvent.click(screen.getByRole('button', { name: /I Understand/i }))
 
     // Navigate back to solution view
     fireEvent.click(screen.getByRole('button', { name: /Panel Heat \/ Discoloration \/ Broken Glass/i }))
@@ -325,7 +338,7 @@ describe('FaultDiagnosticModal Multi-Choice Symptom Selection', () => {
     fireEvent.click(screen.getByRole('button', { name: /Direct open sunlight exposure/i }))
 
     // Must be blurred and locked again requiring re-acknowledgment
-    expect(screen.getByText(/Action Steps Blurred for Safety Precaution/i)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /^Warning$/i })).toBeTruthy()
   })
 
   it('closes safety warning modal on Cancel or backdrop click without unlocking action steps', () => {
@@ -337,6 +350,10 @@ describe('FaultDiagnosticModal Multi-Choice Symptom Selection', () => {
         customerToken="dummy-token"
       />
     )
+
+    // Unlock pre-troubleshooting warning
+    fireEvent.click(screen.getByRole('button', { name: /Review Safety Warning/i }))
+    fireEvent.click(screen.getByRole('button', { name: /I Understand/i }))
 
     // Navigate to solution view
     fireEvent.click(screen.getByRole('button', { name: /Panel Heat \/ Discoloration \/ Broken Glass/i }))
@@ -354,7 +371,7 @@ describe('FaultDiagnosticModal Multi-Choice Symptom Selection', () => {
 
     // Modal closed, steps still blurred
     expect(screen.queryByText(/WARNING: Risk of Personal Harm and System Damage/i)).toBeNull()
-    expect(screen.getByText(/Action Steps Blurred for Safety Precaution/i)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /^Warning$/i })).toBeTruthy()
 
     // Reopen and test backdrop click
     fireEvent.click(screen.getByRole('button', { name: /Review Safety Warning/i }))
@@ -365,7 +382,7 @@ describe('FaultDiagnosticModal Multi-Choice Symptom Selection', () => {
 
     // Modal closed, steps remain blurred
     expect(screen.queryByText(/WARNING: Risk of Personal Harm and System Damage/i)).toBeNull()
-    expect(screen.getByText(/Action Steps Blurred for Safety Precaution/i)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /^Warning$/i })).toBeTruthy()
   })
 
   it('closes safety warning modal on Escape without closing parent troubleshooter', () => {
@@ -378,6 +395,10 @@ describe('FaultDiagnosticModal Multi-Choice Symptom Selection', () => {
         customerToken="dummy-token"
       />
     )
+
+    // Unlock pre-troubleshooting warning
+    fireEvent.click(screen.getByRole('button', { name: /Review Safety Warning/i }))
+    fireEvent.click(screen.getByRole('button', { name: /I Understand/i }))
 
     // Navigate to solution view
     fireEvent.click(screen.getByRole('button', { name: /Panel Heat \/ Discoloration \/ Broken Glass/i }))

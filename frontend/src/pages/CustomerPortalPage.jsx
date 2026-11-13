@@ -677,11 +677,6 @@ export default function CustomerPortalPage() {
                                 {formatRemainingText(p.days_remaining)}
                               </span>
                             </div>
-                            {isActive && (
-                              <div className="px-1 text-[11px] text-jds-on-surface-variant leading-tight">
-                                Bench diagnostic applies upon intake. Drops or customer carelessness void coverage.
-                              </div>
-                            )}
                           </div>
                         )}
                       </div>

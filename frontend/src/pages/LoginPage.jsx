@@ -537,15 +537,6 @@ export default function LoginPage() {
               )}
             </div>
           </div>
-
-          {/* Branding Accent */}
-          <div className="mt-12 flex justify-center">
-            <div className="flex items-center gap-6 opacity-30">
-              <HiOutlineSun className="text-3xl text-jds-primary" />
-              <div className="h-6 w-[1px] bg-jds-outline" />
-              <span className="text-label-sm tracking-widest uppercase">Solar Portal Authentication</span>
-            </div>
-          </div>
         </motion.div>
       </main>
 
