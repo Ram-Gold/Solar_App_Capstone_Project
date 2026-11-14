@@ -401,15 +401,7 @@ export async function searchCustomerByPhone(rawPhone) {
 
     if (customerData) {
       const localState = readLocalEmailState(customerData.access_token)
-      const localCred = (() => {
-        try {
-          return JSON.parse(localStorage.getItem(`jd_cust_cred_${customerData.access_token}`) || 'null')
-        } catch {
-          return null
-        }
-      })()
-
-      const emailState = resolveCustomerEmailState(customerData, localState, localCred?.email || '')
+      const emailState = resolveCustomerEmailState(customerData, localState, '')
       customerData = {
         ...customerData,
         ...emailState
@@ -547,12 +539,21 @@ export async function registerCustomerAndSale({
       })
 
       if (authUser?.id) {
-        const { error: linkErr } = await supabase
-          .from('customers')
-          .update({ user_id: authUser.id })
-          .eq('id', customer.id)
-        if (!linkErr) {
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc('activate_customer_account', {
+          p_access_token: customer.access_token,
+          p_user_id: authUser.id,
+          p_email: cleanEmail
+        })
+        if (!rpcErr && rpcRes?.success) {
           customer.user_id = authUser.id
+        } else {
+          const { error: linkErr } = await supabase
+            .from('customers')
+            .update({ user_id: authUser.id })
+            .eq('id', customer.id)
+          if (!linkErr) {
+            customer.user_id = authUser.id
+          }
         }
       }
     } catch (authErr) {
@@ -703,13 +704,6 @@ export async function fetchCustomerPortalData(token) {
   if (!token) return { data: null, error: new Error('Token is missing') }
 
   const localEmailState = readLocalEmailState(token)
-  let localCredEmail = null
-  try {
-    const localCreds = JSON.parse(localStorage.getItem(`jd_cust_cred_${token}`) || 'null')
-    if (localCreds?.email) localCredEmail = localCreds.email
-  } catch {
-    // ignore
-  }
 
   try {
     // 1. Try secure RPC
@@ -719,7 +713,7 @@ export async function fetchCustomerPortalData(token) {
 
     if (!rpcError && rpcData) {
       const cust = rpcData.customer || {}
-      const emailState = resolveCustomerEmailState(cust, localEmailState, localCredEmail)
+      const emailState = resolveCustomerEmailState(cust, localEmailState, '')
 
       return {
         data: {
@@ -1228,15 +1222,7 @@ export async function fetchAllCustomers() {
 
     const mapped = (customers || []).map(cust => {
       const localEmailState = readLocalEmailState(cust.access_token)
-      let localCredEmail = null
-      try {
-        const localCreds = JSON.parse(localStorage.getItem(`jd_cust_cred_${cust.access_token}`) || 'null')
-        if (localCreds?.email) localCredEmail = localCreds.email
-      } catch {
-        // ignore
-      }
-
-      const emailState = resolveCustomerEmailState(cust, localEmailState, localCredEmail || '')
+      const emailState = resolveCustomerEmailState(cust, localEmailState, '')
 
       const purchases = (cust.customer_purchases || []).map(cp => {
         const expiry = cp.warranty_expires_at || calculateExpiryDate(cp.purchase_date, cp.warranty_months)
@@ -1317,23 +1303,6 @@ export async function getCustomerAuthStatus(token) {
     console.warn('Customer auth status lookup note:', err)
   }
 
-  // Fallback: check local storage credential mirror
-  try {
-    const localCreds = JSON.parse(localStorage.getItem(`jd_cust_cred_${token}`) || 'null')
-    if (localCreds) {
-      const resolvedEmail = localCreds.email || localEmailState?.email || null
-      const resolvedConfirmed = Boolean(localEmailState?.email_confirmed)
-      return {
-        hasPassword: true,
-        email: resolvedEmail,
-        emailConfirmed: resolvedConfirmed,
-        emailConfirmationStatus: resolvedConfirmed ? 'confirmed' : 'awaiting_confirmation'
-      }
-    }
-  } catch (e) {
-    console.warn('Local credential parse error', e)
-  }
-
   if (localEmailState?.email) {
     return {
       hasPassword: false,
@@ -1353,6 +1322,7 @@ export async function getCustomerAuthStatus(token) {
 
 /**
  * Sets or updates a customer's password.
+ * Uses isolated client and SECURITY DEFINER RPC so the active admin/staff browser session is never mutated.
  */
 export async function setCustomerPassword({ token, email, password, currentPassword = null }) {
   if (!token) throw new Error('Customer token is required.')
@@ -1363,52 +1333,79 @@ export async function setCustomerPassword({ token, email, password, currentPassw
   const prevLocalEmail = readLocalEmailState(token)
   const emailChanged = !prevLocalEmail?.email || prevLocalEmail.email.toLowerCase() !== cleanEmail
 
+  let cust = null
   try {
-    // 1. If customer has an active session, update password via Supabase Auth
-    const { data: sessionData } = await supabase.auth.getSession()
-    if (sessionData?.session?.user) {
-      const { error: updateErr } = await supabase.auth.updateUser({ password })
-      if (updateErr) throw updateErr
-    } else {
-      // 2. Otherwise provision in Supabase Auth using isolated client
-      const authUser = await provisionCustomerAuthAccount({
-        email: cleanEmail,
-        password,
-        accessToken: token
-      })
-      if (authUser?.id) {
-        await supabase
+    const { data, error } = await supabase
+      .from('customers')
+      .select('id, user_id, email, full_name, phone_number, access_token')
+      .eq('access_token', token)
+      .maybeSingle()
+    if (!error && data) {
+      cust = data
+    }
+  } catch (lookupErr) {
+    console.warn('Customer lookup in setCustomerPassword notice:', lookupErr)
+  }
+
+  const isolated = createIsolatedAuthClient()
+
+  if (cust?.user_id) {
+    if (!currentPassword) {
+      throw new Error('Current password is required to change your password.')
+    }
+    const { error: signInErr } = await isolated.auth.signInWithPassword({
+      email: cleanEmail,
+      password: currentPassword
+    })
+    if (signInErr) {
+      throw new Error(signInErr.message || 'Incorrect current password.')
+    }
+    const { error: updateErr } = await isolated.auth.updateUser({ password })
+    if (updateErr) throw updateErr
+  } else {
+    const authUser = await provisionCustomerAuthAccount({
+      email: cleanEmail,
+      password,
+      fullName: cust?.full_name || '',
+      phone: cust?.phone_number || '',
+      accessToken: token
+    })
+
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc('activate_customer_account', {
+      p_access_token: token,
+      p_user_id: authUser?.id || null,
+      p_email: cleanEmail,
+      p_password: password
+    })
+
+    if (rpcErr || !rpcRes?.success) {
+      if (cust?.id && authUser?.id) {
+        const { error: upErr } = await supabase
           .from('customers')
           .update({ user_id: authUser.id, email: cleanEmail })
-          .eq('access_token', token)
+          .eq('id', cust.id)
+        if (upErr) {
+          throw new Error(rpcRes?.error || rpcErr?.message || upErr.message || 'Failed to activate customer account.')
+        }
+      } else {
+        throw new Error(rpcRes?.error || rpcErr?.message || 'Failed to activate customer account.')
       }
     }
+  }
 
-    // Save client cache
-    localStorage.setItem(`jd_cust_cred_${token}`, JSON.stringify({ email: cleanEmail }))
-    if (emailChanged) {
-      writeLocalEmailState(token, {
-        email: cleanEmail,
-        email_confirmed: false,
-        email_confirmation_status: 'awaiting_confirmation'
-      })
-    }
+  if (emailChanged) {
+    writeLocalEmailState(token, {
+      email: cleanEmail,
+      email_confirmed: false,
+      email_confirmation_status: 'awaiting_confirmation'
+    })
+  }
 
-    return {
-      success: true,
-      email: cleanEmail,
-      emailChanged,
-      message: 'Password saved successfully.'
-    }
-  } catch (err) {
-    console.warn('Set customer password notice:', err?.message || err)
-    localStorage.setItem(`jd_cust_cred_${token}`, JSON.stringify({ email: cleanEmail }))
-    return {
-      success: true,
-      email: cleanEmail,
-      emailChanged,
-      message: 'Password saved successfully.'
-    }
+  return {
+    success: true,
+    email: cleanEmail,
+    emailChanged,
+    message: 'Password saved successfully.'
   }
 }
 
@@ -1828,18 +1825,6 @@ export async function removeCustomerPurchase({ purchaseId }) {
 function purgeCustomerLocalStorage({ token, email }) {
   try {
     if (token) {
-      const credRaw = localStorage.getItem(`jd_cust_cred_${token}`)
-      if (credRaw) {
-        try {
-          const parsed = JSON.parse(credRaw)
-          if (parsed?.email) {
-            localStorage.removeItem(`jd_cust_acc_${parsed.email.toLowerCase()}`)
-          }
-        } catch {
-          // ignore parse error
-        }
-      }
-      localStorage.removeItem(`jd_cust_cred_${token}`)
       localStorage.removeItem(`${EMAIL_CONFIRMATION_STORAGE_PREFIX}${token}`)
 
       if (localStorage.getItem('jd_customer_token') === token) {
@@ -1849,7 +1834,6 @@ function purgeCustomerLocalStorage({ token, email }) {
     }
     if (email) {
       const cleanEmail = email.trim().toLowerCase()
-      localStorage.removeItem(`jd_cust_acc_${cleanEmail}`)
       if (localStorage.getItem('jd_customer_email') === cleanEmail) {
         localStorage.removeItem('jd_customer_email')
       }
@@ -2063,4 +2047,113 @@ export async function resetCustomerPassword(token, newPassword) {
   }
 
   return { success: true }
+}
+
+/**
+ * Changes the authenticated admin or staff member's password.
+ * Securely verifies current password and updates auth.users on Supabase.
+ */
+export async function changePlatformUserPassword({ currentPassword, newPassword, userEmail = null }) {
+  if (!currentPassword) {
+    throw new Error('Current password is required.')
+  }
+  if (!newPassword || newPassword.length < 8) {
+    throw new Error('New password must be at least 8 characters long.')
+  }
+  if (currentPassword === newPassword) {
+    throw new Error('New password cannot be identical to your current password.')
+  }
+
+  // 1. Try secure RPC first
+  let rpcAttempted = false
+  let rpcSuccessData = null
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('change_own_password', {
+      p_current_password: currentPassword,
+      p_new_password: newPassword,
+    })
+
+    if (rpcError) {
+      if (
+        !rpcError.message?.includes('function') &&
+        !rpcError.message?.includes('schema cache') &&
+        !rpcError.message?.includes('Could not find')
+      ) {
+        throw new Error(rpcError.message)
+      }
+    } else if (rpcData) {
+      rpcAttempted = true
+      if (rpcData.success) {
+        rpcSuccessData = rpcData
+      } else if (rpcData.error) {
+        throw new Error(rpcData.error)
+      }
+    }
+  } catch (rpcErr) {
+    if (
+      rpcErr?.message &&
+      !rpcErr.message.includes('function') &&
+      !rpcErr.message.includes('schema cache') &&
+      !rpcErr.message.includes('Could not find')
+    ) {
+      throw rpcErr
+    }
+    console.warn('RPC change_own_password notice:', rpcErr)
+  }
+
+  if (rpcAttempted && rpcSuccessData) {
+    try {
+      await supabase.auth.updateUser({ password: newPassword })
+    } catch (authSyncErr) {
+      console.warn('GoTrue session sync notice:', authSyncErr)
+    }
+    return { success: true, message: rpcSuccessData.message || 'Password changed successfully.' }
+  }
+
+  // 2. Direct Supabase Auth fallback
+  if (userEmail) {
+    const isolated = createIsolatedAuthClient()
+    const { error: verifyErr } = await isolated.auth.signInWithPassword({
+      email: userEmail,
+      password: currentPassword,
+    })
+    if (verifyErr) {
+      throw new Error('Current password does not match.')
+    }
+  }
+
+  const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword })
+  if (updateErr) {
+    throw new Error(updateErr.message || 'Failed to update password.')
+  }
+
+  return { success: true, message: 'Password changed successfully.' }
+}
+
+/**
+ * Sets a new password for a target Staff or Admin account.
+ * Accessible only to administrators via secure RPC on Supabase.
+ */
+export async function adminSetUserPassword({ targetUserId, newPassword }) {
+  if (!targetUserId) {
+    throw new Error('Target user ID is required.')
+  }
+  if (!newPassword || newPassword.length < 8) {
+    throw new Error('New password must be at least 8 characters long.')
+  }
+
+  const { data, error } = await supabase.rpc('admin_set_user_password', {
+    p_target_user_id: targetUserId,
+    p_new_password: newPassword,
+  })
+
+  if (error) {
+    throw new Error(error.message || 'Failed to update user password.')
+  }
+
+  if (data && !data.success) {
+    throw new Error(data.error || 'Failed to update user password.')
+  }
+
+  return { success: true, message: data?.message || 'User password updated successfully.' }
 }

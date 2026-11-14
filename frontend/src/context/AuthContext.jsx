@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
         .maybeSingle()
 
       if (!adminError && adminData) {
-        return 'admin'
+        return { role: 'admin', accessToken: null }
       }
 
       // Check staff table
@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
         .maybeSingle()
 
       if (!staffError && staffData) {
-        return 'staff'
+        return { role: 'staff', accessToken: null }
       }
 
       // Check customer accounts by auth user id (user_id column or id column)
@@ -50,17 +50,17 @@ export const AuthProvider = ({ children }) => {
           if (custData.access_token) {
             localStorage.setItem('jd_customer_token', custData.access_token)
           }
-          return 'customer'
+          return { role: 'customer', accessToken: custData.access_token || null }
         }
       } catch (cErr) {
         console.warn('Customer role check ignored:', cErr)
       }
 
       console.warn('User not found in admins or staff tables')
-      return 'staff' // Default fallback
+      return { role: 'staff', accessToken: null } // Default fallback
     } catch (err) {
       console.error('Role fetch error:', err)
-      return 'staff'
+      return { role: 'staff', accessToken: null }
     }
   }
 
@@ -76,8 +76,11 @@ export const AuthProvider = ({ children }) => {
       if (currentUser) {
         setUser(currentUser)
         setLoading(true)
-        const userRole = await fetchRole(currentUser.id)
+        const { role: userRole, accessToken } = await fetchRole(currentUser.id)
         if (mounted) {
+          if (userRole === 'customer' && accessToken) {
+            setUser({ ...currentUser, accessToken })
+          }
           setRole(userRole)
           setLoading(false)
         }

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Trash2, AlertTriangle } from 'lucide-react'
+import { Trash2, AlertTriangle, KeyRound, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../context/AuthContext'
-import { deletePlatformUser } from '../../lib/customerService'
+import { deletePlatformUser, changePlatformUserPassword } from '../../lib/customerService'
 import { sanitizeText, sanitizePhone, isValidPhone } from '../../lib/sanitize.js'
 import { Button } from '../ui/button'
 import useModalBehavior from '../../hooks/useModalBehavior'
@@ -16,6 +16,15 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+
+  // Password update states
+  const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false)
+  const [showNewPwd, setShowNewPwd] = useState(false)
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false)
+  const [pwdSaving, setPwdSaving] = useState(false)
+  const [pwdSuccess, setPwdSuccess] = useState('')
+  const [pwdError, setPwdError] = useState('')
 
   // Self-deletion modal states
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -88,6 +97,48 @@ export default function ProfileScreen() {
       setSuccess('Profile updated successfully.')
     }
     setSaving(false)
+  }
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault()
+    setPwdError('')
+    setPwdSuccess('')
+
+    if (!pwdForm.currentPassword) {
+      setPwdError('Current password is required.')
+      return
+    }
+
+    if (pwdForm.newPassword.length < 8) {
+      setPwdError('New password must be at least 8 characters long.')
+      return
+    }
+
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+      setPwdError('Passwords do not match.')
+      return
+    }
+
+    if (pwdForm.newPassword === pwdForm.currentPassword) {
+      setPwdError('New password cannot be identical to your current password.')
+      return
+    }
+
+    setPwdSaving(true)
+    try {
+      await changePlatformUserPassword({
+        currentPassword: pwdForm.currentPassword,
+        newPassword: pwdForm.newPassword,
+        userEmail: user?.email,
+      })
+      setPwdSuccess('Password changed successfully.')
+      setPwdForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (err) {
+      console.error('Password change failed:', err)
+      setPwdError(err.message || 'Failed to update password.')
+    } finally {
+      setPwdSaving(false)
+    }
   }
 
   const handleConfirmDeleteOwnAccount = async () => {
@@ -203,6 +254,115 @@ export default function ProfileScreen() {
             <div className="pt-6 border-t border-jds-outline-variant/20">
               <Button type="submit" disabled={saving} className="bg-jds-primary text-jds-on-primary h-12 px-10 rounded-lg font-bold shadow-sm hover:opacity-90">
                 {saving ? 'Saving Updates...' : 'Update Account Info'}
+              </Button>
+            </div>
+          </form>
+        </div>
+
+        {/* Security & Password Card */}
+        <div className="mt-8 rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-8 space-y-6 shadow-sm">
+          <div className="flex items-center gap-3 border-b border-jds-outline-variant/20 pb-4">
+            <div className="h-10 w-10 rounded-lg bg-jds-primary/10 flex items-center justify-center text-jds-primary">
+              <KeyRound className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-body-lg font-bold text-jds-on-surface">Security & Password</h2>
+              <p className="text-label-sm text-jds-on-surface-variant">Update your account login password</p>
+            </div>
+          </div>
+
+          {pwdError && (
+            <div className="rounded-lg bg-jds-error-container/10 border border-jds-error/20 p-4 text-body-sm text-jds-error">
+              {pwdError}
+            </div>
+          )}
+          {pwdSuccess && (
+            <div className="rounded-lg bg-jds-secondary-container/10 border border-jds-secondary/20 p-4 text-body-sm text-jds-secondary">
+              {pwdSuccess}
+            </div>
+          )}
+
+          <form onSubmit={handlePasswordChange} className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Current Password</label>
+              <div className="relative">
+                <input
+                  type={showCurrentPwd ? 'text' : 'password'}
+                  required
+                  value={pwdForm.currentPassword}
+                  onChange={(e) => setPwdForm({ ...pwdForm, currentPassword: e.target.value })}
+                  className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 pr-11 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                  placeholder="Enter current password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPwd(!showCurrentPwd)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-jds-on-surface-variant/60 hover:text-jds-on-surface transition-colors cursor-pointer"
+                  aria-label={showCurrentPwd ? 'Hide password' : 'Show password'}
+                >
+                  {showCurrentPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showNewPwd ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    value={pwdForm.newPassword}
+                    onChange={(e) => setPwdForm({ ...pwdForm, newPassword: e.target.value })}
+                    className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 pr-11 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                    placeholder="Minimum 8 characters"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPwd(!showNewPwd)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-jds-on-surface-variant/60 hover:text-jds-on-surface transition-colors cursor-pointer"
+                    aria-label={showNewPwd ? 'Hide password' : 'Show password'}
+                  >
+                    {showNewPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider">Confirm New Password</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPwd ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    value={pwdForm.confirmPassword}
+                    onChange={(e) => setPwdForm({ ...pwdForm, confirmPassword: e.target.value })}
+                    className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 pr-11 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                    placeholder="Re-enter new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPwd(!showConfirmPwd)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-jds-on-surface-variant/60 hover:text-jds-on-surface transition-colors cursor-pointer"
+                    aria-label={showConfirmPwd ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-jds-outline-variant/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <span className="text-xs text-jds-on-surface-variant/70">
+                Password must contain at least 8 characters.
+              </span>
+              <Button
+                type="submit"
+                disabled={pwdSaving}
+                className="bg-jds-primary text-jds-on-primary h-11 px-8 rounded-lg font-bold shadow-sm hover:opacity-90 cursor-pointer disabled:opacity-60"
+              >
+                {pwdSaving ? 'Updating Password...' : 'Change Password'}
               </Button>
             </div>
           </form>

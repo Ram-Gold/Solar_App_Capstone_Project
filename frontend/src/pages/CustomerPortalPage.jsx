@@ -63,7 +63,12 @@ export default function CustomerPortalPage() {
   useEffect(() => {
     if (!authLoading && user && role === 'customer') {
       const urlToken = searchParams.get('token') || searchParams.get('uuid')
-      if (urlToken && user.id && urlToken !== user.id) {
+      const activeCustomerToken =
+        user.accessToken ||
+        (user.isCustomer ? user.id : null) ||
+        localStorage.getItem('jd_customer_token') ||
+        user.id
+      if (urlToken && activeCustomerToken && urlToken !== activeCustomerToken) {
         navigate(`/login?token=${encodeURIComponent(urlToken)}`, { replace: true })
       }
     }

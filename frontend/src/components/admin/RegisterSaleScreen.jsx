@@ -328,7 +328,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
 
     try {
       setSubmitting(true)
-      const finalPassword = password.trim() || `Solar${Math.floor(1000 + Math.random() * 9000)}!`
+      const finalPassword = password.trim() || null
       const result = await registerCustomerAndSale({
         phoneNumber,
         fullName,
@@ -355,7 +355,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
 
       setQrModalData({
         ...result,
-        assignedPassword: result?.assignedPassword || finalPassword
+        assignedPassword: result?.assignedPassword || finalPassword || null
       })
     } catch (err) {
       console.error('Registration failed:', err)
@@ -622,7 +622,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
                 <input
                   id="reg-sale-password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Auto-generated if blank"
+                  placeholder="Optional: leave blank for customer self-activation"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full h-11 bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl pl-9 pr-10 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors font-mono"
@@ -637,7 +637,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
                 </button>
               </div>
               <p className="text-[11px] text-jds-on-surface-variant">
-                Printed on the receipt pass for customer sign-in at /login.
+                If blank, customer creates their password upon scanning the QR receipt pass or email link.
               </p>
             </div>
           </div>

@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../context/AuthContext'
-import { deletePlatformUser } from '../../lib/customerService'
+import { deletePlatformUser, adminSetUserPassword } from '../../lib/customerService'
 import { sanitizeText, sanitizePhone, isValidPhone, sanitizeEmail } from '../../lib/sanitize.js'
 import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
-import { Trash2, X, Shield, Users as UsersIcon, CalendarDays, Mail, Phone, Briefcase, UserPlus, AlertTriangle } from 'lucide-react'
+import { Trash2, X, Shield, Users as UsersIcon, CalendarDays, Mail, Phone, Briefcase, UserPlus, AlertTriangle, KeyRound, Eye, EyeOff } from 'lucide-react'
 import useModalBehavior from '../../hooks/useModalBehavior'
 
 export default function UsersScreen() {
@@ -27,12 +27,22 @@ export default function UsersScreen() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
-  const anyUserModalOpen = Boolean(selectedUser || deletingUser)
+  // Admin password change modal states
+  const [passwordUser, setPasswordUser] = useState(null)
+  const [newPasswordVal, setNewPasswordVal] = useState('')
+  const [confirmPasswordVal, setConfirmPasswordVal] = useState('')
+  const [showPwdVal, setShowPwdVal] = useState(false)
+  const [showConfirmPwdVal, setShowConfirmPwdVal] = useState(false)
+  const [pwdUpdating, setPwdUpdating] = useState(false)
+  const [pwdModalError, setPwdModalError] = useState('')
+
+  const anyUserModalOpen = Boolean(selectedUser || deletingUser || passwordUser)
 
   useModalBehavior({
     isOpen: anyUserModalOpen,
     onClose: () => {
-      if (deletingUser && !isDeleting) setDeletingUser(null)
+      if (passwordUser && !pwdUpdating) setPasswordUser(null)
+      else if (deletingUser && !isDeleting) setDeletingUser(null)
       else if (selectedUser) setSelectedUser(null)
     },
   })
@@ -155,6 +165,47 @@ export default function UsersScreen() {
       setDeleteError(err.message || `Failed to delete ${label.toLowerCase()}.`)
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const handleOpenChangePassword = (userObj, table) => {
+    setPwdModalError('')
+    setNewPasswordVal('')
+    setConfirmPasswordVal('')
+    setShowPwdVal(false)
+    setShowConfirmPwdVal(false)
+    setPasswordUser({ ...userObj, table })
+  }
+
+  const handleSaveUserPassword = async (e) => {
+    e.preventDefault()
+    setPwdModalError('')
+
+    if (!newPasswordVal || newPasswordVal.length < 8) {
+      setPwdModalError('New password must be at least 8 characters long.')
+      return
+    }
+
+    if (newPasswordVal !== confirmPasswordVal) {
+      setPwdModalError('Passwords do not match.')
+      return
+    }
+
+    try {
+      setPwdUpdating(true)
+      await adminSetUserPassword({
+        targetUserId: passwordUser.id,
+        newPassword: newPasswordVal,
+      })
+
+      const name = passwordUser.full_name || passwordUser.email || 'User'
+      setSuccess(`Password for "${name}" updated successfully.`)
+      setPasswordUser(null)
+    } catch (err) {
+      console.error('Failed to update user password:', err)
+      setPwdModalError(err.message || 'Failed to update user password.')
+    } finally {
+      setPwdUpdating(false)
     }
   }
 
@@ -367,18 +418,32 @@ export default function UsersScreen() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleOpenDeleteConfirm(u, 'staff')
-                          }}
-                          className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
-                          title="Delete staff account"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenChangePassword(u, 'staff')
+                            }}
+                            className="h-9 w-9 text-jds-primary hover:bg-jds-primary/10"
+                            title={`Change ${u.full_name}'s password`}
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenDeleteConfirm(u, 'staff')
+                            }}
+                            className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
+                            title="Delete staff account"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -450,18 +515,32 @@ export default function UsersScreen() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleOpenDeleteConfirm(u, 'admins')
-                          }}
-                          className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
-                          title="Delete administrator account"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenChangePassword(u, 'admins')
+                            }}
+                            className="h-9 w-9 text-jds-primary hover:bg-jds-primary/10"
+                            title={`Change ${u.full_name}'s password`}
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenDeleteConfirm(u, 'admins')
+                            }}
+                            className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
+                            title="Delete administrator account"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -535,6 +614,27 @@ export default function UsersScreen() {
                   </span>
                   <span className="font-semibold text-jds-on-surface">{formatDate(selectedUser.created_at)}</span>
                 </div>
+              </div>
+
+              {/* Password Management for This User */}
+              <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h3 className="text-xs font-bold text-jds-on-surface flex items-center gap-1.5">
+                    <KeyRound className="w-4 h-4 shrink-0 text-jds-primary" />
+                    <span>Password Management</span>
+                  </h3>
+                  <p className="text-xs text-jds-on-surface-variant leading-relaxed">
+                    Set a new password for this {selectedUser.table === 'admins' ? 'administrator' : 'staff'} account.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleOpenChangePassword(selectedUser, selectedUser.table)}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-jds-primary hover:bg-jds-primary/90 text-jds-on-primary text-xs font-bold transition-colors shrink-0 cursor-pointer shadow-xs"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>Set New Password</span>
+                </button>
               </div>
 
               {/* Danger Zone at Bottom of User's View */}
@@ -637,6 +737,125 @@ export default function UsersScreen() {
                 <span>Yes, Permanently Delete</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {passwordUser && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !pwdUpdating) setPasswordUser(null)
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+          >
+            <div className="p-5 border-b border-jds-outline-variant/30 flex items-center justify-between gap-3 bg-jds-surface-container-low/20">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center shrink-0">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-body-md font-bold text-jds-on-surface truncate">
+                    Set User Password
+                  </h3>
+                  <p className="text-label-sm text-jds-on-surface-variant truncate">
+                    {passwordUser.full_name || passwordUser.email} ({passwordUser.table === 'admins' ? 'Administrator' : 'Staff Member'})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={pwdUpdating}
+                onClick={() => setPasswordUser(null)}
+                className="p-1.5 text-jds-on-surface-variant hover:text-jds-on-surface rounded-lg hover:bg-jds-surface-container transition-colors disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveUserPassword} className="p-5 space-y-4">
+              {pwdModalError && (
+                <div className="p-3 rounded-xl bg-jds-error-container/10 border border-jds-error/20 text-xs font-semibold text-jds-error">
+                  {pwdModalError}
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider block">
+                  New Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPwdVal ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    value={newPasswordVal}
+                    onChange={(e) => setNewPasswordVal(e.target.value)}
+                    placeholder="Minimum 8 characters"
+                    className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 pr-11 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwdVal(!showPwdVal)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-jds-on-surface-variant/60 hover:text-jds-on-surface transition-colors cursor-pointer"
+                    aria-label={showPwdVal ? 'Hide password' : 'Show password'}
+                  >
+                    {showPwdVal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-label-sm font-bold text-jds-on-surface-variant/80 uppercase tracking-wider block">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPwdVal ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    value={confirmPasswordVal}
+                    onChange={(e) => setConfirmPasswordVal(e.target.value)}
+                    placeholder="Re-enter new password"
+                    className="h-11 w-full rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 pr-11 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPwdVal(!showConfirmPwdVal)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-jds-on-surface-variant/60 hover:text-jds-on-surface transition-colors cursor-pointer"
+                    aria-label={showConfirmPwdVal ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPwdVal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
+                The new password will immediately be updated in Supabase and take effect for their next sign in.
+              </p>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-jds-outline-variant/20">
+                <button
+                  type="button"
+                  disabled={pwdUpdating}
+                  onClick={() => setPasswordUser(null)}
+                  className="px-4 py-2 rounded-xl border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <Button
+                  type="submit"
+                  disabled={pwdUpdating}
+                  className="bg-jds-primary text-jds-on-primary text-xs font-semibold px-5 h-9 rounded-xl hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-xs"
+                >
+                  {pwdUpdating ? 'Updating...' : 'Save Password'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

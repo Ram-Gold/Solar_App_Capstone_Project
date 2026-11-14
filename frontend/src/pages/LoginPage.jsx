@@ -44,8 +44,16 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(true)
   const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const [showTermsModal, setShowTermsModal] = useState(false)
-  const { signIn, setCustomerSession } = useAuth()
+  const { user, role, signOut, signIn, setCustomerSession } = useAuth()
   const navigate = useNavigate()
+
+  // If visitor arrives with a customer token while currently logged into an admin or staff account,
+  // sign out of the staff/admin session so it cannot contaminate customer activation/login.
+  useEffect(() => {
+    if (forwardedToken && user && (role === 'admin' || role === 'staff') && typeof signOut === 'function') {
+      signOut()
+    }
+  }, [forwardedToken, user, role, signOut])
 
   useEffect(() => {
     if (!email) {
@@ -175,6 +183,18 @@ export default function LoginPage() {
           password
         })
 
+        if (supabase?.auth?.signInWithPassword) {
+          const { error: signInAfterActivateErr } = await supabase.auth.signInWithPassword({
+            email: normalizedEmail,
+            password
+          })
+          if (signInAfterActivateErr) {
+            setError(signInAfterActivateErr.message || 'Account activated, but sign-in failed. Please log in with your new password.')
+            setLoading(false)
+            return
+          }
+        }
+
         if (setCustomerSession) {
           setCustomerSession(forwardedToken, normalizedEmail)
         } else {
@@ -243,8 +263,9 @@ export default function LoginPage() {
           navigate('/admin')
         }
       }
-    } catch {
-      setError('An unexpected system error occurred.')
+    } catch (err) {
+      console.error('Login error:', err)
+      setError(err?.message || 'An unexpected system error occurred.')
     } finally {
       setLoading(false)
     }

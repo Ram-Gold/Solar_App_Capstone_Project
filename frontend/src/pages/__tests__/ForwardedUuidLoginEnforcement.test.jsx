@@ -225,4 +225,68 @@ describe('Forwarded UUID Login Enforcement', () => {
       )
     })
   })
+
+  it('redirects an active admin session to login when accessing /portal with a customer token', async () => {
+    mockAuthState = {
+      user: { id: 'admin-123', email: 'admin@jdsolar.ph' },
+      role: 'admin',
+      loading: false,
+      signIn: mockSignIn,
+      signOut: vi.fn(),
+      setCustomerSession: mockSetCustomerSession
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/portal?token=customer-token-999']}>
+        <Routes>
+          <Route
+            path="/portal"
+            element={
+              <ProtectedRoute allowedRoles={['customer', 'admin', 'staff']}>
+                <CustomerPortalPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <>
+                <LoginPage />
+                <LocationTracker />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      const loc = screen.getByTestId('location-path')
+      expect(loc.textContent).toBe('/login?token=customer-token-999')
+    })
+  })
+
+  it('signs out active admin session on LoginPage when forwarded customer token is present to avoid cross-account contamination', async () => {
+    const mockAdminSignOut = vi.fn()
+    mockAuthState = {
+      user: { id: 'admin-123', email: 'admin@jdsolar.ph' },
+      role: 'admin',
+      loading: false,
+      signIn: mockSignIn,
+      signOut: mockAdminSignOut,
+      setCustomerSession: mockSetCustomerSession
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/login?token=customer-token-999']}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(mockAdminSignOut).toHaveBeenCalled()
+    })
+  })
 })
