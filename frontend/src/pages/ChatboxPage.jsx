@@ -174,15 +174,15 @@ export default function ChatboxPage() {
                       e.preventDefault()
                       handleSend()
                     }}
-                    className="flex items-center gap-3 bg-white/90 backdrop-blur-xl p-2 pl-5 pr-2 rounded-[2rem] border border-jds-outline-variant/40 shadow-sm focus-within:ring-4 focus-within:ring-jds-primary/20 focus-within:border-jds-primary transition-all group"
+                    className="flex items-center gap-2 sm:gap-3 bg-white/90 backdrop-blur-xl p-2 pl-4 sm:pl-5 pr-2 rounded-[2rem] border border-jds-outline-variant/40 shadow-sm focus-within:ring-4 focus-within:ring-jds-primary/20 focus-within:border-jds-primary transition-all group"
                   >
-                    <HiOutlineSparkles className="text-jds-primary size-5 opacity-60 group-focus-within:opacity-100 transition-opacity" />
+                    <HiOutlineSparkles className="text-jds-primary size-5 shrink-0 opacity-60 group-focus-within:opacity-100 transition-opacity" />
                     <input
                       type="text"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       placeholder="Ask about solar lights, pricing, branches, or warranty..."
-                      className="flex-grow bg-transparent py-2.5 outline-none text-jds-on-surface text-body-md placeholder:text-jds-on-surface-variant/50"
+                      className="flex-grow min-w-0 bg-transparent py-2.5 outline-none text-jds-on-surface text-body-md placeholder:text-jds-on-surface-variant/50"
                       disabled={isLoading}
                     />
                     <button
@@ -289,28 +289,28 @@ export default function ChatboxPage() {
                     className={`flex ${isAssistant ? 'justify-start' : 'justify-end'}`}
                   >
                     <div
-                      className={`flex gap-3 max-w-[92%] sm:max-w-[85%] ${
+                      className={`flex gap-2 sm:gap-3 max-w-[94%] sm:max-w-[85%] ${
                         isAssistant ? 'w-full flex-row' : 'flex-row-reverse'
                       }`}
                     >
                       {/* Avatar */}
                       <div
-                        className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm border ${
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 shadow-sm border ${
                           isAssistant
                             ? 'bg-white text-jds-secondary border-jds-outline-variant/30'
                             : 'bg-jds-primary text-white border-transparent'
                         }`}
                       >
-                        {isAssistant ? <HiOutlineSparkles size={20} /> : <HiOutlineUser size={20} />}
+                        {isAssistant ? <HiOutlineSparkles className="w-4 h-4 sm:w-5 sm:h-5" /> : <HiOutlineUser className="w-4 h-4 sm:w-5 sm:h-5" />}
                       </div>
 
                       {/* Content Card */}
                       <div className={`flex flex-col gap-1.5 ${isAssistant ? 'w-full flex-1 min-w-0' : ''}`}>
                         <div
-                          className={`p-5 sm:p-6 shadow-sm backdrop-blur-sm ${
+                          className={`p-3.5 sm:p-5 md:p-6 shadow-sm backdrop-blur-sm ${
                             isAssistant
-                              ? 'w-full bg-white/90 text-jds-on-surface border border-jds-outline-variant/30 rounded-3xl rounded-tl-sm'
-                              : 'bg-jds-primary text-white rounded-3xl rounded-tr-sm'
+                              ? 'w-full bg-white/90 text-jds-on-surface border border-jds-outline-variant/30 rounded-2xl sm:rounded-3xl rounded-tl-sm'
+                              : 'bg-jds-primary text-white rounded-2xl sm:rounded-3xl rounded-tr-sm'
                           }`}
                         >
                           <div className="prose prose-slate max-w-none prose-p:leading-relaxed text-body-md font-normal prose-headings:font-bold prose-headings:text-jds-on-surface">
@@ -421,7 +421,7 @@ export default function ChatboxPage() {
 
             {/* Typing Loader - Only shown during initial thinking pause */}
             {isLoading && !messages.some((m) => m.isStreaming) && (
-              <div className="flex items-center gap-2 pl-14">
+              <div className="flex items-center gap-2 pl-10 sm:pl-14">
                 <div className="bg-white/80 border border-jds-outline-variant/30 px-4 py-2.5 rounded-2xl flex items-center gap-1.5 shadow-sm">
                   <span className="w-2 h-2 rounded-full bg-jds-primary animate-bounce [animation-delay:-0.3s]" />
                   <span className="w-2 h-2 rounded-full bg-jds-primary animate-bounce [animation-delay:-0.15s]" />
@@ -441,15 +441,15 @@ export default function ChatboxPage() {
                   e.preventDefault()
                   handleSend()
                 }}
-                className="flex items-center gap-3 bg-white/80 backdrop-blur-xl p-2 pl-6 pr-2 rounded-[2.5rem] border border-white shadow-[0_8px_30px_rgb(0,0,0,0.06)] focus-within:ring-4 focus-within:ring-jds-primary/20 transition-all group"
+                className="flex items-center gap-2 sm:gap-3 bg-white/80 backdrop-blur-xl p-2 pl-4 sm:pl-6 pr-2 rounded-[2.5rem] border border-white shadow-[0_8px_30px_rgb(0,0,0,0.06)] focus-within:ring-4 focus-within:ring-jds-primary/20 transition-all group"
               >
-                <HiOutlineSparkles className="text-jds-primary size-6 opacity-60 group-focus-within:opacity-100 transition-opacity" />
+                <HiOutlineSparkles className="text-jds-primary size-5 sm:size-6 shrink-0 opacity-60 group-focus-within:opacity-100 transition-opacity" />
                 <input
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask about solar lights, pricing, branches, or warranty..."
-                  className="flex-grow bg-transparent py-3.5 outline-none text-jds-on-surface text-body-md placeholder:text-jds-on-surface-variant/50"
+                  className="flex-grow min-w-0 bg-transparent py-2.5 sm:py-3.5 outline-none text-jds-on-surface text-body-md placeholder:text-jds-on-surface-variant/50"
                   disabled={isLoading}
                 />
                 <button

@@ -398,7 +398,7 @@ export default function BrowsePage() {
 
           {/* Main Content Grid */}
           <div className="flex-grow min-w-0 w-full">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-6">
               <p className="text-label-md text-jds-on-surface-variant">
                 Showing {loading ? '...' : `${Math.min(visibleCount, filtered.length)} of ${filtered.length}`} products
               </p>
@@ -538,22 +538,22 @@ export default function BrowsePage() {
         </div>
 
         {/* Technical Precision Banner */}
-        <section className="mt-20 bg-jds-surface-container-high rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-12">
+        <section className="mt-12 sm:mt-20 bg-jds-surface-container-high rounded-2xl p-5 sm:p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-12">
           <div className="max-w-xl">
-            <h2 className="text-headline-lg text-jds-on-surface mb-4">Unsure which light fits your needs?</h2>
-            <p className="text-body-md text-jds-on-surface-variant mb-8">
+            <h2 className="text-xl sm:text-headline-lg text-jds-on-surface mb-3 sm:mb-4 font-bold">Unsure which light fits your needs?</h2>
+            <p className="text-xs sm:text-body-md text-jds-on-surface-variant mb-6 sm:mb-8 leading-relaxed">
               Our Quiapo-based team can help you choose the right solar light for your street, road, or property. Free consultation available.
             </p>
             <div className="flex flex-wrap gap-4">
               <Link
                 to="/chat"
-                className="bg-jds-primary text-jds-on-primary px-8 py-4 rounded-lg text-label-md font-bold hover:scale-105 transition-transform"
+                className="bg-jds-primary text-jds-on-primary px-6 py-3 sm:px-8 sm:py-4 rounded-lg text-xs sm:text-label-md font-bold hover:scale-105 transition-transform"
               >
                 Ask Solar Assistant
               </Link>
             </div>
           </div>
-          <div className="w-full md:w-1/3 aspect-video rounded-xl bg-white/50 backdrop-blur-md p-8 flex flex-col justify-center gap-6 card-shadow border border-white">
+          <div className="w-full md:w-1/3 md:aspect-video rounded-xl bg-white/50 backdrop-blur-md p-5 sm:p-6 md:p-8 flex flex-col justify-center gap-4 sm:gap-6 card-shadow border border-white">
             <div className="flex items-center gap-4">
               <HiOutlineShieldCheck className="text-jds-secondary text-3xl flex-shrink-0" />
               <div>

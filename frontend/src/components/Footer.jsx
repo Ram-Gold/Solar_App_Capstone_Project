@@ -73,7 +73,7 @@ export default function Footer() {
           </div>
 
           <div className="mt-12 pt-8 border-t border-jds-outline-variant flex flex-col sm:flex-row justify-between items-center gap-6">
-            <div className="flex flex-col items-center sm:items-start gap-1">
+            <div className="flex flex-col items-center sm:items-start text-center sm:text-left gap-1">
               <span className="font-inter text-label-sm text-jds-on-surface-variant">
                 © {new Date().getFullYear()} JD-Foz Solar Products Trading. All rights reserved.
               </span>

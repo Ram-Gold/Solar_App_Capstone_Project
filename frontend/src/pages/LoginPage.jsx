@@ -310,7 +310,7 @@ export default function LoginPage() {
           transition={{ duration: 0.5 }}
         >
           {/* Login Card */}
-          <div className="bg-jds-surface-container-lowest border border-jds-outline-variant/30 rounded-xl p-10 shadow-[0px_4px_12px_rgba(0,0,0,0.05)]">
+          <div className="bg-jds-surface-container-lowest border border-jds-outline-variant/30 rounded-xl p-6 sm:p-10 shadow-[0px_4px_12px_rgba(0,0,0,0.05)]">
             {/* Card Header */}
             <div className="text-center mb-8">
               <h1 className="text-headline-lg text-jds-on-surface mb-2">Portal Login</h1>
@@ -527,14 +527,14 @@ export default function LoginPage() {
                   >
                     Customer Access Token (UUID)
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       id="manualTokenInput"
                       type="text"
                       value={manualTokenVal}
                       onChange={(e) => setManualTokenVal(e.target.value)}
                       placeholder="Paste UUID token..."
-                      className="w-full px-3.5 py-2.5 bg-jds-surface-variant/30 rounded-lg text-body-sm font-mono text-jds-on-surface outline-none focus:ring-2 focus:ring-jds-primary"
+                      className="w-full min-w-0 px-3.5 py-2.5 bg-jds-surface-variant/30 rounded-lg text-body-sm font-mono text-jds-on-surface outline-none focus:ring-2 focus:ring-jds-primary"
                     />
                     <button
                       type="submit"

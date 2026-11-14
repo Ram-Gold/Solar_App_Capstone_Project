@@ -42,11 +42,11 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-73px)] overflow-hidden bg-jds-background relative">
+    <div className="flex h-[calc(100dvh-54px)] sm:h-[calc(100dvh-73px)] overflow-hidden bg-jds-background relative">
       {/* Sidebar backdrop for mobile */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-[55] bg-black/40 backdrop-blur-sm lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}

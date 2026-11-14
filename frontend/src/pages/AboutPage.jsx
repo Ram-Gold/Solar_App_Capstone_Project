@@ -122,7 +122,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── Chapter 1: The Leap of Faith (Our Story) ── */}
-      <section className="py-24 px-4 md:px-8 bg-jds-surface-container-lowest">
+      <section className="py-12 sm:py-16 md:py-24 px-4 md:px-8 bg-jds-surface-container-lowest">
         <div className="max-w-screen-2xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
             
@@ -281,7 +281,7 @@ export default function AboutPage() {
             viewport={{ once: true }}
           >
             <div className="absolute -inset-4 bg-jds-primary/5 rounded-[2rem] transform rotate-2 transition-transform group-hover:rotate-0 duration-700" />
-            <div className="relative h-[450px] lg:h-[500px] overflow-hidden rounded-2xl shadow-2xl border border-jds-outline-variant/30">
+            <div className="relative h-[280px] sm:h-[380px] lg:h-[500px] overflow-hidden rounded-2xl shadow-2xl border border-jds-outline-variant/30">
               <img
                 className="w-full h-full object-cover"
                 src={pic2}
@@ -339,7 +339,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── Mission, Vision, and Values ── */}
-      <section className="py-24 px-4 md:px-8 bg-jds-surface-container-lowest border-t border-jds-outline-variant/30">
+      <section className="py-12 sm:py-16 md:py-24 px-4 md:px-8 bg-jds-surface-container-lowest border-t border-jds-outline-variant/30">
         <div className="max-w-screen-2xl mx-auto">
           <motion.div
             className="text-center mb-16"
@@ -460,7 +460,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── Meet the Founder ── */}
-      <section className="py-24 px-4 md:px-8 bg-jds-surface">
+      <section className="py-12 sm:py-16 md:py-24 px-4 md:px-8 bg-jds-surface">
         <div className="max-w-screen-2xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
             
@@ -528,17 +528,17 @@ export default function AboutPage() {
 
 
       {/* ── Visit Us Section ── */}
-      <section className="py-24 px-4 md:px-8 bg-jds-surface">
+      <section className="py-12 sm:py-16 md:py-24 px-4 md:px-8 bg-jds-surface">
         <div className="max-w-screen-2xl mx-auto">
           <motion.div
-            className="bg-white rounded-[2.5rem] overflow-hidden border border-jds-outline-variant shadow-xl grid grid-cols-1 lg:grid-cols-2"
+            className="bg-white rounded-3xl sm:rounded-[2.5rem] overflow-hidden border border-jds-outline-variant shadow-xl grid grid-cols-1 lg:grid-cols-2"
             variants={sectionVariants}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
           >
             {/* Left side: Info */}
-            <div className="p-10 md:p-16 flex flex-col justify-center">
+            <div className="p-6 sm:p-10 md:p-16 flex flex-col justify-center">
               <h2 className="text-headline-lg text-jds-on-surface mb-6 font-bold">Visit Us in Quiapo</h2>
               <p className="text-body-lg text-jds-on-surface-variant mb-10 leading-relaxed font-inter">
                 Experience our solar products first-hand at our showroom in the heart of Manila's electronics district.
@@ -595,7 +595,7 @@ export default function AboutPage() {
             </div>
 
             {/* Right side: Map */}
-            <div className="h-[400px] lg:h-auto min-h-[400px] relative group">
+            <div className="h-[280px] sm:h-[360px] lg:h-auto lg:min-h-[400px] relative group">
               <iframe
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d888.9919047772149!2d120.98214420151635!3d14.602384154511645!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397cb0855ecf2eb%3A0x5f3e5e739aff7ba6!2sJD-Foz%20Solar%20Products%20Trading!5e0!3m2!1sen!2sph!4v1778779026094!5m2!1sen!2sph"
                 width="100%"
@@ -613,7 +613,7 @@ export default function AboutPage() {
       </section>
 
       {/* ── Call to Action ── */}
-      <section className="py-24 px-4 md:px-8 bg-jds-primary text-white relative overflow-hidden">
+      <section className="py-14 sm:py-20 md:py-24 px-4 md:px-8 bg-jds-primary text-white relative overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-jds-secondary/15 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2 pointer-events-none" />

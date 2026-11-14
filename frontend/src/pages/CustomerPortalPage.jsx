@@ -751,7 +751,7 @@ export default function CustomerPortalPage() {
                     </div>
 
                     {/* Hardware & Coverage Summary Footer */}
-                    <div className="flex items-center justify-between text-[11px] pt-1 border-t border-jds-outline-variant/20 text-jds-on-surface-variant">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] pt-1 border-t border-jds-outline-variant/20 text-jds-on-surface-variant">
                       <span>Serial #: <strong className="font-mono text-jds-on-surface">{p.serial_number || 'N/A'}</strong></span>
                       <span>Warranty: <strong>{p.warranty_months ? `${p.warranty_months} Months (${Math.round(p.warranty_months / 12)} Yrs)` : '24 Months (2 Yrs)'}</strong></span>
                     </div>
@@ -948,7 +948,7 @@ export default function CustomerPortalPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative"
+            className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-5 sm:p-6 my-auto space-y-5 shadow-2xl relative"
           >
             <div className="flex items-center justify-between border-b border-jds-outline-variant/20 pb-4">
               <div className="flex items-center gap-2.5">
@@ -1102,7 +1102,7 @@ export default function CustomerPortalPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative"
+            className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-5 sm:p-6 my-auto space-y-5 shadow-2xl relative"
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">

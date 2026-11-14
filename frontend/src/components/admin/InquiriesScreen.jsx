@@ -1756,20 +1756,22 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
           {/* 2. MONTH VIEW */}
           {calendarSubView === 'month' && (
             <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl shadow-xs border border-jds-outline-variant/20 overflow-hidden">
-              {/* Day of Week Headers */}
-              <div className="grid grid-cols-7 border-b border-jds-outline-variant/30 bg-jds-surface-container-low/40">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-                  <div
-                    key={d}
-                    className="p-2.5 text-center text-xs font-bold uppercase tracking-wider text-jds-on-surface-variant/70 border-r border-jds-outline-variant/20 last:border-r-0"
-                  >
-                    {d}
+              <div className="overflow-x-auto">
+                <div className="min-w-[640px] w-full">
+                  {/* Day of Week Headers */}
+                  <div className="grid grid-cols-7 border-b border-jds-outline-variant/30 bg-jds-surface-container-low/40">
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
+                      <div
+                        key={d}
+                        className="p-2.5 text-center text-xs font-bold uppercase tracking-wider text-jds-on-surface-variant/70 border-r border-jds-outline-variant/20 last:border-r-0"
+                      >
+                        {d}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
 
-              {/* Month Grid Cells */}
-              <div className="grid grid-cols-7 auto-rows-[110px] divide-x divide-y divide-jds-outline-variant/20">
+                  {/* Month Grid Cells */}
+                  <div className="grid grid-cols-7 auto-rows-[96px] sm:auto-rows-[110px] divide-x divide-y divide-jds-outline-variant/20">
                 {monthDays.map((d) => {
                   const dateStr = formatIsoDate(d)
                   const isCurrentMonth = d.getMonth() === currentDate.getMonth()
@@ -1828,6 +1830,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                     </div>
                   )
                 })}
+                  </div>
+                </div>
               </div>
             </div>
           )}

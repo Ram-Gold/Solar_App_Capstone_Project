@@ -317,7 +317,7 @@ export default function ProductInfoPage() {
                     </button>
 
                     {showBranchTooltip && branchBreakdown && (
-                      <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-64 p-3 rounded-xl bg-jds-surface border border-jds-outline-variant/60 shadow-lg text-xs z-30 space-y-2">
+                      <div className="absolute right-0 top-full mt-1.5 w-64 max-w-[calc(100vw-2rem)] p-3 rounded-xl bg-jds-surface border border-jds-outline-variant/60 shadow-lg text-xs z-30 space-y-2">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant">
                           Showroom Availability
                         </div>
