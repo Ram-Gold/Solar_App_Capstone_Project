@@ -45,6 +45,7 @@ export default function ResetPasswordPage() {
       await resetCustomerPassword(token, password)
       // Clear any lingering customer session on this browser, then send them to login.
       localStorage.removeItem('jd_customer_token')
+      localStorage.removeItem('jd_customer_email')
       localStorage.removeItem('jd_last_activity_timestamp')
       window.dispatchEvent(new Event('jd_customer_auth_change'))
       navigate('/login?reason=reset', { replace: true })

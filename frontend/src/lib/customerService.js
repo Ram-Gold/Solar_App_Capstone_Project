@@ -542,7 +542,8 @@ export async function registerCustomerAndSale({
         const { data: rpcRes, error: rpcErr } = await supabase.rpc('activate_customer_account', {
           p_access_token: customer.access_token,
           p_user_id: authUser.id,
-          p_email: cleanEmail
+          p_email: cleanEmail,
+          p_password: null
         })
         if (!rpcErr && rpcRes?.success) {
           customer.user_id = authUser.id
@@ -1439,6 +1440,13 @@ export async function loginCustomerWithPassword(email, password) {
           authUser: supaAuth.user,
           error: null
         }
+      }
+
+      return {
+        token: null,
+        customer: null,
+        authUser: supaAuth.user,
+        error: null
       }
     }
 

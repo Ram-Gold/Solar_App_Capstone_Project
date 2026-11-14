@@ -222,46 +222,50 @@ export default function LoginPage() {
         return
       }
 
-      // 3. Otherwise attempt Supabase staff/admin authentication
-      const { data, error: signInError } = await signIn(normalizedEmail, password)
-      if (signInError) {
-        setError(signInError.message)
-      } else {
-        const userId = data?.user?.id
-        if (userId) {
-          // Check admins table first
-          const { data: adminRow } = await supabase.from('admins').select('id').eq('id', userId).maybeSingle()
-          if (adminRow) {
-            navigate('/admin')
-            return
-          }
-
-          // Check if user is a customer linked to auth.users
-          const { data: custRow } = await supabase
-            .from('customers')
-            .select('access_token')
-            .or(`id.eq.${userId},user_id.eq.${userId}`)
-            .maybeSingle()
-          if (custRow?.access_token) {
-            localStorage.setItem('jd_customer_token', custRow.access_token)
-            navigate(`/portal?token=${custRow.access_token}`)
-            return
-          }
-
-          // Check staff table
-          const { data: staffRow } = await supabase.from('staff').select('id').eq('id', userId).maybeSingle()
-          if (staffRow) {
-            navigate('/staff')
-            return
-          }
-
-          // Account row does not exist in admins, customers, or staff (deleted account)
-          await supabase.auth.signOut()
-          setError('This account has been deleted or no longer has access to the platform.')
+      // 3. Otherwise reuse authenticated Supabase user (or sign in) for staff/admin authentication
+      let userId = custRes?.authUser?.id || null
+      if (!userId) {
+        const { data, error: signInError } = await signIn(normalizedEmail, password)
+        if (signInError) {
+          setError(signInError.message)
           return
-        } else {
-          navigate('/admin')
         }
+        userId = data?.user?.id || null
+      }
+
+      if (userId) {
+        // Check admins table first
+        const { data: adminRow } = await supabase.from('admins').select('id').eq('id', userId).maybeSingle()
+        if (adminRow) {
+          navigate('/admin')
+          return
+        }
+
+        // Check if user is a customer linked to auth.users
+        const { data: custRow } = await supabase
+          .from('customers')
+          .select('access_token')
+          .or(`id.eq.${userId},user_id.eq.${userId}`)
+          .maybeSingle()
+        if (custRow?.access_token) {
+          localStorage.setItem('jd_customer_token', custRow.access_token)
+          navigate(`/portal?token=${custRow.access_token}`)
+          return
+        }
+
+        // Check staff table
+        const { data: staffRow } = await supabase.from('staff').select('id').eq('id', userId).maybeSingle()
+        if (staffRow) {
+          navigate('/staff')
+          return
+        }
+
+        // Account row does not exist in admins, customers, or staff (deleted account)
+        await supabase.auth.signOut()
+        setError('This account has been deleted or no longer has access to the platform.')
+        return
+      } else {
+        navigate('/admin')
       }
     } catch (err) {
       console.error('Login error:', err)

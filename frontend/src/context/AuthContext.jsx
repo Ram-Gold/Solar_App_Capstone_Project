@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
   const [role, setRole] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchRole = async (userId) => {
+  const fetchRole = async (userId, userEmail = null) => {
     try {
       console.log('Fetching role for:', userId)
 
@@ -52,15 +52,32 @@ export const AuthProvider = ({ children }) => {
           }
           return { role: 'customer', accessToken: custData.access_token || null }
         }
+
+        // Fallback: match customer by email if user_id was not yet linked
+        const cleanEmail = (userEmail || '').trim().toLowerCase()
+        if (cleanEmail) {
+          const { data: custByEmail, error: emailErr } = await supabase
+            .from('customers')
+            .select('id, user_id, access_token')
+            .ilike('email', cleanEmail)
+            .maybeSingle()
+
+          if (!emailErr && custByEmail) {
+            if (custByEmail.access_token) {
+              localStorage.setItem('jd_customer_token', custByEmail.access_token)
+            }
+            return { role: 'customer', accessToken: custByEmail.access_token || null }
+          }
+        }
       } catch (cErr) {
         console.warn('Customer role check ignored:', cErr)
       }
 
-      console.warn('User not found in admins or staff tables')
-      return { role: 'staff', accessToken: null } // Default fallback
+      console.warn('User not found in admins, staff, or customers tables')
+      return { role: null, accessToken: null }
     } catch (err) {
       console.error('Role fetch error:', err)
-      return { role: 'staff', accessToken: null }
+      return { role: null, accessToken: null }
     }
   }
 
@@ -76,7 +93,7 @@ export const AuthProvider = ({ children }) => {
       if (currentUser) {
         setUser(currentUser)
         setLoading(true)
-        const { role: userRole, accessToken } = await fetchRole(currentUser.id)
+        const { role: userRole, accessToken } = await fetchRole(currentUser.id, currentUser.email)
         if (mounted) {
           if (userRole === 'customer' && accessToken) {
             setUser({ ...currentUser, accessToken })
