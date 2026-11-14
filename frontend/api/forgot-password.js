@@ -39,7 +39,7 @@ export function buildPasswordResetEmailHtml({ resetUrl, ttlMinutes = RESET_LINK_
           </tr>
           <tr>
             <td style="padding:32px;">
-              <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">A password reset was requested for the customer account associated with this email address.</p>
+              <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">A password reset was requested for the account associated with this email address.</p>
               <p style="margin:0 0 24px;font-size:15px;line-height:1.6;">Use the button below to choose a new password. This link can be used once and expires in ${ttlMinutes} minutes.</p>
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
                 <tr>
@@ -98,20 +98,31 @@ export default async function handler(req, res) {
       auth: { persistSession: false, autoRefreshToken: false }
     })
 
-    const { data: token, error } = await admin.rpc('create_customer_password_reset', { p_email: email })
-    if (error) {
-      console.error('/api/forgot-password rpc error:', error.message)
-      return genericOk()
-    }
-    if (!token) {
-      // Unknown email or rate limited: stay silent.
+    // The link origin comes from server config only. Trusting a request header here
+    // would let an attacker point the emailed token at a domain they control.
+    const baseOrigin =
+      stripQuotes(process.env.PUBLIC_SITE_URL) ||
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${stripQuotes(process.env.VERCEL_PROJECT_PRODUCTION_URL)}`
+        : 'https://jdforcesolar.com')
+    const cleanOrigin = baseOrigin.replace(/\/+$/, '')
+
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo: `${cleanOrigin}/reset-password` }
+    })
+
+    const tokenHash = data?.properties?.hashed_token
+    if (error || !tokenHash) {
+      if (error) {
+        console.error('/api/forgot-password generateLink error:', error.message)
+      }
+      // Unknown email or generation issue: stay silent to avoid leaking account existence.
       return genericOk()
     }
 
-    // The link origin comes from server config only. Trusting a request header here
-    // would let an attacker point the emailed token at a domain they control.
-    const baseOrigin = stripQuotes(process.env.PUBLIC_SITE_URL) || 'https://jdforcesolar.com'
-    const resetUrl = `${baseOrigin.replace(/\/+$/, '')}/reset-password?token=${encodeURIComponent(token)}`
+    const resetUrl = `${cleanOrigin}/reset-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`
 
     const smtpPort = Number(process.env.SMTP_PORT || 465)
     const transporter = nodemailer.createTransport({

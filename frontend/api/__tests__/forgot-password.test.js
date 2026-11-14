@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const rpc = vi.fn()
+const generateLink = vi.fn()
 const sendMail = vi.fn()
-vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({ rpc }) }))
+vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({ auth: { admin: { generateLink } } }) }))
 vi.mock('nodemailer', () => ({ default: { createTransport: () => ({ sendMail }) } }))
 
 import handler, { buildPasswordResetEmailHtml } from '../forgot-password.js'
@@ -14,7 +14,7 @@ function call(body, method = 'POST') {
 
 describe('/api/forgot-password', () => {
   beforeEach(() => {
-    rpc.mockReset(); sendMail.mockReset()
+    generateLink.mockReset(); sendMail.mockReset()
     process.env.VITE_SUPABASE_URL = 'https://x.supabase.co'
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'svc'
     process.env.GMAIL_USER = 'sender@example.com'
@@ -27,18 +27,22 @@ describe('/api/forgot-password', () => {
     expect((await call({ email: 'nope' })).statusCode).toBe(400)
   })
 
-  it('sends mail with a server-built link when a token is issued', async () => {
-    rpc.mockResolvedValue({ data: 'tok123', error: null })
+  it('sends mail with a server-built recovery link when a token is issued', async () => {
+    generateLink.mockResolvedValue({ data: { properties: { hashed_token: 'tok123' } }, error: null })
     const res = await call({ email: 'User@Example.com' })
     expect(res.statusCode).toBe(200)
-    expect(rpc).toHaveBeenCalledWith('create_customer_password_reset', { p_email: 'user@example.com' })
+    expect(generateLink).toHaveBeenCalledWith({
+      type: 'recovery',
+      email: 'user@example.com',
+      options: { redirectTo: 'https://shop.example.com/reset-password' }
+    })
     const mail = sendMail.mock.calls[0][0]
     expect(mail.to).toBe('user@example.com')
-    expect(mail.html).toContain('https://shop.example.com/reset-password?token=tok123')
+    expect(mail.html).toContain('https://shop.example.com/reset-password?token_hash=tok123&amp;type=recovery')
   })
 
   it('returns the identical response and sends nothing for unknown emails', async () => {
-    rpc.mockResolvedValue({ data: null, error: null })
+    generateLink.mockResolvedValue({ data: { properties: {} }, error: { message: 'User not found' } })
     const res = await call({ email: 'ghost@example.com' })
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({ success: true })
@@ -46,7 +50,7 @@ describe('/api/forgot-password', () => {
   })
 
   it('still returns 200 when SMTP fails', async () => {
-    rpc.mockResolvedValue({ data: 'tok', error: null })
+    generateLink.mockResolvedValue({ data: { properties: { hashed_token: 'tok' } }, error: null })
     sendMail.mockRejectedValue(new Error('smtp down'))
     const res = await call({ email: 'a@b.com' })
     expect(res.statusCode).toBe(200)

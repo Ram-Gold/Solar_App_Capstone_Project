@@ -75,14 +75,14 @@ describe('Forgot password flow', () => {
     expect(resetCustomerPassword).not.toHaveBeenCalled()
   })
 
-  it('resets the password and redirects to login with the success banner', async () => {
+  it('resets the password via token_hash and redirects to login with the success banner', async () => {
     resetCustomerPassword.mockResolvedValue({ success: true })
-    renderAt('/reset-password?token=abc')
+    renderAt('/reset-password?token_hash=abc123&type=recovery')
     fireEvent.change(screen.getByLabelText(/^new password/i), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'password123' } })
     fireEvent.click(screen.getByRole('button', { name: /update password/i }))
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toBe('/login?reason=reset'))
-    expect(resetCustomerPassword).toHaveBeenCalledWith('abc', 'password123')
+    expect(resetCustomerPassword).toHaveBeenCalledWith('abc123', 'password123')
     expect(screen.getByText(/password updated/i)).toBeTruthy()
   })
 

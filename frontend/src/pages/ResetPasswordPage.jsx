@@ -12,17 +12,22 @@ export default function ResetPasswordPage() {
   const navigate = useNavigate()
 
   // Capture the token once, then strip it from the address bar and history.
-  const [token] = useState(() => searchParams.get('token') || '')
+  const [token] = useState(() => searchParams.get('token_hash') || searchParams.get('token') || '')
+  const [hasRecoveryParams] = useState(() => {
+    if (searchParams.get('token_hash') || searchParams.get('token') || searchParams.get('code')) return true
+    if (typeof window !== 'undefined' && /access_token=|type=recovery/.test(window.location.hash)) return true
+    return false
+  })
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [show, setShow] = useState(false)
   const [error, setError] = useState('')
-  const [linkInvalid, setLinkInvalid] = useState(!token)
+  const [linkInvalid, setLinkInvalid] = useState(!hasRecoveryParams)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (token) window.history.replaceState(null, '', '/reset-password')
-  }, [token])
+    if (hasRecoveryParams) window.history.replaceState(null, '', '/reset-password')
+  }, [hasRecoveryParams])
 
   const handleSubmit = async (e) => {
     e.preventDefault()

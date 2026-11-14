@@ -2031,21 +2031,34 @@ export async function requestPasswordReset(email) {
 }
 
 /**
- * Redeems a reset token and sets the new password using native Supabase Auth.
+ * Redeems a Supabase recovery token (or active recovery session) and sets the new password.
  */
 export async function resetCustomerPassword(token, newPassword) {
-  if (!token) throw new Error('This reset link is invalid or has expired.')
-  if (!newPassword || newPassword.length < 8) throw new Error('Password must be at least 8 characters.')
-
-  try {
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
-    if (error) {
-      console.warn('Supabase Auth password update notice:', error.message)
-    }
-  } catch (err) {
-    console.warn('Password update notice:', err)
+  if (!newPassword || newPassword.length < 8) {
+    throw new Error('Password must be at least 8 characters.')
   }
 
+  if (token) {
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      token_hash: token,
+      type: 'recovery'
+    })
+    if (verifyError) {
+      throw new Error('This reset link is invalid or has expired.')
+    }
+  } else {
+    const { data: sessionData } = await supabase.auth.getSession()
+    if (!sessionData?.session) {
+      throw new Error('This reset link is invalid or has expired.')
+    }
+  }
+
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+  if (updateError) {
+    throw new Error(updateError.message || 'Unable to reset the password.')
+  }
+
+  await supabase.auth.signOut().catch(() => { })
   return { success: true }
 }
 
