@@ -342,7 +342,7 @@ export default function CustomerPortalPage() {
             <ShieldCheck className="w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-jds-on-surface">JD Force Solar Customer Portal</h1>
+            <h1 className="text-xl font-bold text-jds-on-surface">JD-Foz Solar Customer Portal</h1>
             <p className="text-xs text-jds-on-surface-variant mt-1.5">
               Please scan the QR code printed on your in-store purchase slip or paste your access key below.
             </p>

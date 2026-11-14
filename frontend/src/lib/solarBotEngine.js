@@ -95,14 +95,14 @@ All packages include complete fixture assembly, monocrystalline solar panel, bui
 JD Solar maintains inventory across two strategic hubs in Metro Manila and Southern Luzon:
 
 #### 1. Quiapo Branch (Manila Showroom)
-* **Location:** Quiapo Commercial District, Manila
+* **Location:** 1645 Soler St. Brgy. 309 Cor Calero, Quiapo, Manila
 * **Services:** Retail showroom, on-site live testing, immediate cash pickup, contractor consultations.
-* **Operating Hours:** Monday to Saturday: 8:00 AM – 5:30 PM
+* **Operating Hours:** Monday to Saturday, 8:00 AM – 5:30 PM (Closed on Sundays)
 
 #### 2. Cavite Hub (Logistics & Distribution)
 * **Location:** Cavite Distribution Center
 * **Services:** Bulk commercial dispatch, LGU project logistics, warranty diagnostic testing.
-* **Operating Hours:** Monday to Saturday: 8:00 AM – 5:00 PM
+* **Operating Hours:** Monday to Saturday, 8:00 AM – 5:30 PM (Closed on Sundays)
 
 #### Stock Status
 Standard catalog models (100W–300W) are actively stocked for immediate retail and wholesale fulfillment. Heavy-duty units (400W–800W) are warehoused in Cavite for swift site dispatch.`,
@@ -216,15 +216,16 @@ Switching outdoor and community lighting to standalone solar fixtures eliminates
   },
 
   CONTACT_INFO: {
-    message: `### Get in Touch with JD Solar
+    message: `### Get in Touch with JD-Foz Solar Products Trading
 
 Our sales and engineering consultants are available to assist with residential purchases, subdivision lighting plans, and government / LGU tenders:
 
-* **Showroom & Pickup:** Quiapo Commercial District, Manila
+* **Showroom & Pickup:** 1645 Soler St. Brgy. 309 Cor Calero, Quiapo, Manila
 * **Logistics Distribution:** Cavite Hub
-* **Hotline / Sales Desk:** 0917-XXX-XXXX
-* **Email Inquiry:** support@jdforsolar.com
-* **Operating Hours:** Monday to Saturday, 8:00 AM – 5:30 PM
+* **Hotline / Sales Desk:** 0966 843 1913
+* **Email Inquiry:** [fozjeremy@gmail.com](mailto:fozjeremy@gmail.com)
+* **Messenger:** [JD-Foz Solar Products Trading](https://www.facebook.com/profile.php?id=100067598921170)
+* **Operating Hours:** Monday to Saturday, 8:00 AM – 5:30 PM (Closed on Sundays)
 
 Formal technical quotations and bill of materials (BOM) are available upon request.`,
     options: [

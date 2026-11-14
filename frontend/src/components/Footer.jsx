@@ -42,6 +42,23 @@ export default function Footer() {
               <p className="font-inter text-body-md text-jds-on-surface-variant leading-relaxed">
                 JD-Foz Solar Products Trading. Quiapo's most trusted partner for sustainable energy solutions and high-quality solar technology.
               </p>
+              <div className="flex flex-col gap-1.5 text-body-sm text-jds-on-surface-variant font-inter pt-1">
+                <span>
+                  <strong className="font-semibold text-jds-on-surface">Phone:</strong>{' '}
+                  <a href="tel:09668431913" className="hover:text-jds-secondary transition-colors">0966 843 1913</a>
+                </span>
+                <span>
+                  <strong className="font-semibold text-jds-on-surface">Email:</strong>{' '}
+                  <a href="mailto:fozjeremy@gmail.com" className="hover:text-jds-secondary transition-colors">fozjeremy@gmail.com</a>
+                </span>
+                <span>
+                  <strong className="font-semibold text-jds-on-surface">Messenger:</strong>{' '}
+                  <a href="https://www.facebook.com/profile.php?id=100067598921170" target="_blank" rel="noopener noreferrer" className="hover:text-jds-secondary transition-colors">JD-Foz Solar Products Trading</a>
+                </span>
+                <span className="text-xs text-jds-on-surface-variant/80">
+                  Monday to Saturday, 8:00 AM – 5:30 PM (Closed on Sundays)
+                </span>
+              </div>
             </div>
 
             <nav className="flex flex-col gap-4 min-w-[140px] sm:text-right">
@@ -58,10 +75,10 @@ export default function Footer() {
           <div className="mt-12 pt-8 border-t border-jds-outline-variant flex flex-col sm:flex-row justify-between items-center gap-6">
             <div className="flex flex-col items-center sm:items-start gap-1">
               <span className="font-inter text-label-sm text-jds-on-surface-variant">
-                © {new Date().getFullYear()} JD Solar Manila. All rights reserved.
+                © {new Date().getFullYear()} JD-Foz Solar Products Trading. All rights reserved.
               </span>
               <span className="font-inter text-[10px] text-jds-on-surface-variant/50 uppercase tracking-tighter">
-                1645 Soler St. Brgy. 309 Cor Calero, Manila, Philippines, 1001
+                1645 Soler St. Brgy. 309 Cor Calero, Quiapo, Manila, Philippines, 1001
               </span>
               <div className="flex items-center gap-4 mt-2">
                 <button

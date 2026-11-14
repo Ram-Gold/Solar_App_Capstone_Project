@@ -24,7 +24,7 @@ export function buildPasswordResetEmailHtml({ resetUrl, ttlMinutes = RESET_LINK_
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JD Force Solar - Password Reset</title>
+  <title>JD-Foz Solar - Password Reset</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f5f5f4;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1c1917;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f4;padding:32px 16px;">
@@ -33,7 +33,7 @@ export function buildPasswordResetEmailHtml({ resetUrl, ttlMinutes = RESET_LINK_
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border:1px solid #e7e5e4;border-radius:16px;overflow:hidden;">
           <tr>
             <td style="background-color:#1c1917;padding:24px 32px;border-bottom:3px solid #f59e0b;">
-              <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#f59e0b;margin-bottom:4px;">JD Force Solar Products Trading</div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#f59e0b;margin-bottom:4px;">JD-Foz Solar Products Trading</div>
               <div style="font-size:20px;font-weight:800;color:#ffffff;">Password Reset Request</div>
             </td>
           </tr>
@@ -55,7 +55,7 @@ export function buildPasswordResetEmailHtml({ resetUrl, ttlMinutes = RESET_LINK_
           </tr>
           <tr>
             <td style="padding:16px 32px;background-color:#fafaf9;border-top:1px solid #e7e5e4;font-size:11px;color:#78716c;">
-              JD Force Solar Products Trading. This is an automated message; please do not reply.
+              JD-Foz Solar Products Trading. This is an automated message; please do not reply.
             </td>
           </tr>
         </table>
@@ -70,9 +70,30 @@ function stripQuotes(value) {
   return String(value || '').trim().replace(/^["']|["']$/g, '')
 }
 
+const RESET_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000
+const RESET_RATE_LIMIT_MAX = 15
+const resetRateLimitStore = new Map()
+
+function isResetRateLimited(req) {
+  const forwarded = req.headers?.['x-forwarded-for']
+  const ip = (Array.isArray(forwarded) ? forwarded[0] : String(forwarded || '')).split(',')[0].trim() || req.socket?.remoteAddress || 'unknown'
+  const now = Date.now()
+  const entry = resetRateLimitStore.get(ip)
+  if (!entry || now - entry.windowStart >= RESET_RATE_LIMIT_WINDOW_MS) {
+    resetRateLimitStore.set(ip, { windowStart: now, count: 1 })
+    return false
+  }
+  entry.count += 1
+  return entry.count > RESET_RATE_LIMIT_MAX
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed. Use POST.' })
+  }
+
+  if (isResetRateLimited(req)) {
+    return res.status(429).json({ success: false, error: 'Too many requests. Please wait before trying again.' })
   }
 
   // Identical response for every outcome so account existence is never revealed.
@@ -133,9 +154,9 @@ export default async function handler(req, res) {
     })
 
     await transporter.sendMail({
-      from: `"JD Force Solar" <${smtpUser}>`,
+      from: `"JD-Foz Solar" <${smtpUser}>`,
       to: email,
-      subject: 'JD Force Solar - Password Reset Request',
+      subject: 'JD-Foz Solar - Password Reset Request',
       html: buildPasswordResetEmailHtml({ resetUrl })
     })
   } catch (err) {

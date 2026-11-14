@@ -412,8 +412,9 @@ export default function QRReceiptModal({
       {/* PRINT-ONLY RECEIPT SLIP (Hidden on screen, visible only when printing) */}
       <div className="hidden print:block print:fixed print:inset-0 print:bg-white print:text-black print:p-6 print:z-[99999]">
         <div className="max-w-xs mx-auto text-center font-mono text-xs border border-dashed border-gray-400 p-4 rounded-lg">
-          <div className="text-base font-bold uppercase tracking-wider mb-1">JD Force Solar</div>
-          <div className="text-[10px] text-gray-600 mb-2">Sustainable Energy Solutions • Philippines</div>
+          <div className="text-base font-bold uppercase tracking-wider mb-1">JD-Foz Solar Products Trading</div>
+          <div className="text-[10px] text-gray-600 mb-1">1645 Soler St. Brgy. 309 Cor Calero, Quiapo, Manila</div>
+          <div className="text-[9px] text-gray-600 mb-2">0966 843 1913 &bull; fozjeremy@gmail.com</div>
           <div className="border-b border-dashed border-gray-400 my-2"></div>
           
           <div className="text-left space-y-1 mb-3 text-[11px]">
@@ -449,13 +450,14 @@ export default function QRReceiptModal({
             />
             <div className="text-[10px] font-bold mt-2">SCAN TO ACCESS DASHBOARD</div>
             <div className="text-[9px] text-gray-500 text-center mt-1">
-              Check active warranty, submit fault diagnostics, or sign in anytime at jdforcesolar.com/login.
+              Check active warranty, submit fault diagnostics, or sign in anytime via the Customer Portal.
             </div>
           </div>
 
           <div className="border-b border-dashed border-gray-400 my-2"></div>
-          <div className="text-[9px] text-gray-500 mt-2">
-            Thank you for choosing JD Force Solar!
+          <div className="text-[9px] text-gray-500 mt-2 space-y-0.5">
+            <div>Messenger: JD-Foz Solar Products Trading</div>
+            <div>Thank you for choosing JD-Foz Solar Products Trading!</div>
           </div>
         </div>
       </div>

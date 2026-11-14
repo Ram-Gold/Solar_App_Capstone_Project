@@ -183,8 +183,8 @@ export const isWithinBusinessHours = (timeStr) => {
   const m = parseInt(mStr || '0', 10)
   if (isNaN(h)) return false
   const minutes = h * 60 + m
-  const startMin = 9 * 60
-  const endMin = 17 * 60
+  const startMin = 8 * 60
+  const endMin = 17 * 60 + 30
   return minutes >= startMin && minutes <= endMin
 }
 
@@ -965,7 +965,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
       return
     }
     if (!isWithinBusinessHours(modalTime)) {
-      setModalError('Showroom visits must be scheduled within business hours: 9:00 AM to 5:00 PM.')
+      setModalError('Showroom visits must be scheduled within business hours: 8:00 AM to 5:30 PM.')
       return
     }
 
@@ -1164,7 +1164,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
       return
     }
     if (!isWithinBusinessHours(newVisitTime)) {
-      setNewError('Showroom visits must be scheduled within business hours: 9:00 AM to 5:00 PM.')
+      setNewError('Showroom visits must be scheduled within business hours: 8:00 AM to 5:30 PM.')
       return
     }
 
@@ -2340,7 +2340,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                 <div>
                   <span className="font-bold block text-jds-on-surface">Showroom Business Hours</span>
                   <span className="text-[11px] text-jds-on-surface-variant block mt-0.5">
-                    Monday to Saturday: 9:00 AM – 5:00 PM • Closed on Sundays
+                    Monday to Saturday: 8:00 AM – 5:30 PM • Closed on Sundays
                   </span>
                 </div>
               </div>
@@ -2377,7 +2377,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                     <label className="block text-xs font-semibold text-jds-on-surface">
                       Time Slot <span className="text-amber-600">*</span>
                     </label>
-                    <span className="text-[11px] text-jds-on-surface-variant font-medium">9:00 AM – 5:00 PM</span>
+                    <span className="text-[11px] text-jds-on-surface-variant font-medium">8:00 AM – 5:30 PM</span>
                   </div>
                   <input
                     type="time"
@@ -2728,7 +2728,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                 <div>
                   <span className="font-bold block text-jds-on-surface">Showroom Business Hours</span>
                   <span className="text-[11px] text-jds-on-surface-variant block mt-0.5">
-                    Monday to Saturday: 9:00 AM – 5:00 PM • Closed on Sundays
+                    Monday to Saturday: 8:00 AM – 5:30 PM • Closed on Sundays
                   </span>
                 </div>
               </div>
@@ -2764,7 +2764,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                     <label className="block text-xs font-semibold text-jds-on-surface">
                       Time Slot <span className="text-amber-600">*</span>
                     </label>
-                    <span className="text-[11px] text-jds-on-surface-variant font-medium">9:00 AM – 5:00 PM</span>
+                    <span className="text-[11px] text-jds-on-surface-variant font-medium">8:00 AM – 5:30 PM</span>
                   </div>
                   <input
                     type="time"

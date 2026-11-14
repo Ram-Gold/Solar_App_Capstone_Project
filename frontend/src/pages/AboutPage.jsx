@@ -7,6 +7,8 @@ import {
   HiOutlineMapPin,
   HiOutlineClock,
   HiOutlinePhone,
+  HiOutlineEnvelope,
+  HiOutlineChatBubbleLeftRight,
   HiOutlineArrowTopRightOnSquare,
   HiOutlineShieldCheck,
   HiOutlineUserGroup,
@@ -78,7 +80,7 @@ export default function AboutPage() {
             </h2>
             
             <p className="text-xs sm:text-base md:text-body-lg text-jds-on-surface-variant max-w-2xl mb-6 sm:mb-8 leading-relaxed">
-              Founded during a global crisis, JD Force Solar was born to bring practical, 
+              Founded during a global crisis, JD-Foz Solar was born to bring practical, 
               affordable power to Filipino families. We bridge the gap between complex 
               engineering and everyday accessibility, lighting up lives from the heart of Manila.
             </p>
@@ -141,7 +143,7 @@ export default function AboutPage() {
 
               <div className="space-y-6 text-body-lg text-jds-on-surface-variant leading-relaxed font-inter">
                 <p>
-                  JD Force Solar Products Trading was born in the midst of the global pandemic. 
+                  JD-Foz Solar Products Trading was born in the midst of the global pandemic. 
                   While the world faced unprecedented lockdowns and widespread unemployment, 
                   our founder refused to stay idle. Seeing our community struggle not just with 
                   job losses, but with the relentless burden of monthly utility bills like Meralco, 
@@ -506,7 +508,7 @@ export default function AboutPage() {
                 </p>
                 <p>
                   By focusing on community projects, building direct online distribution, and establishing 
-                  physical showrooms in Cavite and Manila, Jeremy has led JD Force Solar to become 
+                  physical showrooms in Cavite and Manila, Jeremy has led JD-Foz Solar to become 
                   a reliable partner for local governments, businesses, and homeowners alike, making off-grid 
                   solar equipment accessible to local buyers.
                 </p>
@@ -515,7 +517,7 @@ export default function AboutPage() {
               <div className="border-t border-jds-outline-variant/30 pt-6 flex items-center gap-6">
                 <div>
                   <h4 className="text-body-lg font-bold text-jds-on-surface">Jeremy</h4>
-                  <p className="text-label-md text-jds-on-surface-variant">Founder, JD Force Solar Products Trading</p>
+                  <p className="text-label-md text-jds-on-surface-variant">Founder, JD-Foz Solar Products Trading</p>
                 </div>
               </div>
             </motion.div>
@@ -547,20 +549,37 @@ export default function AboutPage() {
                 <div className="flex items-start gap-4">
                   <HiOutlineMapPin className="text-jds-primary text-2xl mt-1 shrink-0" />
                   <span className="text-body-md text-jds-on-surface">
-                    1645 Soler St. Brgy. 309 Cor Calero, Manila, Philippines, 1001
+                    1645 Soler St. Brgy. 309 Cor Calero, Quiapo, Manila, Philippines, 1001
                   </span>
                 </div>
                 <div className="flex items-center gap-4">
                   <HiOutlineClock className="text-jds-primary text-2xl shrink-0" />
                   <span className="text-body-md text-jds-on-surface">
-                    Mon - Sun: 7:00 AM - 5:00 PM
+                    Monday to Saturday, 8:00 AM – 5:30 PM (Closed on Sundays)
                   </span>
                 </div>
                 <div className="flex items-center gap-4">
                   <HiOutlinePhone className="text-jds-primary text-2xl shrink-0" />
-                  <span className="text-body-md text-jds-on-surface">
-                    +63 966 843 1913
-                  </span>
+                  <a href="tel:09668431913" className="text-body-md text-jds-on-surface hover:text-jds-primary transition-colors">
+                    0966 843 1913
+                  </a>
+                </div>
+                <div className="flex items-center gap-4">
+                  <HiOutlineEnvelope className="text-jds-primary text-2xl shrink-0" />
+                  <a href="mailto:fozjeremy@gmail.com" className="text-body-md text-jds-on-surface hover:text-jds-primary transition-colors">
+                    fozjeremy@gmail.com
+                  </a>
+                </div>
+                <div className="flex items-center gap-4">
+                  <HiOutlineChatBubbleLeftRight className="text-jds-primary text-2xl shrink-0" />
+                  <a
+                    href="https://www.facebook.com/profile.php?id=100067598921170"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-body-md text-jds-on-surface hover:text-jds-primary transition-colors"
+                  >
+                    Messenger: JD-Foz Solar Products Trading
+                  </a>
                 </div>
               </div>
 

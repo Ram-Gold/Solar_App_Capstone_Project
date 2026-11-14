@@ -16,6 +16,55 @@ function escapeHtml(str) {
 }
 
 /**
+ * Ensures URLs interpolated into href attributes use http(s) only.
+ */
+function sanitizeHttpUrl(url) {
+  if (!url) return ''
+  const trimmed = String(url).trim()
+  if (/^https?:\/\//i.test(trimmed)) {
+    return escapeHtml(trimmed)
+  }
+  return ''
+}
+
+const EMAIL_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000
+const EMAIL_RATE_LIMIT_MAX = 25
+const emailRateLimitStore = new Map()
+
+function isRateLimited(req) {
+  const forwarded = req.headers?.['x-forwarded-for']
+  const ip = (Array.isArray(forwarded) ? forwarded[0] : String(forwarded || '')).split(',')[0].trim() || req.socket?.remoteAddress || 'unknown'
+  const now = Date.now()
+  const entry = emailRateLimitStore.get(ip)
+  if (!entry || now - entry.windowStart >= EMAIL_RATE_LIMIT_WINDOW_MS) {
+    emailRateLimitStore.set(ip, { windowStart: now, count: 1 })
+    return false
+  }
+  entry.count += 1
+  return entry.count > EMAIL_RATE_LIMIT_MAX
+}
+
+function getAllowedCorsOrigin(req) {
+  const origin = req.headers?.origin
+  if (!origin) return null
+  const configured = String(process.env.PUBLIC_SITE_URL || '').trim().replace(/^["']|["']$/g, '').replace(/\/+$/, '')
+  const vercelProd = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${String(process.env.VERCEL_PROJECT_PRODUCTION_URL).trim().replace(/^["']|["']$/g, '')}`
+    : null
+  if (
+    origin === 'https://jdforcesolar.com' ||
+    origin === 'https://www.jdforcesolar.com' ||
+    (configured && origin === configured) ||
+    (vercelProd && origin === vercelProd) ||
+    /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)
+  ) {
+    return origin
+  }
+  return null
+}
+
+/**
  * Builds the industrial HTML confirmation email for customer account creation & POS purchase receipt.
  * Strictly follows project rules: professional, technical tone, zero emojis.
  */
@@ -65,7 +114,7 @@ export function buildAccountCreationEmailHtml({
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JD Force Solar - Account Created & Purchase Receipt</title>
+  <title>JD-Foz Solar - Account Created & Purchase Receipt</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f5f5f4;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1c1917;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f4;padding:32px 16px;">
@@ -76,7 +125,7 @@ export function buildAccountCreationEmailHtml({
           <tr>
             <td style="background-color:#1c1917;padding:24px 32px;border-bottom:3px solid #f59e0b;">
               <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#f59e0b;margin-bottom:4px;">
-                JD Force Solar Products Trading
+                JD-Foz Solar Products Trading
               </div>
               <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.01em;">
                 Customer Account &amp; Purchase Receipt
@@ -91,7 +140,7 @@ export function buildAccountCreationEmailHtml({
                 Dear <strong>${safeName}</strong>,
               </p>
               <p style="margin:0 0 24px 0;font-size:14px;line-height:1.6;color:#44403c;">
-                Your customer equipment profile and purchase receipt with <strong>JD Force Solar</strong> have been registered. Use the digital QR pass or access link below to open your Customer Warranty Portal.
+                Your customer equipment profile and purchase receipt with <strong>JD-Foz Solar</strong> have been registered. Use the digital QR pass or access link below to open your Customer Warranty Portal.
               </p>
 
               <!-- QR Pass Card with cid attachment or data URL -->
@@ -196,15 +245,16 @@ export function buildAccountCreationEmailHtml({
               </div>
 
               <p style="margin:0;font-size:12px;line-height:1.6;color:#78716c;">
-                You can access your JD Force Solar Customer Portal at any time using your printed QR receipt, your Unique Access Token, or by scanning the digital QR code above.
+                You can access your JD-Foz Solar Customer Portal at any time using your printed QR receipt, your Unique Access Token, or by scanning the digital QR code above.
               </p>
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
-            <td style="background-color:#fafaf9;border-top:1px solid #e7e5e4;padding:18px 32px;text-align:center;font-size:11px;color:#78716c;">
-              JD Force Solar Products Trading &bull; Quiapo Showroom (Manila) &amp; Cavite Distribution Hub
+            <td style="background-color:#fafaf9;border-top:1px solid #e7e5e4;padding:18px 32px;text-align:center;font-size:11px;line-height:1.6;color:#78716c;">
+              JD-Foz Solar Products Trading &bull; 1645 Soler St. Brgy. 309 Cor Calero, Quiapo, Manila &amp; Cavite Distribution Hub<br />
+              Phone: 0966 843 1913 &bull; Email: <a href="mailto:fozjeremy@gmail.com" style="color:#0284c7;text-decoration:underline;">fozjeremy@gmail.com</a> &bull; Messenger: <a href="https://www.facebook.com/profile.php?id=100067598921170" style="color:#0284c7;text-decoration:underline;">JD-Foz Solar Products Trading</a>
             </td>
           </tr>
         </table>
@@ -241,14 +291,15 @@ export function buildInquiryTicketEmailHtml({
   const safePhone = escapeHtml(mobileContact || 'N/A')
   const safeBranch = escapeHtml(branch || 'Cavite Distribution Hub')
   const safeDate = escapeHtml(visitDate || 'To be confirmed')
-  const safeTime = escapeHtml(visitTime || 'Business Hours (9:00 AM - 5:00 PM)')
+  const safeTime = escapeHtml(visitTime || 'Business Hours (8:00 AM - 5:30 PM)')
   const safeProduct = escapeHtml(productName || 'Solar Equipment / General Consultation')
   const safeWatt = productWatt ? `${escapeHtml(productWatt)}W` : null
   const safePrice = productPriceRange ? `PHP ${escapeHtml(productPriceRange)}` : null
   const safeQty = Number(quantity) || 1
   const safePurpose = escapeHtml(purposeOfVisitation || 'Product Inquiry & Technical Consultation')
   const safeAddress = escapeHtml(deliveryAddress || 'N/A')
-  const safeFacebook = facebook ? escapeHtml(facebook) : null
+  const safeFacebookUrl = sanitizeHttpUrl(facebook)
+  const safeFacebookLabel = facebook ? escapeHtml(facebook) : null
 
   const isReservation = String(ticketCode).includes('-RES-') || String(safePurpose).toLowerCase().includes('reservation')
 
@@ -257,7 +308,7 @@ export function buildInquiryTicketEmailHtml({
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JD Force Solar - ${isReservation ? 'Reservation & Showroom Pass' : 'Inquiry Confirmation'} [${safeTicket}]</title>
+  <title>JD-Foz Solar - ${isReservation ? 'Reservation & Showroom Pass' : 'Inquiry Confirmation'} [${safeTicket}]</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f5f5f4;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1c1917;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f4;padding:32px 16px;">
@@ -269,7 +320,7 @@ export function buildInquiryTicketEmailHtml({
           <tr>
             <td style="background-color:#1c1917;padding:24px 32px;border-bottom:3px solid ${isReservation ? '#059669' : '#0284c7'};">
               <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${isReservation ? '#10b981' : '#38bdf8'};margin-bottom:4px;">
-                JD Force Solar Products Trading
+                JD-Foz Solar Products Trading
               </div>
               <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.01em;">
                 ${isReservation ? 'Showroom Stock Hold &amp; Visit Pass' : 'Product Inquiry &amp; Consultation Pass'}
@@ -287,7 +338,7 @@ export function buildInquiryTicketEmailHtml({
                 ${
                   isReservation
                     ? `Thank you for your stock reservation. Your equipment hold pass has been registered under reference code <strong>${safeTicket}</strong>. Please present this digital receipt when claiming at our showroom.`
-                    : `Thank you for reaching out to JD Force Solar. Your technical consultation and showroom inquiry ticket has been recorded under reference code <strong>${safeTicket}</strong>.`
+                    : `Thank you for reaching out to JD-Foz Solar. Your technical consultation and showroom inquiry ticket has been recorded under reference code <strong>${safeTicket}</strong>.`
                 }
               </p>
 
@@ -395,10 +446,10 @@ export function buildInquiryTicketEmailHtml({
                         <td style="font-weight:600;">${safeEmail}</td>
                       </tr>
                       ${
-                        safeFacebook
+                        safeFacebookUrl && safeFacebookLabel
                           ? `<tr>
                         <td style="color:#78716c;">Facebook Profile:</td>
-                        <td style="font-weight:600;word-break:break-all;"><a href="${safeFacebook}" style="color:#0284c7;text-decoration:underline;">${safeFacebook}</a></td>
+                        <td style="font-weight:600;word-break:break-all;"><a href="${safeFacebookUrl}" style="color:#0284c7;text-decoration:underline;">${safeFacebookLabel}</a></td>
                       </tr>`
                           : ''
                       }
@@ -423,9 +474,10 @@ export function buildInquiryTicketEmailHtml({
 
               <!-- Branch Address Info -->
               <div style="font-size:11px;line-height:1.6;color:#78716c;">
-                <strong>Branch Locations:</strong><br />
-                &bull; <strong>Quiapo Showroom:</strong> Manila, Philippines (Operating Hours: Mon-Sat, 9:00 AM - 5:00 PM)<br />
-                &bull; <strong>Cavite Hub:</strong> Cavite Distribution &amp; Logistics Hub (Operating Hours: Mon-Sat, 9:00 AM - 5:00 PM)
+                <strong>Branch Locations &amp; Contact:</strong><br />
+                &bull; <strong>Quiapo Showroom:</strong> 1645 Soler St. Brgy. 309 Cor Calero, Quiapo, Manila (Mon-Sat, 8:00 AM - 5:30 PM; Closed Sundays)<br />
+                &bull; <strong>Cavite Hub:</strong> Cavite Distribution &amp; Logistics Hub (Mon-Sat, 8:00 AM - 5:30 PM; Closed Sundays)<br />
+                &bull; <strong>Phone:</strong> 0966 843 1913 &bull; <strong>Email:</strong> <a href="mailto:fozjeremy@gmail.com" style="color:#0284c7;text-decoration:underline;">fozjeremy@gmail.com</a> &bull; <strong>Messenger:</strong> <a href="https://www.facebook.com/profile.php?id=100067598921170" style="color:#0284c7;text-decoration:underline;">JD-Foz Solar Products Trading</a>
               </div>
             </td>
           </tr>
@@ -433,7 +485,7 @@ export function buildInquiryTicketEmailHtml({
           <!-- Footer -->
           <tr>
             <td style="background-color:#fafaf9;border-top:1px solid #e7e5e4;padding:18px 32px;text-align:center;font-size:11px;color:#78716c;">
-              JD Force Solar Products Trading &bull; Industrial Lighting &amp; Energy Systems
+              JD-Foz Solar Products Trading &bull; Industrial Lighting &amp; Energy Systems
             </td>
           </tr>
         </table>
@@ -448,8 +500,12 @@ export function buildInquiryTicketEmailHtml({
 export const buildConfirmationEmailHtml = buildAccountCreationEmailHtml
 
 export default async function handler(req, res) {
-  // Support CORS
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  // Support CORS for known origins only
+  const allowedOrigin = getAllowedCorsOrigin(req)
+  if (allowedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin)
+    res.setHeader('Vary', 'Origin')
+  }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
 
@@ -459,6 +515,13 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed. Use POST.' })
+  }
+
+  if (isRateLimited(req)) {
+    return res.status(429).json({
+      success: false,
+      error: 'Too many requests. Please wait before trying again.'
+    })
   }
 
   try {
@@ -501,14 +564,13 @@ export default async function handler(req, res) {
     } = body
 
     const recipientEmail = email || body.to
-    if (!recipientEmail || !String(recipientEmail).includes('@')) {
+    const cleanRecipientEmail = String(recipientEmail || '').trim().toLowerCase()
+    if (!cleanRecipientEmail || cleanRecipientEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanRecipientEmail)) {
       return res.status(400).json({
         success: false,
         error: 'A valid recipient email address is required.'
       })
     }
-
-    const cleanRecipientEmail = String(recipientEmail).trim().toLowerCase()
     const finalTicketCode = ticketCode || ticket_code
     const isInquiryType = type === 'inquiry_ticket' || Boolean(finalTicketCode)
 
@@ -518,8 +580,8 @@ export default async function handler(req, res) {
     if (isInquiryType) {
       const isRes = String(finalTicketCode).includes('-RES-')
       subject = isRes
-        ? `JD Force Solar - Reservation & Showroom Pass [${finalTicketCode}]`
-        : `JD Force Solar - Inquiry & Showroom Pass [${finalTicketCode}]`
+        ? `JD-Foz Solar - Reservation & Showroom Pass [${finalTicketCode}]`
+        : `JD-Foz Solar - Inquiry & Showroom Pass [${finalTicketCode}]`
 
       html = buildInquiryTicketEmailHtml({
         ticketCode: finalTicketCode,
@@ -564,7 +626,7 @@ export default async function handler(req, res) {
         }
       }
 
-      subject = 'JD Force Solar - Account Created & Purchase Receipt'
+      subject = 'JD-Foz Solar - Account Created & Purchase Receipt'
       html = buildAccountCreationEmailHtml({
         customerName: customerName || customer_name,
         email: cleanRecipientEmail,
@@ -598,7 +660,7 @@ export default async function handler(req, res) {
       })
 
       const info = await transporter.sendMail({
-        from: `"JD Force Solar" <${gmailUser}>`,
+        from: `"JD-Foz Solar" <${gmailUser}>`,
         to: cleanRecipientEmail,
         subject,
         html
@@ -623,7 +685,7 @@ export default async function handler(req, res) {
     console.error('Error in /api/send-confirmation-email:', err)
     return res.status(500).json({
       success: false,
-      error: err.message || 'Failed to dispatch email.'
+      error: 'Failed to dispatch email.'
     })
   }
 }

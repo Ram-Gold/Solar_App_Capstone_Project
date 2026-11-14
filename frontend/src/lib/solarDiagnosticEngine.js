@@ -2195,11 +2195,12 @@ Our technical staff perform bench load testing, LiFePO4 battery swaps, and warra
 
 #### 1. Cavite Distribution & Service Hub
 * **Location:** General Trias, Cavite
-* **Operating Hours:** Monday – Saturday, 8:00 AM – 5:00 PM
+* **Operating Hours:** Monday to Saturday, 8:00 AM – 5:30 PM (Closed on Sundays)
 
 #### 2. Quiapo Showroom & Service Desk (Manila)
-* **Location:** Evangelista St., Quiapo Commercial Center, Manila
-* **Operating Hours:** Monday – Saturday, 8:30 AM – 5:30 PM`,
+* **Location:** 1645 Soler St. Brgy. 309 Cor Calero, Quiapo, Manila
+* **Operating Hours:** Monday to Saturday, 8:00 AM – 5:30 PM (Closed on Sundays)
+* **Hotline / Email / Messenger:** 0966 843 1913 | [fozjeremy@gmail.com](mailto:fozjeremy@gmail.com) | [JD-Foz Solar Products Trading](https://www.facebook.com/profile.php?id=100067598921170)`,
     options: [
       { label: 'File Official Claim Ticket Online First', next: 'TRANSFER_TO_CLAIM', category: 'No Power / Won\'t Turn On' },
       { label: 'Back to Diagnostic Main Menu', next: 'ROOT' },

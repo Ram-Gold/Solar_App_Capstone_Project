@@ -54,7 +54,7 @@ export default function WarrantyTermsModal({
                 2-Year Solar Warranty & Disqualification Notice
               </h2>
               <p className="text-xs text-jds-on-surface-variant">
-                {customerName ? `Account Holder: ${customerName} • ` : ''}JD Force Solar Quiapo & Cavite Technical Hub
+                {customerName ? `Account Holder: ${customerName} • ` : ''}JD-Foz Solar Products Trading Quiapo & Cavite Technical Hub
               </p>
             </div>
 

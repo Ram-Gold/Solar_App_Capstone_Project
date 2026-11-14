@@ -52,15 +52,17 @@ const INQUIRY_TOPICS = [
 ]
 
 export const BUSINESS_HOURS = {
-  startHour: 9,
+  startHour: 8,
   endHour: 17,
-  startStr: '09:00',
-  endStr: '17:00',
+  endMinute: 30,
+  startStr: '08:00',
+  endStr: '17:30',
   daysDescription: 'Monday through Saturday',
-  hoursDescription: '9:00 AM – 5:00 PM',
+  hoursDescription: '8:00 AM – 5:30 PM',
 }
 
 export const BUSINESS_TIME_SLOTS = [
+  { value: '08:00', label: '8:00 AM' },
   { value: '09:00', label: '9:00 AM' },
   { value: '10:00', label: '10:00 AM' },
   { value: '11:00', label: '11:00 AM' },
@@ -69,6 +71,7 @@ export const BUSINESS_TIME_SLOTS = [
   { value: '15:00', label: '3:00 PM' },
   { value: '16:00', label: '4:00 PM' },
   { value: '17:00', label: '5:00 PM' },
+  { value: '17:30', label: '5:30 PM' },
 ]
 
 export const getNextBusinessDay = () => {
@@ -90,10 +93,10 @@ export const isWithinBusinessHours = (timeStr) => {
   const h = parseInt(hStr, 10)
   const m = parseInt(mStr || '0', 10)
   if (isNaN(h) || isNaN(m)) return false
-  if (h < BUSINESS_HOURS.startHour) return false
-  if (h > BUSINESS_HOURS.endHour) return false
-  if (h === BUSINESS_HOURS.endHour && m > 0) return false
-  return true
+  const minutes = h * 60 + m
+  const startMinutes = BUSINESS_HOURS.startHour * 60
+  const endMinutes = BUSINESS_HOURS.endHour * 60 + (BUSINESS_HOURS.endMinute || 0)
+  return minutes >= startMinutes && minutes <= endMinutes
 }
 
 // Helper to format HTML5 24hr time (e.g. "14:30") into 12hr display (e.g. "2:30 PM")
@@ -225,7 +228,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
     if (!visitTime) {
       errs.visitTime = 'Please select a visit time slot.'
     } else if (!isWithinBusinessHours(visitTime)) {
-      errs.visitTime = 'Showroom visits must be scheduled within business hours: 9:00 AM to 5:00 PM.'
+      errs.visitTime = 'Showroom visits must be scheduled within business hours: 8:00 AM to 5:30 PM.'
     }
 
     if (!consentAccepted) {
@@ -406,7 +409,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                     : (isReserve ? 'Reservation Pass Ready' : 'Consultation Pass Ready')}
             </span>
             <span className="h-1 w-1 rounded-full bg-stone-300" />
-            <span className="text-[10px] sm:text-[11px] font-medium text-stone-400">JD Force Solar</span>
+            <span className="text-[10px] sm:text-[11px] font-medium text-stone-400">JD-Foz Solar</span>
           </div>
           <h2 className="text-base sm:text-xl font-black tracking-tight text-stone-900">
             {isConfirmedTransition
@@ -728,7 +731,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               <div>
                 <span className="font-bold block text-stone-900">Showroom Business Hours</span>
                 <span className="text-[11px] text-stone-600 block mt-0.5">
-                  Monday to Saturday: 9:00 AM – 5:00 PM • Closed on Sundays
+                  Monday to Saturday: 8:00 AM – 5:30 PM • Closed on Sundays
                 </span>
               </div>
             </div>
@@ -780,7 +783,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 <label className="block text-xs font-semibold text-stone-700">
                   Preferred Time Slot <span className="text-amber-600">*</span>
                 </label>
-                <span className="text-[11px] text-stone-500 font-medium">9:00 AM – 5:00 PM</span>
+                <span className="text-[11px] text-stone-500 font-medium">8:00 AM – 5:30 PM</span>
               </div>
 
               {/* Time Input constrained to business hours (09:00 - 17:00) with showPicker on click */}
