@@ -916,10 +916,13 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
     if (!selectedInquiry || !selectedInquiry.id) return
     try {
       setModalSaving(true)
-      const { error } = await supabase.rpc('release_product_reservation', {
+      const { data: relData, error } = await supabase.rpc('release_product_reservation', {
         p_ticket_id: selectedInquiry.id
       })
       if (error) throw error
+      if (relData && relData.success === false) {
+        throw new Error(relData.error || 'Failed to release reservation hold.')
+      }
 
       setModalHoldStock(false)
       setSelectedInquiry((prev) => ({ ...prev, is_reservation: false, reservation_expires_at: null }))

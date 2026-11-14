@@ -669,18 +669,20 @@ export async function registerCustomerAndSale({
 
   // 5. Deduct inventory and fulfill any linked reservation ticket in Supabase
   try {
+    let pendingTicketId = ticketId ? Number(ticketId) : null
     for (const item of items) {
       if (item.productId) {
         const pId = Number(item.productId)
-        const tId = ticketId ? Number(ticketId) : null
-        const { error: fulfillErr } = await supabase.rpc('fulfill_reservation_sale', {
+        const tId = pendingTicketId
+        pendingTicketId = null
+        const { data: fulfillData, error: fulfillErr } = await supabase.rpc('fulfill_reservation_sale', {
           p_ticket_id: tId,
           p_product_id: pId,
           p_quantity: 1
         })
 
-        if (fulfillErr) {
-          console.warn('RPC fulfill_reservation_sale fallback:', fulfillErr.message)
+        if (fulfillErr || fulfillData?.success === false) {
+          console.warn('RPC fulfill_reservation_sale fallback:', fulfillErr?.message || fulfillData?.error)
           // Fallback direct product update if RPC fails
           const { data: prod } = await supabase
             .from('products')
