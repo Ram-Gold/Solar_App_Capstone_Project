@@ -29,8 +29,8 @@ export default function Navbar() {
 
   const handleAuthClick = async () => {
     if (user) {
+      navigate('/', { replace: true })
       await signOut()
-      navigate('/')
     } else {
       navigate('/login')
     }

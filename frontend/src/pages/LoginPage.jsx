@@ -99,10 +99,11 @@ export default function LoginPage() {
         setForwardedAuth({
           token: forwardedToken,
           hasPassword: hasPwd,
-          email: resolvedEmail
+          email: hasPwd ? '' : resolvedEmail
         })
 
-        if (resolvedEmail) {
+        // Only pre-fill email during first-time activation so an existing account's email is never leaked via URL token.
+        if (resolvedEmail && !hasPwd) {
           setEmail(resolvedEmail)
         }
       } catch (err) {
@@ -318,23 +319,6 @@ export default function LoginPage() {
                   : 'Access your solar dashboard, warranties, or staff panel.'}
               </p>
             </div>
-
-            {/* Forwarded UUID Banner: Existing Account with Password */}
-            {forwardedToken && forwardedAuth?.hasPassword && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-start gap-3.5 p-4 rounded-xl bg-jds-primary/10 border border-jds-primary/30 text-jds-on-surface text-sm mb-6 shadow-sm"
-              >
-                <HiOutlineShieldCheck className="text-xl text-jds-primary mt-0.5 flex-shrink-0" />
-                <div className="flex flex-col text-left">
-                  <span className="font-semibold text-label-md text-jds-primary">Account Verified</span>
-                  <span className="text-body-sm text-jds-on-surface-variant leading-relaxed mt-0.5">
-                    Customer record found. Please enter your account password to authenticate and access your dashboard.
-                  </span>
-                </div>
-              </motion.div>
-            )}
 
             {/* Forwarded UUID Banner: First-Time Activation */}
             {isFirstTimeActivation && (

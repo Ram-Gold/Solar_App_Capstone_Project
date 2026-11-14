@@ -123,29 +123,28 @@ describe('Forwarded UUID Login Enforcement', () => {
       </MemoryRouter>
     )
 
-    // Verify account verified notification is presented
+    // Verify no account-existence or email leak is shown for an existing customer token
     await waitFor(() => {
-      expect(screen.getByText('Account Verified')).toBeDefined()
-      expect(
-        screen.getByText(/Please enter your account password to authenticate and access your dashboard/i)
-      ).toBeDefined()
+      expect(customerService.getCustomerAuthStatus).toHaveBeenCalledWith('existing-uuid-202')
     })
+    expect(screen.queryByText('Account Verified')).toBeNull()
+    expect(screen.queryByText(/Customer record found/i)).toBeNull()
 
-    // Verify email input is pre-populated
     const emailInput = screen.getByLabelText(/Email Address/i)
-    expect(emailInput.value).toBe('customer.test@jdsolar.ph')
+    expect(emailInput.value).toBe('')
 
     // Password input is present and required
     const passwordInput = screen.getByLabelText(/Password/i)
     expect(passwordInput).toBeDefined()
 
-    // Attempting login with correct password
+    // Attempting login with email and password
     customerService.loginCustomerWithPassword.mockResolvedValue({
       token: 'existing-uuid-202',
       customer: { email: 'customer.test@jdsolar.ph', token: 'existing-uuid-202' },
       error: null
     })
 
+    fireEvent.change(emailInput, { target: { value: 'customer.test@jdsolar.ph' } })
     fireEvent.change(passwordInput, { target: { value: 'CorrectPassword123' } })
     fireEvent.click(screen.getByRole('button', { name: /Sign In to Dashboard/i }))
 
