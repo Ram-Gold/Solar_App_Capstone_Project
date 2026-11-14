@@ -105,7 +105,19 @@ export const AuthProvider = ({ children }) => {
         // Check if there is an active logged-in customer token in localStorage
         const custToken = localStorage.getItem('jd_customer_token')
         const custEmail = localStorage.getItem('jd_customer_email')
-        if (custToken) {
+        const rawStamp = localStorage.getItem('jd_last_activity_timestamp')
+        const isExpired = rawStamp && (Date.now() - Number(rawStamp) >= INACTIVITY_TIMEOUT_MS)
+
+        if (custToken && isExpired) {
+          if (custEmail) {
+            localStorage.setItem('jd_remembered_email', custEmail)
+          }
+          localStorage.removeItem('jd_customer_token')
+          localStorage.removeItem('jd_last_activity_timestamp')
+          setUser(null)
+          setRole(null)
+          setLoading(false)
+        } else if (custToken) {
           setUser({ id: custToken, email: custEmail || 'customer@account.local', isCustomer: true })
           setRole('customer')
           setLoading(false)
@@ -160,8 +172,8 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('jd_customer_token')
       localStorage.removeItem('jd_customer_email')
       localStorage.removeItem('jd_last_activity_timestamp')
-      window.dispatchEvent(new Event('jd_customer_auth_change'))
       await supabase.auth.signOut()
+      window.dispatchEvent(new Event('jd_customer_auth_change'))
     } catch (err) {
       console.error('Sign out error:', err)
     } finally {

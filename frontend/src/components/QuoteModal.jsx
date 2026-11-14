@@ -330,12 +330,8 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       }
 
       if (error) {
-        console.warn('Supabase insert note:', error.message)
+        throw error
       }
-
-      // Online inquiries enter as 'Pending Review' without immediately locking inventory.
-      // Showroom staff verifies customer intent and explicitly activates the stock hold.
-      const finalInserted = data && data[0]
 
       try {
         const stored = JSON.parse(localStorage.getItem('jds_local_quotes') || '[]')
@@ -357,14 +353,10 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       }
     } catch (err) {
       console.error('Submission error:', err)
-      setGeneratedTicket(payload)
-      setIsConfirmedTransition(true)
-
-      if (payload.email) {
-        sendInquiryTicketEmail(payload).catch(emailErr => {
-          console.warn('Inquiry ticket fallback email dispatch warning:', emailErr)
-        })
-      }
+      setErrors((prev) => ({
+        ...prev,
+        submit: 'Unable to submit your request right now. Please check your connection and try again.',
+      }))
     } finally {
       setLoading(false)
     }
@@ -867,6 +859,13 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 </p>
               )}
             </div>
+
+            {errors.submit && (
+              <p className="text-xs text-red-600 font-medium flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{errors.submit}</span>
+              </p>
+            )}
 
             {/* Inline Navigation Buttons */}
             <div className="pt-2 flex items-center gap-3">

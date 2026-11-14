@@ -250,7 +250,36 @@ export async function confirmCustomerEmailByToken(token, verificationToken = nul
 
   const nowIso = new Date().toISOString()
 
-  // Direct table update on customers
+  // 1. Try secure RPC first (works even when anon SELECT on customers is restricted)
+  try {
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc('confirm_customer_email', {
+      p_token: token,
+      p_verification_token: verificationToken ? String(verificationToken) : null
+    })
+    if (!rpcErr && rpcRes?.success) {
+      const resolvedEmail = rpcRes.email || undefined
+      const confirmedAt = rpcRes.email_confirmed_at || nowIso
+      writeLocalEmailState(token, {
+        email: resolvedEmail,
+        email_confirmed: true,
+        email_confirmed_at: confirmedAt,
+        email_confirmation_status: 'confirmed',
+        confirmed_at: confirmedAt
+      })
+      return {
+        success: true,
+        email: resolvedEmail,
+        emailConfirmed: true,
+        emailConfirmedAt: confirmedAt,
+        status: 'confirmed',
+        message: 'Email address verified and confirmed.'
+      }
+    }
+  } catch (rpcEx) {
+    console.warn('confirm_customer_email RPC fallback:', rpcEx)
+  }
+
+  // 2. Direct table update fallback on customers
   try {
     const { data: updatedCust } = await supabase
       .from('customers')
@@ -858,7 +887,7 @@ export async function fetchCustomerPortalData(token) {
       })
     }
 
-    const emailState = resolveCustomerEmailState(custData, localEmailState, localCredEmail || '')
+    const emailState = resolveCustomerEmailState(custData, localEmailState, custData?.email || '')
 
     return {
       data: {
@@ -1282,6 +1311,26 @@ export async function getCustomerAuthStatus(token) {
   }
 
   const localEmailState = readLocalEmailState(token)
+
+  // 1. Try secure RPC first (avoids leaking email on already-activated accounts)
+  try {
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc('get_customer_auth_status', {
+      p_token: token
+    })
+    if (!rpcErr && rpcRes && rpcRes.found) {
+      const hasPassword = Boolean(rpcRes.has_password)
+      const resolvedEmail = hasPassword ? null : (rpcRes.email || localEmailState?.email || null)
+      const isConfirmed = Boolean(rpcRes.email_confirmed || localEmailState?.email_confirmed)
+      return {
+        hasPassword,
+        email: resolvedEmail,
+        emailConfirmed: isConfirmed,
+        emailConfirmationStatus: isConfirmed ? 'confirmed' : (rpcRes.email_confirmation_status || 'awaiting_confirmation')
+      }
+    }
+  } catch (rpcEx) {
+    console.warn('get_customer_auth_status RPC fallback:', rpcEx)
+  }
 
   try {
     const { data: cust, error: custErr } = await supabase

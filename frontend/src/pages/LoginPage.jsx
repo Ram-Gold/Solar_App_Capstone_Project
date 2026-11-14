@@ -127,8 +127,9 @@ export default function LoginPage() {
     setManualTokenLoading(true)
     try {
       const authStatus = await getCustomerAuthStatus(clean)
+      const hasPwd = Boolean(authStatus?.hasPassword)
       let resolvedEmail = authStatus?.email || ''
-      if (!resolvedEmail) {
+      if (!resolvedEmail && !hasPwd) {
         try {
           const { data: custRow } = await supabase
             .from('customers')
@@ -143,10 +144,10 @@ export default function LoginPage() {
 
       setForwardedAuth({
         token: clean,
-        hasPassword: Boolean(authStatus?.hasPassword),
-        email: resolvedEmail
+        hasPassword: hasPwd,
+        email: hasPwd ? '' : resolvedEmail
       })
-      if (resolvedEmail) setEmail(resolvedEmail)
+      if (resolvedEmail && !hasPwd) setEmail(resolvedEmail)
       navigate(`/login?token=${encodeURIComponent(clean)}`, { replace: true })
     } catch {
       setError('Could not verify access token.')

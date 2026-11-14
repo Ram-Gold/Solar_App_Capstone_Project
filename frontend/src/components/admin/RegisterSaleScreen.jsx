@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { searchCustomerByPhone, registerCustomerAndSale } from '../../lib/customerService'
-import { getAvailableQuantity, getReservedQuantity } from '../../lib/inventoryUtils'
+import { getAvailableQuantity, getBranchStock, getReservedQuantity } from '../../lib/inventoryUtils'
 import {
   sanitizePhone,
   isValidPhone,
@@ -314,12 +314,20 @@ export default function RegisterSaleScreen({ onNavigate }) {
 
     // Direct walk-in sales must not deplete temporarily reserved units
     if (!selectedReservation) {
+      const requestedCounts = {}
       for (const it of items) {
-        const prod = catalogProducts.find(p => String(p.id) === String(it.productId))
+        const pid = String(it.productId)
+        requestedCounts[pid] = (requestedCounts[pid] || 0) + 1
+      }
+      for (const [pid, reqQty] of Object.entries(requestedCounts)) {
+        const prod = catalogProducts.find(p => String(p.id) === pid)
         if (prod) {
-          const avail = getAvailableQuantity(prod)
-          if (avail <= 0) {
-            setErrorMessage(`Cannot complete direct walk-in sale for "${prod.name}". Available inventory is 0 (${getReservedQuantity(prod)} unit(s) are held for customer appointments). If this customer holds a reservation pass, please link it above.`)
+          const hasBranchCols = prod.stock_quiapo !== undefined || prod.stock_cavite !== undefined
+          const avail = hasBranchCols
+            ? getBranchStock(prod, branchLocation).available
+            : getAvailableQuantity(prod)
+          if (avail < reqQty) {
+            setErrorMessage(`Cannot complete direct walk-in sale for "${prod.name}" (${branchLocation}). Requested ${reqQty} unit(s), but only ${avail} unreserved unit(s) available (${getReservedQuantity(prod)} unit(s) held for appointments).`)
             return
           }
         }

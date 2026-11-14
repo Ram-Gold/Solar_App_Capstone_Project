@@ -1,3 +1,4 @@
+/* global process */
 import nodemailer from 'nodemailer'
 import QRCode from 'qrcode'
 
@@ -537,7 +538,12 @@ export default async function handler(req, res) {
         facebook
       })
     } else {
-      const baseOrigin = origin || process.env.PUBLIC_SITE_URL || 'https://jdforcesolar.com'
+      const rawOrigin =
+        String(process.env.PUBLIC_SITE_URL || '').trim().replace(/^["']|["']$/g, '') ||
+        (process.env.VERCEL_PROJECT_PRODUCTION_URL
+          ? `https://${String(process.env.VERCEL_PROJECT_PRODUCTION_URL).trim().replace(/^["']|["']$/g, '')}`
+          : 'https://jdforcesolar.com')
+      const baseOrigin = rawOrigin.replace(/\/+$/, '')
       const portalUrl = `${baseOrigin}/portal?token=${encodeURIComponent(accessToken || '')}`
       const confirmUrl = verificationToken
         ? `${portalUrl}&confirm_email=${encodeURIComponent(verificationToken)}`

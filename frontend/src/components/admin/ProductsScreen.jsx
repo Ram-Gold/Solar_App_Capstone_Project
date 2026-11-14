@@ -397,13 +397,30 @@ export default function ProductsScreen({ onNavigate }) {
       if (rest.type) rest.type = sanitizeText(rest.type, { maxLength: 100 })
       if (rest.description) rest.description = sanitizeText(rest.description, { maxLength: 2000, allowMultiline: true })
 
-      // Synchronize stock_quantity and in_stock
-      const parsedQty =
+      // Synchronize stock_quantity, branch stocks (stock_quiapo + stock_cavite), and in_stock
+      let parsedQty =
         rest.stock_quantity !== undefined && rest.stock_quantity !== ''
           ? sanitizeNumber(rest.stock_quantity, { min: 0, integer: true, fallback: 0 })
           : rest.in_stock
             ? 10
             : 0
+
+      if (rest.stock_quiapo !== undefined || rest.stock_cavite !== undefined) {
+        const qStock = sanitizeNumber(rest.stock_quiapo ?? 0, { min: 0, integer: true, fallback: 0 })
+        const cStock = sanitizeNumber(rest.stock_cavite ?? 0, { min: 0, integer: true, fallback: 0 })
+        const branchChanged =
+          originalProduct &&
+          (qStock !== Number(originalProduct.stock_quiapo || 0) ||
+            cStock !== Number(originalProduct.stock_cavite || 0))
+        if (branchChanged) {
+          parsedQty = qStock + cStock
+          rest.stock_quiapo = qStock
+          rest.stock_cavite = cStock
+        } else {
+          rest.stock_quiapo = Math.max(0, parsedQty - cStock)
+          rest.stock_cavite = cStock
+        }
+      }
 
       rest.stock_quantity = parsedQty
       rest.in_stock = parsedQty > 0
@@ -571,10 +588,12 @@ export default function ProductsScreen({ onNavigate }) {
     try {
       const newQty = Math.max(0, Number(quickQuantity) || 0)
       const newInStock = newQty > 0
+      const caviteQty = Math.max(0, Number(quickRestockItem.stock_cavite) || 0)
+      const newQuiapoQty = Math.max(0, newQty - caviteQty)
 
       const { data, error } = await supabase
         .from('products')
-        .update({ stock_quantity: newQty, in_stock: newInStock })
+        .update({ stock_quantity: newQty, stock_quiapo: newQuiapoQty, in_stock: newInStock })
         .eq('id', quickRestockItem.id)
         .select()
 
