@@ -46,12 +46,3 @@ export function formatFacebookUrl(rawInput = '') {
   if (!handle) return ''
   return `https://facebook.com/${handle}`
 }
-
-/**
- * Basic validator for Facebook handle/profile inputs.
- */
-export function isValidFacebookInput(rawInput = '') {
-  const handle = extractFacebookHandle(rawInput)
-  if (!handle || handle.length < 2) return false
-  return true
-}

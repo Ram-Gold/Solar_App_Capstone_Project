@@ -51,18 +51,3 @@ export function isValidPhMobile(number) {
   if (!number) return false
   return /^09\d{9}$/.test(String(number).trim())
 }
-
-/**
- * Formats an 11-digit Philippine mobile number with hyphens (e.g., 0917-123-4567).
- *
- * @param {string|number} number
- * @returns {string} Formatted string or original if not 11 digits
- */
-export function formatPhMobile(number) {
-  if (!number) return ''
-  const cleaned = String(number).replace(/\D/g, '')
-  if (cleaned.length === 11 && cleaned.startsWith('09')) {
-    return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 7)}-${cleaned.slice(7)}`
-  }
-  return String(number)
-}
