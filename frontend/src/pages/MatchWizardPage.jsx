@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import {
   ArrowLeft,
   MessageSquare,
-  Info,
 } from 'lucide-react'
 import { useChat } from '../context/ChatContext'
 import { matchSolarProducts, getCatalogBounds } from '../lib/multiCriteriaMatcher'
@@ -118,23 +117,6 @@ export default function MatchWizardPage() {
             catalogBounds={catalogBounds}
           />
         </motion.div>
-
-        {/* Bottom Context Banner */}
-        <div className="mt-6 sm:mt-8 p-4 rounded-2xl bg-white/70 dark:bg-neutral-900/60 backdrop-blur-xl border border-neutral-200/70 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500 shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <Info className="size-4 text-amber-600 shrink-0" />
-            <span>
-              Have specific engineering requirements, Quiapo / Cavite branch pickup queries, or custom bracket requests?
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/chat')}
-            className="shrink-0 font-semibold text-neutral-900 dark:text-white hover:text-amber-600 transition-colors cursor-pointer"
-          >
-            Inquire via Assistant
-          </button>
-        </div>
       </div>
     </div>
   )
