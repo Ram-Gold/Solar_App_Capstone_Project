@@ -63,9 +63,9 @@ export default function Navbar() {
         {/* Left Group: Logo & Navigation */}
         <div className="flex items-center gap-6 sm:gap-12">
           <Link to="/" className="flex items-center shrink-0" aria-label="JD Solar Home">
-            <img 
-              src={jdSolarLogo} 
-              alt="JD Solar" 
+            <img
+              src={jdSolarLogo}
+              alt="JD Solar"
               className="h-8 sm:h-10 w-auto object-contain rounded-xl"
             />
           </Link>
@@ -78,15 +78,14 @@ export default function Navbar() {
                 <Link
                   key={link.label}
                   to={link.to}
-                  className={`relative font-inter text-label-md tracking-wide transition-all duration-300 px-1 py-1 ${
-                    isActive
+                  className={`relative font-inter text-label-md tracking-wide transition-all duration-300 px-1 py-1 ${isActive
                       ? 'text-jds-primary font-semibold'
                       : 'text-jds-on-surface-variant hover:text-jds-primary'
-                  }`}
+                    }`}
                 >
                   {link.label}
                   {isActive && (
-                    <motion.div 
+                    <motion.div
                       layoutId="nav-underline"
                       className="absolute -bottom-1 left-0 right-0 h-0.5 bg-jds-primary rounded-full"
                     />
@@ -100,7 +99,7 @@ export default function Navbar() {
         {/* Right Group: Search, Actions, & Hamburger */}
         <div className="flex items-center gap-4">
           {/* Refined Search Bar - Desktop/Tablet (visible sm and up) */}
-          <form 
+          <form
             onSubmit={handleSearchSubmit}
             className="relative group w-full max-w-[280px] hidden sm:block"
           >
@@ -193,11 +192,10 @@ export default function Navbar() {
                       key={link.label}
                       to={link.to}
                       onClick={() => setIsOpen(false)}
-                      className={`font-inter text-xs sm:text-sm tracking-wide transition-all duration-300 py-1.5 px-2 rounded-lg ${
-                        isActive
+                      className={`font-inter text-xs sm:text-sm tracking-wide transition-all duration-300 py-1.5 px-2 rounded-lg ${isActive
                           ? 'text-jds-primary font-bold bg-jds-primary/10'
                           : 'text-jds-on-surface-variant hover:text-jds-primary hover:bg-jds-surface-container'
-                      }`}
+                        }`}
                     >
                       {link.label}
                     </Link>
@@ -263,11 +261,10 @@ export default function Navbar() {
           <div className="absolute top-1 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-neutral-400/30 dark:bg-neutral-600/40 pointer-events-none transition-opacity duration-300 group-hover/nav:opacity-0" />
 
           <header
-            className={`pointer-events-auto bg-jds-surface/95 backdrop-blur-xl border-b border-jds-outline-variant/20 shadow-md transition-all duration-300 ease-out transform ${
-              isOpen
+            className={`pointer-events-auto bg-jds-surface/95 backdrop-blur-xl border-b border-jds-outline-variant/20 shadow-md transition-all duration-300 ease-out transform ${isOpen
                 ? 'translate-y-0 opacity-100'
                 : '-translate-y-full opacity-0 group-hover/nav:translate-y-0 group-hover/nav:opacity-100 group-focus-within/nav:translate-y-0 group-focus-within/nav:opacity-100'
-            }`}
+              }`}
           >
             {navContent}
           </header>

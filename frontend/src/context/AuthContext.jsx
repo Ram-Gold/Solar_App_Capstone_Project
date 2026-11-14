@@ -87,9 +87,9 @@ export const AuthProvider = ({ children }) => {
 
     const updateAuthState = async (session) => {
       if (!mounted) return
-      
+
       const currentUser = session?.user ?? null
-      
+
       if (currentUser) {
         setUser(currentUser)
         setLoading(true)

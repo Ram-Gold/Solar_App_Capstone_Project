@@ -41,7 +41,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
   const [emailTouched, setEmailTouched] = useState(false)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [branchLocation, setBranchLocation] = useState('Cavite')
+  const [branchLocation, setBranchLocation] = useState('Quiapo')
   const [isSearchingPhone, setIsSearchingPhone] = useState(false)
   const [isReturningCustomer, setIsReturningCustomer] = useState(false)
   const [existingCustomerRecord, setExistingCustomerRecord] = useState(null)
@@ -416,8 +416,8 @@ export default function RegisterSaleScreen({ onNavigate }) {
             onChange={(e) => setBranchLocation(e.target.value)}
             className="bg-transparent font-semibold text-jds-on-surface focus:outline-none cursor-pointer"
           >
-            <option value="Cavite">Cavite Branch</option>
             <option value="Quiapo">Quiapo Branch</option>
+            <option value="Cavite">Cavite Branch</option>
           </select>
         </div>
       </div>
