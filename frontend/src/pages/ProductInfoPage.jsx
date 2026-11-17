@@ -79,12 +79,12 @@ export default function ProductInfoPage() {
           // Fetch related products of same type
           const { data: related } = await supabase
             .from('products')
-            .select('id, name, type, watt, waterproof_grade, material, image_url, in_stock, price_range')
+            .select('id, name, type, watt, waterproof_grade, material, image_url, in_stock, price_range, is_archived')
             .eq('type', data.type)
             .neq('id', data.id)
-            .limit(4)
+            .limit(8)
 
-          setRelatedProducts(related || [])
+          setRelatedProducts((related || []).filter((p) => !p.is_archived).slice(0, 4))
         }
       } catch {
         setError('Product not found.')
@@ -255,8 +255,8 @@ export default function ProductInfoPage() {
                     onClick={() => setSelectedThumb(i)}
                     aria-label={`View picture ${i + 1}`}
                     className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 overflow-hidden bg-white cursor-pointer transition-all flex items-center justify-center p-1 ${selectedThumb === i
-                        ? 'border-jds-secondary shadow-xs ring-2 ring-jds-secondary/30 scale-102'
-                        : 'border-jds-outline-variant/60 hover:border-jds-secondary opacity-70 hover:opacity-100'
+                      ? 'border-jds-secondary shadow-xs ring-2 ring-jds-secondary/30 scale-102'
+                      : 'border-jds-outline-variant/60 hover:border-jds-secondary opacity-70 hover:opacity-100'
                       }`}
                   >
                     <img
@@ -290,10 +290,10 @@ export default function ProductInfoPage() {
                 )}
                 <div className="relative inline-flex items-center gap-1.5">
                   <span className={`px-2.5 py-0.5 rounded-full text-[11px] sm:text-label-sm font-semibold ${stockBadge?.tier === 'out'
-                      ? 'bg-jds-error-container/20 text-jds-error'
-                      : stockBadge?.tier === 'low'
-                        ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
-                        : 'bg-jds-secondary-container/20 text-jds-secondary'
+                    ? 'bg-jds-error-container/20 text-jds-error'
+                    : stockBadge?.tier === 'low'
+                      ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                      : 'bg-jds-secondary-container/20 text-jds-secondary'
                     }`}>
                     {stockBadge?.tier === 'out'
                       ? (stockBadge.reserved > 0 ? `Out of Stock (${stockBadge.reserved} Reserved)` : 'Out of Stock')
@@ -462,8 +462,8 @@ export default function ProductInfoPage() {
                         </span>
                       )}
                       <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] uppercase tracking-tight font-semibold ${rp.in_stock !== false
-                          ? 'bg-jds-secondary-container/10 text-jds-secondary'
-                          : 'bg-jds-error-container/10 text-jds-error'
+                        ? 'bg-jds-secondary-container/10 text-jds-secondary'
+                        : 'bg-jds-error-container/10 text-jds-error'
                         }`}>
                         {rp.in_stock !== false ? 'In Stock' : 'Out of Stock'}
                       </span>

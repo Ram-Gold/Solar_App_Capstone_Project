@@ -74,7 +74,7 @@ export function ChatProvider({ children }) {
       try {
         const { data, error } = await supabase.from('products').select('*')
         if (!error && data && data.length > 0 && isMounted) {
-          setProducts(data)
+          setProducts(data.filter((p) => !p.is_archived))
         }
       } catch (err) {
         console.warn('Using fallback products catalog:', err)

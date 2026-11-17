@@ -49,12 +49,14 @@ describe('InquiriesScreen', () => {
     cleanup()
   })
 
-  it('renders without crashing and displays header controls', async () => {
+  it('renders without crashing, defaults to table view, and displays header controls', async () => {
     render(<InquiriesScreen />)
 
-    expect(screen.getByText(/Inquiries & Showroom Schedule/i)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /^Inquiries$/i })).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: /Filter inquiry category/i })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: /Table/i })[0].getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getAllByRole('button', { name: /Cards/i })[0]).toBeTruthy()
     expect(screen.getAllByRole('button', { name: /Calendar/i })[0]).toBeTruthy()
-    expect(screen.getAllByRole('button', { name: /Table/i })[0]).toBeTruthy()
     expect(screen.getAllByRole('button', { name: /New Inquiry/i })[0]).toBeTruthy()
   })
 

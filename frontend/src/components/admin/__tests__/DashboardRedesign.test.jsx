@@ -104,6 +104,11 @@ describe('JD Solar Dashboard Redesign', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Users' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Products' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Inquiries' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Claims' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Customers' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Register Sale' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Images' })).toBeNull()
 
     // Collapse to 64px icon rail (lg:w-16)
@@ -187,17 +192,34 @@ describe('JD Solar Dashboard Redesign', () => {
     })
   })
 
-  it('ProductsScreen defaults to table view and embeds Images & Media Library tab', async () => {
+  it('ProductsScreen defaults to table view, switches to Media Library via dropdown, and supports bulk checkboxes', async () => {
     render(<ProductsScreen onNavigate={vi.fn()} />)
 
     await waitFor(() => {
-      expect(screen.getByText('Solar Inventory Catalog')).toBeTruthy()
-      expect(screen.getByRole('tab', { name: /Catalog SKUs/i })).toBeTruthy()
-      expect(screen.getByRole('tab', { name: /Images & Media Library/i })).toBeTruthy()
+      expect(screen.getByRole('heading', { name: 'Products' })).toBeTruthy()
+      expect(screen.getByRole('combobox', { name: /Products section/i })).toBeTruthy()
       expect(screen.getByRole('table')).toBeTruthy()
     })
 
-    fireEvent.click(screen.getByRole('tab', { name: /Images & Media Library/i }))
+    // Select a product via checkbox in the desktop table and verify contextual bulk action bar appears
+    const table = screen.getByRole('table')
+    const checkbox = within(table).getByRole('checkbox', { name: /Select Deye 8kW Hybrid Solar Inverter/i })
+    fireEvent.click(checkbox)
+    await waitFor(() => {
+      expect(screen.getByText('1 selected')).toBeTruthy()
+      expect(screen.getByRole('button', { name: /Archive Selected/i })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /Delete Selected/i })).toBeTruthy()
+    })
+
+    // Switch to Cards view and ensure card checkboxes work too
+    fireEvent.click(screen.getByRole('button', { name: /Cards view/i }))
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.getAllByRole('checkbox', { name: /Select Deye 8kW Hybrid Solar Inverter/i }).length).toBeGreaterThan(0)
+
+    // Switch to Media Library via section dropdown (defaults to Table view)
+    fireEvent.change(screen.getByRole('combobox', { name: /Products section/i }), {
+      target: { value: 'media' },
+    })
 
     await waitFor(() => {
       expect(screen.getByText('Media Library Assets')).toBeTruthy()

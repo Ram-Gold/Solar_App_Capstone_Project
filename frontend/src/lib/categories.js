@@ -30,22 +30,24 @@ export async function fetchCategoriesWithCounts() {
   try {
     const [catRes, prodRes] = await Promise.all([
       supabase.from('categories').select('id, name, created_at').order('name', { ascending: true }),
-      supabase.from('products').select('type')
+      supabase.from('products').select('type, is_archived')
     ])
+
+    const activeProducts = (prodRes.data || []).filter((p) => !p.is_archived)
 
     if (catRes.error) {
       console.warn('Could not load categories table, falling back to defaults/products:', catRes.error)
       // Extract from products if table fails
-      const prodTypes = Array.from(new Set((prodRes.data || []).map(p => p.type).filter(Boolean)))
+      const prodTypes = Array.from(new Set(activeProducts.map(p => p.type).filter(Boolean)))
       const allNames = Array.from(new Set([...DEFAULT_CATEGORIES, ...prodTypes]))
       return {
-        data: allNames.map((name, i) => ({ id: i + 1, name, count: (prodRes.data || []).filter(p => p.type === name).length })),
+        data: allNames.map((name, i) => ({ id: i + 1, name, count: activeProducts.filter(p => p.type === name).length })),
         error: null
       }
     }
 
     const counts = {}
-    ;(prodRes.data || []).forEach(p => {
+    activeProducts.forEach(p => {
       if (p.type) {
         counts[p.type] = (counts[p.type] || 0) + 1
       }

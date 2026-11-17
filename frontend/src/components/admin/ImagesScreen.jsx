@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { Button } from '../ui/button'
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
+import ViewModeToggle from './ViewModeToggle'
 import useModalBehavior from '../../hooks/useModalBehavior'
 import {
   Upload,
@@ -26,6 +28,7 @@ export default function ImagesScreen({ embedded = false }) {
   const [uploading, setUploading] = useState(false)
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState('newest') // 'newest' | 'oldest' | 'name' | 'size'
+  const [viewMode, setViewMode] = useState('table') // 'table' | 'cards'
   const [copiedName, setCopiedName] = useState(null)
   const [selectedImage, setSelectedImage] = useState(null)
 
@@ -204,38 +207,38 @@ export default function ImagesScreen({ embedded = false }) {
   })
 
   return (
-    <div className={embedded ? 'space-y-6 pb-8' : 'max-w-[1300px] mx-auto space-y-8 pb-12'}>
+    <div className={embedded ? 'space-y-4 pb-8' : 'max-w-[1440px] mx-auto space-y-4 pb-12'}>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {embedded ? (
               <h2 className="text-lg font-bold text-jds-on-surface">Media Library Assets</h2>
             ) : (
-              <h1 className="text-headline-md font-bold text-jds-on-surface">Image Storage & Assets</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-jds-on-surface">Media Library</h1>
             )}
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-jds-primary/10 text-jds-primary border border-jds-primary/20">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-jds-surface-container text-jds-on-surface-variant">
               <HardDrive className="h-3 w-3" />
               {BUCKET_NAME}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             onClick={fetchImages}
             disabled={loading}
-            className="border-jds-outline-variant text-jds-on-surface-variant hover:bg-jds-surface-container gap-2"
+            className="h-9 rounded-lg border-jds-outline-variant bg-jds-surface-container-lowest text-jds-on-surface hover:bg-jds-surface-container gap-1.5 px-3 text-xs font-semibold"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
           <Button
             onClick={() => fileInputRef.current?.click()}
-            className="bg-jds-primary text-jds-on-primary hover:opacity-90 gap-2 shadow-sm font-semibold"
+            className="h-9 rounded-lg bg-jds-primary text-jds-on-primary hover:opacity-90 gap-1.5 px-4 text-xs font-bold"
           >
-            <Upload className="h-4 w-4" />
+            <Upload className="h-3.5 w-3.5" />
             Select Images
           </Button>
         </div>
@@ -265,9 +268,9 @@ export default function ImagesScreen({ embedded = false }) {
           setDragOver(false)
           if (e.dataTransfer.files) handleFilesSelected(e.dataTransfer.files)
         }}
-        className={`rounded-2xl border-2 border-dashed p-8 text-center transition-all ${dragOver
-            ? 'border-jds-primary bg-jds-primary/5 scale-[1.005]'
-            : 'border-jds-outline-variant/50 bg-jds-surface-container-lowest hover:border-jds-primary/40'
+        className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${dragOver
+            ? 'border-jds-primary bg-jds-primary/5'
+            : 'border-jds-outline-variant bg-jds-surface-container-lowest hover:border-jds-primary/45'
           }`}
       >
         <input
@@ -369,54 +372,55 @@ export default function ImagesScreen({ embedded = false }) {
       </div>
 
       {/* Search & Sort Controls */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-2">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-jds-on-surface-variant/60" />
+      <div className="jds-panel p-3 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-jds-on-surface-variant/60" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search images by filename..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest text-body-md text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:border-jds-primary outline-none transition-all shadow-sm"
+            className="jds-control w-full pl-9 pr-8"
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-jds-on-surface-variant hover:text-jds-on-surface"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-jds-on-surface-variant hover:text-jds-on-surface cursor-pointer"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm text-jds-on-surface-variant">
-            <ArrowUpDown className="h-4 w-4 opacity-60" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="bg-jds-surface-container-lowest border border-jds-outline-variant/40 rounded-xl px-3 py-2 text-body-sm text-jds-on-surface outline-none focus:border-jds-primary cursor-pointer shadow-sm"
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="name">Name (A–Z)</option>
-              <option value="size">File Size (Largest)</option>
-            </select>
-          </div>
-          <span className="text-body-sm font-medium text-jds-on-surface-variant/80">
-            {filteredImages.length} image{filteredImages.length !== 1 ? 's' : ''}
-          </span>
+        <select
+          aria-label="Sort images"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="jds-control px-3 font-semibold cursor-pointer"
+        >
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="name">Name (A–Z)</option>
+          <option value="size">File Size (Largest)</option>
+        </select>
+
+        <span className="text-xs font-medium text-jds-on-surface-variant px-1">
+          {filteredImages.length} image{filteredImages.length !== 1 ? 's' : ''}
+        </span>
+
+        <div className="ml-auto">
+          <ViewModeToggle value={viewMode} onChange={setViewMode} />
         </div>
       </div>
 
-      {/* Gallery Grid */}
+      {/* Gallery Table (default) or Cards */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24 text-jds-on-surface-variant">
           <div className="h-9 w-9 animate-spin rounded-full border-4 border-jds-primary border-t-transparent" />
           <p className="mt-4 text-body-md font-medium">Loading storage images...</p>
         </div>
       ) : filteredImages.length === 0 ? (
-        <div className="rounded-2xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest p-12 text-center space-y-3">
+        <div className="jds-panel p-12 text-center space-y-3">
           <div className="h-12 w-12 rounded-full bg-jds-surface-container-low flex items-center justify-center mx-auto text-jds-on-surface-variant/60">
             <ImageIcon className="h-6 w-6" />
           </div>
@@ -424,6 +428,96 @@ export default function ImagesScreen({ embedded = false }) {
           <p className="text-body-sm text-jds-on-surface-variant max-w-sm mx-auto">
             {search ? `No images matching "${search}". Try another search keyword.` : 'No images have been uploaded to the product-images bucket yet.'}
           </p>
+        </div>
+      ) : viewMode === 'table' ? (
+        <div className="jds-panel overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-16">Preview</TableHead>
+                  <TableHead>Filename</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead>Uploaded</TableHead>
+                  <TableHead className="text-right pr-5">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredImages.map((img) => {
+                  const url = getImageUrl(img.name)
+                  const isCopied = copiedName === img.name
+                  return (
+                    <TableRow key={img.name}>
+                      <TableCell>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedImage({ name: img.name, url, metadata: img.metadata, created_at: img.created_at })}
+                          className="block h-10 w-10 rounded-lg border border-jds-outline-variant bg-jds-surface-container-low p-1 overflow-hidden cursor-pointer"
+                          title="Preview image"
+                        >
+                          <img
+                            src={url}
+                            alt={img.name}
+                            loading="lazy"
+                            className="h-full w-full object-contain"
+                            onError={(e) => {
+                              e.target.onerror = null
+                              e.target.src = 'https://placehold.co/80x80?text=NA'
+                            }}
+                          />
+                        </button>
+                      </TableCell>
+                      <TableCell className="font-mono font-semibold text-jds-on-surface max-w-[300px] truncate" title={img.name}>
+                        {img.name}
+                      </TableCell>
+                      <TableCell className="text-jds-on-surface-variant tabular-nums">
+                        {formatFileSize(img.metadata?.size)}
+                      </TableCell>
+                      <TableCell className="text-jds-on-surface-variant tabular-nums">
+                        {formatDate(img.created_at)}
+                      </TableCell>
+                      <TableCell className="text-right pr-5">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={isCopied ? 'default' : 'outline'}
+                            onClick={() => copyToClipboard(img.name)}
+                            className={`h-8 text-xs font-semibold gap-1 rounded-lg cursor-pointer ${
+                              isCopied ? 'bg-emerald-600 text-white border-emerald-600' : 'border-jds-outline-variant'
+                            }`}
+                          >
+                            {isCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                            <span>{isCopied ? 'Copied' : 'Copy Link'}</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setSelectedImage({ name: img.name, url, metadata: img.metadata, created_at: img.created_at })}
+                            title="Preview image"
+                            className="h-8 w-8 rounded-lg text-jds-on-surface-variant hover:text-jds-primary"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleDeleteImage(img.name)}
+                            title="Delete from Storage"
+                            className="h-8 w-8 rounded-lg text-jds-error hover:bg-jds-error-container/20"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -434,7 +528,7 @@ export default function ImagesScreen({ embedded = false }) {
             return (
               <div
                 key={img.name}
-                className="group relative rounded-2xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col"
+                className="group relative jds-card overflow-hidden flex flex-col"
               >
                 {/* Image Preview Container */}
                 <div className="relative aspect-square w-full bg-jds-surface-container-low/30 overflow-hidden flex items-center justify-center">

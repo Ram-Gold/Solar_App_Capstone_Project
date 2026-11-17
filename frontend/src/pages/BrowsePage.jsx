@@ -117,7 +117,7 @@ export default function BrowsePage() {
         if (error || !data || data.length === 0) {
           setProducts([])
         } else {
-          setProducts(data)
+          setProducts(data.filter((p) => !p.is_archived))
         }
       } catch {
         setProducts([])

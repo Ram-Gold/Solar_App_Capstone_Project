@@ -49,6 +49,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
   const [existingCustomerRecord, setExistingCustomerRecord] = useState(null)
 
   // Reservation fulfillment state
+  const [saleMode, setSaleMode] = useState(preselectedTicketId ? 'reservation' : 'walk_in') // 'walk_in' | 'reservation'
   const [activeReservations, setActiveReservations] = useState([])
   const [loadingReservations, setLoadingReservations] = useState(false)
   const [selectedReservationId, setSelectedReservationId] = useState('')
@@ -110,18 +111,19 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
         setLoadingProducts(true)
         const { data, error } = await supabase
           .from('products')
-          .select('id, name, type, watt, default_warranty_months, image_url, stock_quantity, reserved_quantity, in_stock, stock_quiapo, stock_cavite, reserved_quiapo, reserved_cavite')
+          .select('id, name, type, watt, default_warranty_months, image_url, stock_quantity, reserved_quantity, in_stock, stock_quiapo, stock_cavite, reserved_quiapo, reserved_cavite, is_archived')
           .order('name', { ascending: true })
 
         if (error) throw error
-        setCatalogProducts(data || [])
+        const active = (data || []).filter((p) => !p.is_archived)
+        setCatalogProducts(active)
         // Set default item product if available
-        if (data && data.length > 0) {
+        if (active.length > 0) {
           setItems([
             {
-              productId: String(data[0].id),
+              productId: String(active[0].id),
               serialNumber: '',
-              warrantyMonths: data[0].default_warranty_months || 24,
+              warrantyMonths: active[0].default_warranty_months || 24,
               purchaseDate: new Date().toISOString().split('T')[0]
             }
           ])
@@ -176,6 +178,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
     const ticket = activeReservations.find(t => String(t.id) === String(ticketId))
     if (ticket) {
       setSelectedReservation(ticket)
+      setSaleMode('reservation')
       if (ticket.customer_name) setFullName(ticket.customer_name)
       if (ticket.mobile_contact) setPhoneNumber(sanitizePhone(ticket.mobile_contact))
       if (ticket.email) setEmail(ticket.email)
@@ -216,6 +219,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
   const handleClearReservation = () => {
     setSelectedReservationId('')
     setSelectedReservation(null)
+    setSaleMode('walk_in')
   }
 
   const handleAddItem = () => {
@@ -403,6 +407,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
     setLiveEmailStatus(null)
     setSelectedReservationId('')
     setSelectedReservation(null)
+    setSaleMode('walk_in')
     setPhoneNumber('')
     setPhoneTouched(false)
     setFullName('')
@@ -426,24 +431,34 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
   }
 
   return (
-    <div className="p-1 sm:p-4 max-w-[1280px] mx-auto space-y-6">
-
-
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-jds-outline-variant/30">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-jds-primary/10 text-jds-primary">
-              Point of Sale
-            </span>
-            <h1 className="text-lg sm:text-2xl font-bold text-jds-on-surface">Register In-Store Sale</h1>
-          </div>
+    <div className="max-w-[1440px] mx-auto space-y-4">
+      {/* Simplified Header with Sale Mode & Branch Dropdowns */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-jds-outline-variant/60">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-lg sm:text-xl font-bold text-jds-on-surface">Register Sale</h1>
+          <select
+            aria-label="Sale mode"
+            value={saleMode}
+            onChange={(e) => {
+              const nextMode = e.target.value
+              setSaleMode(nextMode)
+              if (nextMode === 'walk_in') {
+                handleClearReservation()
+              }
+            }}
+            className="jds-control font-bold cursor-pointer"
+          >
+            <option value="walk_in">Direct Walk-In Sale</option>
+            <option value="reservation">
+              Fulfill Reservation ({activeReservations.length})
+            </option>
+          </select>
         </div>
 
         {/* Branch Selector */}
-        <div className="flex items-center gap-2 bg-jds-surface-container-lowest border border-jds-outline-variant/40 rounded-xl px-3 py-2 text-sm">
+        <div className="flex items-center gap-2 bg-jds-surface border border-jds-outline-variant rounded-lg px-3 h-9 text-xs">
           <Store className="w-4 h-4 text-jds-primary shrink-0" />
-          <label htmlFor="reg-branch-select" className="text-xs text-jds-on-surface-variant">Store Branch:</label>
+          <label htmlFor="reg-branch-select" className="text-jds-on-surface-variant">Branch:</label>
           <select
             id="reg-branch-select"
             value={branchLocation}
@@ -465,14 +480,15 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
       )}
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-[1.45fr_1fr] gap-6 items-start">
-        <div className="space-y-6 min-w-0">
+        <div className="space-y-4 min-w-0">
 
-        {/* CARD 0: Online Reservation Link (Optional) */}
-        <div className="p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-3">
+        {/* CARD 0: Online Reservation Link (shown only in reservation mode) */}
+        {saleMode === 'reservation' && (
+        <div className="p-5 jds-panel space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-bold text-jds-on-surface">
               <Ticket className="w-4 h-4 text-jds-primary" />
-              <span>Fulfill Online Stock Reservation (Optional)</span>
+              <span>Select Reservation Ticket</span>
             </div>
             {selectedReservation && (
               <button
@@ -481,22 +497,18 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
                 className="text-xs text-rose-600 hover:underline font-semibold flex items-center gap-1 self-start sm:self-auto cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
-                Clear Reservation Link
+                Clear Selection
               </button>
             )}
           </div>
-
-          <p className="text-xs text-jds-on-surface-variant">
-            If the customer holds a 48-hour reservation ticket (JDS-RES-*), select it below. Customer contact details and reserved items will auto-populate, and the stock hold will convert into an in-store sale.
-          </p>
 
           <div className="grid grid-cols-1 gap-2">
             <select
               value={selectedReservationId}
               onChange={(e) => handleSelectReservation(e.target.value)}
-              className="w-full bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl px-3.5 py-2.5 text-xs font-medium text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
+              className="w-full bg-jds-surface border border-jds-outline-variant rounded-lg px-3.5 py-2.5 text-xs font-medium text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
             >
-              <option value="">Direct Walk-In Sale (No Prior Reservation)</option>
+              <option value="">Select a reservation ticket (JDS-RES-*)...</option>
               {activeReservations.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.ticket_code} — {t.customer_name} ({t.product_name} × {t.quantity || 1}) [{t.store_branch || 'Store'}]
@@ -506,17 +518,18 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
           </div>
 
           {selectedReservation && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2 animate-in fade-in">
+            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2 animate-in fade-in">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>
-                <strong>Linked Reservation: {selectedReservation.ticket_code}</strong>. The 48-hour stock hold will be released, inventory will be deducted, and the ticket will be marked Completed upon sale registration.
+                <strong>Linked Reservation: {selectedReservation.ticket_code}</strong>. Stock hold will convert into an in-store sale upon completion.
               </span>
             </div>
           )}
         </div>
+        )}
 
         {/* CARD 1: Customer Information */}
-        <div className="p-4 sm:p-6 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-4">
+        <div className="p-4 sm:p-5 jds-panel space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-bold text-jds-on-surface">
               <User className="w-4 h-4 text-jds-primary" />
@@ -554,11 +567,11 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
                   value={phoneNumber}
                   onChange={handlePhoneChange}
                   onBlur={handlePhoneBlur}
-                  className={`w-full h-11 bg-jds-surface-container/40 border rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none transition-colors font-mono ${phoneTouched && phoneNumber && !isValidPhone(phoneNumber)
+                  className={`w-full h-11 bg-jds-surface border rounded-lg pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none transition-colors font-mono ${phoneTouched && phoneNumber && !isValidPhone(phoneNumber)
                     ? 'border-jds-error focus:border-jds-error bg-jds-error/5'
                     : phoneNumber.length === 11 && isValidPhone(phoneNumber)
                       ? 'border-emerald-500/50 focus:border-emerald-500'
-                      : 'border-jds-outline-variant/50 focus:border-jds-primary'
+                      : 'border-jds-outline-variant focus:border-jds-primary'
                     }`}
                 />
               </div>
@@ -586,7 +599,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
                   value={fullName}
                   onChange={handleFullNameChange}
                   onBlur={() => setFullName(prev => prev.trim())}
-                  className="w-full h-11 bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors"
+                  className="w-full h-11 bg-jds-surface border border-jds-outline-variant rounded-lg pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors"
                 />
               </div>
             </div>
@@ -618,11 +631,11 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
                   value={email}
                   onChange={handleEmailChange}
                   onBlur={handleEmailBlur}
-                  className={`w-full h-11 bg-jds-surface-container/40 border rounded-xl pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none transition-colors ${emailTouched && email && !isValidEmail(email)
+                  className={`w-full h-11 bg-jds-surface border rounded-lg pl-9 pr-4 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none transition-colors ${emailTouched && email && !isValidEmail(email)
                     ? 'border-jds-error focus:border-jds-error bg-jds-error/5'
                     : email && isValidEmail(email)
                       ? 'border-emerald-500/50 focus:border-emerald-500'
-                      : 'border-jds-outline-variant/50 focus:border-jds-primary'
+                      : 'border-jds-outline-variant focus:border-jds-primary'
                     }`}
                 />
               </div>
@@ -660,7 +673,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
                   placeholder="Optional: leave blank for customer self-activation"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-11 bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl pl-9 pr-10 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors font-mono"
+                  className="w-full h-11 bg-jds-surface border border-jds-outline-variant rounded-lg pl-9 pr-10 py-2.5 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors font-mono"
                 />
                 <button
                   type="button"
@@ -679,7 +692,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
         </div>
 
         {/* CARD 2: Products & Warranties */}
-        <div className="p-4 sm:p-6 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-4">
+        <div className="p-4 sm:p-5 jds-panel space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-bold text-jds-on-surface">
               <Package className="w-4 h-4 text-jds-primary" />
@@ -688,7 +701,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
             <button
               type="button"
               onClick={handleAddItem}
-              className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-jds-primary/10 text-jds-primary hover:bg-jds-primary/20 transition-colors flex items-center gap-1.5"
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-jds-primary/10 text-jds-primary hover:bg-jds-primary/20 transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               Add Another Product
@@ -699,7 +712,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
             {items.map((item, idx) => (
               <div
                 key={idx}
-                className="p-4 rounded-xl bg-jds-surface-container/20 border border-jds-outline-variant/30 grid grid-cols-1 md:grid-cols-12 gap-3 items-end"
+                className="p-4 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/60 grid grid-cols-1 md:grid-cols-12 gap-3 items-end"
               >
                 {/* Product Select */}
                 <div className="md:col-span-5 space-y-1">
@@ -709,7 +722,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
                   <select
                     value={item.productId}
                     onChange={(e) => handleItemChange(idx, 'productId', e.target.value)}
-                    className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-xl px-3 py-2 text-sm text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer truncate"
+                    className="w-full bg-jds-surface border border-jds-outline-variant rounded-lg px-3 py-2 text-sm text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer truncate"
                   >
                     {catalogProducts.map(prod => {
                       const avail = getAvailableQuantity(prod)
@@ -733,7 +746,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
                     placeholder="e.g. SN-882910"
                     value={item.serialNumber}
                     onChange={(e) => handleItemChange(idx, 'serialNumber', e.target.value)}
-                    className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-xl px-3 py-2 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/40 font-mono focus:outline-none focus:border-jds-primary"
+                    className="w-full bg-jds-surface border border-jds-outline-variant rounded-lg px-3 py-2 text-sm text-jds-on-surface placeholder:text-jds-on-surface-variant/40 font-mono focus:outline-none focus:border-jds-primary"
                   />
                 </div>
 
@@ -745,7 +758,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
                   <select
                     value={item.warrantyMonths}
                     onChange={(e) => handleItemChange(idx, 'warrantyMonths', Number(e.target.value))}
-                    className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-xl px-3 py-2 text-sm text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
+                    className="w-full bg-jds-surface border border-jds-outline-variant rounded-lg px-3 py-2 text-sm text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
                   >
                     <option value={6}>6 Months</option>
                     <option value={12}>1 Year (12 Mos)</option>
@@ -773,15 +786,15 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
         </div>
 
         {/* Right Column: Live Branch Stock & QR Summary */}
-        <aside className="p-5 rounded-2xl bg-jds-surface-container-low border border-jds-outline-variant/40 space-y-4 lg:sticky lg:top-4">
-          <div className="flex items-center justify-between border-b border-jds-outline-variant/25 pb-3">
+        <aside className="p-5 rounded-xl bg-jds-surface-container-low border border-jds-outline-variant space-y-4 lg:sticky lg:top-4">
+          <div className="flex items-center justify-between border-b border-jds-outline-variant/60 pb-3">
             <h2 className="text-xs font-bold uppercase tracking-wider text-jds-on-surface-variant">
               Live Branch &amp; QR Summary
             </h2>
             <span className="text-xs font-bold text-jds-primary">{branchLocation} Branch</span>
           </div>
 
-          <div className="rounded-xl bg-jds-surface-container-lowest border border-jds-outline-variant/30 p-3.5 space-y-2.5 text-xs">
+          <div className="rounded-xl bg-jds-surface-container-lowest border border-jds-outline-variant/60 p-3.5 space-y-2.5 text-xs">
             <div className="flex items-center justify-between">
               <span className="text-jds-on-surface-variant">Customer Status</span>
               <span className="font-bold text-jds-on-surface">
@@ -812,7 +825,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
                 return (
                   <div
                     key={idx}
-                    className="flex items-center justify-between gap-2 rounded-lg bg-jds-surface-container-lowest border border-jds-outline-variant/25 px-3 py-2 text-xs"
+                    className="flex items-center justify-between gap-2 rounded-lg bg-jds-surface-container-lowest border border-jds-outline-variant/60 px-3 py-2 text-xs"
                   >
                     <span className="truncate font-semibold text-jds-on-surface">
                       {prod?.name || 'Select equipment'}
@@ -837,7 +850,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
           <button
             type="submit"
             disabled={submitting || loadingProducts}
-            className="jds-btn-motion jds-focus-ring w-full min-h-[44px] px-6 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-bold hover:bg-jds-primary/90 flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+            className="jds-btn-motion jds-focus-ring w-full min-h-[44px] px-6 py-2.5 rounded-lg bg-jds-primary text-jds-on-primary font-bold hover:bg-jds-primary/90 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {submitting ? (
               <span className="flex items-center gap-2">

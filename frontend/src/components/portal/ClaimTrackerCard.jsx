@@ -52,18 +52,18 @@ export default function ClaimTrackerCard({ claim }) {
               <div
                 key={step.id}
                 className={`flex items-center gap-2 text-xs ${isCurrent
-                    ? 'font-bold text-jds-on-surface'
-                    : isDone
-                      ? 'font-semibold text-emerald-700 dark:text-emerald-400'
-                      : 'font-medium text-jds-on-surface-variant/70'
+                  ? 'font-bold text-jds-on-surface'
+                  : isDone
+                    ? 'font-semibold text-emerald-700 dark:text-emerald-400'
+                    : 'font-medium text-jds-on-surface-variant/70'
                   }`}
               >
                 <span
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-extrabold shrink-0 ${isDone
-                      ? 'bg-emerald-600 text-white'
-                      : isCurrent
-                        ? 'bg-jds-primary-container text-jds-on-primary-fixed'
-                        : 'bg-jds-surface-container-high text-jds-on-surface-variant'
+                    ? 'bg-emerald-600 text-white'
+                    : isCurrent
+                      ? 'bg-jds-primary-container text-jds-on-primary-fixed'
+                      : 'bg-jds-surface-container-high text-jds-on-surface-variant'
                     }`}
                 >
                   {isDone ? <Check className="w-3.5 h-3.5" /> : idx + 1}

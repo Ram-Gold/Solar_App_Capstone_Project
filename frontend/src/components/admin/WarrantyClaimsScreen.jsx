@@ -39,6 +39,8 @@ import {
 import { formatDate, getClaimStatusMeta, isWarrantyActive, getRemainingDays } from '../../lib/warrantyUtils'
 import useModalBehavior from '../../hooks/useModalBehavior'
 import InspectorDrawer from './InspectorDrawer'
+import ViewModeToggle from './ViewModeToggle'
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 
 const KANBAN_COLUMNS = [
   {
@@ -91,7 +93,10 @@ export default function WarrantyClaimsScreen() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [branchFilter, setBranchFilter] = useState('all') // 'all' | 'Cavite' | 'Quiapo'
-  const [activeView, setActiveView] = useState('board') // 'board' | 'archived'
+  const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'in_review' | 'approved' | 'resolved' | 'rejected'
+  const [sortOrder, setSortOrder] = useState('newest') // 'newest' | 'oldest'
+  const [activeView, setActiveView] = useState('board') // 'board' (active) | 'archived'
+  const [viewMode, setViewMode] = useState('table') // 'table' | 'cards' | 'board'
 
   const [activeModalClaim, setActiveModalClaim] = useState(null)
   const [claimDrawerTab, setClaimDrawerTab] = useState('triage') // 'dossier' | 'triage'
@@ -343,33 +348,44 @@ export default function WarrantyClaimsScreen() {
   const activeClaimsCount = claims.filter((c) => (c.status || 'in_review') !== 'archived').length
   const archivedClaimsCount = claims.filter((c) => (c.status || 'in_review') === 'archived').length
 
-  // Filter claims based on activeView
-  const filteredClaims = claims.filter((c) => {
-    const isArchived = (c.status || 'in_review') === 'archived'
-    if (activeView === 'board' && isArchived) return false
-    if (activeView === 'archived' && !isArchived) return false
+  // Filter & sort claims based on activeView, branch, status, search
+  const filteredClaims = claims
+    .filter((c) => {
+      const isArchived = (c.status || 'in_review') === 'archived'
+      if (activeView === 'board' && isArchived) return false
+      if (activeView === 'archived' && !isArchived) return false
 
-    const cust = c.customer_purchases?.customers
-    const prod = c.customer_purchases?.products
-    const purchase = c.customer_purchases
-    const q = searchQuery.toLowerCase().trim()
+      if (activeView !== 'archived' && statusFilter !== 'all') {
+        const normalizedStatus = (c.status || 'in_review') === 'pending' ? 'in_review' : (c.status || 'in_review')
+        if (normalizedStatus !== statusFilter) return false
+      }
 
-    const matchesBranch =
-      branchFilter === 'all' ||
-      (purchase?.branch_location || 'Cavite').toLowerCase() === branchFilter.toLowerCase()
+      const cust = c.customer_purchases?.customers
+      const prod = c.customer_purchases?.products
+      const purchase = c.customer_purchases
+      const q = searchQuery.toLowerCase().trim()
 
-    if (!matchesBranch) return false
+      const matchesBranch =
+        branchFilter === 'all' ||
+        (purchase?.branch_location || 'Cavite').toLowerCase() === branchFilter.toLowerCase()
 
-    if (!q) return true
-    return (
-      (cust?.full_name || '').toLowerCase().includes(q) ||
-      (cust?.phone_number || '').includes(q) ||
-      (prod?.name || '').toLowerCase().includes(q) ||
-      (purchase?.serial_number || '').toLowerCase().includes(q) ||
-      (c.issue_category || '').toLowerCase().includes(q) ||
-      c.id.toLowerCase().includes(q)
-    )
-  })
+      if (!matchesBranch) return false
+
+      if (!q) return true
+      return (
+        (cust?.full_name || '').toLowerCase().includes(q) ||
+        (cust?.phone_number || '').includes(q) ||
+        (prod?.name || '').toLowerCase().includes(q) ||
+        (purchase?.serial_number || '').toLowerCase().includes(q) ||
+        (c.issue_category || '').toLowerCase().includes(q) ||
+        c.id.toLowerCase().includes(q)
+      )
+    })
+    .sort((a, b) => {
+      const timeA = new Date(a.created_at || 0).getTime()
+      const timeB = new Date(b.created_at || 0).getTime()
+      return sortOrder === 'oldest' ? timeA - timeB : timeB - timeA
+    })
 
   // Group claims by status (handling legacy 'pending' as 'in_review' for intake)
   const claimsByColumn = KANBAN_COLUMNS.reduce((acc, col) => {
@@ -384,91 +400,126 @@ export default function WarrantyClaimsScreen() {
   }, {})
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1750px] mx-auto space-y-7">
-      {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-jds-outline-variant/30">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-              Warranty Operations
-            </span>
-            <h1 className="text-lg sm:text-2xl font-bold text-jds-on-surface">Warranty & Diagnostic Claims Board</h1>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-start md:self-auto">
-          {/* View Mode Switcher: Active Board vs Archived Claims */}
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-jds-surface border border-jds-outline-variant/40 shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setActiveView('board')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${activeView === 'board'
-                  ? 'bg-jds-primary text-jds-on-primary shadow-xs'
-                  : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                }`}
-            >
-              <Kanban className="w-3.5 h-3.5" />
-              <span>Active Board ({activeClaimsCount})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveView('archived')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${activeView === 'archived'
-                  ? 'bg-jds-primary text-jds-on-primary shadow-xs'
-                  : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                }`}
-            >
-              <Archive className="w-3.5 h-3.5" />
-              <span>Archived ({archivedClaimsCount})</span>
-            </button>
-          </div>
-
-          <button
-            onClick={loadClaims}
-            disabled={loading}
-            className="px-4 py-2.5 rounded-xl bg-jds-surface border border-jds-outline-variant/40 hover:bg-jds-surface-container text-xs font-semibold text-jds-on-surface flex items-center gap-2 transition-colors disabled:opacity-50 shadow-xs cursor-pointer"
+    <div className="max-w-[1440px] mx-auto space-y-4">
+      {/* Simplified Header with Scope Dropdown */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-lg sm:text-xl font-bold text-jds-on-surface">Claims</h1>
+          <select
+            aria-label="Claims scope"
+            value={activeView}
+            onChange={(e) => {
+              const next = e.target.value
+              setActiveView(next)
+              if (next === 'archived' && viewMode === 'board') {
+                setViewMode('table')
+              }
+            }}
+            className="jds-control font-bold cursor-pointer"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh Board</span>
-          </button>
+            <option value="board">Active Claims ({activeClaimsCount})</option>
+            <option value="archived">Archived Claims ({archivedClaimsCount})</option>
+          </select>
         </div>
+
+        <button
+          onClick={loadClaims}
+          disabled={loading}
+          className="px-3.5 h-9 rounded-lg bg-jds-surface border border-jds-outline-variant hover:bg-jds-surface-container text-xs font-semibold text-jds-on-surface flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <span>Refresh</span>
+        </button>
       </div>
 
-      {/* Board Controls & Stage Counters */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        {/* Search & Branch Selector */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 flex-1 max-w-2xl">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-jds-on-surface-variant absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+      {/* Simplified Filter & View Bar */}
+      <div className="jds-panel p-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="w-4 h-4 text-jds-on-surface-variant absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search customer, phone, serial, product or CLAIM ID..."
+              placeholder="Search customer, phone, serial, product, or ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-jds-surface border border-jds-outline-variant/40 rounded-xl pl-10 pr-4 py-2.5 text-xs text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors"
+              className="jds-control w-full pl-9 pr-8"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-jds-on-surface-variant/60 hover:text-jds-on-surface cursor-pointer"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {activeView !== 'archived' && (
+            <select
+              aria-label="Filter by claim status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="jds-control font-semibold cursor-pointer"
+            >
+              <option value="all">All Statuses</option>
+              {KANBAN_COLUMNS.map((col) => (
+                <option key={col.id} value={col.id}>
+                  {col.title}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <select
+            aria-label="Filter by branch"
+            value={branchFilter}
+            onChange={(e) => setBranchFilter(e.target.value)}
+            className="jds-control font-semibold cursor-pointer"
+          >
+            <option value="all">All Branches</option>
+            <option value="Cavite">Cavite</option>
+            <option value="Quiapo">Quiapo</option>
+          </select>
+
+          <select
+            aria-label="Sort claims"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="jds-control font-semibold cursor-pointer"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+
+          {(searchQuery || branchFilter !== 'all' || statusFilter !== 'all' || sortOrder !== 'newest') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('')
+                setBranchFilter('all')
+                setStatusFilter('all')
+                setSortOrder('newest')
+              }}
+              className="jds-control font-semibold text-jds-on-surface-variant hover:text-jds-primary flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+
+          <div className="ml-auto">
+            <ViewModeToggle
+              value={viewMode}
+              onChange={setViewMode}
+              extraModes={
+                activeView === 'archived'
+                  ? []
+                  : [{ id: 'board', label: 'Board', icon: Kanban }]
+              }
             />
           </div>
-
-          <div className="flex items-center gap-2 bg-jds-surface border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs">
-            <Store className="w-4 h-4 text-jds-primary shrink-0" />
-            <span className="text-jds-on-surface-variant font-medium whitespace-nowrap">Branch:</span>
-            <select
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}
-              className="bg-transparent font-semibold text-jds-on-surface focus:outline-none cursor-pointer"
-            >
-              <option value="all">All Branches</option>
-              <option value="Cavite">Cavite Store</option>
-              <option value="Quiapo">Quiapo Store</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Total Summary */}
-        <div className="flex items-center gap-3 text-xs text-jds-on-surface-variant font-medium">
-          <span>{activeView === 'archived' ? 'Archived Records' : 'Active Tickets'}: <strong className="text-jds-on-surface font-semibold">{filteredClaims.length}</strong></span>
-          <span className="text-jds-outline-variant">•</span>
-          <span>Total Database Claims: <strong className="text-jds-on-surface font-semibold">{claims.length}</strong></span>
         </div>
       </div>
 
@@ -488,28 +539,235 @@ export default function WarrantyClaimsScreen() {
         </div>
       )}
 
-      {/* Kanban Board Container or Archived Claims View */}
+      {/* Main Content: Table (default) | Cards | Board */}
       {loading ? (
         <div className="py-24 text-center space-y-3">
           <div className="w-8 h-8 border-2 border-jds-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-jds-on-surface-variant font-medium">Loading warranty tickets onto board...</p>
+          <p className="text-xs text-jds-on-surface-variant font-medium">Loading warranty claims...</p>
+        </div>
+      ) : viewMode === 'table' ? (
+        <div className="jds-panel overflow-hidden">
+          {filteredClaims.length === 0 ? (
+            <div className="py-16 flex flex-col items-center justify-center text-center px-4 space-y-2">
+              <Inbox className="w-8 h-8 text-jds-on-surface-variant/40" />
+              <p className="text-sm font-bold text-jds-on-surface">
+                {activeView === 'archived' ? 'No archived claims found' : 'No warranty claims match your filters'}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Claim ID</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Equipment &amp; S/N</TableHead>
+                    <TableHead>Issue</TableHead>
+                    <TableHead>Branch</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Filed</TableHead>
+                    <TableHead className="text-right pr-5">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredClaims.map((claim) => {
+                    const customer = claim.customer_purchases?.customers
+                    const product = claim.customer_purchases?.products
+                    const purchase = claim.customer_purchases
+                    const statusMeta = getClaimStatusMeta(claim.status)
+                    const isArchived = (claim.status || 'in_review') === 'archived'
+
+                    return (
+                      <TableRow
+                        key={claim.id}
+                        onClick={() => handleOpenModal(claim)}
+                        className="cursor-pointer"
+                      >
+                        <TableCell className="font-mono text-xs font-bold text-jds-primary">
+                          CLAIM-{claim.id.slice(0, 8).toUpperCase()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-bold text-xs text-jds-on-surface">{customer?.full_name || 'Customer'}</div>
+                          <div className="text-[11px] font-mono text-jds-on-surface-variant">{customer?.phone_number || '—'}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-xs font-semibold text-jds-on-surface truncate max-w-[200px]">{product?.name || 'Solar Unit'}</div>
+                          <div className="text-[11px] font-mono text-jds-on-surface-variant">{purchase?.serial_number ? `S/N: ${purchase.serial_number}` : '—'}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-xs font-semibold text-jds-on-surface">{claim.issue_category}</div>
+                          <div className="text-[11px] text-jds-on-surface-variant truncate max-w-[200px]">{claim.description}</div>
+                        </TableCell>
+                        <TableCell className="text-xs font-semibold text-jds-on-surface-variant">
+                          {purchase?.branch_location || 'Cavite'}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {isArchived ? (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-neutral-500/10 text-neutral-600 border border-neutral-500/20">
+                              Archived
+                            </span>
+                          ) : (
+                            <select
+                              aria-label={`Claim ${claim.id.slice(0, 8)} status`}
+                              value={claim.status === 'pending' ? 'in_review' : (claim.status || 'in_review')}
+                              onChange={(e) => handleDropClaim(claim.id, e.target.value)}
+                              className={`rounded-lg border px-2.5 py-1 text-xs font-bold cursor-pointer focus:outline-none ${statusMeta?.badgeClass || 'bg-jds-surface border-jds-outline-variant/40 text-jds-on-surface'}`}
+                            >
+                              {KANBAN_COLUMNS.map((opt) => (
+                                <option key={opt.id} value={opt.id}>
+                                  {opt.title}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-jds-on-surface-variant tabular-nums">
+                          {formatDate(claim.created_at)}
+                        </TableCell>
+                        <TableCell className="text-right pr-5" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {isArchived ? (
+                              isAdmin && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleInitiateRestore(claim)}
+                                    className="px-2.5 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 text-xs font-semibold cursor-pointer"
+                                  >
+                                    Restore
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleInitiateDelete(claim)}
+                                    className="p-1.5 rounded-lg text-jds-error hover:bg-jds-error-container/20 cursor-pointer"
+                                    title="Delete claim"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenModal(claim)}
+                                  className="px-2.5 py-1 rounded-lg border border-jds-outline-variant/60 text-xs font-bold text-jds-on-surface hover:bg-jds-surface-container cursor-pointer"
+                                >
+                                  Inspect
+                                </button>
+                                {isAdmin && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleInitiateArchive(claim)}
+                                    className="p-1.5 rounded-lg text-jds-on-surface-variant hover:text-jds-primary hover:bg-jds-surface-container cursor-pointer"
+                                    title="Archive claim"
+                                  >
+                                    <Archive className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      ) : viewMode === 'cards' && activeView !== 'archived' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredClaims.length === 0 ? (
+            <div className="col-span-full py-16 text-center jds-panel">
+              <p className="text-sm font-bold text-jds-on-surface">No warranty claims match your filters</p>
+            </div>
+          ) : (
+            filteredClaims.map((claim) => {
+              const customer = claim.customer_purchases?.customers
+              const product = claim.customer_purchases?.products
+              const purchase = claim.customer_purchases
+              const warrantyActive = isWarrantyActive(purchase?.warranty_expires_at)
+              const daysLeft = getRemainingDays(purchase?.warranty_expires_at)
+
+              return (
+                <div
+                  key={claim.id}
+                  onClick={() => handleOpenModal(claim)}
+                  className="jds-card p-4 cursor-pointer flex flex-col justify-between gap-3"
+                >
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between text-xs pb-2 border-b border-jds-outline-variant/60">
+                      <span className="font-mono text-[11px] font-bold text-jds-primary bg-jds-primary/10 px-2 py-0.5 rounded-md border border-jds-primary/20">
+                        CLAIM-{claim.id.slice(0, 8).toUpperCase()}
+                      </span>
+                      <span className="text-[11px] text-jds-on-surface-variant tabular-nums">
+                        {formatDate(claim.created_at)}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold text-jds-on-surface truncate">{customer?.full_name || 'Customer'}</span>
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-jds-surface-container text-jds-on-surface-variant shrink-0">
+                          {purchase?.branch_location || 'Cavite'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-jds-on-surface-variant font-mono">{customer?.phone_number || 'No phone'}</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-jds-surface-container-low border border-jds-outline-variant/60 space-y-1">
+                      <div className="text-xs font-semibold text-jds-on-surface truncate">{product?.name || 'Solar Light Unit'}</div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-mono text-jds-on-surface-variant">{purchase?.serial_number || 'No S/N'}</span>
+                        <span className={`font-bold ${warrantyActive ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {warrantyActive ? `${daysLeft}d warranty` : 'Expired'}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-jds-on-surface-variant line-clamp-2">
+                      <strong className="text-jds-on-surface">{claim.issue_category}:</strong> {claim.description}
+                    </p>
+                  </div>
+                  <div className="pt-2 border-t border-jds-outline-variant/60 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <select
+                      aria-label={`Move claim ${claim.id.slice(0, 8)} status`}
+                      value={claim.status === 'pending' ? 'in_review' : (claim.status || 'in_review')}
+                      onChange={(e) => handleDropClaim(claim.id, e.target.value)}
+                      className="flex-1 rounded-lg border border-jds-outline-variant bg-jds-surface px-2.5 py-1.5 text-xs font-semibold text-jds-on-surface cursor-pointer"
+                    >
+                      {KANBAN_COLUMNS.map((opt) => (
+                        <option key={opt.id} value={opt.id}>{opt.title}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenModal(claim)}
+                      className="px-3 py-1.5 rounded-lg bg-jds-primary/10 text-jds-primary text-xs font-bold cursor-pointer"
+                    >
+                      Inspect
+                    </button>
+                  </div>
+                </div>
+              )
+            })
+          )}
         </div>
       ) : activeView === 'archived' ? (
         <div className="space-y-4">
-          <div className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-850/40 border border-jds-outline-variant/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="p-4 jds-panel bg-jds-surface-container-low flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <Archive className="w-5 h-5 text-neutral-500" />
               <div>
                 <h2 className="text-sm font-bold text-jds-on-surface">Archived Warranty Tickets</h2>
               </div>
             </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-jds-surface border border-jds-outline-variant/30 text-jds-on-surface">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-jds-surface border border-jds-outline-variant text-jds-on-surface">
               {filteredClaims.length} Archived Record{filteredClaims.length === 1 ? '' : 's'}
             </span>
           </div>
 
           {filteredClaims.length === 0 ? (
-            <div className="py-20 flex flex-col items-center justify-center text-center p-6 rounded-2xl border border-dashed border-jds-outline-variant/40 bg-jds-surface/30 space-y-3">
+            <div className="py-20 flex flex-col items-center justify-center text-center p-6 rounded-xl border border-dashed border-jds-outline-variant bg-jds-surface-container-low/40 space-y-3">
               <Inbox className="w-10 h-10 text-jds-on-surface-variant/40" />
               <div>
                 <h3 className="text-sm font-bold text-jds-on-surface">No Archived Tickets Found</h3>
@@ -543,11 +801,11 @@ export default function WarrantyClaimsScreen() {
                   <div
                     key={claim.id}
                     onClick={() => handleOpenModal(claim)}
-                    className="rounded-xl border border-jds-outline-variant/40 bg-jds-surface p-4 transition-all hover:shadow-md hover:border-jds-primary/60 cursor-pointer space-y-3.5 flex flex-col justify-between group"
+                    className="jds-card p-4 cursor-pointer space-y-3 flex flex-col justify-between group"
                   >
                     <div className="space-y-3">
                       {/* Header */}
-                      <div className="flex items-center justify-between text-xs pb-2 border-b border-jds-outline-variant/20">
+                      <div className="flex items-center justify-between text-xs pb-2 border-b border-jds-outline-variant/60">
                         <span className="font-mono text-[11px] font-bold text-neutral-600 dark:text-neutral-400 bg-neutral-500/10 px-2 py-0.5 rounded-md border border-neutral-500/20">
                           CLAIM-{claim.id.slice(0, 8).toUpperCase()}
                         </span>
@@ -563,7 +821,7 @@ export default function WarrantyClaimsScreen() {
                             <User className="w-3.5 h-3.5 text-jds-on-surface-variant shrink-0" />
                             <span className="truncate">{customer?.full_name || 'Customer'}</span>
                           </span>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-jds-surface-container text-jds-on-surface-variant border border-jds-outline-variant/30 shrink-0">
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-jds-surface-container text-jds-on-surface-variant border border-jds-outline-variant/60 shrink-0">
                             {purchase?.branch_location || 'Cavite'}
                           </span>
                         </div>
@@ -573,7 +831,7 @@ export default function WarrantyClaimsScreen() {
                       </div>
 
                       {/* Product */}
-                      <div className="p-3 rounded-lg bg-jds-surface-container-low/50 border border-jds-outline-variant/20 space-y-1">
+                      <div className="p-3 rounded-lg bg-jds-surface-container-low border border-jds-outline-variant/60 space-y-1">
                         <div className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5 truncate">
                           <Package className="w-3.5 h-3.5 text-jds-primary shrink-0" />
                           <span className="truncate">{product?.name || 'Solar Light Unit'}</span>
@@ -606,7 +864,7 @@ export default function WarrantyClaimsScreen() {
 
                     {/* Actions Footer */}
                     <div
-                      className="pt-3 border-t border-jds-outline-variant/20 flex items-center justify-between gap-2"
+                      className="pt-3 border-t border-jds-outline-variant/60 flex items-center justify-between gap-2"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {isAdmin ? (

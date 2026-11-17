@@ -23,7 +23,10 @@ function TableHeader({
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn(
+        "bg-jds-surface-container-low border-b border-jds-outline-variant [&_tr]:border-b-0 [&_tr:hover]:bg-transparent",
+        className
+      )}
       {...props} />
   );
 }
@@ -60,7 +63,7 @@ function TableRow({
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "border-b border-jds-outline-variant/60 transition-colors hover:bg-jds-surface-container-low/60 has-aria-expanded:bg-jds-surface-container-low/60 data-[state=selected]:bg-jds-primary/[0.04]",
         className
       )}
       {...props} />
@@ -75,7 +78,7 @@ function TableHead({
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "h-10 px-3.5 text-left align-middle text-[11px] font-bold uppercase tracking-wider whitespace-nowrap text-jds-on-surface-variant [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props} />
@@ -90,7 +93,7 @@ function TableCell({
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "px-3.5 py-2.5 align-middle text-xs whitespace-nowrap [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props} />

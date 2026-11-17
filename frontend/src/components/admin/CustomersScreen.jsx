@@ -17,7 +17,6 @@ import {
   User,
   Package,
   Calendar,
-  Store,
   RefreshCw,
   Plus,
   Eye,
@@ -54,6 +53,8 @@ import {
 import QRReceiptModal from './QRReceiptModal'
 import useModalBehavior from '../../hooks/useModalBehavior'
 import InspectorDrawer from './InspectorDrawer'
+import ViewModeToggle from './ViewModeToggle'
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 
 export default function CustomersScreen({ onNavigate, onSelectCustomerForSale }) {
   const { role } = useAuth()
@@ -62,6 +63,9 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
   const [searchQuery, setSearchQuery] = useState('')
   const [branchFilter, setBranchFilter] = useState('All')
   const [warrantyFilter, setWarrantyFilter] = useState('All')
+  const [emailFilter, setEmailFilter] = useState('All')
+  const [sortOrder, setSortOrder] = useState('newest')
+  const [viewMode, setViewMode] = useState('table') // 'table' | 'cards'
 
   // Catalog products for quick product registration
   const [catalogProducts, setCatalogProducts] = useState([])
@@ -150,12 +154,13 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, type, watt, default_warranty_months, image_url')
+        .select('id, name, type, watt, default_warranty_months, image_url, is_archived')
         .order('name', { ascending: true })
       if (!error && data) {
-        setCatalogProducts(data)
-        if (data.length > 0 && !newProductId) {
-          setNewProductId(data[0].id)
+        const active = data.filter((p) => !p.is_archived)
+        setCatalogProducts(active)
+        if (active.length > 0 && !newProductId) {
+          setNewProductId(active[0].id)
         }
       }
     } catch (e) {
@@ -599,56 +604,93 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
     setTimeout(() => setModalLinkCopied(false), 2000)
   }
 
-  // Filtered customer list
-  const filteredCustomers = customers.filter(c => {
-    const query = searchQuery.trim().toLowerCase()
-    const matchesSearch =
-      !query ||
-      c.full_name.toLowerCase().includes(query) ||
-      c.phone_number.toLowerCase().includes(query) ||
-      (c.email && c.email.toLowerCase().includes(query)) ||
-      (c.access_token && c.access_token.toLowerCase().includes(query))
+  // Filtered & sorted customer list
+  const filteredCustomers = customers
+    .filter(c => {
+      const query = searchQuery.trim().toLowerCase()
+      const matchesSearch =
+        !query ||
+        c.full_name.toLowerCase().includes(query) ||
+        c.phone_number.toLowerCase().includes(query) ||
+        (c.email && c.email.toLowerCase().includes(query)) ||
+        (c.access_token && c.access_token.toLowerCase().includes(query))
 
-    let matchesBranch = true
-    if (branchFilter !== 'All') {
-      matchesBranch = c.purchases.some(p => p.branch_location === branchFilter)
+      let matchesBranch = true
+      if (branchFilter !== 'All') {
+        matchesBranch = c.purchases.some(p => p.branch_location === branchFilter)
+      }
+
+      let matchesWarranty = true
+      if (warrantyFilter === 'Active') {
+        matchesWarranty = c.active_warranties_count > 0
+      } else if (warrantyFilter === 'Expired') {
+        matchesWarranty = c.active_warranties_count === 0 && c.total_purchases > 0
+      } else if (warrantyFilter === 'No Purchases') {
+        matchesWarranty = c.total_purchases === 0
+      }
+
+      let matchesEmail = true
+      const isConfirmed = Boolean(c.email_confirmed_at || c.email_confirmed)
+      if (emailFilter === 'Confirmed') matchesEmail = Boolean(c.email) && isConfirmed
+      else if (emailFilter === 'Awaiting') matchesEmail = Boolean(c.email) && !isConfirmed
+      else if (emailFilter === 'Missing') matchesEmail = !c.email
+
+      return matchesSearch && matchesBranch && matchesWarranty && matchesEmail
+    })
+    .sort((a, b) => {
+      if (sortOrder === 'name') return (a.full_name || '').localeCompare(b.full_name || '')
+      if (sortOrder === 'units') return (b.total_purchases || 0) - (a.total_purchases || 0)
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    })
+
+  const renderWarrantyBadge = (customer) => {
+    if (customer.active_warranties_count > 0) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 shrink-0">
+          <ShieldCheck className="w-3 h-3" />
+          <span>{customer.active_warranties_count} Active</span>
+        </span>
+      )
     }
-
-    let matchesWarranty = true
-    if (warrantyFilter === 'Active') {
-      matchesWarranty = c.active_warranties_count > 0
-    } else if (warrantyFilter === 'Expired') {
-      matchesWarranty = c.active_warranties_count === 0 && c.total_purchases > 0
-    } else if (warrantyFilter === 'No Purchases') {
-      matchesWarranty = c.total_purchases === 0
+    if (customer.total_purchases > 0 && customer.purchases?.length > 0 && customer.purchases.every(p => p.is_voided)) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-600 border border-rose-500/20 shrink-0">
+          <ShieldX className="w-3 h-3" />
+          <span>Voided</span>
+        </span>
+      )
     }
-
-    return matchesSearch && matchesBranch && matchesWarranty
-  })
-
-  // KPI Calculations
-  const totalCustomersCount = customers.length
-  const totalPurchasesCount = customers.reduce((sum, c) => sum + (c.total_purchases || 0), 0)
-  const totalActiveWarranties = customers.reduce((sum, c) => sum + (c.active_warranties_count || 0), 0)
+    if (customer.total_purchases > 0) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-neutral-500/10 text-neutral-600 border border-neutral-500/20 shrink-0">
+          <ShieldAlert className="w-3 h-3" />
+          <span>Expired</span>
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-700 shrink-0">
+        No Units
+      </span>
+    )
+  }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-jds-outline-variant/30">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-jds-primary/10 text-jds-primary">
-              Customer Registry
-            </span>
-            <h1 className="text-lg sm:text-2xl font-bold text-jds-on-surface">Customers, QR & Access Tokens</h1>
-          </div>
+    <div className="max-w-[1440px] mx-auto space-y-4">
+      {/* Simplified Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-lg sm:text-xl font-bold text-jds-on-surface">Customers</h1>
+          <span className="rounded-full bg-jds-surface-container px-2.5 py-0.5 text-xs font-bold text-jds-on-surface-variant tabular-nums">
+            {customers.length}
+          </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={loadData}
             disabled={loading}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface hover:bg-jds-surface-container transition-all"
+            className="flex items-center gap-1.5 px-3 h-9 text-xs font-semibold rounded-lg border border-jds-outline-variant bg-jds-surface text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer"
             title="Reload customer list"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -658,16 +700,15 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
           {onNavigate && (
             <button
               onClick={() => onNavigate('register-sale')}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 transition-all shadow-xs"
+              className="flex items-center gap-1.5 px-4 h-9 text-xs font-bold rounded-lg bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Register New Sale</span>
+              <span>Register Sale</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* KPI Cards */}
       {customerActionBanner && (
         <div
           className={`p-4 rounded-xl border text-xs font-semibold flex items-center justify-between gap-3 ${customerActionBanner.type === 'success'
@@ -686,120 +727,212 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-xs flex items-center justify-between">
-          <div>
-            <div className="text-xs font-semibold text-jds-on-surface-variant">Registered Customers</div>
-            <div className="text-2xl font-bold text-jds-on-surface mt-1">{totalCustomersCount}</div>
-            <div className="text-[11px] text-jds-on-surface-variant/70 mt-0.5">Verified equipment profiles</div>
+      {/* Search, Dropdown Filters & View Toggle */}
+      <div className="jds-panel p-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="w-4 h-4 text-jds-on-surface-variant absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search name, phone, email, or token..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="jds-control w-full pl-9 pr-8"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-jds-on-surface-variant/60 hover:text-jds-on-surface cursor-pointer"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
-          <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center">
-            <Users className="w-5 h-5" />
-          </div>
-        </div>
 
-        <div className="p-4 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-xs flex items-center justify-between">
-          <div>
-            <div className="text-xs font-semibold text-jds-on-surface-variant">Active Warranties</div>
-            <div className="text-2xl font-bold text-emerald-500 mt-1">{totalActiveWarranties}</div>
-            <div className="text-[11px] text-jds-on-surface-variant/70 mt-0.5">Units currently protected</div>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-        </div>
+          <select
+            aria-label="Filter by branch"
+            value={branchFilter}
+            onChange={(e) => setBranchFilter(e.target.value)}
+            className="jds-control font-semibold cursor-pointer"
+          >
+            <option value="All">All Branches</option>
+            <option value="Cavite">Cavite</option>
+            <option value="Quiapo">Quiapo</option>
+          </select>
 
-        <div className="p-4 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-xs flex items-center justify-between">
-          <div>
-            <div className="text-xs font-semibold text-jds-on-surface-variant">Total Installed Units</div>
-            <div className="text-2xl font-bold text-jds-on-surface mt-1">{totalPurchasesCount}</div>
-            <div className="text-[11px] text-jds-on-surface-variant/70 mt-0.5">Logged sales and receipts</div>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-            <Package className="w-5 h-5" />
+          <select
+            aria-label="Filter by warranty status"
+            value={warrantyFilter}
+            onChange={(e) => setWarrantyFilter(e.target.value)}
+            className="jds-control font-semibold cursor-pointer"
+          >
+            <option value="All">All Warranties</option>
+            <option value="Active">Active Warranties</option>
+            <option value="Expired">Expired</option>
+            <option value="No Purchases">No Purchases</option>
+          </select>
+
+          <select
+            aria-label="Filter by email status"
+            value={emailFilter}
+            onChange={(e) => setEmailFilter(e.target.value)}
+            className="jds-control font-semibold cursor-pointer"
+          >
+            <option value="All">All Emails</option>
+            <option value="Confirmed">Email Confirmed</option>
+            <option value="Awaiting">Awaiting Verification</option>
+            <option value="Missing">No Email</option>
+          </select>
+
+          <select
+            aria-label="Sort customers"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="jds-control font-semibold cursor-pointer"
+          >
+            <option value="newest">Newest First</option>
+            <option value="name">Name (A–Z)</option>
+            <option value="units">Most Units</option>
+          </select>
+
+          {(searchQuery || branchFilter !== 'All' || warrantyFilter !== 'All' || emailFilter !== 'All') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('')
+                setBranchFilter('All')
+                setWarrantyFilter('All')
+                setEmailFilter('All')
+              }}
+              className="jds-control font-semibold text-jds-on-surface-variant hover:text-jds-primary flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+
+          <div className="ml-auto">
+            <ViewModeToggle value={viewMode} onChange={setViewMode} />
           </div>
         </div>
       </div>
 
-      {/* Search and Filters Toolbar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 bg-jds-surface rounded-2xl border border-jds-outline-variant/40 shadow-xs">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-jds-on-surface-variant absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search by name, phone, or token UUID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-jds-surface-container/40 border border-jds-outline-variant/50 rounded-xl pl-9 pr-4 py-2 text-xs text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:outline-none focus:border-jds-primary transition-colors"
-          />
-        </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Branch Filter */}
-          <div className="flex items-center gap-1.5 text-xs text-jds-on-surface-variant bg-jds-surface-container/30 border border-jds-outline-variant/40 rounded-xl px-3 py-1.5">
-            <Store className="w-3.5 h-3.5 text-jds-primary shrink-0" />
-            <span>Branch:</span>
-            <select
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}
-              className="bg-transparent font-semibold text-jds-on-surface focus:outline-none cursor-pointer"
-            >
-              <option value="All">All Branches</option>
-              <option value="Cavite">Cavite</option>
-              <option value="Quiapo">Quiapo</option>
-            </select>
-          </div>
-
-          {/* Warranty Filter */}
-          <div className="flex items-center gap-1.5 text-xs text-jds-on-surface-variant bg-jds-surface-container/30 border border-jds-outline-variant/40 rounded-xl px-3 py-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-            <span>Warranty:</span>
-            <select
-              value={warrantyFilter}
-              onChange={(e) => setWarrantyFilter(e.target.value)}
-              className="bg-transparent font-semibold text-jds-on-surface focus:outline-none cursor-pointer"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Active">Active Warranties</option>
-              <option value="Expired">Expired</option>
-              <option value="No Purchases">No Purchases</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Customer Directory: Card Grid View */}
+      {/* Customer Directory: Table (default) or Card Grid */}
       {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center text-center bg-jds-surface border border-jds-outline-variant/40 rounded-2xl">
+        <div className="jds-panel py-20 flex flex-col items-center justify-center text-center">
           <div className="w-8 h-8 rounded-full border-2 border-jds-primary border-t-transparent animate-spin mb-3" />
-          <p className="text-sm font-semibold text-jds-on-surface">Loading customer directory...</p>
-          <p className="text-xs text-jds-on-surface-variant">Retrieving warranty tokens and records</p>
+          <p className="text-sm font-semibold text-jds-on-surface">Loading customers...</p>
         </div>
       ) : filteredCustomers.length === 0 ? (
-        <div className="py-16 flex flex-col items-center justify-center text-center px-4 bg-jds-surface border border-jds-outline-variant/40 rounded-2xl">
-          <div className="w-12 h-12 rounded-2xl bg-jds-surface-container flex items-center justify-center text-jds-on-surface-variant mb-3">
+        <div className="jds-panel py-16 flex flex-col items-center justify-center text-center px-4">
+          <div className="w-12 h-12 rounded-xl bg-jds-surface-container flex items-center justify-center text-jds-on-surface-variant mb-3">
             <Users className="w-6 h-6" />
           </div>
           <h3 className="text-base font-bold text-jds-on-surface">No customers found</h3>
           <p className="text-xs text-jds-on-surface-variant max-w-sm mt-1 mb-4">
-            {searchQuery || branchFilter !== 'All' || warrantyFilter !== 'All'
+            {searchQuery || branchFilter !== 'All' || warrantyFilter !== 'All' || emailFilter !== 'All'
               ? 'Try adjusting your search criteria or resetting your active filters.'
               : 'No customer profiles have been registered in the system yet.'}
           </p>
-          {(searchQuery || branchFilter !== 'All' || warrantyFilter !== 'All') && (
+          {(searchQuery || branchFilter !== 'All' || warrantyFilter !== 'All' || emailFilter !== 'All') && (
             <button
               onClick={() => {
                 setSearchQuery('')
                 setBranchFilter('All')
                 setWarrantyFilter('All')
+                setEmailFilter('All')
               }}
-              className="px-4 py-2 text-xs font-semibold rounded-xl bg-jds-surface-container text-jds-on-surface hover:bg-jds-surface-container-high transition-colors"
+              className="px-4 py-2 text-xs font-semibold rounded-lg bg-jds-surface-container text-jds-on-surface hover:bg-jds-surface-container-high transition-colors cursor-pointer"
             >
               Reset Filters
             </button>
           )}
+        </div>
+      ) : viewMode === 'table' ? (
+        <div className="jds-panel overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Contact &amp; Email</TableHead>
+                  <TableHead>Units</TableHead>
+                  <TableHead>Warranty</TableHead>
+                  <TableHead>Registered</TableHead>
+                  <TableHead className="text-right pr-5">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCustomers.map((customer) => {
+                  const emailVerified = Boolean(customer.email_confirmed_at || customer.email_confirmed)
+                  return (
+                    <TableRow
+                      key={customer.id}
+                      onClick={() => handleOpenCustomerModal(customer)}
+                      className="cursor-pointer"
+                    >
+                      <TableCell className="py-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-jds-primary/10 text-jds-primary flex items-center justify-center font-bold text-xs shrink-0">
+                            {customer.full_name ? customer.full_name.charAt(0).toUpperCase() : 'C'}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-jds-on-surface truncate">{customer.full_name}</div>
+                            {customer.access_token && (
+                              <div className="font-mono text-[11px] text-jds-on-surface-variant truncate max-w-[160px]">
+                                {customer.access_token}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <div className="text-xs font-mono text-jds-on-surface">{customer.phone_number}</div>
+                        <div className="text-[11px] text-jds-on-surface-variant flex items-center gap-1.5 mt-0.5">
+                          <span className="truncate max-w-[180px]">{customer.email || 'No email'}</span>
+                          {customer.email && (
+                            <span className={`text-[10px] font-bold uppercase ${emailVerified ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              {emailVerified ? 'Verified' : 'Awaiting'}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3 font-mono text-xs font-bold text-jds-on-surface tabular-nums">
+                        {customer.total_purchases}
+                      </TableCell>
+                      <TableCell className="py-3">{renderWarrantyBadge(customer)}</TableCell>
+                      <TableCell className="py-3 text-xs text-jds-on-surface-variant tabular-nums">
+                        {formatDate(customer.created_at)}
+                      </TableCell>
+                      <TableCell className="py-3 text-right pr-5" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCustomerModal(customer, true)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-jds-primary/10 hover:bg-jds-primary hover:text-white text-jds-primary text-xs font-semibold transition-colors cursor-pointer"
+                            title="Add equipment warranty"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Add Unit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveCustomerForQr(customer)}
+                            className="p-1.5 rounded-lg border border-jds-outline-variant/40 text-jds-on-surface-variant hover:text-jds-primary hover:bg-jds-surface-container transition-colors cursor-pointer"
+                            title="View QR Pass"
+                          >
+                            <QrCode className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -807,7 +940,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
             <div
               key={customer.id}
               onClick={() => handleOpenCustomerModal(customer)}
-              className="rounded-2xl border border-jds-outline-variant/40 bg-jds-surface p-5 shadow-xs hover:shadow-md hover:border-jds-primary/60 transition-all cursor-pointer flex flex-col justify-between gap-4 group"
+              className="jds-card p-4 cursor-pointer flex flex-col justify-between gap-3.5 group"
             >
               {/* Card Top: Customer Avatar, Name, Phone & Warranty Badge */}
               <div className="space-y-3">
@@ -867,7 +1000,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
               </div>
 
               {/* Card Bottom: Registered Date, Units Count, & Add Warranty Shortcut */}
-              <div className="pt-3 border-t border-jds-outline-variant/20 flex items-center justify-between gap-2 text-xs text-jds-on-surface-variant">
+              <div className="pt-3 border-t border-jds-outline-variant/60 flex items-center justify-between gap-2 text-xs text-jds-on-surface-variant">
                 <div className="flex items-center gap-1.5 min-w-0 truncate">
                   <Calendar className="w-3.5 h-3.5 text-jds-on-surface-variant/70 shrink-0" />
                   <span className="truncate">Reg: {formatDate(customer.created_at)}</span>
@@ -887,7 +1020,7 @@ export default function CustomersScreen({ onNavigate, onSelectCustomerForSale })
                       e.stopPropagation()
                       handleOpenCustomerModal(customer, true)
                     }}
-                    className="min-h-[44px] sm:min-h-0 inline-flex items-center gap-1 px-3 py-2 sm:px-2 sm:py-1 rounded-lg bg-jds-primary/10 hover:bg-jds-primary hover:text-white text-jds-primary text-xs sm:text-[11px] font-semibold transition-all shadow-2xs"
+                    className="min-h-[44px] sm:min-h-0 inline-flex items-center gap-1 px-3 py-2 sm:px-2 sm:py-1 rounded-lg bg-jds-primary/10 hover:bg-jds-primary hover:text-white text-jds-primary text-xs sm:text-[11px] font-semibold transition-colors cursor-pointer"
                     title="Add equipment warranty to customer"
                   >
                     <Plus className="w-3 h-3" />
