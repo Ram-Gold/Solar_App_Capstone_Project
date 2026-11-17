@@ -120,15 +120,17 @@ export default function CustomerPortalPage() {
   const [isWarrantyModalOpen, setIsWarrantyModalOpen] = useState(false)
   const [isFirstTimeWarranty, setIsFirstTimeWarranty] = useState(false)
 
-  const loadData = async (activeToken) => {
+  const loadData = async (activeToken, { silent = false } = {}) => {
     if (!activeToken) {
-      setLoading(false)
+      if (!silent) setLoading(false)
       return
     }
 
     try {
-      setLoading(true)
-      setError(null)
+      if (!silent) {
+        setLoading(true)
+        setError(null)
+      }
 
       // Check if customer arrived via one-click email confirmation link (?confirm_email=...)
       const confirmParam = searchParams.get('confirm_email')
@@ -171,9 +173,13 @@ export default function CustomerPortalPage() {
       }
     } catch (err) {
       console.error('Portal load failed:', err)
-      setError(err.message || 'Failed to retrieve your customer portal.')
+      if (!silent) {
+        setError(err.message || 'Failed to retrieve your customer portal.')
+      }
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }
 
@@ -238,7 +244,7 @@ export default function CustomerPortalPage() {
   }
 
   const handleClaimSubmitted = () => {
-    if (token) loadData(token)
+    if (token) loadData(token, { silent: true })
   }
 
   const handleConfirmDeleteAccount = async () => {
@@ -553,8 +559,8 @@ export default function CustomerPortalPage() {
             type="button"
             onClick={() => setActiveTab('equipment')}
             className={`min-h-[44px] sm:min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${activeTab === 'equipment'
-                ? 'bg-jds-surface-container-lowest text-jds-on-surface shadow-xs'
-                : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+              ? 'bg-jds-surface-container-lowest text-jds-on-surface shadow-xs'
+              : 'text-jds-on-surface-variant hover:text-jds-on-surface'
               }`}
           >
             <Package className="w-3.5 h-3.5 text-jds-primary" />
@@ -568,8 +574,8 @@ export default function CustomerPortalPage() {
             type="button"
             onClick={() => setActiveTab('claims')}
             className={`min-h-[44px] sm:min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${activeTab === 'claims'
-                ? 'bg-jds-surface-container-lowest text-jds-on-surface shadow-xs'
-                : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+              ? 'bg-jds-surface-container-lowest text-jds-on-surface shadow-xs'
+              : 'text-jds-on-surface-variant hover:text-jds-on-surface'
               }`}
           >
             <ShieldCheck className="w-3.5 h-3.5 text-jds-secondary" />
@@ -583,8 +589,8 @@ export default function CustomerPortalPage() {
             type="button"
             onClick={() => setActiveTab('account')}
             className={`min-h-[44px] sm:min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${activeTab === 'account'
-                ? 'bg-jds-surface-container-lowest text-jds-on-surface shadow-xs'
-                : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+              ? 'bg-jds-surface-container-lowest text-jds-on-surface shadow-xs'
+              : 'text-jds-on-surface-variant hover:text-jds-on-surface'
               }`}
           >
             <KeyRound className="w-3.5 h-3.5 text-jds-on-surface-variant" />
@@ -694,8 +700,8 @@ export default function CustomerPortalPage() {
                     <h2 className="text-sm font-bold text-jds-on-surface">Account Password &amp; Security</h2>
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${authStatus.hasPassword
-                          ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25'
-                          : 'bg-amber-500/10 text-amber-600 border-amber-500/25'
+                        ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25'
+                        : 'bg-amber-500/10 text-amber-600 border-amber-500/25'
                         }`}
                     >
                       {authStatus.hasPassword ? 'Password Enabled' : 'Token Only'}
@@ -902,6 +908,7 @@ export default function CustomerPortalPage() {
           purchase={selectedPurchaseForClaim}
           customerToken={token}
           onClaimSubmitted={handleClaimSubmitted}
+          onTrackClaims={() => setActiveTab('claims')}
           initialMode={diagnosticMode}
         />
       )}

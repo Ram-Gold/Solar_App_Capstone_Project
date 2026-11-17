@@ -227,6 +227,7 @@ export default function FaultDiagnosticModal({
   purchase,
   customerToken,
   onClaimSubmitted,
+  onTrackClaims,
   initialMode = 'assistant', // 'assistant' | 'claim'
 }) {
   const [activeTab, setActiveTab] = useState(initialMode === 'claim' ? 'claim' : 'wizard')
@@ -248,7 +249,8 @@ export default function FaultDiagnosticModal({
   const [description, setDescription] = useState('')
   const [files, setFiles] = useState([])
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadError, setUploadError] = useState('')
+  const [claimError, setClaimError] = useState('')
+  const [descriptionError, setDescriptionError] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
   const [submittedClaimId, setSubmittedClaimId] = useState(null)
   const [isConfirmedTransition, setIsConfirmedTransition] = useState(false)
@@ -262,12 +264,15 @@ export default function FaultDiagnosticModal({
       setIsSafetyModalOpen(false)
       return
     }
+    setActiveTab(initialMode === 'claim' ? 'claim' : 'wizard')
+    setSelectedCategories([ISSUE_CATEGORIES[0].id])
     setIsSuccess(false)
     setSubmittedClaimId(null)
     setIsConfirmedTransition(false)
     setDescription('')
     setFiles([])
-    setUploadError('')
+    setClaimError('')
+    setDescriptionError('')
     handleReset()
     onClose()
   }
@@ -488,16 +493,16 @@ export default function FaultDiagnosticModal({
       const symptomsBreakdown =
         selectedRootSymptoms.length > 1
           ? `Reported Symptoms (${selectedRootSymptoms.length}):\n` +
-            selectedRootSymptoms.map((s, idx) => `  ${idx + 1}. ${cleanMarkdown(s.label)}`).join('\n') +
-            '\n\n'
+          selectedRootSymptoms.map((s, idx) => `  ${idx + 1}. ${cleanMarkdown(s.label)}`).join('\n') +
+          '\n\n'
           : ''
 
       const compoundLines =
         symptomsBreakdown +
         (currentDiagnosis.compoundFactors && currentDiagnosis.compoundFactors.length > 0
           ? `Compound / Contributing Factors:\n` +
-            currentDiagnosis.compoundFactors.map((f) => `- ${f.code} (${f.title}): ${cleanMarkdown(f.detail)}`).join('\n') +
-            '\n'
+          currentDiagnosis.compoundFactors.map((f) => `- ${f.code} (${f.title}): ${cleanMarkdown(f.detail)}`).join('\n') +
+          '\n'
           : '')
 
       const warrantyLine = currentDiagnosis.warrantyEvaluation
@@ -535,30 +540,32 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
 
   // File upload handlers for claim form
   const handleFileChange = (e) => {
-    setUploadError('')
+    setClaimError('')
     const selected = Array.from(e.target.files || [])
     const oversized = selected.find((f) => f.size > 15 * 1024 * 1024)
     if (oversized) {
-      setUploadError(`File "${oversized.name}" exceeds the 15MB limit.`)
+      setClaimError(`File "${oversized.name}" exceeds the 15MB limit.`)
       return
     }
     if (files.length + selected.length > 4) {
-      setUploadError('Maximum 4 media files allowed.')
+      setClaimError('Maximum 4 media files allowed.')
       return
     }
     setFiles((prev) => [...prev, ...selected])
   }
 
   const handleRemoveFile = (index) => {
+    setClaimError('')
     setFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmitClaim = async (e) => {
     e.preventDefault()
-    setUploadError('')
+    setClaimError('')
+    setDescriptionError('')
 
     if (!description.trim()) {
-      setUploadError('Please provide a brief description of the fault.')
+      setDescriptionError('Please provide a brief description of the fault.')
       return
     }
 
@@ -589,7 +596,7 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
       if (onClaimSubmitted) onClaimSubmitted()
     } catch (err) {
       console.error('Submission failed:', err)
-      setUploadError(err.message || 'Failed to submit warranty diagnostic claim.')
+      setClaimError(err.message || 'Failed to submit warranty diagnostic claim.')
     } finally {
       setIsUploading(false)
     }
@@ -653,48 +660,50 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
           </div>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center justify-between border-b border-jds-outline-variant/30 bg-jds-surface-container/30 px-4 py-2 shrink-0 gap-2">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab('wizard')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${activeTab === 'wizard'
-                ? 'bg-jds-primary text-jds-on-primary shadow-sm'
-                : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
-                }`}
-            >
-              <Wrench className="w-3.5 h-3.5" />
-              <span>Troubleshooting Wizard</span>
-            </button>
+        {/* Tab Switcher (locked/hidden during confirmation splash & post-submission summary) */}
+        {!isSuccess && !isConfirmedTransition && (
+          <div className="flex items-center justify-between border-b border-jds-outline-variant/30 bg-jds-surface-container/30 px-4 py-2 shrink-0 gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('wizard')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${activeTab === 'wizard'
+                  ? 'bg-jds-primary text-jds-on-primary shadow-sm'
+                  : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
+                  }`}
+              >
+                <Wrench className="w-3.5 h-3.5" />
+                <span>Troubleshooting Wizard</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                if (!description && (selectedRootSymptoms.length > 0 || currentDiagnosis)) {
-                  transferToClaim()
-                } else {
-                  setActiveTab('claim')
-                }
-              }}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${activeTab === 'claim'
-                ? 'bg-jds-primary text-jds-on-primary shadow-sm'
-                : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
-                }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>File Warranty Claim</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!description && (selectedRootSymptoms.length > 0 || currentDiagnosis)) {
+                    transferToClaim()
+                  } else {
+                    setActiveTab('claim')
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${activeTab === 'claim'
+                  ? 'bg-jds-primary text-jds-on-primary shadow-sm'
+                  : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
+                  }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>File Warranty Claim</span>
+              </button>
+            </div>
 
-          <div className="text-[11px] text-jds-on-surface-variant hidden sm:block">
-            {purchase.is_warranty_active ? (
-              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Warranty Active</span>
-            ) : (
-              <span className="text-amber-600 dark:text-amber-400 font-semibold">Post-Warranty Servicing</span>
-            )}
+            <div className="text-[11px] text-jds-on-surface-variant hidden sm:block">
+              {purchase.is_warranty_active ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Warranty Active</span>
+              ) : (
+                <span className="text-amber-600 dark:text-amber-400 font-semibold">Post-Warranty Servicing</span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ========================================================= */}
         {/* TAB 1: PRODUCT MATCHER-STYLE MULTIPLE CHOICE WIZARD */}
@@ -825,11 +834,10 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                       {/* Steps Container: blurred when locked */}
                       <div className="p-5 relative">
                         <div
-                          className={`space-y-4 ${
-                            !isActionStepsUnlocked
-                              ? 'filter blur-sm select-none pointer-events-none opacity-30'
-                              : ''
-                          }`}
+                          className={`space-y-4 ${!isActionStepsUnlocked
+                            ? 'filter blur-sm select-none pointer-events-none opacity-30'
+                            : ''
+                            }`}
                         >
                           {/* Safety Warning BEFORE Doing Actions */}
                           <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5">
@@ -970,11 +978,10 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                     /* Step 1: Multi-Choice Primary Symptom Cards with Checkboxes & Continue Toolbar */
                     <div className="relative rounded-2xl overflow-hidden">
                       <div
-                        className={`space-y-4 ${
-                          !isPreTroubleshootUnlocked
-                            ? 'filter blur-sm select-none pointer-events-none opacity-30'
-                            : ''
-                        }`}
+                        className={`space-y-4 ${!isPreTroubleshootUnlocked
+                          ? 'filter blur-sm select-none pointer-events-none opacity-30'
+                          : ''
+                          }`}
                       >
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {currentOptions.map((opt) => {
@@ -992,26 +999,23 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                                 type="button"
                                 onClick={() => toggleRootSymptom(opt)}
                                 aria-pressed={isSelected}
-                                className={`p-4 rounded-2xl border transition-all text-left group flex items-start gap-3.5 shadow-2xs hover:shadow-sm active:scale-[0.99] cursor-pointer ${
-                                  isSelected
-                                    ? 'border-jds-primary bg-jds-primary/5 ring-1 ring-jds-primary/30'
-                                    : 'border-jds-outline-variant/50 bg-jds-surface hover:border-jds-primary/60 hover:bg-jds-primary/[0.02]'
-                                }`}
+                                className={`p-4 rounded-2xl border transition-all text-left group flex items-start gap-3.5 shadow-2xs hover:shadow-sm active:scale-[0.99] cursor-pointer ${isSelected
+                                  ? 'border-jds-primary bg-jds-primary/5 ring-1 ring-jds-primary/30'
+                                  : 'border-jds-outline-variant/50 bg-jds-surface hover:border-jds-primary/60 hover:bg-jds-primary/[0.02]'
+                                  }`}
                               >
                                 <div
-                                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                                    isSelected
-                                      ? 'bg-jds-primary text-jds-on-primary'
-                                      : 'bg-jds-surface-container group-hover:bg-jds-primary/10 group-hover:text-jds-primary text-jds-on-surface-variant'
-                                  }`}
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isSelected
+                                    ? 'bg-jds-primary text-jds-on-primary'
+                                    : 'bg-jds-surface-container group-hover:bg-jds-primary/10 group-hover:text-jds-primary text-jds-on-surface-variant'
+                                    }`}
                                 >
                                   <Icon className="w-5 h-5" />
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div
-                                    className={`text-xs sm:text-sm font-bold transition-colors leading-snug ${
-                                      isSelected ? 'text-jds-primary' : 'text-jds-on-surface group-hover:text-jds-primary'
-                                    }`}
+                                    className={`text-xs sm:text-sm font-bold transition-colors leading-snug ${isSelected ? 'text-jds-primary' : 'text-jds-on-surface group-hover:text-jds-primary'
+                                      }`}
                                   >
                                     {renderFormattedText(meta.label)}
                                   </div>
@@ -1020,11 +1024,10 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                                   </p>
                                 </div>
                                 <div
-                                  className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5 transition-all ${
-                                    isSelected
-                                      ? 'bg-jds-primary border-jds-primary text-jds-on-primary shadow-2xs'
-                                      : 'border-jds-outline-variant/80 group-hover:border-jds-primary/60 bg-jds-surface'
-                                  }`}
+                                  className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5 transition-all ${isSelected
+                                    ? 'bg-jds-primary border-jds-primary text-jds-on-primary shadow-2xs'
+                                    : 'border-jds-outline-variant/80 group-hover:border-jds-primary/60 bg-jds-surface'
+                                    }`}
                                 >
                                   {isSelected && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
                                 </div>
@@ -1180,11 +1183,26 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                       TICKET #CLAIM-{submittedClaimId.slice(0, 8).toUpperCase()}
                     </div>
                   )}
-                  <div className="pt-2">
+                  <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
+                    {onTrackClaims && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleClose()
+                          onTrackClaims()
+                        }}
+                        className="w-full py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-semibold text-xs hover:bg-jds-primary/90 transition-all shadow-sm cursor-pointer"
+                      >
+                        Track Claim Status
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={handleClose}
-                      className="w-full py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-semibold text-xs hover:bg-jds-primary/90 transition-all shadow-sm cursor-pointer"
+                      className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all cursor-pointer ${onTrackClaims
+                        ? 'bg-jds-surface-container border border-jds-outline-variant/50 text-jds-on-surface hover:bg-jds-surface-container-high'
+                        : 'bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 shadow-sm'
+                        }`}
                     >
                       Return to Customer Portal
                     </button>
@@ -1192,7 +1210,7 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                 </div>
               )
             ) : (
-              <form onSubmit={handleSubmitClaim} className="space-y-4">
+              <form onSubmit={handleSubmitClaim} noValidate className="space-y-4">
 
                 {/* Handoff Banner from Diagnostic Wizard */}
                 {currentDiagnosis && (
@@ -1237,10 +1255,13 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                   </div>
                 </div>
 
-                {uploadError && (
-                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
+                {claimError && (
+                  <div
+                    role="alert"
+                    className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-medium flex items-center gap-2"
+                  >
                     <AlertTriangle className="w-4 h-4 shrink-0" />
-                    <span>{uploadError}</span>
+                    <span>{claimError}</span>
                   </div>
                 )}
 
@@ -1312,11 +1333,34 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                   <textarea
                     required
                     rows={5}
+                    aria-invalid={Boolean(descriptionError)}
+                    aria-describedby={descriptionError ? 'claim-description-error' : undefined}
                     placeholder="Describe the observed hardware failure symptoms..."
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full bg-jds-surface-container/30 border border-jds-outline-variant/50 rounded-xl p-3 text-xs text-jds-on-surface placeholder:text-jds-on-surface-variant/40 focus:outline-none focus:border-jds-primary transition-colors resize-none font-sans"
+                    onChange={(e) => {
+                      const next = e.target.value
+                      setDescription(next)
+                      if (claimError) {
+                        setClaimError('')
+                      }
+                      if (descriptionError && next.trim()) {
+                        setDescriptionError('')
+                      }
+                    }}
+                    className={`w-full bg-jds-surface-container/30 border rounded-xl p-3 text-xs text-jds-on-surface placeholder:text-jds-on-surface-variant/40 focus:outline-none transition-colors resize-none font-sans ${descriptionError
+                      ? 'border-rose-500 focus:border-rose-500 bg-rose-500/5'
+                      : 'border-jds-outline-variant/50 focus:border-jds-primary'
+                      }`}
                   />
+                  {descriptionError && (
+                    <p
+                      id="claim-description-error"
+                      role="alert"
+                      className="text-[11px] font-medium text-rose-600 dark:text-rose-400"
+                    >
+                      {descriptionError}
+                    </p>
+                  )}
                 </div>
 
                 {/* Step 3: Photos / Video Proof */}
@@ -1331,6 +1375,7 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                   <div className="border border-dashed border-jds-outline-variant/60 rounded-xl p-4 text-center hover:bg-jds-surface-container/20 transition-colors relative">
                     <input
                       type="file"
+                      aria-label="Evidence attachments"
                       multiple
                       accept="image/*,video/mp4,video/quicktime"
                       onChange={handleFileChange}
