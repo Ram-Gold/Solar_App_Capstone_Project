@@ -5,43 +5,37 @@ import {
   Clock,
   Mail,
   Building2,
-  Tag,
   Check,
   CheckCircle2,
   AlertCircle,
   X,
   ChevronLeft,
   ChevronRight,
-  Filter,
   Search,
   RefreshCw,
   ShoppingBag,
-  Ticket,
   MapPin,
   Plus,
-  List,
   Copy,
   ExternalLink,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react'
+import ViewModeToggle from './ViewModeToggle'
 import { supabase } from '../../lib/supabaseClient'
 import {
   INQUIRY_STATUSES,
   normalizeInquiryStatus,
   getInquiryStatusConfig,
   getInactiveInquiriesSummary,
-  isEligibleForAutoPurge,
   isPickupInquiry,
   notifyOpsUpdated
 } from '../../lib/inquiryStatusUtils'
 import {
   getBranchStock,
-  getAvailableQuantity,
-  getStockQuantity,
-  getReservedQuantity,
-  getBranchBreakdown
 } from '../../lib/inventoryUtils'
+import { inquiryFulfillment } from '../../lib/inquiryFulfillment'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 import useModalBehavior from '../../hooks/useModalBehavior'
 import PhilippineAddressSelect from '../ui/PhilippineAddressSelect'
@@ -399,11 +393,11 @@ function getMonthDays(targetDate) {
   return days
 }
 
-export default function InquiriesScreen({ initialViewMode = 'calendar', onNavigate }) {
+export default function InquiriesScreen({ initialViewMode = 'table', onNavigate }) {
   const [inquiries, setInquiries] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // View state: 'calendar' (default) vs 'table'
+  // View state: 'table' (default) vs 'cards' vs 'calendar'
   const [viewMode, setViewMode] = useState(initialViewMode)
   // Calendar sub-view: 'week' (default) vs 'month' vs 'day'
   const [calendarSubView, setCalendarSubView] = useState(() =>
@@ -548,72 +542,19 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
   const loadInquiries = async () => {
     try {
       setLoading(true)
-      let fetched = []
-      const { data, error } = await supabase
-        .from('quote_tickets')
-        .select('*')
-        .order('id', { ascending: false })
+      const [productsRes, fulfillmentRes] = await Promise.all([
+        Promise.resolve(supabase.from('products').select('*')).catch(() => ({ data: null })),
+        inquiryFulfillment.loadAndPurgeInquiries(),
+      ])
 
-      if (!error && data) {
-        fetched = data
+      if (productsRes?.data) {
+        setProductsList(productsRes.data.filter((p) => !p.is_archived))
       }
-
-      // Also fetch products for inventory verification
-      try {
-        const { data: pData } = await supabase.from('products').select('*')
-        if (pData) setProductsList(pData)
-      } catch (pErr) {
-        console.warn('Failed to load products in inquiries:', pErr)
+      if (fulfillmentRes.purgedCount > 0) {
+        console.info(`Auto-purged ${fulfillmentRes.purgedCount} inactive inquiries from database.`)
+        notifyOpsUpdated('inquiries')
       }
-
-      // Merge local fallback records if not in database
-      try {
-        const local = JSON.parse(localStorage.getItem('jds_local_quotes') || '[]')
-        const existingCodes = new Set(fetched.map((q) => q.ticket_code))
-        const extraLocal = local.filter((q) => !existingCodes.has(q.ticket_code))
-        fetched = [...extraLocal, ...fetched]
-      } catch (storageErr) {
-        console.error('LocalStorage read error:', storageErr)
-      }
-
-      // Automated database hygiene: quietly purge expired records per retention rules
-      const eligibleOnLoad = fetched.filter((item) => isEligibleForAutoPurge(item))
-      if (eligibleOnLoad.length > 0) {
-        const eligibleIds = eligibleOnLoad.map((q) => q.id).filter(Boolean)
-        const eligibleCodes = new Set(eligibleOnLoad.map((q) => q.ticket_code))
-
-        if (eligibleIds.length > 0) {
-          try {
-            await releaseReservationsForTickets(eligibleOnLoad)
-            const { error: delErr } = await supabase
-              .from('quote_tickets')
-              .delete()
-              .in('id', eligibleIds)
-            if (!delErr) {
-              console.info(`Auto-purged ${eligibleIds.length} inactive inquiries from database.`)
-              notifyOpsUpdated()
-            }
-          } catch (e) {
-            console.warn('Auto-purge error:', e)
-          }
-        }
-
-        try {
-          const local = JSON.parse(localStorage.getItem('jds_local_quotes') || '[]')
-          const sanitized = local.filter(
-            (q) => !eligibleCodes.has(q.ticket_code) && !eligibleIds.includes(q.id)
-          )
-          localStorage.setItem('jds_local_quotes', JSON.stringify(sanitized))
-        } catch (storageErr) {
-          console.warn('LocalStorage auto-purge sync note:', storageErr)
-        }
-
-        fetched = fetched.filter(
-          (q) => !eligibleCodes.has(q.ticket_code) && !eligibleIds.includes(q.id)
-        )
-      }
-
-      setInquiries(fetched)
+      setInquiries(fulfillmentRes.inquiries)
     } catch (err) {
       console.error('Failed to load inquiries from Supabase:', err)
       showToast('Error loading inquiries from database.')
@@ -636,34 +577,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
     if (!ticketToDelete) return
     try {
       setIsDeletingTicket(true)
-      await releaseReservationsForTickets([ticketToDelete])
-
-      if (ticketToDelete.id) {
-        const { error } = await supabase
-          .from('quote_tickets')
-          .delete()
-          .eq('id', ticketToDelete.id)
-
-        if (error) throw error
-      } else if (ticketToDelete.ticket_code) {
-        const { error } = await supabase
-          .from('quote_tickets')
-          .delete()
-          .eq('ticket_code', ticketToDelete.ticket_code)
-
-        if (error) throw error
-      }
-
-      // Sanitize LocalStorage
-      try {
-        const local = JSON.parse(localStorage.getItem('jds_local_quotes') || '[]')
-        const sanitized = local.filter(
-          (q) => q.id !== ticketToDelete.id && q.ticket_code !== ticketToDelete.ticket_code
-        )
-        localStorage.setItem('jds_local_quotes', JSON.stringify(sanitized))
-      } catch (storageErr) {
-        console.warn('LocalStorage delete cleanup error:', storageErr)
-      }
+      const { releasedProductIds } = await inquiryFulfillment.deleteInquiries([ticketToDelete])
 
       // Update state
       setInquiries((prev) =>
@@ -679,7 +593,9 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
         handleCloseModal()
       }
 
-      notifyOpsUpdated()
+      notifyOpsUpdated({
+        topics: releasedProductIds.length > 0 ? ['inquiries', 'inventory'] : ['inquiries'],
+      })
       showToast(`Inquiry ${ticketToDelete.ticket_code} permanently deleted from database.`)
       setTicketToDelete(null)
     } catch (err) {
@@ -699,40 +615,18 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
 
     try {
       setIsPurging(true)
-      const idsToPurge = inactiveSummary.eligible.map((q) => q.id).filter(Boolean)
-      const codesToPurge = new Set(inactiveSummary.eligible.map((q) => q.ticket_code))
+      const { deletedIds, deletedCodes, releasedProductIds } =
+        await inquiryFulfillment.deleteInquiries(inactiveSummary.eligible)
+      const idSet = new Set(deletedIds)
+      const codeSet = new Set(deletedCodes)
 
-      // 1. Release any active stock holds before removing inactive tickets
-      await releaseReservationsForTickets(inactiveSummary.eligible)
-
-      // 2. Delete eligible records from Supabase
-      if (idsToPurge.length > 0) {
-        const { error: delErr } = await supabase
-          .from('quote_tickets')
-          .delete()
-          .in('id', idsToPurge)
-        if (delErr) {
-          throw delErr
-        }
-      }
-
-      // 3. LocalStorage cleanup
-      try {
-        const local = JSON.parse(localStorage.getItem('jds_local_quotes') || '[]')
-        const sanitized = local.filter(
-          (q) => !codesToPurge.has(q.ticket_code) && !idsToPurge.includes(q.id)
-        )
-        localStorage.setItem('jds_local_quotes', JSON.stringify(sanitized))
-      } catch (storageErr) {
-        console.warn('LocalStorage purge error:', storageErr)
-      }
-
-      // 4. Update React state
       setInquiries((prev) =>
-        prev.filter((q) => !codesToPurge.has(q.ticket_code) && !idsToPurge.includes(q.id))
+        prev.filter((q) => !codeSet.has(q.ticket_code) && !idSet.has(q.id))
       )
 
-      notifyOpsUpdated()
+      notifyOpsUpdated({
+        topics: releasedProductIds.length > 0 ? ['inquiries', 'inventory'] : ['inquiries'],
+      })
       showToast(`Successfully purged ${inactiveSummary.count} inactive inquiries from database.`)
       setIsPurgeModalOpen(false)
     } catch (err) {
@@ -926,23 +820,24 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
     if (!selectedInquiry || !selectedInquiry.id) return
     try {
       setModalSaving(true)
-      const { data: relData, error } = await supabase.rpc('release_product_reservation', {
-        p_ticket_id: selectedInquiry.id
-      })
-      if (error) throw error
-      if (relData && relData.success === false) {
-        throw new Error(relData.error || 'Failed to release reservation hold.')
-      }
+      const { inquiry, productDelta, holdChanged } = await inquiryFulfillment.releaseHold(
+        selectedInquiry,
+        productsList
+      )
 
       setModalHoldStock(false)
-      setSelectedInquiry((prev) => ({ ...prev, is_reservation: false, reservation_expires_at: null }))
+      setSelectedInquiry(inquiry)
       setInquiries((prev) =>
-        prev.map((t) => (t.id === selectedInquiry.id ? { ...t, is_reservation: false, reservation_expires_at: null } : t))
+        prev.map((t) => (t.id === selectedInquiry.id ? { ...t, ...inquiry } : t))
       )
+      if (productDelta) {
+        setProductsList((prev) =>
+          prev.map((p) => (p.id === productDelta.productId ? { ...p, ...productDelta } : p))
+        )
+      }
       setModalSuccess('Showroom stock hold released successfully.')
       showToast(`Hold released for ticket ${selectedInquiry.ticket_code}.`)
-      notifyOpsUpdated()
-      loadInquiries()
+      notifyOpsUpdated({ topics: holdChanged ? ['inquiries', 'inventory'] : ['inquiries'] })
     } catch (err) {
       console.error('Failed to release hold:', err)
       setModalError(err.message || 'Failed to release reservation hold.')
@@ -956,137 +851,40 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
     if (!selectedInquiry) return
 
     setModalError('')
-
-    if (!modalDate) {
-      setModalError('Please select a visit date.')
-      return
-    }
-    const selectedDateObj = new Date(modalDate + 'T00:00:00')
-    if (isNaN(selectedDateObj.getTime())) {
-      setModalError('Please choose a valid calendar date.')
-      return
-    }
-    if (selectedDateObj.getDay() === 0) {
-      setModalError('Our showrooms are closed on Sundays. Please choose Monday through Saturday.')
-      return
-    }
-
-    if (!modalTime) {
-      setModalError('Please select a visit time.')
-      return
-    }
-    if (!isWithinBusinessHours(modalTime)) {
-      setModalError('Showroom visits must be scheduled within business hours: 8:00 AM to 5:30 PM.')
-      return
-    }
-
-    const formattedTime = format24HourToDisplay(modalTime)
-
     try {
       setModalSaving(true)
-      const updates = {
-        visit_date: modalDate,
-        visit_time_slot: formattedTime,
-        status: modalStatus,
-        store_branch: modalBranch,
-        staff_notes: modalStaffNotes,
-        updated_at: new Date().toISOString()
-      }
-
-      // Match product from productsList
-      const matchedProd = productsList.find((p) =>
-        (selectedInquiry.product_id && String(p.id) === String(selectedInquiry.product_id)) ||
-        (p.name && selectedInquiry.product_name && p.name.trim().toLowerCase() === selectedInquiry.product_name.trim().toLowerCase())
+      const { inquiry, productDelta, holdChanged } = await inquiryFulfillment.updateInquiry(
+        selectedInquiry,
+        {
+          visitDate: modalDate,
+          visitTime24: modalTime,
+          status: modalStatus,
+          storeBranch: modalBranch,
+          staffNotes: modalStaffNotes,
+          holdStock: modalHoldStock,
+          holdQty: modalHoldQty,
+        },
+        productsList
       )
 
-      // Handle Stock Hold lifecycle cleanly across branch & terminal states
-      const requestedQty = Math.max(1, Number(modalHoldQty) || 1)
-      const isTerminalStatus = modalStatus === 'Completed' || modalStatus === 'Cancelled'
-      const wasReservation = Boolean(selectedInquiry.is_reservation)
-      const shouldHold = Boolean(modalHoldStock) && !isTerminalStatus
-      const prevQty = Math.max(1, Number(selectedInquiry.quantity) || 1)
-      const prevBranchCavite = String(selectedInquiry.store_branch || '').toLowerCase().includes('cavite')
-      const nextBranchCavite = String(modalBranch || '').toLowerCase().includes('cavite')
-      const branchLabel = nextBranchCavite ? 'Cavite' : 'Quiapo'
-      const needsReReserve = shouldHold && wasReservation && (requestedQty !== prevQty || prevBranchCavite !== nextBranchCavite)
-      const needsNewReserve = shouldHold && !wasReservation
-
-      if ((needsNewReserve || needsReReserve) && matchedProd) {
-        const bStock = getBranchStock(matchedProd, modalBranch)
-        const sameBranchCredit = wasReservation && prevBranchCavite === nextBranchCavite ? prevQty : 0
-        const effectiveAvailable = bStock.available + sameBranchCredit
-        if (effectiveAvailable < requestedQty) {
-          throw new Error(
-            `Insufficient available stock at ${branchLabel} branch. Only ${effectiveAvailable} unit(s) available.`
-          )
-        }
-      }
-
-      // 1. Release existing hold when turning hold off, entering Completed/Cancelled, or switching qty/branch
-      if (((!shouldHold || needsReReserve) && wasReservation) && selectedInquiry.id) {
-        const { error: relErr } = await supabase.rpc('release_product_reservation', {
-          p_ticket_id: selectedInquiry.id
-        })
-        if (relErr) {
-          console.warn('Non-fatal release error:', relErr.message)
-        }
-        updates.is_reservation = false
-        updates.reservation_expires_at = null
-      }
-
-      // 2. Persist schedule/status/store_branch before reserve_product_stock reads store_branch
-      if (shouldHold) {
-        updates.quantity = requestedQty
-      }
-      if (selectedInquiry.id) {
-        const { error } = await supabase
-          .from('quote_tickets')
-          .update(updates)
-          .eq('id', selectedInquiry.id)
-
-        if (error) throw error
-      }
-
-      // 3. Activate or re-activate Stock Hold on the updated branch
-      if ((needsNewReserve || needsReReserve) && matchedProd && selectedInquiry.id) {
-        const { data: resResult, error: resErr } = await supabase.rpc('reserve_product_stock', {
-          p_ticket_id: selectedInquiry.id,
-          p_product_id: matchedProd.id,
-          p_quantity: requestedQty,
-          p_expires_hours: 48
-        })
-
-        if (resErr) {
-          throw new Error('Failed to hold stock: ' + resErr.message)
-        } else if (resResult && !resResult.success) {
-          throw new Error(resResult.error || 'Cannot reserve stock: insufficient available units.')
-        }
-
-        updates.is_reservation = true
-        updates.quantity = requestedQty
-        updates.reservation_expires_at = resResult?.expires_at || null
-      } else if (shouldHold && wasReservation && !needsReReserve) {
-        updates.is_reservation = true
-      } else if (!shouldHold) {
-        updates.is_reservation = false
-        updates.reservation_expires_at = null
-      }
-
-      // Update local state
       setInquiries((prev) =>
         prev.map((t) =>
           t.ticket_code === selectedInquiry.ticket_code || t.id === selectedInquiry.id
-            ? { ...t, ...updates }
+            ? { ...t, ...inquiry }
             : t
         )
       )
+      if (productDelta) {
+        setProductsList((prev) =>
+          prev.map((p) => (p.id === productDelta.productId ? { ...p, ...productDelta } : p))
+        )
+      }
 
-      setModalHoldStock(Boolean(updates.is_reservation))
-      setSelectedInquiry((prev) => (prev ? { ...prev, ...updates } : null))
+      setModalHoldStock(Boolean(inquiry.is_reservation))
+      setSelectedInquiry(inquiry)
       setModalSuccess('Inquiry schedule and status updated.')
       showToast(`Inquiry ${selectedInquiry.ticket_code} updated successfully.`)
-      notifyOpsUpdated()
-      loadInquiries()
+      notifyOpsUpdated({ topics: holdChanged ? ['inquiries', 'inventory'] : ['inquiries'] })
     } catch (err) {
       console.error('Failed to update inquiry in Supabase:', err)
       setModalError(err.message || 'Failed to save changes to database.')
@@ -1150,19 +948,13 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
       )
     )
     setDraggingTicketId(null)
-    showToast(`Rescheduled ${ticket.customer_name} to ${dateStr} at ${newTimeSlot}`)
 
     try {
-      const { error } = await supabase
-        .from('quote_tickets')
-        .update({
-          visit_date: dateStr,
-          visit_time_slot: newTimeSlot,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', ticketId)
-
-      if (error) throw error
+      await inquiryFulfillment.rescheduleInquiry(ticket, {
+        visitDate: dateStr,
+        visitTimeSlot: newTimeSlot,
+      })
+      showToast(`Rescheduled ${ticket.customer_name} to ${dateStr} at ${newTimeSlot}`)
     } catch (err) {
       console.error('Failed to reschedule ticket via drag-drop:', err)
       setInquiries((prev) =>
@@ -1170,7 +962,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
           t.id === ticketId ? { ...t, visit_date: prevDate, visit_time_slot: prevTime } : t
         )
       )
-      showToast('Failed to save reschedule to database. Reverting.')
+      showToast(err.message || 'Failed to save reschedule to database. Reverting.')
     }
   }
 
@@ -1279,7 +1071,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
 
       const finalRecord = data && data[0] ? data[0] : payload
       setInquiries((prev) => [finalRecord, ...prev])
-      notifyOpsUpdated()
+      notifyOpsUpdated('inquiries')
 
       showToast(`Inquiry ${ticketCode} scheduled successfully.`)
       setNewSuccessTicket(finalRecord)
@@ -1319,7 +1111,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
   }, [calendarSubView, weekDates, currentDate])
 
   return (
-    <div className="space-y-6 max-w-full overflow-x-hidden font-inter pb-12">
+    <div className="max-w-[1440px] mx-auto space-y-4 overflow-x-hidden font-inter pb-12">
       {/* Toast Notification */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-[110] bg-jds-on-surface text-jds-surface px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs font-semibold animate-in fade-in slide-in-from-bottom-2">
@@ -1333,47 +1125,28 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
 
       {/* Screen Header & Top Action Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-        <div>
-          <h1 className="text-lg sm:text-2xl font-bold text-jds-on-surface flex items-center gap-2">
-            <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6 text-jds-primary" />
-            <span>Inquiries & Showroom Schedule</span>
-          </h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-lg sm:text-xl font-bold text-jds-on-surface">Inquiries</h1>
+          <select
+            aria-label="Filter inquiry category"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="jds-control font-bold cursor-pointer"
+          >
+            <option value="ALL">All Inquiries ({metrics.total})</option>
+            <option value="PICKUP">Store Pickups ({metrics.pickupCount})</option>
+            <option value="INQUIRY">Consultations</option>
+          </select>
         </div>
 
-        {/* View Switcher & Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Main View Toggle: Calendar vs Table */}
-          <div className="flex items-center bg-jds-surface-container-low/70 p-1 rounded-xl border border-jds-outline-variant/30 text-xs">
-            <button
-              type="button"
-              onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${viewMode === 'calendar'
-                ? 'bg-jds-surface-container-lowest text-jds-primary shadow-2xs'
-                : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                }`}
-            >
-              <CalendarDays className="w-3.5 h-3.5" />
-              <span>Calendar</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${viewMode === 'table'
-                ? 'bg-jds-surface-container-lowest text-jds-primary shadow-2xs'
-                : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                }`}
-            >
-              <List className="w-3.5 h-3.5" />
-              <span>Table</span>
-            </button>
-          </div>
-
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
           {/* Sync / Refresh Button */}
           <button
             type="button"
             onClick={loadInquiries}
             disabled={loading}
-            className="px-3.5 py-2 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-xs font-bold text-jds-on-surface hover:bg-jds-surface-container transition-colors flex items-center gap-2 shadow-2xs cursor-pointer"
+            className="px-3 h-9 rounded-lg border border-jds-outline-variant bg-jds-surface text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors flex items-center gap-1.5 cursor-pointer"
             title="Refresh database inquiries"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -1384,14 +1157,14 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
           <button
             type="button"
             onClick={() => setIsPurgeModalOpen(true)}
-            className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${inactiveSummary.count > 0
+            className={`px-3 h-9 rounded-lg border text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${inactiveSummary.count > 0
               ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 hover:bg-amber-100'
-              : 'border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface hover:bg-jds-surface-container'
+              : 'border-jds-outline-variant bg-jds-surface text-jds-on-surface hover:bg-jds-surface-container'
               }`}
             title="Purge obsolete and inactive inquiries from database"
           >
             <Trash2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-            <span>Clean Up Inactive</span>
+            <span>Clean Up</span>
             {inactiveSummary.count > 0 && (
               <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-amber-600 text-white">
                 {inactiveSummary.count}
@@ -1408,7 +1181,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
               setNewError('')
               setIsNewModalOpen(true)
             }}
-            className="px-4 py-2 rounded-xl bg-jds-primary hover:bg-jds-primary/90 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-4 h-9 rounded-lg bg-jds-primary hover:bg-jds-primary/90 text-white text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>New Inquiry</span>
@@ -1416,87 +1189,138 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
         </div>
       </div>
 
-      {/* KPI Stats Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
-        <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] p-3.5 rounded-2xl shadow-xs border border-jds-outline-variant/20 space-y-1">
-          <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
-            <Ticket className="w-3.5 h-3.5 text-jds-primary" /> Total Records
-          </span>
-          <div className="text-xl font-bold text-jds-on-surface">{metrics.total}</div>
-        </div>
-
-        <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] p-3.5 rounded-2xl shadow-xs border border-jds-outline-variant/20 space-y-1">
-          <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-amber-600" /> Today's Visits
-          </span>
-          <div className="text-xl font-bold text-jds-on-surface">{metrics.todayCount}</div>
-        </div>
-
-        <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] p-3.5 rounded-2xl shadow-xs border border-jds-outline-variant/20 space-y-1">
-          <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5 text-slate-500" /> Pending Review
-          </span>
-          <div className="text-xl font-bold text-slate-700 dark:text-zinc-300">{metrics.pendingCount}</div>
-        </div>
-
-        <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] p-3.5 rounded-2xl shadow-xs border border-jds-outline-variant/20 space-y-1">
-          <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Confirmed
-          </span>
-          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{metrics.confirmedCount}</div>
-        </div>
-
-        <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] p-3.5 rounded-2xl shadow-xs border border-jds-outline-variant/20 space-y-1 col-span-2 sm:col-span-1">
-          <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
-            <ShoppingBag className="w-3.5 h-3.5 text-blue-600" /> Store Pickups
-          </span>
-          <div className="flex items-baseline justify-between gap-2">
-            <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{metrics.pickupCount}</div>
-            <span className="text-[11px] font-medium text-jds-on-surface-variant">
-              {metrics.pickupHoldsCount} holding stock
-            </span>
-          </div>
+      {/* Compact Summary Strip */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 jds-panel px-4 py-2.5 text-xs">
+        <span className="text-jds-on-surface-variant">
+          Today&apos;s Visits: <strong className="text-jds-on-surface font-bold tabular-nums">{metrics.todayCount}</strong>
+        </span>
+        <span className="text-jds-outline-variant">&middot;</span>
+        <span className="text-jds-on-surface-variant">
+          Pending: <strong className="text-jds-on-surface font-bold tabular-nums">{metrics.pendingCount}</strong>
+        </span>
+        <span className="text-jds-outline-variant">&middot;</span>
+        <span className="text-jds-on-surface-variant">
+          Confirmed: <strong className="text-emerald-600 font-bold tabular-nums">{metrics.confirmedCount}</strong>
+        </span>
+        <span className="text-jds-outline-variant">&middot;</span>
+        <div className="inline-flex items-center gap-1.5 text-jds-on-surface-variant">
+          <span>Store Pickups:</span>
+          <strong className="text-blue-600 font-bold tabular-nums">{metrics.pickupCount}</strong>
+          <span className="text-[11px] text-jds-on-surface-variant">({metrics.pickupHoldsCount} holding stock)</span>
         </div>
       </div>
 
-      {/* Control Toolbar: Date Navigation + Filters + Search */}
-      <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] p-4 rounded-2xl shadow-xs border border-jds-outline-variant/20 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        {/* Navigation Controls */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handlePrev}
-            className="p-2 rounded-xl border border-jds-outline-variant/40 hover:bg-jds-surface-container transition-colors text-jds-on-surface cursor-pointer"
-            title="Previous"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          <button
-            type="button"
-            onClick={handleToday}
-            className="px-3 py-1.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container text-xs font-bold text-jds-on-surface transition-colors cursor-pointer"
-          >
-            Today
-          </button>
-
-          <button
-            type="button"
-            onClick={handleNext}
-            className="p-2 rounded-xl border border-jds-outline-variant/40 hover:bg-jds-surface-container transition-colors text-jds-on-surface cursor-pointer"
-            title="Next"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-
-          <div className="ml-2 font-bold text-xs sm:text-sm text-jds-on-surface">
-            {currentRangeLabel}
+      {/* Unified Filter & View Bar */}
+      <div className="jds-panel p-3 space-y-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="w-4 h-4 text-jds-on-surface-variant/60 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search customer, product, or ticket code..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="jds-control w-full pl-9 pr-8"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-jds-on-surface-variant/60 hover:text-jds-on-surface cursor-pointer"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          {/* Calendar Sub-views toggle: Week / Month / Day (md+) + Day / List (< md) */}
-          {viewMode === 'calendar' && (
-            <>
-              <div className="ml-3 hidden md:flex items-center bg-jds-surface-container-low/70 p-0.5 rounded-xl border border-jds-outline-variant/30 text-[11px]">
+          {/* Branch Filter */}
+          <select
+            aria-label="Filter by branch"
+            value={branchFilter}
+            onChange={(e) => setBranchFilter(e.target.value)}
+            className="jds-control font-semibold cursor-pointer"
+          >
+            <option value="ALL">All Branches</option>
+            <option value="Cavite">Cavite Hub</option>
+            <option value="Quiapo">Quiapo Showroom</option>
+          </select>
+
+          {/* Status Filter */}
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="jds-control font-semibold cursor-pointer"
+          >
+            <option value="ALL">All Statuses</option>
+            {INQUIRY_STATUSES.map((st) => (
+              <option key={st} value={st}>
+                {st}
+              </option>
+            ))}
+          </select>
+
+          {(searchQuery || branchFilter !== 'ALL' || statusFilter !== 'ALL' || typeFilter !== 'ALL') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('')
+                setBranchFilter('ALL')
+                setStatusFilter('ALL')
+                setTypeFilter('ALL')
+              }}
+              className="jds-control font-semibold text-jds-on-surface-variant hover:text-jds-primary flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+
+          <div className="ml-auto">
+            <ViewModeToggle
+              value={viewMode}
+              onChange={setViewMode}
+              extraModes={[{ id: 'calendar', label: 'Calendar', icon: CalendarDays }]}
+            />
+          </div>
+        </div>
+
+        {/* Calendar Date Range Controls (shown only when Calendar mode is selected) */}
+        {viewMode === 'calendar' && (
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-jds-outline-variant/60">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePrev}
+                className="p-2 rounded-lg border border-jds-outline-variant hover:bg-jds-surface-container transition-colors text-jds-on-surface cursor-pointer"
+                title="Previous"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleToday}
+                className="px-3 py-1.5 rounded-lg border border-jds-outline-variant bg-jds-surface hover:bg-jds-surface-container text-xs font-bold text-jds-on-surface transition-colors cursor-pointer"
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={handleNext}
+                className="p-2 rounded-lg border border-jds-outline-variant hover:bg-jds-surface-container transition-colors text-jds-on-surface cursor-pointer"
+                title="Next"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <div className="ml-2 font-bold text-xs sm:text-sm text-jds-on-surface">
+                {currentRangeLabel}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="hidden md:flex items-center bg-jds-surface-container-low/70 p-0.5 rounded-xl border border-jds-outline-variant/30 text-[11px]">
                 <button
                   type="button"
                   onClick={() => setCalendarSubView('week')}
@@ -1528,85 +1352,9 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
                   Day
                 </button>
               </div>
-              <div className="md:hidden flex items-center bg-jds-surface-container-low/70 p-0.5 rounded-xl border border-jds-outline-variant/30 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setCalendarSubView('day')}
-                  className="min-h-[44px] px-3 py-1.5 rounded-lg font-bold bg-jds-surface-container-lowest text-jds-primary shadow-2xs cursor-pointer"
-                >
-                  Day
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('table')}
-                  className="min-h-[44px] px-3 py-1.5 rounded-lg font-bold text-jds-on-surface-variant hover:text-jds-on-surface cursor-pointer"
-                >
-                  List
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Branch Filter */}
-          <div className="flex items-center gap-1 bg-jds-surface-container-low/60 rounded-xl px-2.5 py-1.5 border border-jds-outline-variant/30 text-xs">
-            <Building2 className="w-3.5 h-3.5 text-jds-primary shrink-0" />
-            <select
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}
-              className="bg-transparent font-semibold text-jds-on-surface focus:outline-none cursor-pointer"
-            >
-              <option value="ALL">All Branches</option>
-              <option value="Cavite">Cavite Hub</option>
-              <option value="Quiapo">Quiapo Showroom</option>
-            </select>
+            </div>
           </div>
-
-          {/* Type Filter */}
-          <div className="flex items-center gap-1 bg-jds-surface-container-low/60 rounded-xl px-2.5 py-1.5 border border-jds-outline-variant/30 text-xs">
-            <Tag className="w-3.5 h-3.5 text-jds-primary shrink-0" />
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-transparent font-semibold text-jds-on-surface focus:outline-none cursor-pointer"
-            >
-              <option value="ALL">All Types</option>
-              <option value="PICKUP">Store Pickups</option>
-              <option value="INQUIRY">Consultations</option>
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div className="flex items-center gap-1 bg-jds-surface-container-low/60 rounded-xl px-2.5 py-1.5 border border-jds-outline-variant/30 text-xs">
-            <Filter className="w-3.5 h-3.5 text-jds-primary shrink-0" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-transparent font-semibold text-jds-on-surface focus:outline-none cursor-pointer"
-            >
-              <option value="ALL">All Statuses</option>
-              {INQUIRY_STATUSES.map((st) => (
-                <option key={st} value={st}>
-                  {st}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-jds-on-surface-variant/60 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search customer, ticket code..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 text-xs rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/30 text-jds-on-surface placeholder:text-jds-on-surface-variant/40 focus:outline-none focus:border-jds-primary w-44 sm:w-56"
-            />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* VIEW MODE: CALENDAR */}
@@ -2030,11 +1778,82 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
         </div>
       )}
 
+      {/* VIEW MODE: CARDS */}
+      {viewMode === 'cards' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredInquiries.length === 0 ? (
+            <div className="col-span-full jds-panel py-16 text-center text-xs text-jds-on-surface-variant">
+              No inquiries match the active filters or search query.
+            </div>
+          ) : (
+            filteredInquiries.map((q) => {
+              const statusConfig = getInquiryStatusConfig(q.status)
+              const isPickup = isPickupTicket(q)
+              return (
+                <div
+                  key={q.id || q.ticket_code}
+                  onClick={() => handleOpenInquiry(q)}
+                  className="jds-card p-4 cursor-pointer flex flex-col justify-between gap-3"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2 pb-2 border-b border-jds-outline-variant/60">
+                      <span className="font-mono text-xs font-bold text-jds-primary">
+                        {q.ticket_code}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${statusConfig.badgeClass}`}>
+                        {statusConfig.label}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-jds-on-surface truncate">{q.customer_name}</div>
+                      <div className="text-xs text-jds-on-surface-variant font-mono">{q.mobile_contact}</div>
+                    </div>
+                    <div className="rounded-lg bg-jds-surface-container-low border border-jds-outline-variant/60 px-3 py-2 text-xs">
+                      <div className="font-semibold text-jds-on-surface truncate">{q.product_name}</div>
+                      <div className="flex items-center justify-between text-[11px] text-jds-on-surface-variant mt-0.5">
+                        <span>{isPickup ? 'Store Pickup' : 'Consultation'} &middot; Qty: {q.quantity || 1}</span>
+                        {q.is_reservation && (
+                          <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-700 font-bold">
+                            Held: {q.quantity || 1}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-jds-outline-variant/60 flex items-center justify-between gap-2 text-xs" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-jds-on-surface-variant truncate">
+                      {q.store_branch?.includes('Quiapo') ? 'Quiapo' : 'Cavite'} &middot; {q.effectiveDate}
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenInquiry(q)}
+                        className="px-2.5 py-1 rounded-lg border border-jds-outline-variant text-xs font-bold text-jds-on-surface hover:bg-jds-surface-container cursor-pointer"
+                      >
+                        Manage
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTicketToDelete(q)}
+                        className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        title="Delete inquiry"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
       {/* VIEW MODE: TABLE (stacked cards on < md, table on md+) */}
       {viewMode === 'table' && (
-        <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl shadow-xs border border-jds-outline-variant/20 overflow-hidden">
+        <div className="jds-panel overflow-hidden">
           {/* Mobile Stacked Card List (< md) */}
-          <div className="md:hidden divide-y divide-jds-outline-variant/20">
+          <div className="md:hidden divide-y divide-jds-outline-variant/60">
             {filteredInquiries.length === 0 ? (
               <div className="text-center py-12 px-4 text-xs text-jds-on-surface-variant">
                 No inquiries match the active filters or search query.
@@ -2049,7 +1868,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
                       <span className="font-mono text-xs font-bold text-jds-primary">
                         {q.ticket_code || `INQ-${q.id?.slice(0, 6)?.toUpperCase()}`}
                       </span>
-                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${statusConfig.badgeClass || 'bg-jds-surface-container text-jds-on-surface border-jds-outline-variant/40'}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${statusConfig.badgeClass || 'bg-jds-surface-container text-jds-on-surface border-jds-outline-variant'}`}>
                         {statusConfig.label || q.status}
                       </span>
                     </div>
@@ -2066,7 +1885,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
                       <button
                         type="button"
                         onClick={() => handleOpenInquiry(q)}
-                        className="min-h-[44px] px-3.5 py-2 rounded-xl bg-jds-primary/10 text-jds-primary font-bold text-xs shrink-0 cursor-pointer"
+                        className="min-h-[44px] px-3.5 py-2 rounded-lg bg-jds-primary/10 text-jds-primary font-bold text-xs shrink-0 cursor-pointer"
                       >
                         Inspect
                       </button>
@@ -2079,14 +1898,14 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
 
           <div className="hidden md:block overflow-x-auto">
             <Table>
-              <TableHeader className="bg-jds-surface-container-low/50">
+              <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[140px] text-xs font-bold">Ticket Code</TableHead>
-                  <TableHead className="text-xs font-bold">Customer Details</TableHead>
-                  <TableHead className="text-xs font-bold">Product Inquired</TableHead>
-                  <TableHead className="text-xs font-bold">Branch & Schedule</TableHead>
-                  <TableHead className="text-xs font-bold">Status</TableHead>
-                  <TableHead className="text-right text-xs font-bold">Actions</TableHead>
+                  <TableHead className="w-[140px]">Ticket Code</TableHead>
+                  <TableHead>Customer Details</TableHead>
+                  <TableHead>Product Inquired</TableHead>
+                  <TableHead>Branch &amp; Schedule</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right pr-5">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -2105,7 +1924,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
                       <TableRow
                         key={q.id || q.ticket_code}
                         onClick={() => handleOpenInquiry(q)}
-                        className="cursor-pointer hover:bg-jds-surface-container-low/40 transition-colors"
+                        className="cursor-pointer"
                       >
                         <TableCell>
                           <div className="font-mono font-bold text-xs text-jds-on-surface">
@@ -2238,7 +2057,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
                       className="jds-btn-motion px-3.5 py-2 text-xs font-bold rounded-lg border border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 flex items-center gap-1.5 cursor-pointer"
                     >
                       <ShoppingBag className="w-3.5 h-3.5" />
-                      <span>Fulfill via Register Sale & QR</span>
+                      <span>Fulfill via Register Sale</span>
                     </button>
                   )}
                 <button
@@ -2349,16 +2168,12 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
                         <div className="pt-2 border-t border-jds-outline-variant/15 flex flex-wrap items-center justify-between gap-2 text-xs">
                           <div className="flex items-center gap-2">
                             <span className="text-jds-on-surface-variant font-medium">Branch Inventory ({modalBranch.includes('Quiapo') ? 'Quiapo Showroom' : 'Cavite Hub'}):</span>
-                            <span className="font-bold font-mono text-jds-on-surface">
-                              {bStock.stock} in store
-                            </span>
-                            <span className="text-jds-on-surface-variant font-medium">·</span>
-                            <span className={`font-mono font-bold ${bStock.available > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
-                              {bStock.available} available
+                            <span className={`font-mono font-bold ${bStock.stock > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
+                              {bStock.stock} in stock
                             </span>
                             {bStock.reserved > 0 && (
                               <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
-                                ({bStock.reserved} reserved)
+                                ({bStock.reserved} on hold)
                               </span>
                             )}
                           </div>
@@ -2497,7 +2312,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar', onNaviga
                     </div>
                     {modalStatus === 'Completed' && (isPickupTicket(selectedInquiry) || selectedInquiry.is_reservation) && (
                       <p className="mt-2 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
-                        Marking Completed here releases any active Stock Hold without deducting physical inventory or issuing a warranty QR pass. Use Fulfill via Register Sale &amp; QR for storefront checkout.
+                        Marking Completed here releases any active Stock Hold without deducting physical inventory or issuing a warranty QR pass. Use Fulfill via Register Sale for storefront checkout.
                       </p>
                     )}
                   </div>

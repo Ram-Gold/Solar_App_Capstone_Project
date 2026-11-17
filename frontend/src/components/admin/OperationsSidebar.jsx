@@ -24,15 +24,15 @@ const SIDEBAR_COLLAPSE_KEY = 'jds_ops_sidebar_collapsed'
 
 const OPERATIONS_LINKS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'register-sale', label: 'Register Sale & QR', icon: QrCode },
-  { id: 'inquiries', label: 'Inquiries & Pickups', icon: CalendarDays, badgeKey: 'inquiries' },
-  { id: 'claims', label: 'Warranty & Claims', icon: ShieldCheck, badgeKey: 'claims' },
+  { id: 'register-sale', label: 'Register Sale', icon: QrCode },
+  { id: 'inquiries', label: 'Inquiries', icon: CalendarDays, badgeKey: 'inquiries' },
+  { id: 'claims', label: 'Claims', icon: ShieldCheck, badgeKey: 'claims' },
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
 ]
 
 const CATALOG_LINKS = [
-  { id: 'products', label: 'Products & Media', icon: Package },
-  { id: 'customers', label: 'Customers & Tokens', icon: UserCheck },
+  { id: 'products', label: 'Products', icon: Package },
+  { id: 'customers', label: 'Customers', icon: UserCheck },
   { id: 'users', label: 'Users', icon: Users, adminOnly: true },
 ]
 
@@ -106,7 +106,16 @@ export default function OperationsSidebar({
       }
     }
     loadBadges()
-    const handleOpsUpdated = () => {
+    const handleOpsUpdated = (event) => {
+      const detail = event?.detail
+      const topics = Array.isArray(detail?.topics)
+        ? detail.topics
+        : detail?.topic
+          ? [detail.topic]
+          : null
+      if (topics && !topics.includes('inquiries') && !topics.includes('claims')) {
+        return
+      }
       loadBadges()
     }
     if (typeof window !== 'undefined') {
@@ -164,9 +173,9 @@ export default function OperationsSidebar({
         const [{ data: prods }, { data: custs }] = await Promise.all([
           supabase
             .from('products')
-            .select('id, name, type, watt')
+            .select('id, name, type, watt, is_archived')
             .ilike('name', `%${q}%`)
-            .limit(4),
+            .limit(6),
           supabase
             .from('customers')
             .select('id, full_name, phone_number, access_token')
@@ -175,7 +184,7 @@ export default function OperationsSidebar({
         ])
         if (!cancelled) {
           setLiveResults({
-            products: Array.isArray(prods) ? prods : [],
+            products: Array.isArray(prods) ? prods.filter((p) => !p.is_archived).slice(0, 4) : [],
             customers: Array.isArray(custs) ? custs : [],
           })
         }
@@ -377,7 +386,7 @@ export default function OperationsSidebar({
                 {displayedResults.customers.length > 0 && (
                   <div className="border-t border-jds-outline-variant/30 pt-1.5">
                     <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
-                      Customers &amp; Tokens
+                      Customers
                     </p>
                     {displayedResults.customers.map((c) => (
                       <button
@@ -413,7 +422,7 @@ export default function OperationsSidebar({
 
         <div className="space-y-1">
           <p className={`mb-1.5 px-2.5 text-[10px] font-bold uppercase tracking-[0.07em] text-jds-on-surface-variant/70 ${collapsed ? 'lg:hidden' : ''}`}>
-            Catalog &amp; Accounts
+            Catalog
           </p>
           {CATALOG_LINKS.filter((item) => isAdmin || !item.adminOnly).map((item) => (
             <NavItem key={item.id} item={item} />

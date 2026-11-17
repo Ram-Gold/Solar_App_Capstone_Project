@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { supabase } from '../lib/supabaseClient'
+import { inquiryFulfillment } from '../lib/inquiryFulfillment'
 import {
   X,
   Plus,
@@ -293,58 +293,10 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
     }
 
     try {
-      // For reservations, mark the ticket and check available stock before inserting
-      if (isReserve && product?.id) {
-        payload.is_reservation = true
-      }
+      const { ticket: finalTicket } = await inquiryFulfillment.submitInquiry(payload, {
+        reserveStock: Boolean(isReserve && product?.id),
+      })
 
-      let { data, error } = await supabase
-        .from('quote_tickets')
-        .insert([payload])
-        .select()
-
-      // Graceful fallback if PostgreSQL table has not yet applied province/barangay/street_address/facebook migration
-      if (
-        error &&
-        (error.code === '42703' ||
-          error.message?.includes('province') ||
-          error.message?.includes('barangay') ||
-          error.message?.includes('street_address') ||
-          error.message?.includes('facebook') ||
-          error.message?.includes('instagram') ||
-          error.message?.includes('is_reservation'))
-      ) {
-        console.warn('Column missing in database, retrying with fallback payload:', error.message)
-        const fallbackPayload = { ...payload }
-        if (error.message?.includes('province')) delete fallbackPayload.province
-        if (error.message?.includes('barangay')) delete fallbackPayload.barangay
-        if (error.message?.includes('street_address')) delete fallbackPayload.street_address
-        if (error.message?.includes('facebook')) delete fallbackPayload.facebook
-        if (error.message?.includes('instagram')) delete fallbackPayload.instagram
-        if (error.message?.includes('is_reservation')) delete fallbackPayload.is_reservation
-        fallbackPayload.city = `${city.trim()}, ${province.trim()}`
-        fallbackPayload.delivery_address = formattedLocation
-        const fallbackRes = await supabase
-          .from('quote_tickets')
-          .insert([fallbackPayload])
-          .select()
-        data = fallbackRes.data
-        error = fallbackRes.error
-      }
-
-      if (error) {
-        throw error
-      }
-
-      try {
-        const stored = JSON.parse(localStorage.getItem('jds_local_quotes') || '[]')
-        const finalTicket = data && data[0] ? data[0] : payload
-        localStorage.setItem('jds_local_quotes', JSON.stringify([finalTicket, ...stored]))
-      } catch (storageErr) {
-        console.error('LocalStorage write error:', storageErr)
-      }
-
-      const finalTicket = data && data[0] ? data[0] : payload
       setGeneratedTicket(finalTicket)
       setIsConfirmedTransition(true)
 
@@ -1008,12 +960,26 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 </div>
               )}
 
-              {/* Reservation Review Notice */}
+              {/* Reservation Hold Notice */}
               {isReserve && (
-                <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-300 text-xs">
-                  <Clock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className={`flex items-start gap-2 p-3 rounded-xl border text-xs ${
+                  generatedTicket.is_reservation
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-900 dark:text-emerald-300'
+                    : 'bg-amber-500/10 border-amber-500/20 text-amber-900 dark:text-amber-300'
+                }`}>
+                  <Clock className={`h-4 w-4 shrink-0 mt-0.5 ${
+                    generatedTicket.is_reservation ? 'text-emerald-600' : 'text-amber-600'
+                  }`} />
                   <span className="leading-tight">
-                    <strong>Reservation Hold Review:</strong> Your pickup request has been filed with our showroom. Staff will review and confirm your inventory hold. Physical units are held for you upon staff confirmation.
+                    {generatedTicket.is_reservation ? (
+                      <>
+                        <strong>Stock Hold Active:</strong> Your selected units are held for pickup at {selectedBranch}. Present this pass at the counter.
+                      </>
+                    ) : (
+                      <>
+                        <strong>Reservation Hold Review:</strong> Your pickup request has been filed with our showroom. Staff will review and confirm your inventory hold.
+                      </>
+                    )}
                   </span>
                 </div>
               )}

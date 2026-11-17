@@ -9,11 +9,13 @@ export const INQUIRY_STATUSES = ['Pending', 'Confirmed', 'Completed', 'Cancelled
 export const OPS_UPDATED_EVENT = 'jds:ops-updated'
 
 /**
- * Broadcasts an in-app notification when inquiries, reservations, claims, products, or sales mutate
- * so the summary rail and sidebar badge counts refresh immediately.
+ * Broadcasts an in-app notification when inquiries, claims, or inventory mutate
+ * so scoped listeners (like sidebar badge counts) refresh only on relevant topics.
+ * Accepts a topic string ('inventory' | 'inquiries' | 'claims') or a detail object.
  */
-export function notifyOpsUpdated(detail = {}) {
+export function notifyOpsUpdated(topicOrDetail = {}) {
   if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    const detail = typeof topicOrDetail === 'string' ? { topic: topicOrDetail } : (topicOrDetail || {})
     window.dispatchEvent(new CustomEvent(OPS_UPDATED_EVENT, { detail }))
   }
 }

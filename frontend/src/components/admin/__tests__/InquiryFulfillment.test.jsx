@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import RightSummaryRail from '../RightSummaryRail'
 import InquiriesScreen from '../InquiriesScreen'
 import RegisterSaleScreen from '../RegisterSaleScreen'
 import { registerCustomerAndSale } from '../../../lib/customerService'
@@ -187,69 +186,6 @@ describe('Inquiry Fulfillment, Stock Holds, and Counters', () => {
     cleanup()
   })
 
-  it('RightSummaryRail shows 0% when empty, avoids double-counting pickups, and updates on jds:ops-updated', async () => {
-    render(
-      <MemoryRouter>
-        <RightSummaryRail products={mockDb.products} />
-      </MemoryRouter>
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText('0%')).toBeTruthy()
-      expect(screen.getByText('0 of 0 fulfilled (0 pending)')).toBeTruthy()
-      expect(screen.getByText('0 pickups')).toBeTruthy()
-      expect(screen.getByText('0 visits')).toBeTruthy()
-      expect(screen.getByText('Showroom inquiries')).toBeTruthy()
-    })
-
-    // Add 1 active pickup (with will_visit=true!), 1 active consultation, 1 completed pickup, 1 cancelled ticket
-    mockDb.quotes = [
-      {
-        id: 1,
-        ticket_code: 'JDS-RES-2026-1001',
-        status: 'Confirmed',
-        will_visit: true,
-        purpose_of_visitation: 'Store Pickup & Reservation',
-        is_reservation: true,
-      },
-      {
-        id: 2,
-        ticket_code: 'JDS-INQ-2026-1002',
-        status: 'Pending',
-        will_visit: true,
-        purpose_of_visitation: 'Showroom Consultation',
-        is_reservation: false,
-      },
-      {
-        id: 3,
-        ticket_code: 'JDS-RES-2026-1003',
-        status: 'Completed',
-        will_visit: true,
-        purpose_of_visitation: 'Store Pickup',
-        is_reservation: false,
-      },
-      {
-        id: 4,
-        ticket_code: 'JDS-INQ-2026-1004',
-        status: 'Cancelled',
-        will_visit: true,
-        purpose_of_visitation: 'Consultation',
-        is_reservation: false,
-      },
-    ]
-
-    notifyOpsUpdated()
-
-    await waitFor(() => {
-      // 1 completed / (1 Pending + 1 Confirmed + 1 Completed) = 33%, Cancelled excluded
-      expect(screen.getByText('33%')).toBeTruthy()
-      expect(screen.getByText('1 of 3 fulfilled (1 pending)')).toBeTruthy()
-      expect(screen.getByText('1 pickups')).toBeTruthy()
-      expect(screen.getByText('1 holding stock')).toBeTruthy()
-      expect(screen.getByText('1 visits')).toBeTruthy()
-    })
-  })
-
   it('InquiriesScreen Store Pickups KPI counts only active pickups and updates branch before reserving', async () => {
     const today = new Date().toISOString().split('T')[0]
     mockDb.quotes = [
@@ -297,10 +233,10 @@ describe('Inquiry Fulfillment, Stock Holds, and Counters', () => {
     })
 
     // Only 1 active Store Pickup (Carlos Reyes); Done Pickup (Completed) is excluded
-    const pickupCard = screen.getByText(/0 holding stock/i).closest('div').parentElement
-    expect(within(pickupCard).getByText('Store Pickups')).toBeTruthy()
+    const pickupCard = screen.getByText(/0 holding stock/i).closest('div')
+    expect(within(pickupCard).getByText(/Store Pickups/i)).toBeTruthy()
     expect(within(pickupCard).getByText('1')).toBeTruthy()
-    expect(within(pickupCard).getByText('0 holding stock')).toBeTruthy()
+    expect(within(pickupCard).getByText(/0 holding stock/i)).toBeTruthy()
 
     // Open Carlos Reyes drawer via desktop TableRow (index 1), switch branch to Quiapo, enable Stock Hold, and Save
     fireEvent.click(screen.getAllByText('Carlos Reyes')[1])
@@ -309,8 +245,8 @@ describe('Inquiry Fulfillment, Stock Holds, and Counters', () => {
       expect(screen.getByLabelText(/Hold Stock for Pickup/i)).toBeTruthy()
     })
 
-    // Fulfill via Register Sale & QR handoff button works
-    const fulfillBtn = screen.getByRole('button', { name: /Fulfill via Register Sale & QR/i })
+    // Fulfill via Register Sale handoff button works
+    const fulfillBtn = screen.getByRole('button', { name: /Fulfill via Register Sale/i })
     fireEvent.click(fulfillBtn)
     expect(onNavigate).toHaveBeenCalledWith('register-sale', { ticketId: 21 })
 

@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import {
   Pencil,
   Minus,
@@ -5,12 +6,14 @@ import {
   ShoppingBag,
   Boxes,
   Trash2,
+  Archive,
+  RotateCcw,
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { getStockBadgeConfig } from '../../lib/inventoryUtils'
 import { getMainProductImage } from '../../lib/productImageUtils'
 
-export default function AdminProductCard({
+const AdminProductCard = memo(function AdminProductCard({
   product,
   onOpenEdit,
   onOpenStockStepper,
@@ -18,7 +21,11 @@ export default function AdminProductCard({
   onRequestDirectStockChange,
   onRequestDirectSaleChange,
   onInitiateDelete,
+  onArchiveToggle,
   showDelete = false,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }) {
   const badge = getStockBadgeConfig(product)
   const availableQty = badge.quantity
@@ -29,12 +36,31 @@ export default function AdminProductCard({
   return (
     <div
       onClick={() => onOpenEdit?.(product)}
-      className={`flex flex-col justify-between rounded-2xl border bg-jds-surface-container-lowest p-4 shadow-xs hover:shadow-md transition-all cursor-pointer group ${badge.rowBorderClass}`}
+      className={`flex flex-col justify-between rounded-xl border bg-jds-surface-container-lowest p-4 transition-colors cursor-pointer group ${
+        selected
+          ? 'ring-2 ring-jds-primary border-jds-primary'
+          : `border-jds-outline-variant hover:border-jds-primary/45 ${badge.rowBorderClass}`
+      }`}
       title={`Click to view and edit ${product.name}`}
     >
       <div className="space-y-3">
-        {/* Card Top: Image + Status Badge + Power Rating */}
-        <div className="relative rounded-xl overflow-hidden bg-black/5 dark:bg-white/5 border border-jds-outline-variant/20 h-44 flex items-center justify-center p-2">
+        {/* Card Top: Image + Selection Checkbox + Status Badge + Power Rating */}
+        <div className="relative rounded-lg overflow-hidden bg-jds-surface-container-low border border-jds-outline-variant/60 h-40 flex items-center justify-center p-2">
+          {selectable && (
+            <label
+              onClick={(e) => e.stopPropagation()}
+              className="absolute top-2.5 left-2.5 z-10 inline-flex items-center justify-center h-7 w-7 rounded-lg bg-jds-surface-container-lowest/95 border border-jds-outline-variant/60 shadow-xs cursor-pointer"
+              title={selected ? `Deselect ${product.name}` : `Select ${product.name}`}
+            >
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={() => onToggleSelect?.(product.id)}
+                aria-label={`Select ${product.name}`}
+                className="h-4 w-4 accent-[#b45309] rounded cursor-pointer"
+              />
+            </label>
+          )}
           <img
             src={getMainProductImage(product.image_url) || 'https://placehold.co/200x200?text=None'}
             alt={product.name}
@@ -78,10 +104,10 @@ export default function AdminProductCard({
         </div>
 
         {/* Stock & Sales Steppers Section */}
-        <div className="rounded-xl border border-jds-outline-variant/20 bg-jds-surface-container-low/20 p-2.5 space-y-2">
+        <div className="rounded-lg border border-jds-outline-variant/60 bg-jds-surface-container-low/50 p-2.5 space-y-2">
           {/* Inventory Stock Stepper */}
           <div className="flex items-center justify-between text-xs font-medium">
-            <span className="text-jds-on-surface-variant">Total Physical Stock:</span>
+            <span className="text-jds-on-surface-variant">Stock Units:</span>
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
@@ -121,21 +147,13 @@ export default function AdminProductCard({
             </div>
           </div>
 
-          {/* Reserved & Available Stock Indicators */}
-          <div className="pt-1.5 border-t border-jds-outline-variant/15 flex flex-wrap items-center justify-between gap-1 text-[11px]">
-            <div className="flex items-center gap-1">
-              <span className="text-jds-on-surface-variant font-medium">Available:</span>
-              <span className={`font-mono font-bold ${availableQty > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
-                {availableQty}
+          {reservedQty > 0 && (
+            <div className="pt-1.5 border-t border-jds-outline-variant/15 flex flex-wrap items-center justify-between gap-1 text-[11px]">
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 font-bold text-[10px]">
+                On Hold: {reservedQty}
               </span>
             </div>
-
-            {reservedQty > 0 && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 font-bold text-[10px]">
-                Temporarily Reserved: {reservedQty}
-              </span>
-            )}
-          </div>
+          )}
 
           {/* Branch breakdown indicator if Cavite has stock */}
           {badge.breakdown?.hasCaviteStock && (
@@ -191,7 +209,7 @@ export default function AdminProductCard({
       </div>
 
       {/* Card Footer: Operational Actions (Record Sale, Stock Adjustment, Edit, Delete) */}
-      <div className="flex items-center justify-between pt-3 mt-3 border-t border-jds-outline-variant/20 gap-1.5">
+      <div className="flex items-center justify-between pt-3 mt-3 border-t border-jds-outline-variant/60 gap-1.5">
         <Button
           variant="outline"
           size="sm"
@@ -235,6 +253,22 @@ export default function AdminProductCard({
           <span>Edit</span>
         </Button>
 
+        {onArchiveToggle && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation()
+              onArchiveToggle(product)
+            }}
+            className="text-jds-on-surface-variant hover:bg-jds-surface-container hover:text-jds-primary rounded-lg shrink-0 cursor-pointer"
+            title={product.is_archived ? 'Restore product to active catalog' : 'Archive product'}
+            aria-label={product.is_archived ? `Restore ${product.name}` : `Archive ${product.name}`}
+          >
+            {product.is_archived ? <RotateCcw className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
+          </Button>
+        )}
+
         {showDelete && onInitiateDelete && (
           <Button
             variant="ghost"
@@ -253,4 +287,6 @@ export default function AdminProductCard({
       </div>
     </div>
   )
-}
+})
+
+export default AdminProductCard

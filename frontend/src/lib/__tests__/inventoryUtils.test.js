@@ -10,6 +10,9 @@ import {
   filterAndSortProducts,
   getStockBadgeConfig,
   executeManualSale,
+  isProductArchived,
+  bulkArchiveProducts,
+  bulkDeleteProductsSafe,
 } from '../inventoryUtils'
 
 describe('inventoryUtils', () => {
@@ -25,19 +28,19 @@ describe('inventoryUtils', () => {
       expect(getStockQuantity({ in_stock: false })).toBe(0)
     })
 
-    it('clamps negative stock/reserved values to 0 and computes available units', () => {
+    it('clamps negative stock/reserved values to 0 and unifies available with stock_quantity', () => {
       const product = { stock_quantity: 12, reserved_quantity: 4 }
       expect(getStockQuantity(product)).toBe(12)
       expect(getReservedQuantity(product)).toBe(4)
-      expect(getAvailableQuantity(product)).toBe(8)
+      expect(getAvailableQuantity(product)).toBe(12)
 
-      expect(getAvailableQuantity({ stock_quantity: 3, reserved_quantity: 5 })).toBe(0)
+      expect(getAvailableQuantity({ stock_quantity: 3, reserved_quantity: 5 })).toBe(3)
       expect(getStockQuantity({ stock_quantity: -5 })).toBe(0)
     })
   })
 
   describe('branch stock calculations', () => {
-    it('computes Quiapo and Cavite branch stock separately', () => {
+    it('computes Quiapo and Cavite branch stock separately under unified stock model', () => {
       const product = {
         stock_quantity: 20,
         reserved_quantity: 5,
@@ -52,7 +55,7 @@ describe('inventoryUtils', () => {
         branch: 'Quiapo Showroom',
         stock: 14,
         reserved: 3,
-        available: 11,
+        available: 14,
       })
 
       const cavite = getBranchStock(product, 'Cavite Hub')
@@ -60,24 +63,24 @@ describe('inventoryUtils', () => {
         branch: 'Cavite Hub',
         stock: 6,
         reserved: 2,
-        available: 4,
+        available: 6,
       })
 
       const breakdown = getBranchBreakdown(product)
-      expect(breakdown.totalAvailable).toBe(15)
+      expect(breakdown.totalAvailable).toBe(20)
       expect(breakdown.hasCaviteStock).toBe(true)
     })
   })
 
   describe('tiers, badges, and filtering/sorting', () => {
-    it('classifies out, low, and optimal stock tiers using available units', () => {
-      expect(getStockTier({ stock_quantity: 4, reserved_quantity: 4 })).toBe('out')
+    it('classifies out, low, and optimal stock tiers using unified stock_quantity', () => {
+      expect(getStockTier({ stock_quantity: 0, reserved_quantity: 4 })).toBe('out')
       expect(getStockTier({ stock_quantity: LOW_STOCK_THRESHOLD, reserved_quantity: 0 })).toBe('low')
       expect(getStockTier({ stock_quantity: LOW_STOCK_THRESHOLD + 1, reserved_quantity: 0 })).toBe('optimal')
     })
 
-    it('builds badge config reflecting reserved counts', () => {
-      const badge = getStockBadgeConfig({ stock_quantity: 3, reserved_quantity: 3 })
+    it('builds badge config reflecting reserved counts when stock_quantity is 0', () => {
+      const badge = getStockBadgeConfig({ stock_quantity: 0, reserved_quantity: 3 })
       expect(badge.tier).toBe('out')
       expect(badge.shortLabel).toBe('Fully Reserved')
       expect(badge.label).toContain('3 Reserved')
@@ -104,7 +107,7 @@ describe('inventoryUtils', () => {
     it('rejects invalid products or insufficient unreserved inventory', async () => {
       await expect(executeManualSale({}, null, 1)).rejects.toThrow('Valid product is required.')
       await expect(
-        executeManualSale({}, { id: 1, stock_quantity: 3, reserved_quantity: 3 }, 1)
+        executeManualSale({}, { id: 1, stock_quantity: 0, reserved_quantity: 3 }, 1)
       ).rejects.toThrow('Insufficient available inventory')
     })
 
@@ -131,6 +134,57 @@ describe('inventoryUtils', () => {
         stock_quiapo: 5,
       })
       expect(result).toEqual({ id: 10, newStock: 7, newSales: 5, newInStock: true })
+    })
+  })
+
+  describe('archiving and FK-safe bulk operations', () => {
+    it('excludes archived products by default and filters archived-only when requested', () => {
+      const products = [
+        { id: 1, name: 'Active Inverter', is_archived: false, stock_quantity: 5 },
+        { id: 2, name: 'Legacy Light', is_archived: true, stock_quantity: 2 },
+      ]
+
+      expect(isProductArchived(products[1])).toBe(true)
+      expect(filterAndSortProducts(products).map((p) => p.id)).toEqual([1])
+      expect(filterAndSortProducts(products, { archiveFilter: 'archived' }).map((p) => p.id)).toEqual([2])
+    })
+
+    it('bulkArchiveProducts updates is_archived and archived_at for selected IDs', async () => {
+      const mockIn = vi.fn().mockResolvedValue({ error: null })
+      const mockUpdate = vi.fn().mockReturnValue({ in: mockIn })
+      const supabaseMock = { from: vi.fn().mockReturnValue({ update: mockUpdate }) }
+
+      const res = await bulkArchiveProducts(supabaseMock, [1, 2, 2], true)
+      expect(res.updatedIds).toEqual([1, 2])
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ is_archived: true })
+      )
+      expect(mockIn).toHaveBeenCalledWith('id', [1, 2])
+    })
+
+    it('bulkDeleteProductsSafe deletes unlinked products and blocks FK-referenced ones', async () => {
+      const mockDeleteIn = vi.fn().mockResolvedValue({ error: null })
+      const mockPurchasesIn = vi.fn().mockResolvedValue({
+        data: [{ product_id: 2 }],
+        error: null,
+      })
+
+      const supabaseMock = {
+        from: vi.fn((table) => {
+          if (table === 'customer_purchases') {
+            return { select: vi.fn().mockReturnValue({ in: mockPurchasesIn }) }
+          }
+          if (table === 'products') {
+            return { delete: vi.fn().mockReturnValue({ in: mockDeleteIn }) }
+          }
+          return {}
+        }),
+      }
+
+      const res = await bulkDeleteProductsSafe(supabaseMock, [1, 2, 3])
+      expect(res.deletedIds).toEqual([1, 3])
+      expect(res.blockedIds).toEqual([2])
+      expect(mockDeleteIn).toHaveBeenCalledWith('id', [1, 3])
     })
   })
 })

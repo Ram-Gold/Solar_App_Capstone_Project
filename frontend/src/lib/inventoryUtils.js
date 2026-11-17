@@ -6,6 +6,13 @@
 export const LOW_STOCK_THRESHOLD = 5
 
 /**
+ * Returns true if a product has been archived from active catalogs.
+ */
+export function isProductArchived(product) {
+  return Boolean(product?.is_archived)
+}
+
+/**
  * Returns normalized stock quantity for a product.
  * Falls back safely to in_stock boolean if column is not yet migrated in database.
  */
@@ -31,11 +38,11 @@ export function getReservedQuantity(product) {
 }
 
 /**
- * Returns the available (unreserved) stock count.
- * available = stock_quantity - reserved_quantity
+ * Returns the available (sellable) stock count under the unified stock model.
+ * Stock Holds already deduct from stock_quantity at reservation time, so Physical === Available.
  */
 export function getAvailableQuantity(product) {
-  return Math.max(0, getStockQuantity(product) - getReservedQuantity(product))
+  return getStockQuantity(product)
 }
 
 /**
@@ -59,7 +66,7 @@ export function getBranchStock(product, branch = 'Quiapo') {
       branch: 'Cavite Hub',
       stock,
       reserved,
-      available: Math.max(0, stock - reserved),
+      available: stock,
     }
   }
 
@@ -75,7 +82,7 @@ export function getBranchStock(product, branch = 'Quiapo') {
     branch: 'Quiapo Showroom',
     stock,
     reserved,
-    available: Math.max(0, stock - reserved),
+    available: stock,
   }
 }
 
@@ -151,10 +158,18 @@ export function filterAndSortProducts(products, {
   sortOrder = 'stock_priority',
   typeFilter = 'All Types',
   powerFilter = 'All Power',
+  archiveFilter = 'active', // 'active' | 'archived' | 'all'
 } = {}) {
   const query = search.toLowerCase().trim()
 
   const filtered = products.filter((p) => {
+    if (archiveFilter === 'active' && isProductArchived(p)) {
+      return false
+    }
+    if (archiveFilter === 'archived' && !isProductArchived(p)) {
+      return false
+    }
+
     // Search match
     if (query) {
       const name = (p.name || '').toLowerCase()
@@ -348,4 +363,79 @@ export async function executeManualSale(supabaseClient, product, unitsSold = 1, 
     newSales: updatedRecord.sales !== undefined ? updatedRecord.sales : newSales,
     newInStock: updatedRecord.in_stock !== undefined ? updatedRecord.in_stock : newInStock,
   }
+}
+
+/**
+ * Archives or restores multiple products in one batch update.
+ */
+export async function bulkArchiveProducts(supabaseClient, productIds, archive = true) {
+  const ids = Array.from(new Set((productIds || []).filter((id) => id !== null && id !== undefined)))
+  if (ids.length === 0) return { updatedIds: [] }
+
+  const payload = {
+    is_archived: Boolean(archive),
+    archived_at: archive ? new Date().toISOString() : null,
+  }
+
+  const { error } = await supabaseClient
+    .from('products')
+    .update(payload)
+    .in('id', ids)
+
+  if (error) throw error
+  return { updatedIds: ids }
+}
+
+/**
+ * Safely deletes multiple products while guarding against customer_purchases FK restrictions.
+ * Returns { deletedIds, blockedIds } so callers can offer archiving for linked SKUs.
+ */
+export async function bulkDeleteProductsSafe(supabaseClient, productIds) {
+  const ids = Array.from(new Set((productIds || []).filter((id) => id !== null && id !== undefined)))
+  if (ids.length === 0) return { deletedIds: [], blockedIds: [] }
+
+  let blockedSet = new Set()
+  try {
+    const { data: linkedPurchases, error: checkErr } = await supabaseClient
+      .from('customer_purchases')
+      .select('product_id')
+      .in('product_id', ids)
+
+    if (!checkErr && Array.isArray(linkedPurchases)) {
+      linkedPurchases.forEach((row) => {
+        if (row?.product_id !== undefined && row?.product_id !== null) {
+          blockedSet.add(row.product_id)
+        }
+      })
+    }
+  } catch {
+    // Continue to delete attempt and handle DB FK error gracefully if pre-check fails
+  }
+
+  const deletableIds = ids.filter((id) => !blockedSet.has(id))
+  if (deletableIds.length === 0) {
+    return { deletedIds: [], blockedIds: Array.from(blockedSet) }
+  }
+
+  const { error: deleteErr } = await supabaseClient
+    .from('products')
+    .delete()
+    .in('id', deletableIds)
+
+  if (!deleteErr) {
+    return { deletedIds: deletableIds, blockedIds: Array.from(blockedSet) }
+  }
+
+  // Fallback: delete individually if batch hit an unexpected FK constraint
+  const deletedIds = []
+  for (const id of deletableIds) {
+    const { error: singleErr } = await supabaseClient.from('products').delete().eq('id', id)
+    if (singleErr) {
+      blockedSet.add(id)
+    } else {
+      deletedIds.push(id)
+    }
+  }
+
+  return { deletedIds, blockedIds: Array.from(blockedSet) }
 }

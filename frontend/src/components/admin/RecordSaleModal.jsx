@@ -7,14 +7,13 @@ import {
   Plus,
   Minus
 } from 'lucide-react'
-import { supabase } from '../../lib/supabaseClient'
 import {
   getStockQuantity,
   getAvailableQuantity,
   getReservedQuantity,
-  executeManualSale,
   LOW_STOCK_THRESHOLD
 } from '../../lib/inventoryUtils'
+import { inventoryOperations } from '../../lib/inventoryOperations'
 import { Button } from '../ui/button'
 import useModalBehavior from '../../hooks/useModalBehavior'
 import AnimatedConfirmation from '../ui/AnimatedConfirmation'
@@ -97,12 +96,14 @@ export default function RecordSaleModal({ product, onClose, onSaleSuccess }) {
 
     try {
       setSubmitting(true)
-      const result = await executeManualSale(supabase, product, qty)
+      const result = await inventoryOperations.recordSale(product, { unitsSold: qty, branch: 'Quiapo' })
       const updatedProduct = {
         ...product,
         stock_quantity: result.newStock,
         sales: result.newSales,
         in_stock: result.newInStock,
+        ...(result.stock_quiapo !== undefined ? { stock_quiapo: result.stock_quiapo } : {}),
+        ...(result.stock_cavite !== undefined ? { stock_cavite: result.stock_cavite } : {}),
       }
       setConfirmedData({
         updatedProduct,

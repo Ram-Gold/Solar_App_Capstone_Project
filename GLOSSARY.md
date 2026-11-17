@@ -37,8 +37,12 @@ A customer reservation ticket (`JDS-RES-*` or pickup/purchase purpose) for count
 _Avoid_: Cart order, layaway
 
 **Stock Hold**:
-A temporary 48-hour allocation (`is_reservation = true`) locking branch inventory (`reserved_quiapo` or `reserved_cavite`, and combined `reserved_quantity`) on a Store Pickup until fulfilled by sale, cancelled, or purged.
+A temporary 48-hour allocation (`is_reservation = true`) on a **Store Pickup** that deducts directly from sellable branch and total stock (`stock_quiapo` / `stock_cavite` and `stock_quantity`) at reservation time and restores it if cancelled or purged. `reserved_quantity` (`reserved_quiapo` / `reserved_cavite`) tracks the held unit count for audit visibility.
 _Avoid_: Backorder, stock lock
+
+**Physical Stock / Available Stock**:
+A single unified sellable unit count (`stock_quantity === stock_quiapo + stock_cavite`) across **Admin Console**, **Staff Workspace**, and **Product Catalog**, with no separate hidden reservation subtraction.
+_Avoid_: Split stock, phantom availability
 
 **Inquiry Fulfillment**:
 Completion progress across non-cancelled Inquiries (`Completed` divided by `Pending + Confirmed + Completed`), tracked alongside active Store Pickups and active Consultation Visits.

@@ -4,15 +4,11 @@ import ErrorBoundary from '../ErrorBoundary'
 import AdminSidebar from './AdminSidebar'
 import StaffSidebar from '../staff/StaffSidebar'
 import MobileBottomNav from './MobileBottomNav'
-import RightSummaryRail, { CompactSummaryStrip } from './RightSummaryRail'
-
-const HYBRID_RAIL_SCREENS = new Set(['dashboard', 'inquiries', 'calendar', 'pickups', 'quotes', 'orders'])
 
 /**
  * Shared operations workspace frame used by both AdminPage and StaffPage.
  * Keeps the public Navbar above, mounts the warm-light collapsible sidebar,
- * adds the hybrid RightSummaryRail on Overview/Inquiries/Orders, and provides
- * mobile drawer + bottom navigation.
+ * and provides mobile drawer + bottom navigation.
  */
 export default function DashboardLayoutShell({
   roleVariant = 'admin',
@@ -25,7 +21,6 @@ export default function DashboardLayoutShell({
 
   const ActiveComponent = screens[activeScreen] || screens.dashboard
   const SidebarComponent = roleVariant === 'admin' ? AdminSidebar : StaffSidebar
-  const showHybridRail = HYBRID_RAIL_SCREENS.has(activeScreen)
 
   const handleNavigate = (screen, payload = null) => {
     setNavPayload(payload || null)
@@ -84,10 +79,6 @@ export default function DashboardLayoutShell({
             id="dashboard-main-content"
             className="flex-1 min-w-0 overflow-y-auto p-3 pb-24 sm:p-5 sm:pb-24 md:p-6 lg:pb-8 space-y-5"
           >
-            {showHybridRail && (
-              <CompactSummaryStrip onNavigate={handleNavigate} />
-            )}
-
             <ErrorBoundary
               key={activeScreen}
               isSubtree
@@ -97,10 +88,6 @@ export default function DashboardLayoutShell({
               <ActiveComponent key={activeScreen} {...screenProps} />
             </ErrorBoundary>
           </main>
-
-          {showHybridRail && (
-            <RightSummaryRail role={roleVariant} onNavigate={handleNavigate} />
-          )}
         </div>
       </div>
 
