@@ -590,23 +590,23 @@ export default function DashboardScreen({ onNavigate }) {
     },
     isStaff
       ? {
-          label: 'Open Warranty Claims',
-          value: openClaimsCount,
-          icon: ShieldCheck,
-          color: 'text-jds-on-surface-variant',
-          bg: 'bg-jds-surface-container-low border border-jds-outline-variant',
-          action: () => onNavigate && onNavigate('claims'),
-          sub: openClaimsCount > 0 ? 'Review active claims' : 'Queue clear',
-        }
+        label: 'Open Warranty Claims',
+        value: openClaimsCount,
+        icon: ShieldCheck,
+        color: 'text-jds-on-surface-variant',
+        bg: 'bg-jds-surface-container-low border border-jds-outline-variant',
+        action: () => onNavigate && onNavigate('claims'),
+        sub: openClaimsCount > 0 ? 'Review active claims' : 'Queue clear',
+      }
       : {
-          label: 'Inventory Valuation',
-          value: estimatedValuation > 0 ? `₱${estimatedValuation.toLocaleString()}` : `${totalProducts} SKUs`,
-          icon: Boxes,
-          color: 'text-jds-on-surface-variant',
-          bg: 'bg-jds-surface-container-low border border-jds-outline-variant',
-          action: () => onNavigate && onNavigate('products'),
-          sub: 'Estimated stock value',
-        },
+        label: 'Inventory Valuation',
+        value: estimatedValuation > 0 ? `₱${estimatedValuation.toLocaleString()}` : `${totalProducts} SKUs`,
+        icon: Boxes,
+        color: 'text-jds-on-surface-variant',
+        bg: 'bg-jds-surface-container-low border border-jds-outline-variant',
+        action: () => onNavigate && onNavigate('products'),
+        sub: 'Estimated stock value',
+      },
   ]
 
   if (loading) {
@@ -627,10 +627,10 @@ export default function DashboardScreen({ onNavigate }) {
         <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-200">
           <div
             className={`flex items-start gap-3 rounded-xl border p-4 shadow-xl backdrop-blur-md max-w-sm ${toast.type === 'error'
-                ? 'border-jds-error/40 bg-jds-surface text-jds-error shadow-jds-error/10'
-                : toast.type === 'success'
-                  ? 'border-emerald-500/40 bg-jds-surface text-emerald-700 dark:text-emerald-400 shadow-emerald-500/10'
-                  : 'border-jds-primary/40 bg-jds-surface text-jds-on-surface shadow-jds-primary/10'
+              ? 'border-jds-error/40 bg-jds-surface text-jds-error shadow-jds-error/10'
+              : toast.type === 'success'
+                ? 'border-emerald-500/40 bg-jds-surface text-emerald-700 dark:text-emerald-400 shadow-emerald-500/10'
+                : 'border-jds-primary/40 bg-jds-surface text-jds-on-surface shadow-jds-primary/10'
               }`}
           >
             {toast.type === 'success' ? (
@@ -748,8 +748,8 @@ export default function DashboardScreen({ onNavigate }) {
               key={card.label}
               onClick={card.action}
               className={`jds-card-motion jds-focus-ring text-left rounded-xl border bg-jds-surface-container-lowest p-4 sm:p-5 shadow-2xs ${card.active
-                  ? 'ring-2 ring-jds-primary border-jds-primary'
-                  : card.highlight || 'border-jds-outline-variant'
+                ? 'ring-2 ring-jds-primary border-jds-primary'
+                : card.highlight || 'border-jds-outline-variant'
                 } ${card.action ? 'cursor-pointer hover:bg-jds-surface-container-low hover:border-jds-outline' : ''}`}
             >
               <div className="flex items-center justify-between mb-2 sm:mb-3">
@@ -816,19 +816,19 @@ export default function DashboardScreen({ onNavigate }) {
                     key={pill.id}
                     onClick={() => setStockFilter(pill.id)}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${isActive
-                        ? pill.alert
-                          ? 'bg-jds-error text-white shadow-xs'
-                          : 'bg-jds-primary text-white shadow-xs'
-                        : pill.alert && pill.count > 0
-                          ? 'bg-jds-error/10 text-jds-error border border-jds-error/30 hover:bg-jds-error/20'
-                          : 'bg-jds-surface-container-lowest border border-jds-outline-variant/30 text-jds-on-surface-variant hover:text-jds-on-surface hover:border-jds-outline-variant'
+                      ? pill.alert
+                        ? 'bg-jds-error text-white shadow-xs'
+                        : 'bg-jds-primary text-white shadow-xs'
+                      : pill.alert && pill.count > 0
+                        ? 'bg-jds-error/10 text-jds-error border border-jds-error/30 hover:bg-jds-error/20'
+                        : 'bg-jds-surface-container-lowest border border-jds-outline-variant/30 text-jds-on-surface-variant hover:text-jds-on-surface hover:border-jds-outline-variant'
                       }`}
                   >
                     <span>{pill.label}</span>
                     <span
                       className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${isActive
-                          ? 'bg-white/20 text-white'
-                          : 'bg-jds-surface-container text-jds-on-surface-variant'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-jds-surface-container text-jds-on-surface-variant'
                         }`}
                     >
                       {pill.count}
@@ -880,8 +880,8 @@ export default function DashboardScreen({ onNavigate }) {
                 type="button"
                 onClick={() => setViewMode('cards')}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-label-sm font-bold transition-all cursor-pointer ${viewMode === 'cards'
-                    ? 'bg-jds-surface text-jds-primary shadow-xs border border-jds-outline-variant/30'
-                    : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+                  ? 'bg-jds-surface text-jds-primary shadow-xs border border-jds-outline-variant/30'
+                  : 'text-jds-on-surface-variant hover:text-jds-on-surface'
                   }`}
                 title="Visual Card Grid View"
                 aria-label="Cards view"
@@ -893,8 +893,8 @@ export default function DashboardScreen({ onNavigate }) {
                 type="button"
                 onClick={() => setViewMode('table')}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-label-sm font-bold transition-all cursor-pointer ${viewMode === 'table'
-                    ? 'bg-jds-surface text-jds-primary shadow-xs border border-jds-outline-variant/30'
-                    : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+                  ? 'bg-jds-surface text-jds-primary shadow-xs border border-jds-outline-variant/30'
+                  : 'text-jds-on-surface-variant hover:text-jds-on-surface'
                   }`}
                 title="Data Table View"
                 aria-label="Table view"
@@ -1492,11 +1492,10 @@ export default function DashboardScreen({ onNavigate }) {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveEditTab(tab.id)}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer ${
-                      activeEditTab === tab.id
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer ${activeEditTab === tab.id
                         ? 'bg-jds-primary text-jds-on-primary'
                         : 'bg-jds-surface-container text-jds-on-surface-variant hover:text-jds-on-surface'
-                    }`}
+                      }`}
                   >
                     {tab.label}
                   </button>
@@ -1624,9 +1623,8 @@ export default function DashboardScreen({ onNavigate }) {
                         type={f.type}
                         value={editingProduct[f.key] ?? ''}
                         onChange={(e) => handleFieldChange(f.key, e.target.value, f.type)}
-                        className={`h-10 w-full rounded-lg border bg-jds-surface-container-lowest px-3 text-sm outline-none ${
-                          validationErrors[f.key] ? 'border-jds-error' : 'border-jds-outline-variant/40 focus:border-jds-primary'
-                        }`}
+                        className={`h-10 w-full rounded-lg border bg-jds-surface-container-lowest px-3 text-sm outline-none ${validationErrors[f.key] ? 'border-jds-error' : 'border-jds-outline-variant/40 focus:border-jds-primary'
+                          }`}
                       />
                     )}
                     {validationErrors[f.key] && (

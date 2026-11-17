@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JD Solar — Light Warm-Chrome Palette Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      /* === Option 1 (Recommended): Warm Linen Chrome === */
+      --chrome-bg: #efe9df;
+      --chrome-border: #dfd6c7;
+      --chrome-text: #211b11;
+      --chrome-muted: #5e5344;
+      --chrome-input-bg: #f8f5ef;
+      --chrome-hover: #e5ddd0;
+      --chrome-active-bg: #ffffff;
+      --chrome-active-text: #92400e;
+      --chrome-active-border: #d9cbb5;
+
+      --canvas-bg: #faf8f4;
+      --card-bg: #ffffff;
+      --card-subtle: #f7f4ee;
+      --border: #e5ded1;
+      --ink: #211b11;
+      --ink-muted: #5e5344;
+
+      --accent: #b45309;
+      --accent-hover: #92400e;
+      --accent-soft: #fef3c7;
+      --accent-gold: #fdb813;
+
+      --ok-text: #15803d;
+      --ok-bg: #dcfce7;
+      --ok-border: #bbf7d0;
+      --warn-text: #b45309;
+      --warn-bg: #fef3c7;
+      --warn-border: #fde68a;
+      --err-text: #b91c1c;
+      --err-bg: #fee2e2;
+      --err-border: #fecaca;
+    }
+
+    body[data-theme="sandstone"] {
+      /* === Option 2: Soft Sandstone Chrome (Slightly deeper contrast) === */
+      --chrome-bg: #eae3d6;
+      --chrome-border: #d7cdbc;
+      --chrome-text: #1e1912;
+      --chrome-muted: #594f42;
+      --chrome-input-bg: #f6f2ea;
+      --chrome-hover: #dfd6c5;
+      --chrome-active-bg: #ffffff;
+      --chrome-active-text: #9a4d00;
+      --chrome-active-border: #cfc3af;
+
+      --canvas-bg: #f8f6f1;
+      --card-bg: #ffffff;
+      --card-subtle: #f5f2eb;
+      --border: #e0d8ca;
+      --ink: #1e1912;
+      --ink-muted: #594f42;
+
+      --accent: #9a4d00;
+      --accent-hover: #7c3d00;
+    }
+
+    body[data-theme="ivory"] {
+      /* === Option 3: Airy Warm Ivory Chrome (Ultra-light editorial paper) === */
+      --chrome-bg: #f4efe6;
+      --chrome-border: #e5ddd0;
+      --chrome-text: #211b11;
+      --chrome-muted: #655a4b;
+      --chrome-input-bg: #ffffff;
+      --chrome-hover: #ebe4d7;
+      --chrome-active-bg: #ffffff;
+      --chrome-active-text: #b45309;
+      --chrome-active-border: #dfd6c7;
+
+      --canvas-bg: #fcfbf8;
+      --card-bg: #ffffff;
+      --card-subtle: #f9f6f0;
+      --border: #eae3d7;
+      --ink: #211b11;
+      --ink-muted: #655a4b;
+
+      --accent: #b45309;
+      --accent-hover: #92400e;
+    }
+
+    body[data-theme="before"] {
+      /* === Before: Current Mismatched Beige/White === */
+      --chrome-bg: #fff8f3;
+      --chrome-border: #d5c4ac;
+      --chrome-text: #211b11;
+      --chrome-muted: #504533;
+      --chrome-input-bg: #fff2e1;
+      --chrome-hover: #f9ecdc;
+      --chrome-active-bg: rgba(124, 88, 0, 0.1);
+      --chrome-active-text: #7c5800;
+      --chrome-active-border: transparent;
+
+      --canvas-bg: #fff8f3;
+      --card-bg: #ffffff;
+      --card-subtle: #f9ecdc;
+      --border: #d5c4ac;
+      --ink: #211b11;
+      --ink-muted: #504533;
+      --accent: #7c5800;
+      --accent-hover: #5e4200;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--canvas-bg);
+      color: var(--ink);
+      line-height: 1.45;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    /* Preview Control Bar */
+    .preview-bar {
+      background: #211b11;
+      color: #f5f0e8;
+      padding: 9px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 12px;
+    }
+
+    .preview-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pill-group {
+      display: inline-flex;
+      background: rgba(255, 255, 255, 0.09);
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+      flex-wrap: wrap;
+    }
+
+    .pill-btn {
+      border: none;
+      background: transparent;
+      color: #d5c4ac;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .pill-btn.active {
+      background: #fdb813;
+      color: #211b11;
+      font-weight: 700;
+    }
+
+    .swatch-strip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #d5c4ac;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      display: inline-block;
+    }
+
+    /* Unified Top Navbar (Matches Left Sidebar Color!) */
+    .navbar {
+      background: var(--chrome-bg);
+      border-bottom: 1px solid var(--chrome-border);
+      padding: 10px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      color: var(--chrome-text);
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .logo-badge {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #fdb813, #b45309);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .nav-link {
+      color: var(--chrome-muted);
+      text-decoration: none;
+      padding: 4px 0;
+      position: relative;
+    }
+
+    .nav-link.active {
+      color: var(--chrome-active-text);
+      font-weight: 700;
+    }
+
+    .nav-link.active::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -3px;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--accent);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-search {
+      background: var(--chrome-input-bg);
+      border: 1px solid var(--chrome-border);
+      border-radius: 9px;
+      padding: 7px 12px;
+      font-size: 12px;
+      color: var(--chrome-muted);
+      width: 190px;
+    }
+
+    .btn-signout {
+      padding: 7px 14px;
+      border-radius: 9px;
+      border: 1px solid var(--chrome-border);
+      background: var(--card-bg);
+      color: var(--chrome-text);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* Operations Shell */
+    .workspace {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    /* Left Sidebar (Same Warm Chrome Color as Navbar!) */
+    .sidebar {
+      width: 248px;
+      flex-shrink: 0;
+      background: var(--chrome-bg);
+      border-right: 1px solid var(--chrome-border);
+      color: var(--chrome-text);
+      display: flex;
+      flex-direction: column;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    body[data-theme="before"] .sidebar {
+      background: #ffffff;
+    }
+
+    .side-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--chrome-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .side-role {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .side-search {
+      margin: 12px 12px 6px;
+      padding: 8px 10px;
+      border-radius: 9px;
+      background: var(--chrome-input-bg);
+      border: 1px solid var(--chrome-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--chrome-muted);
+    }
+
+    .kbd {
+      font-size: 10px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      border: 1px solid var(--chrome-border);
+      background: var(--card-bg);
+      color: var(--chrome-muted);
+    }
+
+    .side-nav {
+      padding: 12px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .side-group-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--chrome-muted);
+      padding: 0 10px 6px;
+    }
+
+    .side-item {
+      width: 100%;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--chrome-muted);
+      padding: 9px 10px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      text-align: left;
+    }
+
+    .side-item:hover {
+      background: var(--chrome-hover);
+      color: var(--chrome-text);
+    }
+
+    .side-item.active {
+      background: var(--chrome-active-bg);
+      border-color: var(--chrome-active-border);
+      color: var(--chrome-active-text);
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(33, 27, 17, 0.05);
+    }
+
+    .badge-red {
+      background: var(--err-text);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 999px;
+    }
+
+    .side-footer {
+      padding: 12px;
+      border-top: 1px solid var(--chrome-border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      background: #fdb813;
+      color: #271900;
+      font-size: 12px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Main Workspace */
+    .main {
+      flex: 1;
+      min-width: 0;
+      padding: 24px 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      overflow-y: auto;
+    }
+
+    .page-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .page-head h2 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .page-sub {
+      font-size: 12px;
+      color: var(--ink-muted);
+      margin-top: 2px;
+    }
+
+    .head-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-outline {
+      padding: 9px 14px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .btn-primary {
+      padding: 9px 16px;
+      border-radius: 9px;
+      border: none;
+      background: var(--accent);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .alert-banner {
+      border-radius: 12px;
+      border: 1px solid var(--warn-border);
+      background: var(--card-bg);
+      border-left: 4px solid var(--accent);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    body[data-theme="before"] .alert-banner {
+      background: rgba(245, 158, 11, 0.1);
+    }
+
+    .alert-title {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .alert-sub {
+      font-size: 12px;
+      color: var(--ink-muted);
+      margin-top: 2px;
+    }
+
+    /* KPI Row */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .kpi {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    body[data-theme="before"] .kpi {
+      background: #f9ecdc;
+    }
+
+    .kpi.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.12);
+    }
+
+    .kpi-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink-muted);
+    }
+
+    .kpi-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--card-subtle);
+      border: 1px solid var(--border);
+      color: var(--ink-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .kpi.critical .kpi-icon {
+      background: var(--err-bg);
+      border-color: var(--err-border);
+      color: var(--err-text);
+    }
+
+    body[data-theme="before"] .kpi-icon.b-blue {
+      background: #cde5ff;
+      color: #006399;
+      border: none;
+    }
+
+    body[data-theme="before"] .kpi-icon.b-amber {
+      background: #ffdea7;
+      color: #7c5800;
+      border: none;
+    }
+
+    body[data-theme="before"] .kpi-icon.b-green {
+      background: #dcfce7;
+      color: #166534;
+      border: none;
+    }
+
+    .kpi-val {
+      font-size: 24px;
+      font-weight: 800;
+      margin-top: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .kpi-foot {
+      font-size: 11px;
+      color: var(--ink-muted);
+      margin-top: 4px;
+    }
+
+    /* Table Card */
+    .table-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .table-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .f-pill {
+      padding: 5px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink-muted);
+    }
+
+    .f-pill.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th {
+      text-align: left;
+      padding: 10px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink-muted);
+      background: var(--card-subtle);
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .pill-err {
+      background: var(--err-bg);
+      color: var(--err-text);
+      border: 1px solid var(--err-border);
+    }
+
+    .pill-warn {
+      background: var(--warn-bg);
+      color: var(--warn-text);
+      border: 1px solid var(--warn-border);
+    }
+
+    .pill-ok {
+      background: var(--ok-bg);
+      color: var(--ok-text);
+      border: 1px solid var(--ok-border);
+    }
+
+    /* Right Rail */
+    .right-rail {
+      width: 288px;
+      flex-shrink: 0;
+      background: var(--canvas-bg);
+      border-left: 1px solid var(--border);
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    body[data-theme="before"] .right-rail {
+      background: #fff2e1;
+    }
+
+    .rail-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .rail-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Customer Portal Preview */
+    .portal-wrap {
+      max-width: 920px;
+      margin: 28px auto;
+      padding: 0 20px 48px;
+      width: 100%;
+    }
+
+    .portal-card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1080px) {
+      .right-rail {
+        display: none;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 760px) {
+      .sidebar {
+        display: none;
+      }
+
+      .portal-card-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body data-theme="linen">
+  <div class="preview-bar">
+    <div class="preview-controls">
+      <strong>Light Warm Chrome Options:</strong>
+      <div class="pill-group">
+        <button class="pill-btn active" onclick="setTheme('linen', this)">1. Warm Linen (#efe9df Chrome / #faf8f4
+          Canvas)</button>
+        <button class="pill-btn" onclick="setTheme('sandstone', this)">2. Soft Sandstone (#eae3d6 Chrome / #f8f6f1
+          Canvas)</button>
+        <button class="pill-btn" onclick="setTheme('ivory', this)">3. Warm Ivory (#f4efe6 Chrome / #fcfbf8
+          Canvas)</button>
+        <button class="pill-btn" onclick="setTheme('before', this)">Before (Current Mismatched)</button>
+      </div>
+      <div class="pill-group">
+        <button class="pill-btn active" onclick="setView('ops', this)">Admin Console</button>
+        <button class="pill-btn" onclick="setView('portal', this)">Customer Portal</button>
+      </div>
+    </div>
+    <div id="swatches" class="swatch-strip">
+      <span>Chrome</span><span class="swatch" style="background:#efe9df"></span>
+      <span>Canvas</span><span class="swatch" style="background:#faf8f4"></span>
+      <span>Card</span><span class="swatch" style="background:#ffffff"></span>
+      <span>Amber</span><span class="swatch" style="background:#b45309"></span>
+    </div>
+  </div>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <div class="logo">
+        <div class="logo-badge">JD</div>
+        <span>JD Solar</span>
+      </div>
+      <nav class="nav-links">
+        <a class="nav-link" href="#">Home</a>
+        <a class="nav-link active" href="#">Dashboard</a>
+        <a class="nav-link" href="#">Products</a>
+        <a class="nav-link" href="#">Product Matcher</a>
+        <a class="nav-link" href="#">About</a>
+      </nav>
+    </div>
+    <div class="nav-right">
+      <input class="nav-search" type="text" placeholder="Search guide..." readonly />
+      <button class="btn-signout" type="button">Sign Out</button>
+    </div>
+  </header>
+
+  <div id="view-ops" class="workspace">
+    <aside class="sidebar">
+      <div class="side-head">
+        <span class="side-role">Admin Console</span>
+        <span style="font-size:11px;color:var(--chrome-muted);">[&lt;]</span>
+      </div>
+      <div class="side-search">
+        <span>Jump or search...</span>
+        <span class="kbd">Ctrl K</span>
+      </div>
+      <div class="side-nav">
+        <div>
+          <div class="side-group-label">Operations</div>
+          <button class="side-item active" type="button"><span>Dashboard</span></button>
+          <button class="side-item" type="button"><span>Register Sale &amp; QR</span></button>
+          <button class="side-item" type="button"><span>Inquiries &amp; Pickups</span><span
+              class="badge-red">1</span></button>
+          <button class="side-item" type="button"><span>Warranty &amp; Claims</span></button>
+          <button class="side-item" type="button"><span>Orders</span></button>
+        </div>
+        <div>
+          <div class="side-group-label">Catalog &amp; Accounts</div>
+          <button class="side-item" type="button"><span>Products &amp; Media</span></button>
+          <button class="side-item" type="button"><span>Customers &amp; Tokens</span></button>
+          <button class="side-item" type="button"><span>Users</span></button>
+        </div>
+      </div>
+      <div class="side-footer">
+        <div class="avatar">A</div>
+        <div>
+          <div style="font-size:12px;font-weight:700;">admin</div>
+          <div style="font-size:10px;color:var(--chrome-muted);">Admin Profile</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="page-head">
+        <div>
+          <h2>Operations Overview</h2>
+          <div class="page-sub">Branch stock levels, scheduled showroom pickups, and open warranty claims.</div>
+        </div>
+        <div class="head-actions">
+          <button class="btn-outline" type="button">Audit Stock</button>
+          <button class="btn-primary" type="button">+ Register Sale</button>
+        </div>
+      </div>
+
+      <div class="alert-banner">
+        <div>
+          <div class="alert-title">Inventory Replenishment Required</div>
+          <div class="alert-sub"><strong style="color:var(--err-text);">4 products completely depleted</strong> and
+            <strong>3 products running low</strong> (&le; 5 units).</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-outline" type="button">Filter Critical</button>
+          <button class="btn-primary" type="button">Open Catalog</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi selected">
+          <div class="kpi-top">
+            <span>Catalog Stock Units</span>
+            <span class="kpi-icon b-blue">SKU</span>
+          </div>
+          <div class="kpi-val">1,357</div>
+          <div class="kpi-foot">101 catalog SKUs</div>
+        </div>
+        <div class="kpi critical">
+          <div class="kpi-top">
+            <span>Low / Out of Stock</span>
+            <span class="kpi-icon">!</span>
+          </div>
+          <div class="kpi-val">7</div>
+          <div class="kpi-foot">4 depleted • 3 low</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top">
+            <span>Pending Inquiries</span>
+            <span class="kpi-icon b-amber">INQ</span>
+          </div>
+          <div class="kpi-val">3</div>
+          <div class="kpi-foot">6 visits • 6 total</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top">
+            <span>Inventory Valuation</span>
+            <span class="kpi-icon b-green">PHP</span>
+          </div>
+          <div class="kpi-val">₱375,500</div>
+          <div class="kpi-foot">Estimated stock value</div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-head">
+          <strong style="font-size:14px;">Product Inventory Overview</strong>
+          <span style="font-size:12px;font-weight:700;color:var(--accent);">View Full Products Catalog</span>
+        </div>
+        <div class="filter-pills">
+          <span class="f-pill active">All 101</span>
+          <span class="f-pill">Out of Stock 4</span>
+          <span class="f-pill">Low Stock 3</span>
+          <span class="f-pill">In Stock 97</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Type</th>
+              <th>Power</th>
+              <th>Stock Units</th>
+              <th>Inventory Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Solar Streetlight 300W</strong>
+                <div style="font-size:11px;color:var(--ink-muted);">2500-3500</div>
+              </td>
+              <td>Solar Streetlight</td>
+              <td>300W</td>
+              <td>0</td>
+              <td><span class="status-pill pill-err">Out of Stock</span></td>
+            </tr>
+            <tr>
+              <td><strong>Solar Streetlight 800W</strong>
+                <div style="font-size:11px;color:var(--ink-muted);">3000+</div>
+              </td>
+              <td>Solar Streetlight</td>
+              <td>800W</td>
+              <td>4</td>
+              <td><span class="status-pill pill-warn">Low Stock (4 Available)</span></td>
+            </tr>
+            <tr>
+              <td><strong>5kW Hybrid Inverter</strong>
+                <div style="font-size:11px;color:var(--ink-muted);">38000-42000</div>
+              </td>
+              <td>Hybrid Inverter</td>
+              <td>5000W</td>
+              <td>18</td>
+              <td><span class="status-pill pill-ok">In Stock (18)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <aside class="right-rail">
+      <div class="rail-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="rail-title">Inquiry Fulfillment</span>
+          <span style="font-size:11px;color:var(--ink-muted);">Active</span>
+        </div>
+        <div style="text-align:center;padding:14px 0;">
+          <div style="font-size:22px;font-weight:800;">4 tickets</div>
+          <div style="font-size:11px;color:var(--ink-muted);">1 pending response</div>
+        </div>
+        <div
+          style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;">
+          <div><strong>4 pickups</strong>
+            <div style="font-size:10px;color:var(--ink-muted);">Showroom release</div>
+          </div>
+          <div><strong>4 visits</strong>
+            <div style="font-size:10px;color:var(--ink-muted);">Scheduled site</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rail-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span class="rail-title">Warranty Claims</span>
+          <span style="font-size:11px;font-weight:700;color:var(--accent);">Open Queue</span>
+        </div>
+        <div style="font-size:12px;display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;justify-content:space-between;"><span
+              style="color:var(--ink-muted);">Resolved</span><strong>0 (0%)</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--ink-muted);">Under
+              Inspection</span><strong>0 (0%)</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--ink-muted);">Denied /
+              Expired</span><strong>0 (0%)</strong></div>
+        </div>
+      </div>
+
+      <div class="rail-card">
+        <span class="rail-title">Top Moving SKUs</span>
+        <div style="margin-top:10px;font-size:12px;display:flex;flex-direction:column;gap:7px;">
+          <div style="display:flex;justify-content:space-between;"><span>Solar Streetlight
+              400W</span><strong>11</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span>Integrated Light 200W</span><strong>10</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;"><span>Solar Streetlight 800W</span><strong>6</strong>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="view-portal" class="portal-wrap hidden">
+    <div
+      style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:22px;display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent);">
+          Customer Portal</div>
+        <h2 style="font-size:22px;font-weight:800;margin-top:2px;">Welcome, Juan Dela Cruz!</h2>
+        <div style="font-size:12px;color:var(--ink-muted);margin-top:4px;">+63 917 555 0142 • juan.delacruz@solar.ph
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-outline" type="button">Terms &amp; Policy</button>
+        <button class="btn-outline" type="button">Refresh</button>
+      </div>
+    </div>
+
+    <div class="portal-card-grid">
+      <div class="table-card" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <strong style="font-size:15px;">300W Solar Street Light Pro</strong>
+          <div style="font-size:12px;color:var(--ink-muted);">All-in-One Commercial Fixture • 300W</div>
+          <div style="margin-top:8px;"><span class="status-pill pill-ok">Active • 1 Replacement Left</span></div>
+        </div>
+        <div
+          style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px;border-radius:10px;background:var(--canvas-bg);border:1px solid var(--border);font-size:12px;">
+          <div>
+            <div style="font-size:10px;color:var(--ink-muted);">SERIAL #</div><strong>JDS-300-8821</strong>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--ink-muted);">PURCHASED</div><strong>Mar 14, 2026</strong>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--ink-muted);">BRANCH</div><strong>Cavite Hub</strong>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button class="btn-primary" type="button">Troubleshoot</button>
+          <button class="btn-outline" type="button">File Claim</button>
+        </div>
+      </div>
+
+      <div class="table-card" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <strong style="font-size:15px;">100Ah LiFePO4 Battery Pack</strong>
+          <div style="font-size:12px;color:var(--ink-muted);">Deep Cycle Storage • 12.8V</div>
+          <div style="margin-top:8px;"><span class="status-pill pill-warn">Replacement Fulfilled</span></div>
+        </div>
+        <div
+          style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px;border-radius:10px;background:var(--canvas-bg);border:1px solid var(--border);font-size:12px;">
+          <div>
+            <div style="font-size:10px;color:var(--ink-muted);">SERIAL #</div><strong>JDS-BAT-1094</strong>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--ink-muted);">PURCHASED</div><strong>Jan 18, 2025</strong>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--ink-muted);">BRANCH</div><strong>Quiapo</strong>
+          </div>
+        </div>
+        <button class="btn-outline" style="width:100%;" type="button">Run Troubleshooting Guide</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const swatchSets = {
+      linen: ['#efe9df', '#faf8f4', '#ffffff', '#b45309'],
+      sandstone: ['#eae3d6', '#f8f6f1', '#ffffff', '#9a4d00'],
+      ivory: ['#f4efe6', '#fcfbf8', '#ffffff', '#b45309'],
+      before: ['#fff8f3', '#fff8f3', '#ffffff', '#7c5800']
+    };
+    function setTheme(theme, btn) {
+      document.body.setAttribute('data-theme', theme);
+      btn.parentElement.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const s = swatchSets[theme];
+      document.getElementById('swatches').innerHTML =
+        `<span>Chrome</span><span class="swatch" style="background:${s[0]}"></span>` +
+        `<span>Canvas</span><span class="swatch" style="background:${s[1]}"></span>` +
+        `<span>Card</span><span class="swatch" style="background:${s[2]}"></span>` +
+        `<span>Amber</span><span class="swatch" style="background:${s[3]}"></span>`;
+    }
+    function setView(view, btn) {
+      btn.parentElement.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('view-ops').classList.toggle('hidden', view !== 'ops');
+      document.getElementById('view-portal').classList.toggle('hidden', view !== 'portal');
+    }
+  </script>
+</body>
+
+</html>

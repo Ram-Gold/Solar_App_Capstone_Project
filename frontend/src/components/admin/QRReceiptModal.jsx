@@ -157,10 +157,10 @@ export default function QRReceiptModal({
           {customerEmail && (
             <div
               className={`p-4 rounded-xl border space-y-2.5 ${currentStatus === 'confirmed'
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                  : currentStatus === 'queued' || resendingEmail
-                    ? 'bg-jds-primary/10 border-jds-primary/30 text-jds-primary'
-                    : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                : currentStatus === 'queued' || resendingEmail
+                  ? 'bg-jds-primary/10 border-jds-primary/30 text-jds-primary'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
                 }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">

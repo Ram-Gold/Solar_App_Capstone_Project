@@ -1,0 +1,1856 @@
+<!DOCTYPE html>
+<html lang="en" data-motion>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>JD Solar — Admin &amp; Staff Dashboard Layout Preview</title>
+  <style>
+    :root {
+      /* JD Solar Design Tokens (from tailwind.config.js) */
+      --jds-surface: #fff8f3;
+      --jds-surface-lowest: #ffffff;
+      --jds-surface-low: #fff2e1;
+      --jds-surface-container: #f9ecdc;
+      --jds-surface-high: #f3e6d6;
+      --jds-surface-highest: #ede1d1;
+      --jds-on-surface: #211b11;
+      --jds-on-surface-variant: #504533;
+      --jds-primary: #7c5800;
+      --jds-primary-hover: #5e4200;
+      --jds-primary-container: #fdb813;
+      --jds-on-primary-container: #6b4b00;
+      --jds-secondary: #006399;
+      --jds-outline: #837560;
+      --jds-outline-variant: #d5c4ac;
+      --jds-outline-soft: rgba(213, 196, 172, 0.45);
+      --jds-inverse-surface: #211b11;
+      --jds-inverse-surface-soft: #362f25;
+      --jds-inverse-on-surface: #fcefdf;
+      --jds-inverse-muted: #c8b8a2;
+      --jds-error: #ba1a1a;
+      --jds-error-container: #ffdad6;
+      --jds-ok: #166534;
+      --jds-ok-container: #dcfce7;
+      --jds-warn: #9a5b00;
+      --jds-warn-container: #ffdea7;
+
+      /* design-taste-frontend spacing, radii & motion tokens */
+      --s-1: 4px;
+      --s-2: 8px;
+      --s-3: 12px;
+      --s-4: 16px;
+      --s-5: 24px;
+      --s-6: 32px;
+      --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+      --m-in: 150ms;
+      --m-out: 120ms;
+      --m-press: 90ms;
+
+      --navbar-h: 60px;
+      --previewbar-h: 36px;
+      --sidebar-w: 244px;
+      --sidebar-collapsed-w: 64px;
+      --rail-w: 300px;
+      --drawer-w: 440px;
+      --r-sm: 8px;
+      --r-md: 12px;
+      --r-lg: 12px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font-sans);
+      color: var(--jds-on-surface);
+      background: var(--jds-surface);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    button, input, select, textarea {
+      font-family: inherit;
+      font-size: inherit;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Skip link (system.md) */
+    .skip-link {
+      position: fixed;
+      top: -100px;
+      left: 16px;
+      z-index: 100;
+      background: var(--jds-on-surface);
+      color: var(--jds-inverse-on-surface);
+      padding: 10px 16px;
+      border-radius: var(--r-sm);
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .skip-link:focus {
+      top: 12px;
+      outline: 2px solid var(--jds-primary-container);
+      outline-offset: 2px;
+    }
+
+    /* Instant focus-visible ring (motion.md) */
+    :focus-visible {
+      outline: 2px solid var(--jds-primary);
+      outline-offset: 2px;
+      transition: none !important;
+    }
+
+    /* Wireframe Preview Switcher Bar (review helper only) */
+    .preview-bar {
+      height: var(--previewbar-h);
+      background: #17130d;
+      color: #f3e6d6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--s-4);
+      font-size: 12px;
+      border-bottom: 1px solid #362f25;
+      gap: var(--s-3);
+      overflow-x: auto;
+    }
+    .preview-bar-group {
+      display: flex;
+      align-items: center;
+      gap: var(--s-2);
+      white-space: nowrap;
+    }
+    .preview-tag {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #362f25;
+      color: var(--jds-primary-container);
+    }
+    .preview-btn {
+      background: #2b241a;
+      color: #f3e6d6;
+      border: 1px solid #493e2e;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .preview-btn:hover { background: #3c3326; }
+    .preview-btn.active {
+      background: var(--jds-primary-container);
+      color: var(--jds-on-surface);
+      border-color: var(--jds-primary-container);
+      font-weight: 700;
+    }
+
+    /* Public Storefront Navbar (preserved at top of /admin and /staff) */
+    .storefront-navbar {
+      height: var(--navbar-h);
+      background: var(--jds-surface-lowest);
+      border-bottom: 1px solid var(--jds-outline-soft);
+      padding: 0 var(--s-5);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 50;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: -0.01em;
+      color: var(--jds-on-surface);
+    }
+    .nav-logo-mark {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--r-sm);
+      background: var(--jds-primary-container);
+      color: var(--jds-on-surface);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .storefront-links {
+      display: flex;
+      align-items: center;
+      gap: var(--s-5);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--jds-on-surface-variant);
+    }
+    .storefront-links span.current {
+      color: var(--jds-primary);
+      font-weight: 700;
+      border-bottom: 2px solid var(--jds-primary-container);
+      padding: 4px 0;
+    }
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: var(--s-2);
+    }
+    .role-badge-top {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: var(--jds-surface-container);
+      color: var(--jds-primary);
+      border: 1px solid var(--jds-outline-soft);
+    }
+
+    /* Dashboard Shell below Public Navbar */
+    .dashboard-shell {
+      display: flex;
+      height: calc(100vh - var(--previewbar-h) - var(--navbar-h));
+      overflow: hidden;
+      position: relative;
+      background: var(--jds-surface);
+    }
+
+    /* Warm Light Sidebar (collapsible to 64px icon rail) */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--jds-surface-lowest);
+      color: var(--jds-on-surface);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      border-right: 1px solid var(--jds-outline-soft);
+      transition: width 200ms var(--ease);
+    }
+    .sidebar.collapsed { width: var(--sidebar-collapsed-w); }
+    .sidebar.collapsed .hide-when-collapsed { display: none; }
+    .sidebar.collapsed .sidebar-header { justify-content: center; padding: 14px 8px; }
+    .sidebar.collapsed .nav-item { justify-content: center; padding: 10px; }
+    .sidebar.collapsed .sidebar-footer { justify-content: center; padding: 12px 8px; }
+
+    .sidebar-header {
+      padding: var(--s-4) var(--s-4) var(--s-3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s-2);
+      border-bottom: 1px solid var(--jds-outline-soft);
+    }
+    .console-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--jds-primary);
+    }
+    .collapse-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--jds-outline-variant);
+      background: var(--jds-surface-low);
+      color: var(--jds-on-surface);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: background var(--m-in) var(--ease), transform var(--m-press) var(--ease);
+    }
+    .collapse-btn:hover { background: var(--jds-surface-container); }
+    .collapse-btn:active { transform: scale(0.96); }
+
+    .sidebar-search {
+      padding: var(--s-3) var(--s-3) var(--s-2);
+    }
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: var(--s-2);
+      background: var(--jds-surface-low);
+      border: 1px solid var(--jds-outline-variant);
+      border-radius: var(--r-sm);
+      padding: 8px 10px;
+      color: var(--jds-on-surface-variant);
+    }
+    .search-box input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--jds-on-surface);
+      width: 100%;
+      font-size: 13px;
+    }
+    .search-box input::placeholder { color: var(--jds-outline); }
+    .kbd {
+      font-size: 11px;
+      color: var(--jds-on-surface-variant);
+      background: var(--jds-surface-container);
+      border: 1px solid var(--jds-outline-soft);
+      padding: 1px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--s-2) var(--s-3) var(--s-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-4);
+    }
+    .nav-group-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--jds-outline);
+      padding: 0 10px 6px;
+    }
+    .nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 40px;
+      padding: 8px 10px;
+      border-radius: var(--r-sm);
+      color: var(--jds-on-surface-variant);
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      text-align: left;
+      width: 100%;
+      font-size: 13.5px;
+      font-weight: 500;
+      transition: background var(--m-in) var(--ease), color var(--m-in) var(--ease), transform var(--m-press) var(--ease);
+    }
+    .nav-item:hover {
+      background: var(--jds-surface-container);
+      color: var(--jds-on-surface);
+    }
+    .nav-item:active { transform: scale(0.985); }
+    .nav-item.active {
+      background: rgba(124, 88, 0, 0.1);
+      color: var(--jds-primary);
+      font-weight: 700;
+    }
+    .nav-item.active .nav-badge {
+      background: var(--jds-primary);
+      color: #ffffff;
+    }
+    .nav-item-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .nav-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: var(--jds-error);
+      color: #ffffff;
+    }
+    .nav-badge-neutral {
+      background: var(--jds-surface-container-high);
+      color: var(--jds-on-surface-variant);
+    }
+
+    /* Profile folded into bottom user chip */
+    .sidebar-footer {
+      border-top: 1px solid var(--jds-outline-soft);
+      padding: var(--s-3);
+      background: var(--jds-surface-low);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s-2);
+    }
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      min-height: 44px;
+      background: transparent;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      text-align: left;
+      padding: 4px 6px;
+      border-radius: var(--r-sm);
+      flex: 1;
+      transition: background var(--m-in) var(--ease);
+    }
+    .user-chip:hover { background: var(--jds-surface-container); }
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      background: var(--jds-primary-container);
+      color: var(--jds-on-primary-container);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--jds-on-surface);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .user-role {
+      font-size: 12px;
+      color: var(--jds-on-surface-variant);
+    }
+
+    /* Main Workspace + Hybrid Right Summary Rail */
+    .workspace-wrap {
+      flex: 1;
+      display: flex;
+      min-width: 0;
+      overflow: hidden;
+      background: var(--jds-surface);
+      position: relative;
+    }
+
+    .main-column {
+      flex: 1;
+      min-width: 0;
+      overflow-y: auto;
+      padding: var(--s-5) var(--s-5) var(--s-6);
+    }
+
+    /* Compact Summary Strip (shown < 1140px when Right Rail collapses) */
+    .compact-rail-strip {
+      display: none;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--s-3);
+      margin-bottom: var(--s-4);
+      padding: var(--s-3) var(--s-4);
+      background: var(--jds-surface-low);
+      border: 1px solid var(--jds-outline-soft);
+      border-radius: var(--r-lg);
+    }
+    .compact-rail-item-lbl {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--jds-on-surface-variant);
+    }
+    .compact-rail-item-val {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--jds-on-surface);
+      margin-top: 2px;
+    }
+
+    /* Page Header */
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--s-4);
+      margin-bottom: var(--s-5);
+      flex-wrap: wrap;
+    }
+    .page-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--jds-on-surface);
+      line-height: 1.25;
+    }
+    .page-subtitle {
+      font-size: 14px;
+      color: var(--jds-on-surface-variant);
+      margin-top: var(--s-1);
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--s-2);
+      flex-wrap: wrap;
+    }
+
+    /* Buttons (design-taste-frontend: one pair, hover step + press scale) */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--s-2);
+      min-height: 40px;
+      padding: 0 var(--s-4);
+      border-radius: var(--r-sm);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      white-space: nowrap;
+      transition: background var(--m-in) var(--ease), border-color var(--m-in) var(--ease), transform var(--m-press) var(--ease);
+    }
+    .btn-primary {
+      background: var(--jds-primary);
+      color: #ffffff;
+    }
+    .btn-secondary {
+      background: var(--jds-surface-lowest);
+      color: var(--jds-on-surface);
+      border-color: var(--jds-outline-variant);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .btn:hover { transform: translateY(-1px); }
+      .btn-primary:hover { background: var(--jds-primary-hover); }
+      .btn-secondary:hover { background: var(--jds-surface-container); border-color: var(--jds-outline); }
+    }
+    .btn:active { transform: translateY(1px) scale(0.985); }
+
+    /* 4-Card KPI Strip */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--s-3);
+      margin-bottom: var(--s-5);
+    }
+    .kpi-card {
+      background: var(--jds-surface-container);
+      border: 1px solid var(--jds-outline-soft);
+      border-radius: var(--r-lg);
+      padding: var(--s-4);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: var(--s-2);
+      cursor: pointer;
+      text-align: left;
+      transition: transform 180ms var(--ease), border-color 180ms var(--ease), background 180ms var(--ease);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .kpi-card:hover {
+        transform: translateY(-2px);
+        background: var(--jds-surface-high);
+        border-color: var(--jds-outline);
+      }
+    }
+    .kpi-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--jds-on-surface-variant);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .kpi-bottom {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--s-2);
+    }
+    .kpi-value {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+      color: var(--jds-on-surface);
+    }
+    .delta-pill {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .delta-ok { background: var(--jds-ok-container); color: var(--jds-ok); }
+    .delta-warn { background: var(--jds-warn-container); color: var(--jds-warn); }
+    .delta-danger { background: var(--jds-error-container); color: var(--jds-error); }
+
+    /* Surface Panel (max 2 boxes deep) */
+    .surface-panel {
+      background: var(--jds-surface-lowest);
+      border: 1px solid var(--jds-outline-soft);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s-3);
+      padding: var(--s-3) var(--s-4);
+      background: var(--jds-surface-low);
+      border-bottom: 1px solid var(--jds-outline-soft);
+      flex-wrap: wrap;
+    }
+    .tab-strip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s-1);
+      background: var(--jds-surface-container);
+      padding: var(--s-1);
+      border-radius: var(--r-sm);
+      border: 1px solid var(--jds-outline-soft);
+      flex-wrap: wrap;
+    }
+    .seg-tab {
+      min-height: 32px;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--jds-on-surface-variant);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+    }
+    .seg-tab.active {
+      background: var(--jds-surface-lowest);
+      color: var(--jds-primary);
+      box-shadow: 0 1px 2px rgba(33, 27, 17, 0.08);
+    }
+    .filter-pills {
+      display: flex;
+      align-items: center;
+      gap: var(--s-2);
+      flex-wrap: wrap;
+    }
+    .pill-select {
+      min-height: 36px;
+      padding: 0 12px;
+      border-radius: 999px;
+      border: 1px solid var(--jds-outline-variant);
+      background: var(--jds-surface-lowest);
+      color: var(--jds-on-surface-variant);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .pill-select.selected {
+      background: var(--jds-on-surface);
+      color: var(--jds-surface);
+      border-color: var(--jds-on-surface);
+    }
+    .inline-search {
+      height: 36px;
+      padding: 0 12px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--jds-outline-variant);
+      background: var(--jds-surface-lowest);
+      font-size: 13.5px;
+      width: 210px;
+      color: var(--jds-on-surface);
+    }
+
+    /* Table Scroll Container (prevents horizontal overflow at 390/320) */
+    .table-scroll {
+      width: 100%;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 680px;
+    }
+    th {
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--jds-on-surface-variant);
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--jds-outline-soft);
+      white-space: nowrap;
+      background: var(--jds-surface-lowest);
+    }
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(213, 196, 172, 0.28);
+      font-size: 13.5px;
+      color: var(--jds-on-surface);
+      vertical-align: middle;
+    }
+    tbody tr {
+      cursor: pointer;
+      transition: background var(--m-in) var(--ease);
+    }
+    tbody tr:hover { background: var(--jds-surface-low); }
+    tbody tr.active-row { background: var(--jds-surface-container); }
+
+    .item-cell {
+      display: flex;
+      align-items: center;
+      gap: var(--s-3);
+    }
+    .thumb {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--r-sm);
+      background: var(--jds-surface-container);
+      border: 1px solid var(--jds-outline-soft);
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--jds-primary);
+      flex-shrink: 0;
+    }
+    .item-title { font-weight: 700; color: var(--jds-on-surface); }
+    .item-sub { font-size: 12.5px; color: var(--jds-on-surface-variant); }
+    .sku-mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12.5px;
+      color: var(--jds-on-surface-variant);
+    }
+    .num { font-variant-numeric: tabular-nums; font-weight: 700; }
+    .status-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 999px; }
+    .dot-ok { background: var(--jds-ok); }
+    .dot-warn { background: #d97706; }
+    .dot-danger { background: var(--jds-error); }
+
+    /* Right Operational Summary Rail (Hybrid: shown on Dashboard, Inquiries, Orders) */
+    .right-rail {
+      width: var(--rail-w);
+      flex-shrink: 0;
+      border-left: 1px solid var(--jds-outline-soft);
+      background: var(--jds-surface-low);
+      overflow-y: auto;
+      padding: var(--s-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-4);
+    }
+    .right-rail.hidden { display: none; }
+    .rail-section {
+      background: var(--jds-surface-lowest);
+      border: 1px solid var(--jds-outline-soft);
+      border-radius: var(--r-lg);
+      padding: var(--s-4);
+    }
+    .rail-heading {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--jds-on-surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--s-3);
+    }
+    .rail-heading-meta {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--jds-on-surface-variant);
+    }
+    .gauge-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: var(--s-1) 0 var(--s-2);
+    }
+    .gauge-svg { width: 148px; height: 82px; }
+    .gauge-figure {
+      font-size: 20px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      margin-top: -24px;
+    }
+    .gauge-sub {
+      font-size: 12.5px;
+      color: var(--jds-on-surface-variant);
+      margin-bottom: var(--s-3);
+    }
+    .split-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s-3);
+      width: 100%;
+      padding-top: var(--s-2);
+      border-top: 1px solid rgba(213, 196, 172, 0.35);
+    }
+    .split-item-val { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .split-item-lbl { font-size: 12px; color: var(--jds-on-surface-variant); }
+    .stacked-bar {
+      height: 8px;
+      border-radius: 999px;
+      background: var(--jds-surface-container);
+      overflow: hidden;
+      display: flex;
+      margin-bottom: var(--s-3);
+    }
+    .rail-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-2);
+      font-size: 13px;
+    }
+    .rail-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s-2);
+    }
+    .rail-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s-3);
+    }
+    .rail-stat-val { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .rail-stat-lbl { font-size: 12px; color: var(--jds-on-surface-variant); }
+
+    /* Two-Column Register Sale & QR View */
+    .two-col-workflow {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: var(--s-4);
+      align-items: start;
+    }
+    .form-card {
+      background: var(--jds-surface-lowest);
+      border: 1px solid var(--jds-outline-soft);
+      border-radius: var(--r-lg);
+      padding: var(--s-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-4);
+    }
+    .field-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--jds-on-surface);
+      margin-bottom: var(--s-1);
+    }
+    .field-input {
+      width: 100%;
+      height: 44px;
+      border: 1px solid var(--jds-outline-variant);
+      border-radius: var(--r-sm);
+      padding: 0 12px;
+      font-size: 15px;
+      background: var(--jds-surface-lowest);
+      color: var(--jds-on-surface);
+    }
+
+    /* Card Grid Option (for Products screen toggle) */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--s-3);
+      padding: var(--s-4);
+    }
+    .product-card-mini {
+      background: var(--jds-surface-low);
+      border: 1px solid var(--jds-outline-soft);
+      border-radius: var(--r-lg);
+      padding: var(--s-4);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-2);
+      text-align: left;
+      transition: transform 180ms var(--ease), border-color 180ms var(--ease);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .product-card-mini:hover {
+        transform: translateY(-2px);
+        border-color: var(--jds-primary);
+      }
+    }
+
+    /* Slide-Over Right Inspector Drawer (Anchored BELOW Public Navbar) */
+    .drawer-backdrop {
+      position: fixed;
+      top: calc(var(--previewbar-h) + var(--navbar-h));
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(33, 27, 17, 0.24);
+      z-index: 35;
+      display: none;
+    }
+    .drawer-backdrop.open { display: block; }
+    .drawer {
+      position: fixed;
+      top: calc(var(--previewbar-h) + var(--navbar-h));
+      right: 0;
+      bottom: 0;
+      width: var(--drawer-w);
+      max-width: 100vw;
+      background: var(--jds-surface-lowest);
+      border-left: 1px solid var(--jds-outline-variant);
+      box-shadow: -12px 0 36px rgba(33, 27, 17, 0.14);
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 220ms var(--ease);
+    }
+    .drawer.open { transform: translateX(0); }
+    .drawer-head {
+      padding: var(--s-4) var(--s-5) var(--s-3);
+      border-bottom: 1px solid var(--jds-outline-soft);
+      background: var(--jds-surface-low);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-2);
+    }
+    .drawer-top-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--jds-on-surface-variant);
+    }
+    .drawer-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--jds-on-surface);
+      line-height: 1.3;
+    }
+    .drawer-tabs {
+      display: flex;
+      gap: var(--s-2);
+      flex-wrap: wrap;
+    }
+    .drawer-tab {
+      min-height: 36px;
+      padding: 6px 12px;
+      border-radius: var(--r-sm);
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--jds-on-surface-variant);
+      cursor: pointer;
+    }
+    .drawer-tab.active {
+      background: var(--jds-surface-lowest);
+      border-color: var(--jds-outline-variant);
+      color: var(--jds-primary);
+    }
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--s-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-4);
+    }
+    .info-split {
+      display: grid;
+      grid-template-columns: 1fr 98px;
+      gap: var(--s-3);
+      align-items: start;
+    }
+    .kv-list { display: flex; flex-direction: column; gap: var(--s-2); }
+    .kv-row {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: var(--s-2);
+      font-size: 13.5px;
+    }
+    .kv-key { color: var(--jds-on-surface-variant); }
+    .kv-val { font-weight: 700; color: var(--jds-on-surface); }
+    .product-square {
+      width: 98px;
+      height: 98px;
+      border-radius: var(--r-sm);
+      background: var(--jds-surface-container);
+      border: 1px solid var(--jds-outline-variant);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      color: var(--jds-on-surface-variant);
+      text-align: center;
+      padding: 6px;
+    }
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-3);
+      border-left: 2px solid var(--jds-outline-variant);
+      margin-left: 6px;
+      padding-left: 14px;
+    }
+    .timeline-item { position: relative; font-size: 13px; }
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: -19px;
+      top: 5px;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--jds-primary);
+    }
+    .drawer-foot {
+      border-top: 1px solid var(--jds-outline-soft);
+      padding: var(--s-3) var(--s-5);
+      background: var(--jds-surface-low);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s-2);
+    }
+
+    /* Mobile Bottom Nav (< 780px, 44px+ tap targets) */
+    .mobile-bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      min-height: 56px;
+      padding-bottom: env(safe-area-inset-bottom);
+      background: var(--jds-surface-lowest);
+      border-top: 1px solid var(--jds-outline-soft);
+      z-index: 30;
+      grid-template-columns: repeat(5, 1fr);
+    }
+    .mobile-tab {
+      background: none;
+      border: none;
+      min-height: 52px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--jds-on-surface-variant);
+      cursor: pointer;
+    }
+    .mobile-tab.active {
+      color: var(--jds-primary);
+      font-weight: 700;
+    }
+
+    .admin-only.staff-hidden { display: none !important; }
+    .view-screen { display: none; }
+    .view-screen.active { display: block; }
+
+    /* Reduced motion compliance (motion.md) */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition: none !important;
+        animation: none !important;
+        transform: none !important;
+      }
+    }
+
+    @media (max-width: 1140px) {
+      .right-rail { display: none; }
+      .compact-rail-strip { display: grid; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .two-col-workflow { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 780px) {
+      .storefront-links { display: none; }
+      .sidebar { display: none; }
+      .mobile-bottom-nav { display: grid; }
+      .main-column { padding: var(--s-4) var(--s-4) 76px; }
+      .compact-rail-strip { grid-template-columns: 1fr; }
+      .cards-grid { grid-template-columns: 1fr; }
+      .btn, .seg-tab, .pill-select, .drawer-tab { min-height: 44px; }
+    }
+    @media (max-width: 440px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+      .inline-search { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Review Switcher Bar -->
+  <div class="preview-bar" role="region" aria-label="Layout preview controls">
+    <div class="preview-bar-group">
+      <span class="preview-tag">Layout Spec</span>
+      <span>JD Solar Back-Office Redesign</span>
+    </div>
+    <div class="preview-bar-group">
+      <button type="button" class="preview-btn active" id="roleAdminBtn" onclick="setRole('admin')">Show Admin View</button>
+      <button type="button" class="preview-btn" id="roleStaffBtn" onclick="setRole('staff')">Show Staff View</button>
+      <button type="button" class="preview-btn" onclick="toggleSidebarCollapse()">Collapse Sidebar</button>
+      <button type="button" class="preview-btn" onclick="openDrawerTab('inspect')">Open Inspector Drawer</button>
+    </div>
+  </div>
+
+  <!-- Public Storefront Navbar (preserved at top of /admin and /staff) -->
+  <header class="storefront-navbar">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <div class="nav-brand">
+      <div class="nav-logo-mark" aria-hidden="true">JD</div>
+      <span>JD Solar</span>
+    </div>
+    <nav class="storefront-links" aria-label="Storefront navigation">
+      <span>Home</span>
+      <span>Browse</span>
+      <span>Match</span>
+      <span>About</span>
+      <span class="current" id="navConsoleLabel">Admin Console</span>
+    </nav>
+    <div class="navbar-right">
+      <span class="role-badge-top" id="topRolePill">Administrator</span>
+    </div>
+  </header>
+
+  <!-- Back-Office Shell below Storefront Navbar -->
+  <div class="dashboard-shell">
+    <!-- Warm Espresso Collapsible Left Sidebar -->
+    <aside class="sidebar" id="sidebar" aria-label="Operations sidebar">
+      <div class="sidebar-header">
+        <span class="console-label hide-when-collapsed">Operations Shell</span>
+        <button type="button" class="collapse-btn" onclick="toggleSidebarCollapse()" aria-label="Collapse sidebar to icon rail">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/><path d="M9 6v12"/></svg>
+        </button>
+      </div>
+
+      <div class="sidebar-search hide-when-collapsed">
+        <label class="sr-only" for="sidebar-quick-search">Search screens, SKUs, customers, or serials</label>
+        <div class="search-box">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="sidebar-quick-search" type="search" placeholder="Search screen, SKU, serial" />
+          <span class="kbd">Ctrl K</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Dashboard navigation">
+        <div>
+          <div class="nav-group-label hide-when-collapsed">Operations</div>
+          <div class="nav-list">
+            <button type="button" class="nav-item active" onclick="switchScreen(this, 'dashboard', true)">
+              <span class="nav-item-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                <span class="hide-when-collapsed">Dashboard</span>
+              </span>
+            </button>
+            <button type="button" class="nav-item" onclick="switchScreen(this, 'register-sale', false)">
+              <span class="nav-item-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM17 17h4v4h-4z"/></svg>
+                <span class="hide-when-collapsed">Register Sale &amp; QR</span>
+              </span>
+            </button>
+            <button type="button" class="nav-item" onclick="switchScreen(this, 'dashboard', true)">
+              <span class="nav-item-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                <span class="hide-when-collapsed">Inquiries &amp; Pickups</span>
+              </span>
+              <span class="nav-badge hide-when-collapsed">7</span>
+            </button>
+            <button type="button" class="nav-item" onclick="switchScreen(this, 'dashboard', true)">
+              <span class="nav-item-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span class="hide-when-collapsed">Warranty &amp; Claims</span>
+              </span>
+              <span class="nav-badge nav-badge-neutral hide-when-collapsed">3</span>
+            </button>
+            <button type="button" class="nav-item" onclick="switchScreen(this, 'dashboard', true)">
+              <span class="nav-item-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/></svg>
+                <span class="hide-when-collapsed">Orders</span>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div class="nav-group-label hide-when-collapsed">Catalog &amp; Accounts</div>
+          <div class="nav-list">
+            <button type="button" class="nav-item" onclick="switchScreen(this, 'products', false)">
+              <span class="nav-item-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+                <span class="hide-when-collapsed">Products &amp; Media</span>
+              </span>
+            </button>
+            <button type="button" class="nav-item" onclick="switchScreen(this, 'products', false)">
+              <span class="nav-item-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg>
+                <span class="hide-when-collapsed">Customers &amp; Tokens</span>
+              </span>
+            </button>
+            <button type="button" class="nav-item admin-only" onclick="switchScreen(this, 'products', false)">
+              <span class="nav-item-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span class="hide-when-collapsed">Users</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Profile folded into bottom user chip -->
+      <div class="sidebar-footer">
+        <button type="button" class="user-chip" onclick="openDrawerTab('inspect')" aria-label="Open account profile drawer">
+          <div class="avatar" id="userAvatar" aria-hidden="true">AD</div>
+          <div class="hide-when-collapsed" style="min-width:0;">
+            <div class="user-name" id="userName">Admin Desk</div>
+            <div class="user-role" id="userRoleText">Profile &amp; Settings</div>
+          </div>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Workspace Area -->
+    <div class="workspace-wrap">
+      <main class="main-column" id="main-content">
+
+        <!-- SCREEN 1: DASHBOARD OVERVIEW (Right Rail Active) -->
+        <div class="view-screen active" id="screen-dashboard">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Operations Overview</h1>
+              <p class="page-subtitle">Branch stock levels, scheduled showroom pickups, and open warranty claims.</p>
+            </div>
+            <div class="header-actions">
+              <button type="button" class="btn btn-secondary" onclick="openDrawerTab('audit')">Audit Stock</button>
+              <button type="button" class="btn btn-secondary admin-only">Export CSV</button>
+              <button type="button" class="btn btn-primary" onclick="switchToRegisterSale()">Register Sale</button>
+            </div>
+          </div>
+
+          <!-- Compact Strip (< 1140px when Right Rail collapses) -->
+          <section class="compact-rail-strip" aria-label="Summary metrics">
+            <div>
+              <div class="compact-rail-item-lbl">Inquiry Fulfillment</div>
+              <div class="compact-rail-item-val">34 completed (22 pickups / 12 dispatch)</div>
+            </div>
+            <div>
+              <div class="compact-rail-item-lbl">Claim Pipeline</div>
+              <div class="compact-rail-item-val">72% resolved, 18% inspecting</div>
+            </div>
+            <div>
+              <div class="compact-rail-item-lbl">Top Mover (30d)</div>
+              <div class="compact-rail-item-val">Canadian Solar 550W (42 units)</div>
+            </div>
+          </section>
+
+          <!-- 4-Card KPI Strip -->
+          <section class="kpi-grid" aria-label="Key operational indicators">
+            <button type="button" class="kpi-card" onclick="openDrawerTab('inspect')">
+              <span class="kpi-top">
+                <span>Catalog Stock Units</span>
+                <span aria-hidden="true">-&gt;</span>
+              </span>
+              <span class="kpi-bottom">
+                <span class="kpi-value">428</span>
+                <span class="delta-pill delta-ok">46 SKUs</span>
+              </span>
+            </button>
+
+            <button type="button" class="kpi-card" onclick="openDrawerTab('audit')">
+              <span class="kpi-top">
+                <span>Low / Out of Stock</span>
+                <span aria-hidden="true">-&gt;</span>
+              </span>
+              <span class="kpi-bottom">
+                <span class="kpi-value">9</span>
+                <span class="delta-pill delta-danger">3 critical</span>
+              </span>
+            </button>
+
+            <button type="button" class="kpi-card">
+              <span class="kpi-top">
+                <span>Pending Inquiries</span>
+                <span aria-hidden="true">-&gt;</span>
+              </span>
+              <span class="kpi-bottom">
+                <span class="kpi-value">14</span>
+                <span class="delta-pill delta-warn">5 pickups today</span>
+              </span>
+            </button>
+
+            <button type="button" class="kpi-card admin-only">
+              <span class="kpi-top">
+                <span>Inventory Valuation</span>
+                <span aria-hidden="true">-&gt;</span>
+              </span>
+              <span class="kpi-bottom">
+                <span class="kpi-value">PHP 4.82M</span>
+                <span class="delta-pill delta-ok">+6.4% mo</span>
+              </span>
+            </button>
+
+            <button type="button" class="kpi-card" id="staffAltCard" style="display:none;">
+              <span class="kpi-top">
+                <span>Open Warranty Claims</span>
+                <span aria-hidden="true">-&gt;</span>
+              </span>
+              <span class="kpi-bottom">
+                <span class="kpi-value">3</span>
+                <span class="delta-pill delta-warn">1 awaiting inspect</span>
+              </span>
+            </button>
+          </section>
+
+          <!-- Clean Table Panel (Default Table View on Desktop) -->
+          <section class="surface-panel" aria-labelledby="inventory-heading">
+            <h2 id="inventory-heading" class="sr-only">Equipment Inventory Table</h2>
+            <div class="toolbar">
+              <div class="tab-strip" role="tablist" aria-label="Stock status filter">
+                <button type="button" role="tab" aria-selected="true" class="seg-tab active" onclick="setSegTab(this)">All (46)</button>
+                <button type="button" role="tab" aria-selected="false" class="seg-tab" onclick="setSegTab(this)">Out of Stock (3)</button>
+                <button type="button" role="tab" aria-selected="false" class="seg-tab" onclick="setSegTab(this)">Low Stock (6)</button>
+                <button type="button" role="tab" aria-selected="false" class="seg-tab" onclick="setSegTab(this)">In Stock (37)</button>
+              </div>
+              <div class="filter-pills">
+                <label class="sr-only" for="overview-table-search">Filter equipment by model or SKU</label>
+                <input id="overview-table-search" class="inline-search" type="search" placeholder="Filter model, SKU, brand" />
+                <button type="button" class="pill-select selected">Category: All</button>
+                <button type="button" class="pill-select">Sort: Priority</button>
+              </div>
+            </div>
+
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Equipment</th>
+                    <th>Category</th>
+                    <th>SKU</th>
+                    <th>Status</th>
+                    <th>On Hand</th>
+                    <th class="admin-only">Unit Price</th>
+                    <th>Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="active-row" onclick="openDrawerTab('inspect')">
+                    <td>
+                      <div class="item-cell">
+                        <div class="thumb" aria-hidden="true">BATT</div>
+                        <div>
+                          <div class="item-title">LVTopsun 48V 100Ah LiFePO4 Battery</div>
+                          <div class="item-sub">5.12 kWh Rack-Mount Lithium Pack</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Batteries</td>
+                    <td class="sku-mono">JDS-BAT-48100</td>
+                    <td><span class="status-inline"><span class="status-dot dot-warn" aria-hidden="true"></span>Low Stock</span></td>
+                    <td class="num">2</td>
+                    <td class="num admin-only">PHP 54,500</td>
+                    <td>2h ago</td>
+                  </tr>
+                  <tr onclick="openDrawerTab('inspect')">
+                    <td>
+                      <div class="item-cell">
+                        <div class="thumb" aria-hidden="true">INV</div>
+                        <div>
+                          <div class="item-title">Deye 8kW Hybrid Solar Inverter</div>
+                          <div class="item-sub">Single-Phase Split Grid-Tie / Off-Grid</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Hybrid Inverters</td>
+                    <td class="sku-mono">JDS-INV-DEYE8K</td>
+                    <td><span class="status-inline"><span class="status-dot dot-ok" aria-hidden="true"></span>In Stock</span></td>
+                    <td class="num">11</td>
+                    <td class="num admin-only">PHP 78,900</td>
+                    <td>Today</td>
+                  </tr>
+                  <tr onclick="openDrawerTab('inspect')">
+                    <td>
+                      <div class="item-cell">
+                        <div class="thumb" aria-hidden="true">PV</div>
+                        <div>
+                          <div class="item-title">Canadian Solar 550W Mono PERC</div>
+                          <div class="item-sub">Half-Cell Bifacial Commercial Panel</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Solar Panels</td>
+                    <td class="sku-mono">JDS-PV-CS550</td>
+                    <td><span class="status-inline"><span class="status-dot dot-ok" aria-hidden="true"></span>In Stock</span></td>
+                    <td class="num">84</td>
+                    <td class="num admin-only">PHP 8,450</td>
+                    <td>Yesterday</td>
+                  </tr>
+                  <tr onclick="openDrawerTab('audit')">
+                    <td>
+                      <div class="item-cell">
+                        <div class="thumb" aria-hidden="true">MPPT</div>
+                        <div>
+                          <div class="item-title">Epever 60A MPPT Charge Controller</div>
+                          <div class="item-sub">12V/24V/48V Auto-Detect Tracer AN</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Controllers</td>
+                    <td class="sku-mono">JDS-CTRL-EP60</td>
+                    <td><span class="status-inline"><span class="status-dot dot-danger" aria-hidden="true"></span>Out of Stock</span></td>
+                    <td class="num">0</td>
+                    <td class="num admin-only">PHP 11,200</td>
+                    <td>3d ago</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- SCREEN 2: PRODUCTS & MEDIA (Full-Width Canvas — No Right Rail) -->
+        <div class="view-screen" id="screen-products">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Products &amp; Media</h1>
+              <p class="page-subtitle">Catalog SKUs, branch stock counts, and Supabase Storage media library.</p>
+            </div>
+            <div class="header-actions">
+              <button type="button" class="btn btn-secondary" id="toggleProductsViewBtn" onclick="toggleProductsMode()">Switch to Cards</button>
+              <button type="button" class="btn btn-primary" onclick="openDrawerTab('edit')">Add Equipment</button>
+            </div>
+          </div>
+
+          <section class="surface-panel" aria-label="Products catalog and media library">
+            <div class="toolbar">
+              <div class="tab-strip" role="tablist" aria-label="Catalog sections">
+                <button type="button" role="tab" aria-selected="true" class="seg-tab active" onclick="setProductSubtab('catalog', this)">Catalog SKUs (46)</button>
+                <button type="button" role="tab" aria-selected="false" class="seg-tab" onclick="setProductSubtab('media', this)">Images &amp; Media (38)</button>
+              </div>
+              <div class="filter-pills">
+                <label class="sr-only" for="products-search">Filter catalog or image filenames</label>
+                <input id="products-search" class="inline-search" type="search" placeholder="Filter catalog or filename" />
+                <button type="button" class="pill-select">Filter Category</button>
+              </div>
+            </div>
+
+            <div id="products-table-view" class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Branch Stock (Quiapo / Bulacan)</th>
+                    <th>Status</th>
+                    <th class="admin-only">Unit Price</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr onclick="openDrawerTab('edit')">
+                    <td><strong>LVTopsun 48V 100Ah LiFePO4</strong> <span class="sku-mono">JDS-BAT-48100</span></td>
+                    <td class="num">1 / 1 (2 total)</td>
+                    <td><span class="status-inline"><span class="status-dot dot-warn" aria-hidden="true"></span>Low Stock</span></td>
+                    <td class="num admin-only">PHP 54,500</td>
+                    <td><button type="button" class="pill-select" onclick="event.stopPropagation();openDrawerTab('audit')">Audit Stock</button></td>
+                  </tr>
+                  <tr onclick="openDrawerTab('edit')">
+                    <td><strong>Deye 8kW Hybrid Solar Inverter</strong> <span class="sku-mono">JDS-INV-DEYE8K</span></td>
+                    <td class="num">6 / 5 (11 total)</td>
+                    <td><span class="status-inline"><span class="status-dot dot-ok" aria-hidden="true"></span>In Stock</span></td>
+                    <td class="num admin-only">PHP 78,900</td>
+                    <td><button type="button" class="pill-select" onclick="event.stopPropagation();openDrawerTab('audit')">Audit Stock</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div id="products-cards-view" class="cards-grid" style="display:none;">
+              <button type="button" class="product-card-mini" onclick="openDrawerTab('inspect')">
+                <span style="font-weight:700;">LVTopsun 48V 100Ah LiFePO4</span>
+                <span class="sku-mono">JDS-BAT-48100 (2 units)</span>
+                <span class="admin-only num">PHP 54,500</span>
+              </button>
+              <button type="button" class="product-card-mini" onclick="openDrawerTab('inspect')">
+                <span style="font-weight:700;">Deye 8kW Hybrid Inverter</span>
+                <span class="sku-mono">JDS-INV-DEYE8K (11 units)</span>
+                <span class="admin-only num">PHP 78,900</span>
+              </button>
+              <button type="button" class="product-card-mini" onclick="openDrawerTab('inspect')">
+                <span style="font-weight:700;">Canadian Solar 550W Mono</span>
+                <span class="sku-mono">JDS-PV-CS550 (84 units)</span>
+                <span class="admin-only num">PHP 8,450</span>
+              </button>
+            </div>
+
+            <div id="products-media-view" class="cards-grid" style="display:none;">
+              <div class="product-card-mini">
+                <div style="height:84px;background:var(--jds-surface-container);border-radius:6px;display:grid;place-items:center;font-weight:700;color:var(--jds-on-surface-variant);">deye-8kw.webp</div>
+                <div style="font-size:13px;font-weight:600;">184 KB (Copy Storage URL)</div>
+              </div>
+              <div class="product-card-mini">
+                <div style="height:84px;background:var(--jds-surface-container);border-radius:6px;display:grid;place-items:center;font-weight:700;color:var(--jds-on-surface-variant);">lvtopsun-100ah.webp</div>
+                <div style="font-size:13px;font-weight:600;">142 KB (Copy Storage URL)</div>
+              </div>
+              <div class="product-card-mini">
+                <div style="height:84px;background:var(--jds-surface-container);border-radius:6px;display:grid;place-items:center;font-weight:700;color:var(--jds-on-surface-variant);">cs-550w.webp</div>
+                <div style="font-size:13px;font-weight:600;">210 KB (Copy Storage URL)</div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- SCREEN 3: REGISTER SALE & QR (Dedicated Two-Column Workflow) -->
+        <div class="view-screen" id="screen-register-sale">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Register Sale &amp; QR Token</h1>
+              <p class="page-subtitle">Bind customer phone, branch stock deduction, and official warranty token.</p>
+            </div>
+          </div>
+
+          <div class="two-col-workflow">
+            <div class="form-card">
+              <h2 style="font-weight:800;font-size:16px;">Customer &amp; Branch Selection</h2>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+                <div>
+                  <label class="field-label" for="cust-phone">Customer phone</label>
+                  <input id="cust-phone" class="field-input" type="tel" autocomplete="tel" />
+                </div>
+                <div>
+                  <label class="field-label" for="branch-select">Fulfillment branch</label>
+                  <select id="branch-select" class="field-input">
+                    <option>Quiapo Showroom</option>
+                    <option>Bulacan Depot</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="field-label" for="res-select">Pending reservation</label>
+                <select id="res-select" class="field-input">
+                  <option>Reservation #RES-0418 (1x Deye 8kW + 2x Battery)</option>
+                  <option>Walk-in counter sale</option>
+                </select>
+              </div>
+              <h3 style="font-weight:700;font-size:14px;margin-top:4px;">Serialized Equipment Line Items</h3>
+              <div style="padding:12px;background:var(--jds-surface-low);border:1px solid var(--jds-outline-soft);border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+                <div>
+                  <div style="font-weight:700;">Deye 8kW Hybrid Inverter</div>
+                  <div class="sku-mono">SN: DY8K-2026-00941</div>
+                </div>
+                <div class="num admin-only">PHP 78,900</div>
+              </div>
+            </div>
+
+            <div class="form-card" style="background:var(--jds-surface-low);">
+              <h2 class="rail-heading" style="margin-bottom:2px;">Branch &amp; QR Summary</h2>
+              <div style="padding:12px;background:var(--jds-surface-lowest);border:1px solid var(--jds-outline-soft);border-radius:8px;display:flex;flex-direction:column;gap:8px;">
+                <div class="rail-row"><span>Quiapo Available</span><strong class="num">6 units</strong></div>
+                <div class="rail-row"><span>Warranty Term</span><strong>5 Years Official</strong></div>
+                <div class="rail-row admin-only"><span>Sale Total</span><strong class="num">PHP 78,900</strong></div>
+              </div>
+              <div style="height:110px;border:1px dashed var(--jds-outline-variant);border-radius:8px;display:grid;place-items:center;color:var(--jds-on-surface-variant);font-weight:600;padding:12px;text-align:center;">
+                QR Warranty Token generated upon submission
+              </div>
+              <button type="button" class="btn btn-primary" style="width:100%;">Issue Sale &amp; Print QR</button>
+            </div>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- HYBRID RIGHT SUMMARY RAIL (Shown on Dashboard / Inquiries / Orders >= 1140px) -->
+      <aside class="right-rail" id="rightRail" aria-label="Operational summary rail">
+        <section class="rail-section">
+          <h2 class="rail-heading">
+            <span>Inquiry Fulfillment</span>
+            <span class="rail-heading-meta">This Month</span>
+          </h2>
+          <div class="gauge-box">
+            <svg class="gauge-svg" viewBox="0 0 160 90" aria-hidden="true">
+              <path d="M 16 78 A 64 64 0 0 1 144 78" fill="none" stroke="#ede1d1" stroke-width="10" stroke-linecap="round"/>
+              <path d="M 16 78 A 64 64 0 0 1 128 32" fill="none" stroke="#166534" stroke-width="10" stroke-linecap="round"/>
+            </svg>
+            <div class="gauge-figure">68 units</div>
+            <div class="gauge-sub">34 completed handovers</div>
+          </div>
+          <div class="split-metrics">
+            <div>
+              <div class="split-item-val">22 pickups</div>
+              <div class="split-item-lbl">Showroom release</div>
+            </div>
+            <div>
+              <div class="split-item-val">12 dispatch</div>
+              <div class="split-item-lbl">Installer delivery</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="rail-section">
+          <h2 class="rail-heading">
+            <span>Warranty &amp; Claim Status</span>
+            <span class="rail-heading-meta">Active</span>
+          </h2>
+          <div class="stacked-bar" aria-hidden="true">
+            <div style="width:72%;background:#166534;"></div>
+            <div style="width:18%;background:#d97706;"></div>
+            <div style="width:10%;background:#ba1a1a;"></div>
+          </div>
+          <div class="rail-list">
+            <div class="rail-row"><span>Resolved / Replaced</span><strong class="num">72%</strong></div>
+            <div class="rail-row"><span>Under Inspection</span><strong class="num">18%</strong></div>
+            <div class="rail-row"><span>Out of Warranty</span><strong class="num">10%</strong></div>
+          </div>
+        </section>
+
+        <section class="rail-section">
+          <h2 class="rail-heading">
+            <span>Operations Snapshot</span>
+            <span class="rail-heading-meta">30 Days</span>
+          </h2>
+          <div class="rail-grid-2">
+            <div>
+              <div class="rail-stat-val">142</div>
+              <div class="rail-stat-lbl">QR tokens issued</div>
+            </div>
+            <div>
+              <div class="rail-stat-val">4.2 hrs</div>
+              <div class="rail-stat-lbl">Avg reply time</div>
+            </div>
+            <div>
+              <div class="rail-stat-val">9</div>
+              <div class="rail-stat-lbl">Restock alerts</div>
+            </div>
+            <div>
+              <div class="rail-stat-val">96.4%</div>
+              <div class="rail-stat-lbl">Claim SLA met</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="rail-section">
+          <h2 class="rail-heading">
+            <span>Top Moving SKUs</span>
+            <span class="rail-heading-meta">30 Days</span>
+          </h2>
+          <div class="rail-list">
+            <div class="rail-row"><span>Canadian Solar 550W</span><strong class="num">42</strong></div>
+            <div class="rail-row"><span>Deye 8kW Hybrid</span><strong class="num">14</strong></div>
+            <div class="rail-row"><span>LVTopsun 48V 100Ah</span><strong class="num">11</strong></div>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Nav (< 780px) -->
+  <nav class="mobile-bottom-nav" aria-label="Mobile dashboard navigation">
+    <button type="button" class="mobile-tab active">Dashboard</button>
+    <button type="button" class="mobile-tab">Inquiries</button>
+    <button type="button" class="mobile-tab">Claims</button>
+    <button type="button" class="mobile-tab" onclick="switchToRegisterSale()">Register Sale</button>
+    <button type="button" class="mobile-tab">Open Menu</button>
+  </nav>
+
+  <!-- SLIDE-OVER RIGHT INSPECTOR DRAWER (Anchored below Public Navbar) -->
+  <div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div>
+  <aside class="drawer" id="inspectorDrawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+    <div class="drawer-head">
+      <div class="drawer-top-controls">
+        <span>Equipment Inspector</span>
+        <button type="button" class="btn btn-secondary" style="min-height:32px;padding:0 10px;font-size:12px;" onclick="closeDrawer()">Close Drawer</button>
+      </div>
+      <h2 id="drawer-title" class="drawer-title">LVTopsun 48V 100Ah LiFePO4 Battery</h2>
+      <div class="drawer-tabs" role="tablist" aria-label="Inspector sections">
+        <button type="button" role="tab" class="drawer-tab active" id="dtab-inspect" onclick="openDrawerTab('inspect')">Inspect</button>
+        <button type="button" role="tab" class="drawer-tab" id="dtab-audit" onclick="openDrawerTab('audit')">Audit Stock</button>
+        <button type="button" role="tab" class="drawer-tab" id="dtab-edit" onclick="openDrawerTab('edit')">Edit Specs</button>
+      </div>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Tab 1: Inspect -->
+      <div id="dpanel-inspect" style="display:flex;flex-direction:column;gap:18px;">
+        <div class="info-split">
+          <div class="kv-list">
+            <div class="kv-row"><span class="kv-key">SKU</span><span class="kv-val sku-mono">JDS-BAT-48100</span></div>
+            <div class="kv-row"><span class="kv-key">Category</span><span class="kv-val">Batteries</span></div>
+            <div class="kv-row admin-only"><span class="kv-key">Price</span><span class="kv-val num">PHP 54,500</span></div>
+            <div class="kv-row"><span class="kv-key">Quiapo</span><span class="kv-val num">1 unit</span></div>
+            <div class="kv-row"><span class="kv-key">Bulacan</span><span class="kv-val num">1 unit</span></div>
+            <div class="kv-row"><span class="kv-key">Reserved</span><span class="kv-val num">1 unit (Pickup)</span></div>
+            <div class="kv-row"><span class="kv-key">Status</span><span class="kv-val" style="color:var(--jds-warn);">Low Stock</span></div>
+          </div>
+          <div class="product-square">Product Image<br/>48V 100Ah</div>
+        </div>
+
+        <div>
+          <h3 class="rail-heading" style="margin-bottom:10px;">Stock Adjustment History</h3>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div style="font-weight:700;">Nov 14, 2026: Issued -1 unit</div>
+              <div style="color:var(--jds-on-surface-variant);">Sale #QR-8841 recorded by Staff Counter #1</div>
+            </div>
+            <div class="timeline-item">
+              <div style="font-weight:700;">Nov 09, 2026: Restocked +6 units</div>
+              <div style="color:var(--jds-on-surface-variant);">Supplier delivery verified by Admin Desk</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Audit Stock -->
+      <div id="dpanel-audit" style="display:none;flex-direction:column;gap:14px;">
+        <div>
+          <label class="field-label" for="audit-branch">Branch location</label>
+          <select id="audit-branch" class="field-input">
+            <option>Quiapo Showroom (Current: 1)</option>
+            <option>Bulacan Depot (Current: 1)</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label class="field-label" for="audit-count">Physical count</label>
+            <input id="audit-count" class="field-input" type="number" inputmode="numeric" value="2" />
+          </div>
+          <div>
+            <label class="field-label" for="audit-reason">Adjustment reason</label>
+            <select id="audit-reason" class="field-input">
+              <option>Showroom Restock</option>
+              <option>Warranty Swap</option>
+              <option>Stocktake Variance</option>
+              <option>Damaged Unit</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="field-label" for="audit-note">Audit note</label>
+          <textarea id="audit-note" class="field-input" style="height:80px;padding:10px 12px;resize:none;">Verified shelf count at Quiapo showroom.</textarea>
+        </div>
+      </div>
+
+      <!-- Tab 3: Edit Specs -->
+      <div id="dpanel-edit" style="display:none;flex-direction:column;gap:14px;">
+        <div>
+          <label class="field-label" for="edit-title">Equipment title</label>
+          <input id="edit-title" class="field-input" type="text" value="LVTopsun 48V 100Ah LiFePO4 Battery" />
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label class="field-label" for="edit-warranty">Warranty years</label>
+            <input id="edit-warranty" class="field-input" type="number" inputmode="numeric" value="5" />
+          </div>
+          <div class="admin-only">
+            <label class="field-label" for="edit-price">Unit price (PHP)</label>
+            <input id="edit-price" class="field-input" type="number" inputmode="numeric" value="54500" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawer-foot">
+      <button type="button" class="btn btn-secondary admin-only" style="color:var(--jds-error);border-color:var(--jds-error-container);">Archive SKU</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button type="button" class="btn btn-secondary" onclick="closeDrawer()">Discard Changes</button>
+        <button type="button" class="btn btn-primary" onclick="closeDrawer()">Save Changes</button>
+      </div>
+    </div>
+  </aside>
+
+  <script>
+    function setRole(role) {
+      const isStaff = role === 'staff';
+      document.getElementById('roleAdminBtn').classList.toggle('active', !isStaff);
+      document.getElementById('roleStaffBtn').classList.toggle('active', isStaff);
+      document.getElementById('topRolePill').textContent = isStaff ? 'Staff Member' : 'Administrator';
+      document.getElementById('navConsoleLabel').textContent = isStaff ? 'Staff Workspace' : 'Admin Console';
+      document.getElementById('userName').textContent = isStaff ? 'Counter Staff #1' : 'Admin Desk';
+      document.getElementById('userRoleText').textContent = isStaff ? 'Staff Profile' : 'Admin Profile';
+      document.getElementById('userAvatar').textContent = isStaff ? 'ST' : 'AD';
+      document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('staff-hidden', isStaff));
+      document.getElementById('staffAltCard').style.display = isStaff ? 'flex' : 'none';
+    }
+
+    function toggleSidebarCollapse() {
+      document.getElementById('sidebar').classList.toggle('collapsed');
+    }
+
+    function switchScreen(btn, screenId, showRail) {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      document.querySelectorAll('.view-screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen-' + screenId).classList.add('active');
+      document.getElementById('rightRail').classList.toggle('hidden', !showRail);
+    }
+
+    function switchToRegisterSale() {
+      const btns = document.querySelectorAll('.nav-item');
+      switchScreen(btns[1], 'register-sale', false);
+    }
+
+    function setSegTab(btn) {
+      btn.parentElement.querySelectorAll('.seg-tab').forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+      });
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+    }
+
+    let productsCardMode = false;
+    function toggleProductsMode() {
+      productsCardMode = !productsCardMode;
+      document.getElementById('toggleProductsViewBtn').textContent = productsCardMode ? 'Switch to Table' : 'Switch to Cards';
+      document.getElementById('products-table-view').style.display = productsCardMode ? 'none' : 'block';
+      document.getElementById('products-cards-view').style.display = productsCardMode ? 'grid' : 'none';
+      document.getElementById('products-media-view').style.display = 'none';
+    }
+
+    function setProductSubtab(tab, btn) {
+      setSegTab(btn);
+      const isMedia = tab === 'media';
+      document.getElementById('products-media-view').style.display = isMedia ? 'grid' : 'none';
+      document.getElementById('products-table-view').style.display = !isMedia && !productsCardMode ? 'block' : 'none';
+      document.getElementById('products-cards-view').style.display = !isMedia && productsCardMode ? 'grid' : 'none';
+    }
+
+    function openDrawerTab(tab) {
+      document.getElementById('inspectorDrawer').classList.add('open');
+      document.getElementById('drawerBackdrop').classList.add('open');
+      ['inspect', 'audit', 'edit'].forEach(id => {
+        document.getElementById('dtab-' + id).classList.toggle('active', id === tab);
+        document.getElementById('dpanel-' + id).style.display = id === tab ? 'flex' : 'none';
+      });
+    }
+
+    function closeDrawer() {
+      document.getElementById('inspectorDrawer').classList.remove('open');
+      document.getElementById('drawerBackdrop').classList.remove('open');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDrawer();
+    });
+  </script>
+</body>
+</html>

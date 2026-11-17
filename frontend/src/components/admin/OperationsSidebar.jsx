@@ -430,8 +430,8 @@ export default function OperationsSidebar({
             title="Open account profile"
             aria-label="Open account profile"
             className={`jds-focus-ring flex items-center gap-2.5 min-w-0 min-h-[44px] rounded-lg px-2 py-1.5 text-left transition-colors cursor-pointer ${activeScreen === 'profile'
-                ? 'bg-jds-primary/10 ring-1 ring-jds-primary/40'
-                : 'hover:bg-jds-surface-container'
+              ? 'bg-jds-primary/10 ring-1 ring-jds-primary/40'
+              : 'hover:bg-jds-surface-container'
               } ${collapsed ? 'lg:justify-center lg:px-1.5' : 'flex-1'}`}
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-jds-primary-container text-jds-on-primary-container text-xs font-extrabold shrink-0">
