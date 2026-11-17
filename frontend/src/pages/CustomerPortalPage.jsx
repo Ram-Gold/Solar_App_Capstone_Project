@@ -2,16 +2,11 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import {
   ShieldCheck,
-  ShieldAlert,
-  ShieldX,
   Package,
   Phone,
-  Wrench,
   AlertTriangle,
   CheckCircle2,
   RefreshCw,
-  Info,
-  Sparkles,
   KeyRound,
   Lock,
   Mail,
@@ -28,12 +23,12 @@ import {
   confirmCustomerEmailByToken,
   queueAndSendCustomerConfirmationEmail
 } from '../lib/customerService'
-import { formatDate, formatRemainingText, getClaimStatusMeta } from '../lib/warrantyUtils'
 import { sanitizeEmail, isValidEmail } from '../lib/sanitize.js'
 import FaultDiagnosticModal from '../components/FaultDiagnosticModal'
 import WarrantyTermsModal from '../components/WarrantyTermsModal'
+import EquipmentCard from '../components/portal/EquipmentCard'
+import ClaimTrackerCard from '../components/portal/ClaimTrackerCard'
 import useModalBehavior from '../hooks/useModalBehavior'
-import { getMainProductImage } from '../lib/productImageUtils'
 import { useAuth } from '../context/AuthContext'
 import AnimatedConfirmation from '../components/ui/AnimatedConfirmation'
 
@@ -79,6 +74,7 @@ export default function CustomerPortalPage() {
   const [error, setError] = useState(null)
   const [selectedPurchaseForClaim, setSelectedPurchaseForClaim] = useState(null)
   const [diagnosticMode, setDiagnosticMode] = useState('assistant')
+  const [activeTab, setActiveTab] = useState('equipment')
   const [manualTokenInput, setManualTokenInput] = useState('')
 
   // Password & Security Management States
@@ -175,7 +171,7 @@ export default function CustomerPortalPage() {
       }
     } catch (err) {
       console.error('Portal load failed:', err)
-      setError(err.message || 'Failed to retrieve your customer dashboard.')
+      setError(err.message || 'Failed to retrieve your customer portal.')
     } finally {
       setLoading(false)
     }
@@ -336,8 +332,8 @@ export default function CustomerPortalPage() {
   // 1. NO TOKEN SCREEN
   if (!token) {
     return (
-      <div className="min-h-screen bg-jds-background flex items-center justify-center p-4">
-        <div className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-6 text-center space-y-5 shadow-lg">
+      <div className="min-h-screen bg-jds-surface flex items-center justify-center p-4">
+        <div className="bg-jds-surface-container-lowest border border-jds-outline-variant/50 rounded-2xl max-w-md w-full p-6 text-center space-y-5 shadow-lg">
           <div className="w-14 h-14 rounded-2xl bg-jds-primary/10 text-jds-primary flex items-center justify-center mx-auto">
             <ShieldCheck className="w-8 h-8" />
           </div>
@@ -354,13 +350,13 @@ export default function CustomerPortalPage() {
               placeholder="Paste Access Token (UUID)..."
               value={manualTokenInput}
               onChange={(e) => setManualTokenInput(e.target.value)}
-              className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/50 rounded-xl px-4 py-2.5 text-xs text-jds-on-surface font-mono placeholder:font-sans placeholder:text-jds-on-surface-variant/40 focus:outline-none focus:border-jds-primary"
+              className="w-full min-h-[44px] bg-jds-surface border border-jds-outline-variant/50 rounded-xl px-4 py-2.5 text-base sm:text-xs text-jds-on-surface font-mono placeholder:font-sans placeholder:text-jds-on-surface-variant/40 focus:outline-none focus:border-jds-primary"
             />
             <button
               type="submit"
-              className="w-full py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-semibold text-xs hover:bg-jds-primary/90 transition-all shadow-sm"
+              className="w-full min-h-[44px] py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-semibold text-xs hover:bg-jds-primary/90 transition-all shadow-sm cursor-pointer"
             >
-              Open Dashboard
+              Open Portal
             </button>
           </form>
 
@@ -386,9 +382,9 @@ export default function CustomerPortalPage() {
   // 2. LOADING STATE
   if (loading) {
     return (
-      <div className="min-h-screen bg-jds-background flex flex-col items-center justify-center p-4 space-y-3">
+      <div className="min-h-screen bg-jds-surface flex flex-col items-center justify-center p-4 space-y-3">
         <div className="w-10 h-10 border-2 border-jds-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-jds-on-surface-variant font-medium">Loading your solar dashboard & warranties...</p>
+        <p className="text-xs text-jds-on-surface-variant font-medium">Loading your solar equipment &amp; warranties...</p>
       </div>
     )
   }
@@ -396,8 +392,8 @@ export default function CustomerPortalPage() {
   // 3. ERROR STATE
   if (error || !portalData) {
     return (
-      <div className="min-h-screen bg-jds-background flex items-center justify-center p-4">
-        <div className="bg-jds-surface border border-rose-500/20 rounded-2xl max-w-md w-full p-6 text-center space-y-4 shadow-lg">
+      <div className="min-h-screen bg-jds-surface flex items-center justify-center p-4">
+        <div className="bg-jds-surface-container-lowest border border-rose-500/20 rounded-2xl max-w-md w-full p-6 text-center space-y-4 shadow-lg">
           <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
             <AlertTriangle className="w-6 h-6" />
           </div>
@@ -409,7 +405,7 @@ export default function CustomerPortalPage() {
               setToken('')
               setError(null)
             }}
-            className="px-4 py-2 rounded-xl bg-jds-surface-container border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container-high transition-colors"
+            className="min-h-[44px] px-4 py-2 rounded-xl bg-jds-surface-container border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container-high transition-colors cursor-pointer"
           >
             Try Another Access Key
           </button>
@@ -420,6 +416,7 @@ export default function CustomerPortalPage() {
 
   const { customer, purchases = [], claims = [] } = portalData
   const activeWarrantiesCount = purchases.filter(p => p.is_warranty_active).length
+  const openClaims = claims.filter(c => ['in_review', 'pending', 'approved'].includes(c.status || 'in_review'))
   const resolvedCustomerEmail = authStatus.email || customer.email || ''
   const isEmailConfirmed = Boolean(
     emailJustConfirmedMessage ||
@@ -433,77 +430,57 @@ export default function CustomerPortalPage() {
     : (emailBannerStatus?.status || authStatus.emailConfirmationStatus || customer.email_confirmation_status || (resolvedCustomerEmail ? 'awaiting_confirmation' : 'unconfirmed'))
 
   return (
-    <div className="min-h-screen bg-jds-background pb-16">
-      
-      {/* Top Banner & Customer Header */}
-      <div className="bg-jds-surface border-b border-jds-outline-variant/30 px-3.5 py-4 sm:px-6 sm:py-6 md:px-8">
-        <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
+    <div className="min-h-screen bg-jds-surface pb-16">
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-            <div>
-              <div className="text-[10px] sm:text-xs font-semibold text-jds-primary uppercase tracking-wider">
-                Customer Dashboard
-              </div>
-              <h1 className="text-lg sm:text-2xl font-bold text-jds-on-surface mt-0.5">
-                Welcome, {customer.name}!
-              </h1>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-[11px] sm:text-xs text-jds-on-surface-variant">
-                <span className="flex items-center gap-1 sm:gap-1.5">
-                  <Phone className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {customer.phone}
-                </span>
-                {resolvedCustomerEmail && (
-                  <span className="flex items-center gap-1 sm:gap-1.5">
-                    <Mail className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {resolvedCustomerEmail}
-                  </span>
-                )}
-              </div>
+      {/* Calm Identity & Utility Header */}
+      <div className="bg-jds-surface-container-lowest border-b border-jds-outline-variant/40 px-4 py-5 sm:px-6 sm:py-6">
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <div className="text-[11px] font-bold text-jds-primary uppercase tracking-wider">
+              Customer Portal
             </div>
-
-            <div className="flex items-center gap-2 self-start md:self-auto">
-              <button
-                onClick={() => {
-                  setPwdError(null)
-                  setPwdSuccess(null)
-                  setIsPasswordModalOpen(true)
-                }}
-                className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-jds-primary/10 hover:bg-jds-primary/20 border border-jds-primary/30 text-[11px] sm:text-xs font-semibold text-jds-primary flex items-center gap-1 sm:gap-1.5 transition-colors cursor-pointer"
-              >
-                <KeyRound className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                {authStatus.hasPassword ? 'Change Password' : 'Set Password'}
-              </button>
-
-              <button
-                onClick={() => loadData(token)}
-                className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-jds-surface-container/60 border border-jds-outline-variant/40 hover:bg-jds-surface-container text-[11px] sm:text-xs font-medium text-jds-on-surface flex items-center gap-1 sm:gap-1.5 transition-colors cursor-pointer"
-              >
-                <RefreshCw className="w-3 h-3" />
-                Refresh
-              </button>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-jds-on-surface tracking-tight mt-0.5">
+              Welcome, {customer.name}!
+            </h1>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-xs text-jds-on-surface-variant">
+              <span className="inline-flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5" /> {customer.phone}
+              </span>
+              {resolvedCustomerEmail && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5" /> {resolvedCustomerEmail}
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Quick Metrics Bar */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-1 sm:pt-2">
-            <div className="p-2 sm:p-3 rounded-xl bg-jds-surface-container/30 border border-jds-outline-variant/20 text-center">
-              <div className="text-sm sm:text-lg md:text-xl font-bold text-jds-on-surface">{purchases.length}</div>
-              <div className="text-[9px] sm:text-xs text-jds-on-surface-variant font-medium">Units</div>
-            </div>
-            <div className="p-2 sm:p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-              <div className="text-sm sm:text-lg md:text-xl font-bold text-emerald-500">{activeWarrantiesCount}</div>
-              <div className="text-[9px] sm:text-xs text-emerald-600 font-medium">Warranties</div>
-            </div>
-            <div className="p-2 sm:p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center">
-              <div className="text-sm sm:text-lg md:text-xl font-bold text-blue-500">{claims.length}</div>
-              <div className="text-[9px] sm:text-xs text-blue-600 font-medium">Claims</div>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleOpenWarrantyTerms}
+              className="min-h-[44px] sm:min-h-[38px] px-3.5 py-2 rounded-xl bg-jds-surface-container-lowest hover:bg-jds-surface-container-low border border-jds-outline-variant/60 text-xs font-semibold text-jds-on-surface inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Review Official Warranty Terms"
+            >
+              <FileText className="w-3.5 h-3.5 text-jds-primary" />
+              <span>Terms &amp; Policy</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => loadData(token)}
+              className="min-h-[44px] sm:min-h-[38px] px-3.5 py-2 rounded-xl bg-jds-surface-container-lowest hover:bg-jds-surface-container-low border border-jds-outline-variant/60 text-xs font-semibold text-jds-on-surface inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Refresh</span>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-5 sm:py-8 space-y-5 sm:space-y-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-5">
 
-        {/* Email Confirmation Status Banner (Non-blocking) */}
+        {/* Email Confirmation Status Banner (Exception-first, non-blocking) */}
         {emailJustConfirmedMessage && (
           <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3 text-xs text-emerald-700 dark:text-emerald-300">
             <div className="flex items-center gap-2.5">
@@ -516,12 +493,12 @@ export default function CustomerPortalPage() {
         )}
 
         {!isEmailConfirmed && (
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="p-4 rounded-2xl bg-jds-primary-container/15 border border-jds-primary-container/45 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div className="flex items-start gap-2.5">
               {currentEmailStatus === 'queued' || resendingConfirmation ? (
                 <RefreshCw className="w-4 h-4 text-jds-primary shrink-0 mt-0.5 animate-spin" />
               ) : (
-                <Clock className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <Clock className="w-4 h-4 text-jds-primary shrink-0 mt-0.5" />
               )}
               <div className="space-y-0.5">
                 <div className="font-bold text-jds-on-surface">
@@ -545,7 +522,7 @@ export default function CustomerPortalPage() {
                   type="button"
                   onClick={handleResendEmailConfirmation}
                   disabled={resendingConfirmation || currentEmailStatus === 'queued'}
-                  className="px-3.5 py-2 rounded-xl bg-jds-surface border border-jds-outline-variant/50 hover:bg-jds-surface-container text-xs font-semibold text-jds-on-surface flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  className="min-h-[44px] sm:min-h-[38px] px-3.5 py-2 rounded-xl bg-jds-surface-container-lowest border border-jds-outline-variant/60 hover:bg-jds-surface-container-low text-xs font-semibold text-jds-on-surface flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${resendingConfirmation ? 'animate-spin' : ''}`} />
                   Resend Confirmation Email
@@ -558,7 +535,7 @@ export default function CustomerPortalPage() {
                     setPwdSuccess(null)
                     setIsPasswordModalOpen(true)
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 transition-colors"
+                  className="min-h-[44px] sm:min-h-[38px] px-3.5 py-2 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 transition-colors cursor-pointer"
                 >
                   Add Email Address
                 </button>
@@ -567,376 +544,215 @@ export default function CustomerPortalPage() {
           </div>
         )}
 
-        {/* SECTION 1: Registered Products & Warranties */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-jds-primary" />
-              <h2 className="text-lg font-bold text-jds-on-surface">Purchased Products & Warranties</h2>
-            </div>
-            <span className="text-xs text-jds-on-surface-variant font-medium">
-              {purchases.length} Item{purchases.length === 1 ? '' : 's'}
-            </span>
-          </div>
-
-          {purchases.length === 0 ? (
-            <div className="p-8 text-center rounded-2xl bg-jds-surface border border-jds-outline-variant/30 text-xs text-jds-on-surface-variant">
-              No registered product purchases found for this account.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {purchases.map((p) => {
-                const isActive = p.is_warranty_active
-                const linkedClaims = claims.filter(
-                  (c) => c.customer_purchase_id === p.id || c.customer_purchases?.id === p.id
-                )
-                const hasClaimedReplacement = linkedClaims.some(
-                  (c) => c.status === 'resolved' || c.status === 'approved'
-                )
-
-                return (
-                  <div
-                    key={p.id}
-                    className="p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm flex flex-col justify-between hover:border-jds-outline-variant/80 transition-all space-y-4"
-                  >
-                    <div>
-                      {/* Top Product Header */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-0.5">
-                          <h3 className="font-bold text-sm text-jds-on-surface leading-snug">
-                            {p.product_name}
-                          </h3>
-                          <p className="text-xs text-jds-on-surface-variant">
-                            {p.watt || p.product_type || 'Solar Product'}
-                          </p>
-                        </div>
-                        {getMainProductImage(p.product_image) && (
-                          <img
-                            src={getMainProductImage(p.product_image)}
-                            alt={p.product_name}
-                            className="w-12 h-12 rounded-lg object-cover border border-jds-outline-variant/30 shrink-0"
-                          />
-                        )}
-                      </div>
-
-                      {/* Hardware & Purchase Details */}
-                      <div className="mt-3 space-y-1 text-xs text-jds-on-surface-variant bg-jds-surface-container/20 p-3 rounded-xl border border-jds-outline-variant/20">
-                        {p.serial_number && (
-                          <div className="flex justify-between">
-                            <span>Serial #:</span>
-                            <strong className="font-mono text-jds-on-surface">{p.serial_number}</strong>
-                          </div>
-                        )}
-                        <div className="flex justify-between">
-                          <span>Purchase Date:</span>
-                          <span className="text-jds-on-surface">{formatDate(p.purchase_date)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Store Branch:</span>
-                          <span className="text-jds-on-surface">{p.branch_location || 'Cavite'}</span>
-                        </div>
-                      </div>
-
-                      {/* Warranty Status Pill */}
-                      <div className="mt-3">
-                        {p.is_voided ? (
-                          <div className="space-y-2">
-                            <div className="p-2.5 rounded-xl text-xs flex items-center justify-between border bg-rose-500/10 text-rose-500 border-rose-500/20">
-                              <div className="flex items-center gap-1.5 font-semibold">
-                                <ShieldX className="w-4 h-4" />
-                                <span>Warranty Voided</span>
-                              </div>
-                              <span className="text-[11px] font-medium">Disqualified</span>
-                            </div>
-                            <div className="p-2.5 rounded-xl bg-rose-500/5 border border-rose-500/20 text-[11px] text-rose-600 leading-snug">
-                              <strong>Void Reason:</strong> {p.void_reason || 'Disqualified under warranty policy.'}
-                            </div>
-                          </div>
-                        ) : hasClaimedReplacement ? (
-                          <div className="space-y-1.5">
-                            <div className="p-2.5 rounded-xl text-xs flex items-center justify-between border bg-amber-500/10 text-amber-600 border-amber-500/20">
-                              <div className="flex items-center gap-1.5 font-semibold">
-                                <ShieldCheck className="w-4 h-4 text-amber-600" />
-                                <span>1-Time Replacement Fulfilled</span>
-                              </div>
-                              <span className="text-[11px] font-medium">Concluded</span>
-                            </div>
-                            <div className="px-1 text-[11px] text-jds-on-surface-variant leading-tight">
-                              The 1-time replacement entitlement has been fulfilled. Shop repairs remain available at store branches.
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-1.5">
-                            <div
-                              className={`p-2.5 rounded-xl text-xs flex items-center justify-between border ${
-                                isActive
-                                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                                  : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                              }`}
-                            >
-                              <div className="flex items-center gap-1.5 font-semibold">
-                                {isActive ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
-                                <span>{isActive ? 'Active (1 Replacement Available)' : 'Expired'}</span>
-                              </div>
-                              <span className="text-[11px] font-medium">
-                                {formatRemainingText(p.days_remaining)}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Troubleshooting & Claim Actions */}
-                    <div className="p-3.5 rounded-xl bg-gradient-to-br from-jds-surface-container/60 via-jds-surface-container-low to-jds-surface border border-jds-primary/20 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-jds-on-surface">
-                          <Wrench className="w-3.5 h-3.5 text-jds-primary" />
-                          <span>Troubleshooting & Claims</span>
-                        </div>
-                      </div>
-
-                      {p.is_voided || hasClaimedReplacement ? (
-                        <div className="space-y-2.5">
-                          <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
-                            {p.is_voided
-                              ? "This equipment's warranty is voided. You can still use our self-diagnostic troubleshooting guide or visit our Quiapo / Cavite branch for non-warranty shop servicing."
-                              : "This unit has used its 1-time warranty replacement entitlement. You can run self-diagnostics or bring the unit to our branch for shop repairs."}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedPurchaseForClaim(p)
-                              setDiagnosticMode('assistant')
-                            }}
-                            className="w-full py-2 px-2.5 rounded-xl bg-jds-surface-container border border-jds-outline-variant/60 hover:bg-jds-surface-container-high text-xs font-semibold text-jds-on-surface transition-all flex items-center justify-center gap-1.5 shadow-2xs"
-                          >
-                            <Sparkles className="w-3.5 h-3.5 text-jds-primary" />
-                            <span>Run Troubleshooting Guide</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="text-[11px] text-jds-on-surface-variant leading-relaxed">
-                            Run a multi-criteria diagnostic audit across electrical, physical, and environmental checks, or directly file a warranty claim.
-                          </p>
-
-                          <div className="grid grid-cols-2 gap-2 pt-0.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedPurchaseForClaim(p)
-                                setDiagnosticMode('assistant')
-                              }}
-                              className="py-2 px-2.5 rounded-xl bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
-                            >
-                              <Sparkles className="w-3.5 h-3.5" />
-                              <span>Troubleshoot</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedPurchaseForClaim(p)
-                                setDiagnosticMode('claim')
-                              }}
-                              className="py-2 px-2.5 rounded-xl bg-jds-surface border border-jds-outline-variant/60 hover:bg-jds-surface-container hover:border-jds-primary/40 text-xs font-semibold text-jds-on-surface transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                            >
-                              <Wrench className="w-3.5 h-3.5 text-jds-primary" />
-                              <span>File Manual Claim</span>
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Hardware & Coverage Summary Footer */}
-                    <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] pt-1 border-t border-jds-outline-variant/20 text-jds-on-surface-variant">
-                      <span>Serial #: <strong className="font-mono text-jds-on-surface">{p.serial_number || 'N/A'}</strong></span>
-                      <span>Warranty: <strong>{p.warranty_months ? `${p.warranty_months} Months (${Math.round(p.warranty_months / 12)} Yrs)` : '24 Months (2 Yrs)'}</strong></span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Warranty Policy & Case Evaluation Overview Banner */}
-        <div className="p-4 md:p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-xs space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-jds-outline-variant/20 pb-3">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <div>
-                <h3 className="text-sm font-bold text-jds-on-surface">2-Year Solar Warranty & Case Evaluation Policy</h3>
-                <p className="text-xs text-jds-on-surface-variant">Default 24-Month Coverage • 1-Time Replacement Entitlement</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 self-start sm:self-auto flex-wrap">
-              <button
-                type="button"
-                onClick={handleOpenWarrantyTerms}
-                className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-jds-primary/10 hover:bg-jds-primary/20 text-jds-primary border border-jds-primary/30 transition-colors flex items-center gap-1 cursor-pointer"
-                title="Review Official Warranty Terms"
-              >
-                <FileText className="w-3 h-3" />
-                <span>Terms & Policy</span>
-              </button>
-              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                24 Mos Solar Terms
-              </span>
-              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
-                1-Time Replacement
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs leading-relaxed text-jds-on-surface-variant">
-            <div className="p-3 rounded-xl bg-jds-surface-container/30 border border-jds-outline-variant/20 space-y-1">
-              <strong className="text-emerald-700 dark:text-emerald-400 font-semibold block">Covered Under Warranty (Case-by-Case):</strong>
-              <p>Manufacturing and factory defects, internal controller/sensor failure, abnormal battery loss, and solar cell degradation under standard operating conditions.</p>
-            </div>
-            <div className="p-3 rounded-xl bg-jds-surface-container/30 border border-jds-outline-variant/20 space-y-1">
-              <strong className="text-rose-700 dark:text-rose-400 font-semibold block">Disqualified / Voided Terms:</strong>
-              <p>Physical drops, shattered glass, blunt force casing trauma, customer carelessness, unauthorized disassembly, modified wiring, or water ingress from unsealed ports.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION 2: Active Claims & Status Tracker */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-blue-500" />
-              <h2 className="text-lg font-bold text-jds-on-surface">Service & Diagnostic Claims</h2>
-            </div>
-            <span className="text-xs text-jds-on-surface-variant font-medium">
-              {claims.length} Ticket{claims.length === 1 ? '' : 's'}
-            </span>
-          </div>
-
-          {claims.length === 0 ? (
-            <div className="p-6 text-center rounded-2xl bg-jds-surface border border-jds-outline-variant/30 text-xs text-jds-on-surface-variant space-y-1">
-              <CheckCircle2 className="w-8 h-8 text-emerald-500/40 mx-auto" />
-              <div className="font-semibold text-jds-on-surface">No Active Claims</div>
-              <div>All your registered solar products are in good operational standing.</div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {claims.map((claim) => {
-                const statusMeta = getClaimStatusMeta(claim.status)
-                return (
-                  <div
-                    key={claim.id}
-                    className="p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-3"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-jds-outline-variant/20">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-jds-primary">
-                          TICKET #{claim.id.slice(0, 8).toUpperCase()}
-                        </span>
-                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${statusMeta.color}`}>
-                          {statusMeta.label}
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-jds-on-surface-variant">
-                        Filed: {formatDate(claim.created_at)}
-                      </span>
-                    </div>
-
-                    <div className="text-xs space-y-1">
-                      <div className="font-semibold text-jds-on-surface">
-                        Product: {claim.product_name}
-                      </div>
-                      <div className="text-jds-on-surface-variant">
-                        Symptom: <strong className="text-jds-on-surface">{claim.issue_category}</strong>
-                      </div>
-                      <p className="text-jds-on-surface-variant bg-jds-surface-container/30 p-2.5 rounded-xl border border-jds-outline-variant/20 mt-1 whitespace-pre-line">
-                        "{claim.description}"
-                      </p>
-                    </div>
-
-                    {/* Staff Technician Note Callout */}
-                    {claim.staff_notes && (
-                      <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs space-y-1">
-                        <div className="font-semibold text-blue-600 flex items-center gap-1.5">
-                          <Info className="w-3.5 h-3.5" /> Note from Store Technician:
-                        </div>
-                        <div className="text-jds-on-surface font-medium pl-5">
-                          {claim.staff_notes}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Account Security & Password Status Card */}
-        <div className="p-6 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center shrink-0 mt-0.5">
-              <KeyRound className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-jds-on-surface">Account Password & Security</h3>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                  authStatus.hasPassword
-                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                    : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                }`}>
-                  {authStatus.hasPassword ? 'Password Enabled' : 'Token Only'}
-                </span>
-              </div>
-              <p className="text-xs text-jds-on-surface-variant max-w-xl">
-                {authStatus.hasPassword
-                  ? `Linked login email: ${authStatus.email}. You can sign in via email & password on the main portal login page.`
-                  : 'You are currently accessing this portal via token or QR scan. Set a password to sign in via email & password anytime.'}
-              </p>
-            </div>
-          </div>
-
+        {/* Segmented Navigation Tabs */}
+        <nav
+          aria-label="Customer portal sections"
+          className="inline-flex max-w-full overflow-x-auto scrollbar-hide bg-jds-surface-container p-1 rounded-2xl border border-jds-outline-variant/45 gap-1"
+        >
           <button
-            onClick={() => {
-              setPwdError(null)
-              setPwdSuccess(null)
-              setIsPasswordModalOpen(true)
-            }}
-            className="px-4 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 transition-all shrink-0 shadow-sm"
+            type="button"
+            onClick={() => setActiveTab('equipment')}
+            className={`min-h-[44px] sm:min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'equipment'
+                ? 'bg-jds-surface-container-lowest text-jds-on-surface shadow-xs'
+                : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+            }`}
           >
-            {authStatus.hasPassword ? 'Change Password' : 'Set Up Password'}
+            <Package className="w-3.5 h-3.5 text-jds-primary" />
+            <span>My Equipment</span>
+            <span className="px-1.5 py-0.5 rounded-full text-[11px] bg-jds-surface-container-high text-jds-on-surface-variant">
+              {purchases.length}
+            </span>
           </button>
-        </div>
-
-        {/* Danger Zone: Delete Customer Account Card (Bottom of Page) */}
-        <div className="p-6 rounded-2xl bg-rose-500/5 border border-rose-500/30 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0 mt-0.5">
-              <Trash2 className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-rose-600 dark:text-rose-400">Delete Account</h3>
-              <p className="text-xs text-jds-on-surface-variant max-w-xl leading-relaxed">
-                Permanently remove your customer profile, portal access credentials, registered equipment units, and warranty claim history from the JD Solar platform.
-              </p>
-            </div>
-          </div>
 
           <button
             type="button"
-            onClick={() => {
-              setDeleteError(null)
-              setIsDeleteModalOpen(true)
-            }}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 transition-all shrink-0 shadow-sm cursor-pointer"
+            onClick={() => setActiveTab('claims')}
+            className={`min-h-[44px] sm:min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'claims'
+                ? 'bg-jds-surface-container-lowest text-jds-on-surface shadow-xs'
+                : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+            }`}
           >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Delete Account</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-jds-secondary" />
+            <span>Service Claims</span>
+            <span className="px-1.5 py-0.5 rounded-full text-[11px] bg-jds-surface-container-high text-jds-on-surface-variant">
+              {claims.length}
+            </span>
           </button>
-        </div>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('account')}
+            className={`min-h-[44px] sm:min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'account'
+                ? 'bg-jds-surface-container-lowest text-jds-on-surface shadow-xs'
+                : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+            }`}
+          >
+            <KeyRound className="w-3.5 h-3.5 text-jds-on-surface-variant" />
+            <span>Account &amp; Security</span>
+          </button>
+        </nav>
+
+        {/* TAB 1: MY EQUIPMENT */}
+        {activeTab === 'equipment' && (
+          <section className="space-y-4">
+            {openClaims.length > 0 && (
+              <div className="p-4 rounded-2xl bg-jds-secondary/10 border border-jds-secondary/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-start gap-2.5">
+                  <ShieldCheck className="w-4 h-4 text-jds-secondary shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold text-jds-on-surface">
+                      {openClaims.length} Active Service Ticket{openClaims.length === 1 ? '' : 's'}
+                    </div>
+                    <p className="text-jds-on-surface-variant mt-0.5">
+                      TICKET #{String(openClaims[0].id || '').slice(0, 8).toUpperCase()} for {openClaims[0].product_name} is currently in progress.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('claims')}
+                  className="min-h-[44px] sm:min-h-[36px] px-3.5 py-2 rounded-xl bg-jds-surface-container-lowest border border-jds-outline-variant/60 hover:bg-jds-surface-container-low text-xs font-bold text-jds-secondary shrink-0 self-start sm:self-center cursor-pointer"
+                >
+                  Track Claim
+                </button>
+              </div>
+            )}
+
+            {purchases.length === 0 ? (
+              <div className="p-8 text-center rounded-2xl bg-jds-surface-container-lowest border border-jds-outline-variant/40 text-xs text-jds-on-surface-variant">
+                No registered product purchases found for this account.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {purchases.map((p) => {
+                  const linkedClaims = claims.filter(
+                    (c) =>
+                      c.customer_purchase_id === p.id ||
+                      c.customer_purchases?.id === p.id ||
+                      c.purchase_id === p.id
+                  )
+                  return (
+                    <EquipmentCard
+                      key={p.id}
+                      purchase={p}
+                      linkedClaims={linkedClaims}
+                      onTroubleshoot={(item) => {
+                        setSelectedPurchaseForClaim(item)
+                        setDiagnosticMode('assistant')
+                      }}
+                      onFileClaim={(item) => {
+                        setSelectedPurchaseForClaim(item)
+                        setDiagnosticMode('claim')
+                      }}
+                      onViewClaims={() => setActiveTab('claims')}
+                    />
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* TAB 2: SERVICE CLAIMS */}
+        {activeTab === 'claims' && (
+          <section className="space-y-4">
+            {claims.length === 0 ? (
+              <div className="p-8 text-center rounded-2xl bg-jds-surface-container-lowest border border-jds-outline-variant/40 text-xs text-jds-on-surface-variant space-y-3">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600/50 mx-auto" />
+                <div>
+                  <div className="font-bold text-sm text-jds-on-surface">No Active Service Claims</div>
+                  <p className="mt-1">All your registered solar products are in good operational standing.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('equipment')}
+                  className="min-h-[44px] sm:min-h-[38px] px-4 py-2 rounded-xl bg-jds-surface-container border border-jds-outline-variant/50 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container-high transition-colors cursor-pointer"
+                >
+                  Back to My Equipment
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                {claims.map((claim) => (
+                  <ClaimTrackerCard key={claim.id} claim={claim} />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* TAB 3: ACCOUNT & SECURITY */}
+        {activeTab === 'account' && (
+          <section className="space-y-3.5">
+            <div className="p-5 rounded-2xl bg-jds-surface-container-lowest border border-jds-outline-variant/50 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center shrink-0">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-sm font-bold text-jds-on-surface">Account Password &amp; Security</h2>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        authStatus.hasPassword
+                          ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25'
+                          : 'bg-amber-500/10 text-amber-600 border-amber-500/25'
+                      }`}
+                    >
+                      {authStatus.hasPassword ? 'Password Enabled' : 'Token Only'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-jds-on-surface-variant max-w-xl">
+                    {authStatus.hasPassword
+                      ? `Linked login email: ${authStatus.email || resolvedCustomerEmail || 'Configured'}. Sign in via email and password on the login page.`
+                      : 'You are currently accessing this portal via token or QR scan. Set a password to sign in via email and password anytime.'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPwdError(null)
+                  setPwdSuccess(null)
+                  setIsPasswordModalOpen(true)
+                }}
+                className="min-h-[44px] px-4 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-bold hover:bg-jds-primary/90 transition-all shrink-0 shadow-xs cursor-pointer"
+              >
+                {authStatus.hasPassword ? 'Change Password' : 'Set Up Password'}
+              </button>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-rose-500/5 border border-rose-500/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-sm font-bold text-rose-600 dark:text-rose-400">Delete Account</h2>
+                  <p className="text-xs text-jds-on-surface-variant max-w-xl leading-relaxed">
+                    Permanently remove your customer profile, portal access credentials, registered equipment units, and warranty claim history from the JD Solar platform.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteError(null)
+                  setIsDeleteModalOpen(true)
+                }}
+                className="min-h-[44px] inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-all shrink-0 shadow-xs cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Account</span>
+              </button>
+            </div>
+          </section>
+        )}
 
       </div>
 
@@ -948,7 +764,7 @@ export default function CustomerPortalPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-5 sm:p-6 my-auto space-y-5 shadow-2xl relative"
+            className="bg-jds-surface-container-lowest border border-jds-outline-variant/50 rounded-2xl max-w-md w-full max-h-[92dvh] overflow-y-auto p-5 sm:p-6 my-auto space-y-5 shadow-2xl relative"
           >
             <div className="flex items-center justify-between border-b border-jds-outline-variant/20 pb-4">
               <div className="flex items-center gap-2.5">
@@ -966,7 +782,7 @@ export default function CustomerPortalPage() {
               </div>
               <button
                 onClick={() => setIsPasswordModalOpen(false)}
-                className="w-7 h-7 rounded-lg hover:bg-jds-surface-container flex items-center justify-center text-jds-on-surface-variant"
+                className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 w-9 h-9 sm:w-7 sm:h-7 rounded-lg hover:bg-jds-surface-container flex items-center justify-center text-jds-on-surface-variant"
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />
@@ -991,92 +807,92 @@ export default function CustomerPortalPage() {
               />
             ) : (
               <form onSubmit={handleSavePassword} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-jds-on-surface-variant" />
-                  Account Email Address
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder="e.g. yourname@gmail.com"
-                  value={pwdEmail}
-                  onChange={(e) => setPwdEmail(e.target.value)}
-                  className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary"
-                />
-              </div>
-
-              {authStatus.hasPassword && (
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5 text-jds-on-surface-variant" />
-                      Current Password
-                    </label>
-                    <Link
-                      to="/forgot-password"
-                      className="text-[11px] text-jds-secondary font-semibold hover:underline"
-                    >
-                      Forgot?
-                    </Link>
-                  </div>
+                  <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-jds-on-surface-variant" />
+                    Account Email Address
+                  </label>
                   <input
-                    type="password"
-                    placeholder="Enter current password"
-                    value={pwdCurrent}
-                    onChange={(e) => setPwdCurrent(e.target.value)}
+                    type="email"
+                    required
+                    placeholder="e.g. yourname@gmail.com"
+                    value={pwdEmail}
+                    onChange={(e) => setPwdEmail(e.target.value)}
                     className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary"
                   />
                 </div>
-              )}
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-jds-on-surface-variant" />
-                  {authStatus.hasPassword ? 'New Password' : 'Create Password'}
-                </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Minimum 8 characters"
-                  value={pwdNew}
-                  onChange={(e) => setPwdNew(e.target.value)}
-                  className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary"
-                />
-              </div>
+                {authStatus.hasPassword && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-jds-on-surface-variant" />
+                        Current Password
+                      </label>
+                      <Link
+                        to="/forgot-password"
+                        className="text-[11px] text-jds-secondary font-semibold hover:underline"
+                      >
+                        Forgot?
+                      </Link>
+                    </div>
+                    <input
+                      type="password"
+                      placeholder="Enter current password"
+                      value={pwdCurrent}
+                      onChange={(e) => setPwdCurrent(e.target.value)}
+                      className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                    />
+                  </div>
+                )}
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-jds-on-surface-variant" />
-                  Confirm Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Re-enter password"
-                  value={pwdConfirm}
-                  onChange={(e) => setPwdConfirm(e.target.value)}
-                  className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary"
-                />
-              </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-jds-on-surface-variant" />
+                    {authStatus.hasPassword ? 'New Password' : 'Create Password'}
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Minimum 8 characters"
+                    value={pwdNew}
+                    onChange={(e) => setPwdNew(e.target.value)}
+                    className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                  />
+                </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-jds-outline-variant/20">
-                <button
-                  type="button"
-                  onClick={() => setIsPasswordModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-jds-surface-container/70 border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={pwdLoading}
-                  className="px-5 py-2 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-bold hover:bg-jds-primary/90 transition-all disabled:opacity-60 shadow-sm"
-                >
-                  {pwdLoading ? 'Saving...' : 'Save Password'}
-                </button>
-              </div>
-            </form>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-jds-on-surface-variant" />
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Re-enter password"
+                    value={pwdConfirm}
+                    onChange={(e) => setPwdConfirm(e.target.value)}
+                    className="w-full bg-jds-surface-container/50 border border-jds-outline-variant/40 rounded-xl px-3.5 py-2 text-xs text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-jds-outline-variant/20">
+                  <button
+                    type="button"
+                    onClick={() => setIsPasswordModalOpen(false)}
+                    className="min-h-[44px] sm:min-h-[38px] px-4 py-2 rounded-xl bg-jds-surface-container/70 border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={pwdLoading}
+                    className="min-h-[44px] sm:min-h-[38px] px-5 py-2 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-bold hover:bg-jds-primary/90 transition-all disabled:opacity-60 shadow-sm cursor-pointer"
+                  >
+                    {pwdLoading ? 'Saving...' : 'Save Password'}
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         </div>
@@ -1102,7 +918,7 @@ export default function CustomerPortalPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-md w-full p-5 sm:p-6 my-auto space-y-5 shadow-2xl relative"
+            className="bg-jds-surface-container-lowest border border-jds-outline-variant/50 rounded-2xl max-w-md w-full max-h-[92dvh] overflow-y-auto p-5 sm:p-6 my-auto space-y-5 shadow-2xl relative"
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
@@ -1142,7 +958,7 @@ export default function CustomerPortalPage() {
                   setDeleteError(null)
                 }}
                 disabled={isDeletingAccount}
-                className="px-4 py-2 rounded-xl bg-jds-surface-container/70 border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer"
+                className="min-h-[44px] sm:min-h-[38px] px-4 py-2 rounded-xl bg-jds-surface-container/70 border border-jds-outline-variant/40 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -1150,7 +966,7 @@ export default function CustomerPortalPage() {
                 type="button"
                 onClick={handleConfirmDeleteAccount}
                 disabled={isDeletingAccount}
-                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-all disabled:opacity-60 shadow-sm cursor-pointer"
+                className="min-h-[44px] sm:min-h-[38px] inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-all disabled:opacity-60 shadow-sm cursor-pointer"
               >
                 {isDeletingAccount ? (
                   <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />

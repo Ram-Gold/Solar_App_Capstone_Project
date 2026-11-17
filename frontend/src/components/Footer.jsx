@@ -10,7 +10,7 @@ export default function Footer() {
   const [showTermsModal, setShowTermsModal] = useState(false)
 
   return (
-    <footer className="bg-jds-surface-container-low border-t border-jds-outline-variant">
+    <footer className="bg-jds-chrome border-t border-jds-chrome-border">
       <div className="flex flex-col md:flex-row gap-10 w-full px-4 md:px-10 py-12 max-w-[1400px] mx-auto">
         {/* Left Side: Interactive Map */}
         <div className="w-full md:w-[450px] h-[300px] rounded-2xl overflow-hidden border border-jds-outline-variant shadow-sm group relative">
@@ -33,9 +33,9 @@ export default function Footer() {
           <div className="flex flex-col sm:flex-row justify-between items-start gap-10">
             <div className="flex flex-col gap-4 max-w-sm">
               <Link to="/" className="inline-block group" aria-label="JD Solar Home">
-                <img 
-                  src={jdSolarLogo} 
-                  alt="JD Solar" 
+                <img
+                  src={jdSolarLogo}
+                  alt="JD Solar"
                   className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
                 />
               </Link>
@@ -45,15 +45,15 @@ export default function Footer() {
               <div className="flex flex-col gap-1.5 text-body-sm text-jds-on-surface-variant font-inter pt-1">
                 <span>
                   <strong className="font-semibold text-jds-on-surface">Phone:</strong>{' '}
-                  <a href="tel:09668431913" className="hover:text-jds-secondary transition-colors">0966 843 1913</a>
+                  <a href="tel:09668431913" className="hover:text-jds-primary transition-colors">0966 843 1913</a>
                 </span>
                 <span>
                   <strong className="font-semibold text-jds-on-surface">Email:</strong>{' '}
-                  <a href="mailto:fozjeremy@gmail.com" className="hover:text-jds-secondary transition-colors">fozjeremy@gmail.com</a>
+                  <a href="mailto:fozjeremy@gmail.com" className="hover:text-jds-primary transition-colors">fozjeremy@gmail.com</a>
                 </span>
                 <span>
                   <strong className="font-semibold text-jds-on-surface">Messenger:</strong>{' '}
-                  <a href="https://www.facebook.com/profile.php?id=100067598921170" target="_blank" rel="noopener noreferrer" className="hover:text-jds-secondary transition-colors">JD-Foz Solar Products Trading</a>
+                  <a href="https://www.facebook.com/profile.php?id=100067598921170" target="_blank" rel="noopener noreferrer" className="hover:text-jds-primary transition-colors">JD-Foz Solar Products Trading</a>
                 </span>
                 <span className="text-xs text-jds-on-surface-variant/80">
                   Monday to Saturday, 8:00 AM – 5:30 PM (Closed on Sundays)
@@ -64,10 +64,10 @@ export default function Footer() {
             <nav className="flex flex-col gap-4 min-w-[140px] sm:text-right">
               <span className="font-inter text-label-sm font-bold uppercase tracking-widest text-jds-on-surface-variant/60">Navigation</span>
               <ul className="flex flex-col gap-2">
-                <li><Link to="/" className="font-inter text-label-md text-jds-on-surface hover:text-jds-secondary transition-colors">Home</Link></li>
-                <li><Link to="/browse" className="font-inter text-label-md text-jds-on-surface hover:text-jds-secondary transition-colors">Browse Products</Link></li>
-                <li><Link to="/about" className="font-inter text-label-md text-jds-on-surface hover:text-jds-secondary transition-colors">About Us</Link></li>
-                <li><Link to="/chat" className="font-inter text-label-md text-jds-on-surface hover:text-jds-secondary transition-colors">Solar Assistant</Link></li>
+                <li><Link to="/" className="font-inter text-label-md text-jds-on-surface hover:text-jds-primary transition-colors">Home</Link></li>
+                <li><Link to="/browse" className="font-inter text-label-md text-jds-on-surface hover:text-jds-primary transition-colors">Browse Products</Link></li>
+                <li><Link to="/about" className="font-inter text-label-md text-jds-on-surface hover:text-jds-primary transition-colors">About Us</Link></li>
+                <li><Link to="/chat" className="font-inter text-label-md text-jds-on-surface hover:text-jds-primary transition-colors">Solar Assistant</Link></li>
               </ul>
             </nav>
           </div>
@@ -84,7 +84,7 @@ export default function Footer() {
                 <button
                   type="button"
                   onClick={() => setShowPrivacyModal(true)}
-                  className="font-inter text-[11px] text-jds-on-surface-variant/80 hover:text-jds-secondary underline transition-colors cursor-pointer"
+                  className="min-h-[44px] sm:min-h-0 inline-flex items-center px-1 font-inter text-xs sm:text-[11px] text-jds-on-surface-variant/80 hover:text-jds-secondary underline transition-colors cursor-pointer"
                 >
                   Privacy Policy
                 </button>
@@ -92,21 +92,21 @@ export default function Footer() {
                 <button
                   type="button"
                   onClick={() => setShowTermsModal(true)}
-                  className="font-inter text-[11px] text-jds-on-surface-variant/80 hover:text-jds-secondary underline transition-colors cursor-pointer"
+                  className="min-h-[44px] sm:min-h-0 inline-flex items-center px-1 font-inter text-xs sm:text-[11px] text-jds-on-surface-variant/80 hover:text-jds-secondary underline transition-colors cursor-pointer"
                 >
                   Terms of Service
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-5">
-              <a href="https://www.facebook.com/profile.php?id=100067598921170" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full border border-jds-outline-variant flex items-center justify-center text-jds-on-surface-variant hover:bg-jds-primary hover:text-white hover:border-jds-primary transition-all duration-300">
+            <div className="flex items-center gap-4 sm:gap-5">
+              <a href="https://www.facebook.com/profile.php?id=100067598921170" target="_blank" rel="noopener noreferrer" className="w-11 h-11 sm:w-10 sm:h-10 rounded-full border border-jds-outline-variant flex items-center justify-center text-jds-on-surface-variant hover:bg-jds-primary hover:text-white hover:border-jds-primary transition-all duration-300">
                 <FaFacebook />
               </a>
-              <a href="https://www.instagram.com/jdfozsolarproductstrading/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full border border-jds-outline-variant flex items-center justify-center text-jds-on-surface-variant hover:bg-jds-primary hover:text-white hover:border-jds-primary transition-all duration-300">
+              <a href="https://www.instagram.com/jdfozsolarproductstrading/" target="_blank" rel="noopener noreferrer" className="w-11 h-11 sm:w-10 sm:h-10 rounded-full border border-jds-outline-variant flex items-center justify-center text-jds-on-surface-variant hover:bg-jds-primary hover:text-white hover:border-jds-primary transition-all duration-300">
                 <FaInstagram />
               </a>
-              <a href="mailto:fozjeremy@gmail.com" className="w-10 h-10 rounded-full border border-jds-outline-variant flex items-center justify-center text-jds-on-surface-variant hover:bg-jds-primary hover:text-white hover:border-jds-primary transition-all duration-300">
+              <a href="mailto:fozjeremy@gmail.com" className="w-11 h-11 sm:w-10 sm:h-10 rounded-full border border-jds-outline-variant flex items-center justify-center text-jds-on-surface-variant hover:bg-jds-primary hover:text-white hover:border-jds-primary transition-all duration-300">
                 <FaMailBulk />
               </a>
             </div>

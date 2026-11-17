@@ -31,7 +31,10 @@ import {
   normalizeInquiryStatus,
   getInquiryStatusConfig,
   getInactiveInquiriesSummary,
-  isEligibleForAutoPurge } from '../../lib/inquiryStatusUtils'
+  isEligibleForAutoPurge,
+  isPickupInquiry,
+  notifyOpsUpdated
+} from '../../lib/inquiryStatusUtils'
 import {
   getBranchStock,
   getAvailableQuantity,
@@ -48,6 +51,7 @@ import { extractFacebookHandle, formatFacebookUrl } from '../../lib/facebookUtil
 import { sanitizeEmail, isValidEmail } from '../../lib/sanitize.js'
 import AnimatedConfirmation from '../ui/AnimatedConfirmation'
 import { sendInquiryTicketEmail } from '../../lib/customerService'
+import InspectorDrawer from './InspectorDrawer'
 
 export const CALENDAR_START_HOUR = 7 // 07:00 AM
 export const CALENDAR_END_HOUR = 20  // 08:00 PM (13 hours: 7 to 19 inclusive)
@@ -117,18 +121,7 @@ export const TIME_SLOT_PRESETS = [
   '06:30 PM - 07:15 PM'
 ]
 
-export const isPickupTicket = (q) => {
-  if (!q) return false
-  if (q.ticket_code?.startsWith('JDS-RES-')) return true
-  if (q.ticket_code?.startsWith('JDS-INQ-')) return false
-  const purpose = (q.purpose_of_visitation || '').toLowerCase()
-  return (
-    purpose.includes('purchase') ||
-    purpose.includes('pickup') ||
-    purpose.includes('cash & carry') ||
-    purpose.includes('reservation')
-  )
-}
+export const isPickupTicket = isPickupInquiry
 
 export const getNextBusinessDay = () => {
   const d = new Date()
@@ -406,14 +399,16 @@ function getMonthDays(targetDate) {
   return days
 }
 
-export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
+export default function InquiriesScreen({ initialViewMode = 'calendar', onNavigate }) {
   const [inquiries, setInquiries] = useState([])
   const [loading, setLoading] = useState(true)
 
   // View state: 'calendar' (default) vs 'table'
   const [viewMode, setViewMode] = useState(initialViewMode)
   // Calendar sub-view: 'week' (default) vs 'month' vs 'day'
-  const [calendarSubView, setCalendarSubView] = useState('week')
+  const [calendarSubView, setCalendarSubView] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'day' : 'week'
+  )
 
   const [currentDate, setCurrentDate] = useState(new Date())
   const [branchFilter, setBranchFilter] = useState('ALL')
@@ -481,7 +476,6 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
   }
 
   const anyInquiryModalOpen = Boolean(
-    selectedInquiry ||
     isNewModalOpen ||
     ticketToDelete ||
     isPurgeModalOpen
@@ -496,7 +490,6 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         setIsNewModalOpen(false)
         setNewSuccessTicket(null)
       }
-      else if (selectedInquiry && !modalSaving) handleCloseModal()
     },
   })
 
@@ -540,6 +533,17 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
     setTimeout(() => setToastMsg(''), 4000)
   }
 
+  const releaseReservationsForTickets = async (tickets = []) => {
+    if (typeof supabase?.rpc !== 'function') return
+    const reservedTickets = tickets.filter((t) => Boolean(t?.is_reservation) && t?.id)
+    if (reservedTickets.length === 0) return
+    await Promise.allSettled(
+      reservedTickets.map((t) =>
+        supabase.rpc('release_product_reservation', { p_ticket_id: t.id })
+      )
+    )
+  }
+
   // Load inquiries from Supabase with localStorage backup and automated retention hygiene
   const loadInquiries = async () => {
     try {
@@ -579,16 +583,19 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         const eligibleCodes = new Set(eligibleOnLoad.map((q) => q.ticket_code))
 
         if (eligibleIds.length > 0) {
-          supabase
-            .from('quote_tickets')
-            .delete()
-            .in('id', eligibleIds)
-            .then(({ error: delErr }) => {
-              if (!delErr) {
-                console.info(`Auto-purged ${eligibleIds.length} inactive inquiries from database.`)
-              }
-            })
-            .catch((e) => console.warn('Auto-purge error:', e))
+          try {
+            await releaseReservationsForTickets(eligibleOnLoad)
+            const { error: delErr } = await supabase
+              .from('quote_tickets')
+              .delete()
+              .in('id', eligibleIds)
+            if (!delErr) {
+              console.info(`Auto-purged ${eligibleIds.length} inactive inquiries from database.`)
+              notifyOpsUpdated()
+            }
+          } catch (e) {
+            console.warn('Auto-purge error:', e)
+          }
         }
 
         try {
@@ -629,6 +636,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
     if (!ticketToDelete) return
     try {
       setIsDeletingTicket(true)
+      await releaseReservationsForTickets([ticketToDelete])
+
       if (ticketToDelete.id) {
         const { error } = await supabase
           .from('quote_tickets')
@@ -670,6 +679,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         handleCloseModal()
       }
 
+      notifyOpsUpdated()
       showToast(`Inquiry ${ticketToDelete.ticket_code} permanently deleted from database.`)
       setTicketToDelete(null)
     } catch (err) {
@@ -692,25 +702,17 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
       const idsToPurge = inactiveSummary.eligible.map((q) => q.id).filter(Boolean)
       const codesToPurge = new Set(inactiveSummary.eligible.map((q) => q.ticket_code))
 
-      // 1. Attempt Stored Procedure RPC first
-      let rpcSuccess = false
-      try {
-        const { error: rpcErr } = await supabase.rpc('purge_inactive_quote_tickets')
-        if (!rpcErr) {
-          rpcSuccess = true
-        }
-      } catch (rpcEx) {
-        console.info('RPC purge fallback:', rpcEx)
-      }
+      // 1. Release any active stock holds before removing inactive tickets
+      await releaseReservationsForTickets(inactiveSummary.eligible)
 
-      // 2. Direct delete fallback if needed
-      if (!rpcSuccess && idsToPurge.length > 0) {
+      // 2. Delete eligible records from Supabase
+      if (idsToPurge.length > 0) {
         const { error: delErr } = await supabase
           .from('quote_tickets')
           .delete()
           .in('id', idsToPurge)
         if (delErr) {
-          console.warn('Direct delete error:', delErr)
+          throw delErr
         }
       }
 
@@ -730,6 +732,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         prev.filter((q) => !codesToPurge.has(q.ticket_code) && !idsToPurge.includes(q.id))
       )
 
+      notifyOpsUpdated()
       showToast(`Successfully purged ${inactiveSummary.count} inactive inquiries from database.`)
       setIsPurgeModalOpen(false)
     } catch (err) {
@@ -868,11 +871,18 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
   // Summary Metrics
   const metrics = useMemo(() => {
     const total = filteredInquiries.length
-    const todayCount = filteredInquiries.filter(t => t.effectiveDate === todayIso).length
-    const pendingCount = filteredInquiries.filter(t => normalizeInquiryStatus(t.status) === 'Pending').length
-    const confirmedCount = filteredInquiries.filter(t => normalizeInquiryStatus(t.status) === 'Confirmed').length
-    const pickupCount = filteredInquiries.filter(t => isPickupTicket(t)).length
-    return { total, todayCount, pendingCount, confirmedCount, pickupCount }
+    const todayCount = filteredInquiries.filter(
+      (t) => t.effectiveDate === todayIso && normalizeInquiryStatus(t.status) !== 'Cancelled'
+    ).length
+    const pendingCount = filteredInquiries.filter((t) => normalizeInquiryStatus(t.status) === 'Pending').length
+    const confirmedCount = filteredInquiries.filter((t) => normalizeInquiryStatus(t.status) === 'Confirmed').length
+    const activePickups = filteredInquiries.filter((t) => {
+      const st = normalizeInquiryStatus(t.status)
+      return isPickupTicket(t) && (st === 'Pending' || st === 'Confirmed')
+    })
+    const pickupCount = activePickups.length
+    const pickupHoldsCount = activePickups.filter((t) => Boolean(t.is_reservation)).length
+    return { total, todayCount, pendingCount, confirmedCount, pickupCount, pickupHoldsCount }
   }, [filteredInquiries, todayIso])
 
   // Navigation handlers
@@ -931,6 +941,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
       )
       setModalSuccess('Showroom stock hold released successfully.')
       showToast(`Hold released for ticket ${selectedInquiry.ticket_code}.`)
+      notifyOpsUpdated()
       loadInquiries()
     } catch (err) {
       console.error('Failed to release hold:', err)
@@ -988,16 +999,60 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         (p.name && selectedInquiry.product_name && p.name.trim().toLowerCase() === selectedInquiry.product_name.trim().toLowerCase())
       )
 
-      // Handle stock reservation transition
+      // Handle Stock Hold lifecycle cleanly across branch & terminal states
+      const requestedQty = Math.max(1, Number(modalHoldQty) || 1)
+      const isTerminalStatus = modalStatus === 'Completed' || modalStatus === 'Cancelled'
       const wasReservation = Boolean(selectedInquiry.is_reservation)
-      const shouldHold = Boolean(modalHoldStock) && modalStatus !== 'Cancelled'
+      const shouldHold = Boolean(modalHoldStock) && !isTerminalStatus
+      const prevQty = Math.max(1, Number(selectedInquiry.quantity) || 1)
+      const prevBranchCavite = String(selectedInquiry.store_branch || '').toLowerCase().includes('cavite')
+      const nextBranchCavite = String(modalBranch || '').toLowerCase().includes('cavite')
+      const branchLabel = nextBranchCavite ? 'Cavite' : 'Quiapo'
+      const needsReReserve = shouldHold && wasReservation && (requestedQty !== prevQty || prevBranchCavite !== nextBranchCavite)
+      const needsNewReserve = shouldHold && !wasReservation
 
-      if (shouldHold && !wasReservation && matchedProd && selectedInquiry.id) {
-        // Staff is explicitly activating stock hold
+      if ((needsNewReserve || needsReReserve) && matchedProd) {
+        const bStock = getBranchStock(matchedProd, modalBranch)
+        const sameBranchCredit = wasReservation && prevBranchCavite === nextBranchCavite ? prevQty : 0
+        const effectiveAvailable = bStock.available + sameBranchCredit
+        if (effectiveAvailable < requestedQty) {
+          throw new Error(
+            `Insufficient available stock at ${branchLabel} branch. Only ${effectiveAvailable} unit(s) available.`
+          )
+        }
+      }
+
+      // 1. Release existing hold when turning hold off, entering Completed/Cancelled, or switching qty/branch
+      if (((!shouldHold || needsReReserve) && wasReservation) && selectedInquiry.id) {
+        const { error: relErr } = await supabase.rpc('release_product_reservation', {
+          p_ticket_id: selectedInquiry.id
+        })
+        if (relErr) {
+          console.warn('Non-fatal release error:', relErr.message)
+        }
+        updates.is_reservation = false
+        updates.reservation_expires_at = null
+      }
+
+      // 2. Persist schedule/status/store_branch before reserve_product_stock reads store_branch
+      if (shouldHold) {
+        updates.quantity = requestedQty
+      }
+      if (selectedInquiry.id) {
+        const { error } = await supabase
+          .from('quote_tickets')
+          .update(updates)
+          .eq('id', selectedInquiry.id)
+
+        if (error) throw error
+      }
+
+      // 3. Activate or re-activate Stock Hold on the updated branch
+      if ((needsNewReserve || needsReReserve) && matchedProd && selectedInquiry.id) {
         const { data: resResult, error: resErr } = await supabase.rpc('reserve_product_stock', {
           p_ticket_id: selectedInquiry.id,
           p_product_id: matchedProd.id,
-          p_quantity: Math.max(1, Number(modalHoldQty) || 1),
+          p_quantity: requestedQty,
           p_expires_hours: 48
         })
 
@@ -1008,29 +1063,13 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         }
 
         updates.is_reservation = true
-        updates.quantity = Math.max(1, Number(modalHoldQty) || 1)
+        updates.quantity = requestedQty
         updates.reservation_expires_at = resResult?.expires_at || null
-      } else if ((!shouldHold || modalStatus === 'Cancelled') && wasReservation && selectedInquiry.id) {
-        // Staff is releasing stock hold
-        const { error: relErr } = await supabase.rpc('release_product_reservation', {
-          p_ticket_id: selectedInquiry.id
-        })
-        if (relErr) {
-          console.warn('Non-fatal release error:', relErr.message)
-        }
+      } else if (shouldHold && wasReservation && !needsReReserve) {
+        updates.is_reservation = true
+      } else if (!shouldHold) {
         updates.is_reservation = false
         updates.reservation_expires_at = null
-      } else if (shouldHold && wasReservation) {
-        updates.quantity = Math.max(1, Number(modalHoldQty) || 1)
-      }
-
-      if (selectedInquiry.id) {
-        const { error } = await supabase
-          .from('quote_tickets')
-          .update(updates)
-          .eq('id', selectedInquiry.id)
-
-        if (error) throw error
       }
 
       // Update local state
@@ -1042,9 +1081,11 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         )
       )
 
+      setModalHoldStock(Boolean(updates.is_reservation))
       setSelectedInquiry((prev) => (prev ? { ...prev, ...updates } : null))
       setModalSuccess('Inquiry schedule and status updated.')
       showToast(`Inquiry ${selectedInquiry.ticket_code} updated successfully.`)
+      notifyOpsUpdated()
       loadInquiries()
     } catch (err) {
       console.error('Failed to update inquiry in Supabase:', err)
@@ -1238,6 +1279,7 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
 
       const finalRecord = data && data[0] ? data[0] : payload
       setInquiries((prev) => [finalRecord, ...prev])
+      notifyOpsUpdated()
 
       showToast(`Inquiry ${ticketCode} scheduled successfully.`)
       setNewSuccessTicket(finalRecord)
@@ -1306,8 +1348,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
               type="button"
               onClick={() => setViewMode('calendar')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${viewMode === 'calendar'
-                  ? 'bg-white dark:bg-zinc-800 text-jds-primary shadow-2xs'
-                  : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+                ? 'bg-jds-surface-container-lowest text-jds-primary shadow-2xs'
+                : 'text-jds-on-surface-variant hover:text-jds-on-surface'
                 }`}
             >
               <CalendarDays className="w-3.5 h-3.5" />
@@ -1317,8 +1359,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
               type="button"
               onClick={() => setViewMode('table')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${viewMode === 'table'
-                  ? 'bg-white dark:bg-zinc-800 text-jds-primary shadow-2xs'
-                  : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+                ? 'bg-jds-surface-container-lowest text-jds-primary shadow-2xs'
+                : 'text-jds-on-surface-variant hover:text-jds-on-surface'
                 }`}
             >
               <List className="w-3.5 h-3.5" />
@@ -1343,8 +1385,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             type="button"
             onClick={() => setIsPurgeModalOpen(true)}
             className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${inactiveSummary.count > 0
-                ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 hover:bg-amber-100'
-                : 'border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface hover:bg-jds-surface-container'
+              ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 hover:bg-amber-100'
+              : 'border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface hover:bg-jds-surface-container'
               }`}
             title="Purge obsolete and inactive inquiries from database"
           >
@@ -1408,7 +1450,12 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
           <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
             <ShoppingBag className="w-3.5 h-3.5 text-blue-600" /> Store Pickups
           </span>
-          <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{metrics.pickupCount}</div>
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{metrics.pickupCount}</div>
+            <span className="text-[11px] font-medium text-jds-on-surface-variant">
+              {metrics.pickupHoldsCount} holding stock
+            </span>
+          </div>
         </div>
       </div>
 
@@ -1446,40 +1493,58 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             {currentRangeLabel}
           </div>
 
-          {/* Calendar Sub-views toggle: Week / Month / Day */}
+          {/* Calendar Sub-views toggle: Week / Month / Day (md+) + Day / List (< md) */}
           {viewMode === 'calendar' && (
-            <div className="ml-3 hidden sm:flex items-center bg-jds-surface-container-low/70 p-0.5 rounded-xl border border-jds-outline-variant/30 text-[11px]">
-              <button
-                type="button"
-                onClick={() => setCalendarSubView('week')}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${calendarSubView === 'week'
-                    ? 'bg-white dark:bg-zinc-800 text-jds-primary shadow-2xs'
+            <>
+              <div className="ml-3 hidden md:flex items-center bg-jds-surface-container-low/70 p-0.5 rounded-xl border border-jds-outline-variant/30 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setCalendarSubView('week')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${calendarSubView === 'week'
+                    ? 'bg-jds-surface-container-lowest text-jds-primary shadow-2xs'
                     : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                  }`}
-              >
-                Week
-              </button>
-              <button
-                type="button"
-                onClick={() => setCalendarSubView('month')}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${calendarSubView === 'month'
-                    ? 'bg-white dark:bg-zinc-800 text-jds-primary shadow-2xs'
+                    }`}
+                >
+                  Week
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCalendarSubView('month')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${calendarSubView === 'month'
+                    ? 'bg-jds-surface-container-lowest text-jds-primary shadow-2xs'
                     : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                  }`}
-              >
-                Month
-              </button>
-              <button
-                type="button"
-                onClick={() => setCalendarSubView('day')}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${calendarSubView === 'day'
-                    ? 'bg-white dark:bg-zinc-800 text-jds-primary shadow-2xs'
+                    }`}
+                >
+                  Month
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCalendarSubView('day')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${calendarSubView === 'day'
+                    ? 'bg-jds-surface-container-lowest text-jds-primary shadow-2xs'
                     : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-                  }`}
-              >
-                Day
-              </button>
-            </div>
+                    }`}
+                >
+                  Day
+                </button>
+              </div>
+              <div className="md:hidden flex items-center bg-jds-surface-container-low/70 p-0.5 rounded-xl border border-jds-outline-variant/30 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setCalendarSubView('day')}
+                  className="min-h-[44px] px-3 py-1.5 rounded-lg font-bold bg-jds-surface-container-lowest text-jds-primary shadow-2xs cursor-pointer"
+                >
+                  Day
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  className="min-h-[44px] px-3 py-1.5 rounded-lg font-bold text-jds-on-surface-variant hover:text-jds-on-surface cursor-pointer"
+                >
+                  List
+                </button>
+              </div>
+            </>
           )}
         </div>
 
@@ -1547,9 +1612,9 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
       {/* VIEW MODE: CALENDAR */}
       {viewMode === 'calendar' && (
         <div className="space-y-4">
-          {/* 1. WEEK VIEW: Google Calendar Style Timeline */}
+          {/* 1. WEEK VIEW: Google Calendar Style Timeline (md+ only) */}
           {calendarSubView === 'week' && (
-            <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl shadow-xs border border-jds-outline-variant/20 overflow-hidden">
+            <div className="hidden md:block bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl shadow-xs border border-jds-outline-variant/20 overflow-hidden">
               <div ref={calendarScrollRef} className="overflow-x-auto max-h-[780px] overflow-y-auto">
                 <div className="min-w-[1050px] w-full">
                   {/* Calendar Grid Header: Days of Week (Fixed Width & Sticky) */}
@@ -1574,8 +1639,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                           </div>
                           <div
                             className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold mt-1 ${isToday
-                                ? 'bg-jds-primary text-white shadow-xs'
-                                : 'text-jds-on-surface'
+                              ? 'bg-jds-primary text-white shadow-xs'
+                              : 'text-jds-on-surface'
                               }`}
                           >
                             {date.getDate()}
@@ -1643,10 +1708,10 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                                         onDrop={(e) => handleDrop(e, dateStr, hourObj.hour, subMin)}
                                         title={`${formatMinutesToTime(hourObj.hour * 60 + subMin)} - Drag here to schedule`}
                                         className={`h-[20px] transition-colors ${!isSlotEnd
-                                            ? isHalfHour
-                                              ? 'border-b border-jds-outline-variant/30'
-                                              : 'border-b border-dashed border-jds-outline-variant/15'
-                                            : ''
+                                          ? isHalfHour
+                                            ? 'border-b border-jds-outline-variant/30'
+                                            : 'border-b border-dashed border-jds-outline-variant/15'
+                                          : ''
                                           } ${dragOverSlot?.dateStr === dateStr &&
                                             dragOverSlot?.hour === hourObj.hour &&
                                             dragOverSlot?.minute === subMin
@@ -1669,8 +1734,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                             >
                               <div
                                 className={`w-3 h-3 rounded-full ${isOutOfOperatingHours
-                                    ? 'bg-amber-600 ring-2 ring-amber-300 dark:ring-amber-900'
-                                    : 'bg-red-500 ring-2 ring-red-200 dark:ring-red-950'
+                                  ? 'bg-amber-600 ring-2 ring-amber-300 dark:ring-amber-900'
+                                  : 'bg-red-500 ring-2 ring-red-200 dark:ring-red-950'
                                   } shadow-sm -ml-1.5 shrink-0`}
                               />
                               <div
@@ -1705,8 +1770,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                                 style={ticket.layout.style}
                                 title={`${ticket.customer_name} (${ticket.ticket_code})\nLocation: ${ticket.barangay ? 'Brgy. ' + ticket.barangay + ', ' : ''}${ticket.city || ''}${ticket.province ? ', ' + ticket.province : ''}\n${timeDisplay}\nStatus: ${statusConfig.label}`}
                                 className={`absolute p-2 rounded-xl text-left border cursor-pointer transition-all group overflow-hidden ${statusConfig.calendarClass} ${isDragging
-                                    ? 'opacity-30 scale-95 pointer-events-none'
-                                    : 'hover:z-30 hover:shadow-lg hover:ring-2 hover:ring-jds-primary/40'
+                                  ? 'opacity-30 scale-95 pointer-events-none'
+                                  : 'hover:z-30 hover:shadow-lg hover:ring-2 hover:ring-jds-primary/40'
                                   }`}
                               >
                                 {/* Header: Ticket Code & Status */}
@@ -1753,9 +1818,9 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
             </div>
           )}
 
-          {/* 2. MONTH VIEW */}
+          {/* 2. MONTH VIEW (md+ only) */}
           {calendarSubView === 'month' && (
-            <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl shadow-xs border border-jds-outline-variant/20 overflow-hidden">
+            <div className="hidden md:block bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl shadow-xs border border-jds-outline-variant/20 overflow-hidden">
               <div className="overflow-x-auto">
                 <div className="min-w-[640px] w-full">
                   {/* Day of Week Headers */}
@@ -1772,73 +1837,73 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
 
                   {/* Month Grid Cells */}
                   <div className="grid grid-cols-7 auto-rows-[96px] sm:auto-rows-[110px] divide-x divide-y divide-jds-outline-variant/20">
-                {monthDays.map((d) => {
-                  const dateStr = formatIsoDate(d)
-                  const isCurrentMonth = d.getMonth() === currentDate.getMonth()
-                  const isToday = dateStr === todayIso
-                  const isSunday = d.getDay() === 0
-                  const dayInquiries = inquiriesByDate[dateStr] || []
+                    {monthDays.map((d) => {
+                      const dateStr = formatIsoDate(d)
+                      const isCurrentMonth = d.getMonth() === currentDate.getMonth()
+                      const isToday = dateStr === todayIso
+                      const isSunday = d.getDay() === 0
+                      const dayInquiries = inquiriesByDate[dateStr] || []
 
-                  return (
-                    <div
-                      key={dateStr}
-                      onClick={() => {
-                        setCurrentDate(d)
-                        setCalendarSubView('day')
-                      }}
-                      className={`p-2 transition-colors cursor-pointer hover:bg-jds-surface-container-low/50 flex flex-col justify-between ${!isCurrentMonth ? 'opacity-40 bg-stone-50/30 dark:bg-zinc-900/30' : ''
-                        } ${isToday ? 'bg-jds-primary/5 ring-1 ring-jds-primary/30 ring-inset' : ''} ${isSunday ? 'bg-stone-50/50 dark:bg-zinc-900/20' : ''
-                        }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={`text-xs font-bold inline-flex items-center justify-center w-6 h-6 rounded-full ${isToday ? 'bg-jds-primary text-white' : 'text-jds-on-surface'
+                      return (
+                        <div
+                          key={dateStr}
+                          onClick={() => {
+                            setCurrentDate(d)
+                            setCalendarSubView('day')
+                          }}
+                          className={`p-2 transition-colors cursor-pointer hover:bg-jds-surface-container-low/50 flex flex-col justify-between ${!isCurrentMonth ? 'opacity-40 bg-stone-50/30 dark:bg-zinc-900/30' : ''
+                            } ${isToday ? 'bg-jds-primary/5 ring-1 ring-jds-primary/30 ring-inset' : ''} ${isSunday ? 'bg-stone-50/50 dark:bg-zinc-900/20' : ''
                             }`}
                         >
-                          {d.getDate()}
-                        </span>
-                        {dayInquiries.length > 0 && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-jds-primary/10 text-jds-primary">
-                            {dayInquiries.length}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Mini pill list */}
-                      <div className="space-y-1 overflow-hidden mt-1">
-                        {dayInquiries.slice(0, 2).map((item) => {
-                          const config = getInquiryStatusConfig(item.status)
-                          return (
-                            <div
-                              key={item.id || item.ticket_code}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleOpenInquiry(item)
-                              }}
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold truncate border ${config.badgeClass}`}
+                          <div className="flex items-center justify-between">
+                            <span
+                              className={`text-xs font-bold inline-flex items-center justify-center w-6 h-6 rounded-full ${isToday ? 'bg-jds-primary text-white' : 'text-jds-on-surface'
+                                }`}
                             >
-                              {item.customer_name}
-                            </div>
-                          )
-                        })}
-                        {dayInquiries.length > 2 && (
-                          <div className="text-[9px] font-bold text-jds-on-surface-variant/70 pl-1">
-                            +{dayInquiries.length - 2} more
+                              {d.getDate()}
+                            </span>
+                            {dayInquiries.length > 0 && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-jds-primary/10 text-jds-primary">
+                                {dayInquiries.length}
+                              </span>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
+
+                          {/* Mini pill list */}
+                          <div className="space-y-1 overflow-hidden mt-1">
+                            {dayInquiries.slice(0, 2).map((item) => {
+                              const config = getInquiryStatusConfig(item.status)
+                              return (
+                                <div
+                                  key={item.id || item.ticket_code}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleOpenInquiry(item)
+                                  }}
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-semibold truncate border ${config.badgeClass}`}
+                                >
+                                  {item.customer_name}
+                                </div>
+                              )
+                            })}
+                            {dayInquiries.length > 2 && (
+                              <div className="text-[9px] font-bold text-jds-on-surface-variant/70 pl-1">
+                                +{dayInquiries.length - 2} more
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* 3. DAY VIEW */}
-          {calendarSubView === 'day' && (
-            <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl shadow-xs border border-jds-outline-variant/20 p-5 space-y-4">
+          {/* 3. DAY VIEW (always active on < md when in calendar mode) */}
+          {(calendarSubView === 'day' || true) && (
+            <div className={`${calendarSubView === 'day' ? 'block' : 'block md:hidden'} bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl shadow-xs border border-jds-outline-variant/20 p-4 sm:p-5 space-y-4`}>
               <div className="flex items-center justify-between border-b border-jds-outline-variant/20 pb-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -1890,8 +1955,8 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
                     <div
                       key={hourObj.hour}
                       className={`flex gap-4 p-3 rounded-xl border transition-all ${isCurrentHourSlot
-                          ? 'border-jds-primary/40 ring-1 ring-jds-primary/30 bg-jds-primary/[0.03]'
-                          : 'border-jds-outline-variant/20 bg-jds-surface-container-low/20'
+                        ? 'border-jds-primary/40 ring-1 ring-jds-primary/30 bg-jds-primary/[0.03]'
+                        : 'border-jds-outline-variant/20 bg-jds-surface-container-low/20'
                         }`}
                     >
                       <div className="w-24 shrink-0 font-bold text-xs text-jds-on-surface-variant pt-1 flex flex-col items-start gap-1">
@@ -1965,10 +2030,54 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         </div>
       )}
 
-      {/* VIEW MODE: TABLE */}
+      {/* VIEW MODE: TABLE (stacked cards on < md, table on md+) */}
       {viewMode === 'table' && (
         <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl shadow-xs border border-jds-outline-variant/20 overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile Stacked Card List (< md) */}
+          <div className="md:hidden divide-y divide-jds-outline-variant/20">
+            {filteredInquiries.length === 0 ? (
+              <div className="text-center py-12 px-4 text-xs text-jds-on-surface-variant">
+                No inquiries match the active filters or search query.
+              </div>
+            ) : (
+              filteredInquiries.map((q) => {
+                const statusConfig = getInquiryStatusConfig(q.status)
+                const isPickup = isPickupTicket(q)
+                return (
+                  <div key={q.id} className="p-4 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs font-bold text-jds-primary">
+                        {q.ticket_code || `INQ-${q.id?.slice(0, 6)?.toUpperCase()}`}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${statusConfig.badgeClass || 'bg-jds-surface-container text-jds-on-surface border-jds-outline-variant/40'}`}>
+                        {statusConfig.label || q.status}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-jds-on-surface">{q.customer_name || 'Walk-in Customer'}</div>
+                      <div className="text-xs text-jds-on-surface-variant">{q.customer_phone || q.customer_email || 'No contact'}</div>
+                    </div>
+                    <div className="text-xs text-jds-on-surface">
+                      <span className="font-semibold">{q.product_name || 'Solar Consultation'}</span>
+                      {q.quantity > 1 && <span className="text-jds-on-surface-variant"> (x{q.quantity})</span>}
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1 text-xs text-jds-on-surface-variant">
+                      <span>{q.branch_location || 'Cavite'} • {q.visit_date || 'Unscheduled'} {isPickup ? '• Pickup' : ''}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenInquiry(q)}
+                        className="min-h-[44px] px-3.5 py-2 rounded-xl bg-jds-primary/10 text-jds-primary font-bold text-xs shrink-0 cursor-pointer"
+                      >
+                        Inspect
+                      </button>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader className="bg-jds-surface-container-low/50">
                 <TableRow>
@@ -2089,415 +2198,429 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
         </div>
       )}
 
-      {/* DETAIL & EDIT MODAL */}
-      {selectedInquiry && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-2.5 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in overflow-y-auto"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !modalSaving) handleCloseModal()
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-jds-surface rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-jds-outline-variant/30 space-y-4 sm:space-y-5 max-h-[94vh] overflow-y-auto my-auto"
-          >
-            {modalSuccess ? (
-              <AnimatedConfirmation
-                title="Inquiry Updated Successfully"
-                description={modalSuccess}
-                referenceCode={selectedInquiry.ticket_code}
-                duration={1800}
-                onComplete={() => handleCloseModal()}
-              />
-            ) : (
-              <>
-            {/* Modal Header */}
-            <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
+      {/* INQUIRY DETAIL & EDIT SLIDE-OVER DRAWER */}
+      <InspectorDrawer
+        isOpen={Boolean(selectedInquiry)}
+        onClose={handleCloseModal}
+        disableClose={modalSaving || Boolean(ticketToDelete)}
+        widthClass="max-w-[540px]"
+        subtitle={
+          selectedInquiry
+            ? `${selectedInquiry.ticket_code} · ${selectedInquiry.city || 'Showroom Customer'}`
+            : ''
+        }
+        title={selectedInquiry?.customer_name}
+        footer={
+          selectedInquiry && !modalSuccess ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+              <button
+                type="button"
+                onClick={() => setTicketToDelete(selectedInquiry)}
+                className="jds-btn-motion px-3.5 py-2 text-xs font-bold rounded-lg border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+
+              <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
+                {onNavigate &&
+                  selectedInquiry.id &&
+                  isPickupTicket(selectedInquiry) &&
+                  normalizeInquiryStatus(selectedInquiry.status) !== 'Cancelled' &&
+                  normalizeInquiryStatus(selectedInquiry.status) !== 'Completed' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetId = selectedInquiry.id
+                        handleCloseModal()
+                        onNavigate('register-sale', { ticketId: targetId })
+                      }}
+                      className="jds-btn-motion px-3.5 py-2 text-xs font-bold rounded-lg border border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      <span>Fulfill via Register Sale & QR</span>
+                    </button>
+                  )}
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="jds-btn-motion px-4 py-2 text-xs font-semibold rounded-lg border border-jds-outline-variant/40 bg-jds-surface-container-lowest text-jds-on-surface hover:bg-jds-surface-container cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveModal}
+                  disabled={modalSaving}
+                  className="jds-btn-motion px-5 py-2 text-xs font-bold rounded-lg bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {modalSaving ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : null
+        }
+      >
+        {selectedInquiry && (
+          modalSuccess ? (
+            <AnimatedConfirmation
+              title="Inquiry Updated Successfully"
+              description={modalSuccess}
+              referenceCode={selectedInquiry.ticket_code}
+              duration={1800}
+              onComplete={() => handleCloseModal()}
+            />
+          ) : (
+            <div className="space-y-4">
+              {/* Contact & Quick Copy Row */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-jds-outline-variant/25">
+                <div className="flex items-center gap-2">
                   <span className="font-mono text-xs font-bold text-jds-primary bg-jds-primary/10 px-2.5 py-1 rounded-lg">
                     {selectedInquiry.ticket_code}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleCopyCode(selectedInquiry.ticket_code)}
-                    className="p-1 text-jds-on-surface-variant hover:text-jds-on-surface transition-colors"
+                    className="p-1 text-jds-on-surface-variant hover:text-jds-on-surface cursor-pointer"
                     title="Copy ticket code"
                   >
                     <Copy className="w-3.5 h-3.5" />
                   </button>
-                  {copiedCode && <span className="text-[10px] text-emerald-600 font-bold">Copied!</span>}
+                  {copiedCode && <span className="text-[11px] text-emerald-700 font-bold">Copied</span>}
                 </div>
-                <h3 className="text-lg font-bold text-jds-on-surface">
-                  {selectedInquiry.customer_name}
-                </h3>
-                <p className="text-xs text-jds-on-surface-variant">
-                  {selectedInquiry.barangay ? `${(selectedInquiry.city || '').toLowerCase().includes('manila') && !(selectedInquiry.city || '').toLowerCase().includes('metro') ? '' : 'Brgy. '}${selectedInquiry.barangay.replace(/^brgy\.?\s*/i, '')}, ` : ''}{selectedInquiry.city || 'Showroom Customer'}{selectedInquiry.province ? `, ${selectedInquiry.province}` : ''} • {selectedInquiry.mobile_contact}
-                </p>
-                {selectedInquiry.facebook && (
-                  <div className="mt-2.5">
-                    <a
-                      href={selectedInquiry.facebook}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1877F2]/10 hover:bg-[#1877F2]/20 text-[#1877F2] border border-[#1877F2]/30 transition-all shadow-sm"
-                    >
-                      <FaFacebook className="h-3.5 w-3.5 shrink-0 text-[#1877F2]" />
-                      <span className="truncate max-w-[200px]">
-                        {selectedInquiry.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//i, '')}
-                      </span>
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-[#1877F2] text-white rounded">Profile</span>
-                      <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
-                    </a>
-                  </div>
-                )}
+                <span className="text-xs font-mono text-jds-on-surface-variant">
+                  {selectedInquiry.mobile_contact}
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="p-1.5 rounded-lg hover:bg-jds-surface-container text-jds-on-surface-variant transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            {/* Product Summary & Inventory Hold Gate */}
-            {(() => {
-              const matchedProd = productsList.find((p) =>
-                (selectedInquiry.product_id && String(p.id) === String(selectedInquiry.product_id)) ||
-                (p.name && selectedInquiry.product_name && p.name.trim().toLowerCase() === selectedInquiry.product_name.trim().toLowerCase())
-              )
-              const bStock = matchedProd ? getBranchStock(matchedProd, modalBranch) : null
+              {selectedInquiry.facebook && (
+                <div>
+                  <a
+                    href={selectedInquiry.facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1877F2]/10 hover:bg-[#1877F2]/20 text-[#1877F2] border border-[#1877F2]/30 transition-all"
+                  >
+                    <FaFacebook className="h-3.5 w-3.5 shrink-0 text-[#1877F2]" />
+                    <span className="truncate max-w-[200px]">
+                      {selectedInquiry.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//i, '')}
+                    </span>
+                    <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
+                  </a>
+                </div>
+              )}
 
-              return (
-                <div className="p-3.5 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/20 space-y-3">
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
-                      Inquired Equipment & Purpose
-                    </div>
-                    <div className="font-bold text-sm text-jds-on-surface">
-                      {selectedInquiry.product_name}
-                    </div>
-                    <div className="text-xs text-jds-on-surface-variant flex items-center gap-2 mt-0.5">
-                      <span>Inquired Quantity: {selectedInquiry.quantity || 1}</span>
-                      {selectedInquiry.product_watt && <span>• {selectedInquiry.product_watt}W</span>}
-                      <span>• {selectedInquiry.purpose_of_visitation || 'Consultation'}</span>
-                    </div>
-                  </div>
+                {/* Product Summary & Inventory Hold Gate */}
+                {(() => {
+                  const matchedProd = productsList.find((p) =>
+                    (selectedInquiry.product_id && String(p.id) === String(selectedInquiry.product_id)) ||
+                    (p.name && selectedInquiry.product_name && p.name.trim().toLowerCase() === selectedInquiry.product_name.trim().toLowerCase())
+                  )
+                  const bStock = matchedProd ? getBranchStock(matchedProd, modalBranch) : null
 
-                  {/* Real-time Inventory Status at Selected Branch */}
-                  {matchedProd && bStock && (
-                    <div className="pt-2 border-t border-jds-outline-variant/15 flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="text-jds-on-surface-variant font-medium">Branch Inventory ({modalBranch.includes('Quiapo') ? 'Quiapo Showroom' : 'Cavite Hub'}):</span>
-                        <span className="font-bold font-mono text-jds-on-surface">
-                          {bStock.stock} in store
-                        </span>
-                        <span className="text-jds-on-surface-variant font-medium">·</span>
-                        <span className={`font-mono font-bold ${bStock.available > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
-                          {bStock.available} available
-                        </span>
-                        {bStock.reserved > 0 && (
-                          <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
-                            ({bStock.reserved} reserved)
-                          </span>
+                  return (
+                    <div className="p-3.5 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/20 space-y-3">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
+                          Inquired Equipment & Purpose
+                        </div>
+                        <div className="font-bold text-sm text-jds-on-surface">
+                          {selectedInquiry.product_name}
+                        </div>
+                        <div className="text-xs text-jds-on-surface-variant flex items-center gap-2 mt-0.5">
+                          <span>Inquired Quantity: {selectedInquiry.quantity || 1}</span>
+                          {selectedInquiry.product_watt && <span>• {selectedInquiry.product_watt}W</span>}
+                          <span>• {selectedInquiry.purpose_of_visitation || 'Consultation'}</span>
+                        </div>
+                      </div>
+
+                      {/* Real-time Inventory Status at Selected Branch */}
+                      {matchedProd && bStock && (
+                        <div className="pt-2 border-t border-jds-outline-variant/15 flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="text-jds-on-surface-variant font-medium">Branch Inventory ({modalBranch.includes('Quiapo') ? 'Quiapo Showroom' : 'Cavite Hub'}):</span>
+                            <span className="font-bold font-mono text-jds-on-surface">
+                              {bStock.stock} in store
+                            </span>
+                            <span className="text-jds-on-surface-variant font-medium">·</span>
+                            <span className={`font-mono font-bold ${bStock.available > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
+                              {bStock.available} available
+                            </span>
+                            {bStock.reserved > 0 && (
+                              <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
+                                ({bStock.reserved} reserved)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Staff Stock Hold Toggle Section */}
+                      <div className="p-3 rounded-xl bg-jds-surface border border-jds-outline-variant/30 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id="hold-stock-toggle"
+                              checked={modalHoldStock}
+                              onChange={(e) => setModalHoldStock(e.target.checked)}
+                              className="h-4 w-4 rounded border-jds-outline-variant text-jds-primary focus:ring-jds-primary cursor-pointer"
+                            />
+                            <label htmlFor="hold-stock-toggle" className="text-xs font-bold text-jds-on-surface cursor-pointer select-none">
+                              Hold Stock for Pickup
+                            </label>
+                          </div>
+
+                          {selectedInquiry.is_reservation && (
+                            <button
+                              type="button"
+                              onClick={handleReleaseHoldDirectly}
+                              disabled={modalSaving}
+                              className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                              title="Release current inventory hold back to available stock"
+                            >
+                              Release Hold
+                            </button>
+                          )}
+                        </div>
+
+                        {modalHoldStock ? (
+                          <div className="text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span>
+                                Locking <strong>{modalHoldQty} unit(s)</strong> at {modalBranch.includes('Quiapo') ? 'Quiapo Showroom' : 'Cavite Hub'}.
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-stone-600 dark:text-stone-300 font-semibold">Hold Qty:</span>
+                              <input
+                                type="number"
+                                min="1"
+                                max={matchedProd ? Math.max(1, bStock?.stock || 99) : 99}
+                                value={modalHoldQty}
+                                onChange={(e) => setModalHoldQty(Math.max(1, Number(e.target.value) || 1))}
+                                className="w-14 text-center font-bold font-mono text-xs p-1 rounded border border-emerald-300 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-jds-on-surface-variant">
+                            Unchecked: Consultation only (physical inventory remains freely available to walk-in customers).
+                          </p>
                         )}
                       </div>
                     </div>
-                  )}
+                  )
+                })()}
 
-                  {/* Staff Stock Hold Toggle Section */}
-                  <div className="p-3 rounded-xl bg-jds-surface border border-jds-outline-variant/30 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="hold-stock-toggle"
-                          checked={modalHoldStock}
-                          onChange={(e) => setModalHoldStock(e.target.checked)}
-                          className="h-4 w-4 rounded border-jds-outline-variant text-jds-primary focus:ring-jds-primary cursor-pointer"
-                        />
-                        <label htmlFor="hold-stock-toggle" className="text-xs font-bold text-jds-on-surface cursor-pointer select-none">
-                          Hold Stock for Pickup
-                        </label>
-                      </div>
-
-                      {selectedInquiry.is_reservation && (
-                        <button
-                          type="button"
-                          onClick={handleReleaseHoldDirectly}
-                          disabled={modalSaving}
-                          className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                          title="Release current inventory hold back to available stock"
-                        >
-                          Release Hold
-                        </button>
-                      )}
+                {/* Customer Location & Address Details */}
+                <div className="p-3.5 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
+                      Customer Location & Address
+                    </span>
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-jds-surface border border-jds-outline-variant/30 text-jds-on-surface-variant">
+                      {selectedInquiry.province || 'Philippines'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                    <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20 sm:col-span-3">
+                      <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">House / Street Address</span>
+                      <span className="font-semibold text-jds-on-surface truncate block">
+                        {selectedInquiry.street_address || (selectedInquiry.delivery_address ? selectedInquiry.delivery_address.split(',')[0] : 'Not Specified')}
+                      </span>
                     </div>
+                    <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
+                      <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">Barangay / District</span>
+                      <span className="font-semibold text-jds-on-surface truncate block">
+                        {selectedInquiry.barangay ? ((selectedInquiry.city || '').toLowerCase().includes('manila') && !(selectedInquiry.city || '').toLowerCase().includes('metro') ? selectedInquiry.barangay : `Brgy. ${selectedInquiry.barangay.replace(/^brgy\.?\s*/i, '')}`) : 'Not Specified'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
+                      <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">City / Municipality</span>
+                      <span className="font-semibold text-jds-on-surface truncate block">
+                        {selectedInquiry.city || 'Showroom Customer'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
+                      <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">Province</span>
+                      <span className="font-semibold text-jds-on-surface truncate block">
+                        {selectedInquiry.province || 'Metro Manila (NCR)'}
+                      </span>
+                    </div>
+                  </div>
+                  {selectedInquiry.delivery_address && (
+                    <div className="text-[11px] text-jds-on-surface-variant flex items-center gap-1.5 pt-1.5 border-t border-jds-outline-variant/10">
+                      <MapPin className="h-3.5 w-3.5 text-jds-primary shrink-0" />
+                      <span className="truncate">{selectedInquiry.delivery_address}</span>
+                    </div>
+                  )}
+                </div>
 
-                    {modalHoldStock ? (
-                      <div className="text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>
-                            Locking <strong>{modalHoldQty} unit(s)</strong> at {modalBranch.includes('Quiapo') ? 'Quiapo Showroom' : 'Cavite Hub'}.
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-stone-600 dark:text-stone-300 font-semibold">Hold Qty:</span>
-                          <input
-                            type="number"
-                            min="1"
-                            max={matchedProd ? Math.max(1, bStock?.stock || 99) : 99}
-                            value={modalHoldQty}
-                            onChange={(e) => setModalHoldQty(Math.max(1, Number(e.target.value) || 1))}
-                            className="w-14 text-center font-bold font-mono text-xs p-1 rounded border border-emerald-300 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100"
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-jds-on-surface-variant">
-                        Unchecked: Consultation only (physical inventory remains freely available to walk-in customers).
+                {/* Editable Fields Form */}
+                <div className="space-y-4">
+                  {/* Status Selector */}
+                  <div>
+                    <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                      Inquiry Status
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {INQUIRY_STATUSES.map((st) => {
+                        const isSelected = modalStatus === st
+                        const cfg = getInquiryStatusConfig(st)
+                        return (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => setModalStatus(st)}
+                            className={`p-2.5 rounded-xl text-xs font-bold border text-left transition-all flex items-center justify-between ${isSelected
+                              ? `${cfg.badgeClass} ring-2 ring-jds-primary/20`
+                              : 'border-jds-outline-variant/30 text-jds-on-surface-variant hover:bg-jds-surface-container-low'
+                              }`}
+                          >
+                            <span>{cfg.label}</span>
+                            {isSelected && <Check className="w-3.5 h-3.5" />}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {modalStatus === 'Completed' && (isPickupTicket(selectedInquiry) || selectedInquiry.is_reservation) && (
+                      <p className="mt-2 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
+                        Marking Completed here releases any active Stock Hold without deducting physical inventory or issuing a warranty QR pass. Use Fulfill via Register Sale &amp; QR for storefront checkout.
                       </p>
                     )}
                   </div>
-                </div>
-              )
-            })()}
 
-            {/* Customer Location & Address Details */}
-            <div className="p-3.5 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/20 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
-                  Customer Location & Address
-                </span>
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-jds-surface border border-jds-outline-variant/30 text-jds-on-surface-variant">
-                  {selectedInquiry.province || 'Philippines'}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20 sm:col-span-3">
-                  <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">House / Street Address</span>
-                  <span className="font-semibold text-jds-on-surface truncate block">
-                    {selectedInquiry.street_address || (selectedInquiry.delivery_address ? selectedInquiry.delivery_address.split(',')[0] : 'Not Specified')}
-                  </span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
-                  <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">Barangay / District</span>
-                  <span className="font-semibold text-jds-on-surface truncate block">
-                    {selectedInquiry.barangay ? ((selectedInquiry.city || '').toLowerCase().includes('manila') && !(selectedInquiry.city || '').toLowerCase().includes('metro') ? selectedInquiry.barangay : `Brgy. ${selectedInquiry.barangay.replace(/^brgy\.?\s*/i, '')}`) : 'Not Specified'}
-                  </span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
-                  <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">City / Municipality</span>
-                  <span className="font-semibold text-jds-on-surface truncate block">
-                    {selectedInquiry.city || 'Showroom Customer'}
-                  </span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
-                  <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">Province</span>
-                  <span className="font-semibold text-jds-on-surface truncate block">
-                    {selectedInquiry.province || 'Metro Manila (NCR)'}
-                  </span>
-                </div>
-              </div>
-              {selectedInquiry.delivery_address && (
-                <div className="text-[11px] text-jds-on-surface-variant flex items-center gap-1.5 pt-1.5 border-t border-jds-outline-variant/10">
-                  <MapPin className="h-3.5 w-3.5 text-jds-primary shrink-0" />
-                  <span className="truncate">{selectedInquiry.delivery_address}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Editable Fields Form */}
-            <div className="space-y-4">
-              {/* Status Selector */}
-              <div>
-                <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                  Inquiry Status
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {INQUIRY_STATUSES.map((st) => {
-                    const isSelected = modalStatus === st
-                    const cfg = getInquiryStatusConfig(st)
-                    return (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={() => setModalStatus(st)}
-                        className={`p-2.5 rounded-xl text-xs font-bold border text-left transition-all flex items-center justify-between ${isSelected
-                            ? `${cfg.badgeClass} ring-2 ring-jds-primary/20`
-                            : 'border-jds-outline-variant/30 text-jds-on-surface-variant hover:bg-jds-surface-container-low'
-                          }`}
-                      >
-                        <span>{cfg.label}</span>
-                        {isSelected && <Check className="w-3.5 h-3.5" />}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Showroom Business Hours Banner */}
-              <div className="p-3 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/60 text-xs text-jds-on-surface flex items-start gap-2.5">
-                <Clock className="h-4 w-4 text-jds-primary shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold block text-jds-on-surface">Showroom Business Hours</span>
-                  <span className="text-[11px] text-jds-on-surface-variant block mt-0.5">
-                    Monday to Saturday: 8:00 AM – 5:30 PM • Closed on Sundays
-                  </span>
-                </div>
-              </div>
-
-              {/* Date & Time Slot */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-semibold text-jds-on-surface">
-                      Scheduled Visit Date <span className="text-amber-600">*</span>
-                    </label>
-                    <span className="text-[11px] text-jds-on-surface-variant font-medium">Mon – Sat Only</span>
+                  {/* Showroom Business Hours Banner */}
+                  <div className="p-3 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/60 text-xs text-jds-on-surface flex items-start gap-2.5">
+                    <Clock className="h-4 w-4 text-jds-primary shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block text-jds-on-surface">Showroom Business Hours</span>
+                      <span className="text-[11px] text-jds-on-surface-variant block mt-0.5">
+                        Monday to Saturday: 8:00 AM – 5:30 PM • Closed on Sundays
+                      </span>
+                    </div>
                   </div>
-                  <input
-                    type="date"
-                    min={minBusinessDateStr}
-                    required
-                    value={modalDate}
-                    onClick={(e) => {
-                      try {
-                        e.currentTarget.showPicker?.()
-                      } catch (err) { }
-                    }}
-                    onChange={(e) => {
-                      setModalDate(e.target.value)
-                      setModalError('')
-                    }}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
-                  />
-                </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-semibold text-jds-on-surface">
-                      Time Slot <span className="text-amber-600">*</span>
-                    </label>
-                    <span className="text-[11px] text-jds-on-surface-variant font-medium">8:00 AM – 5:30 PM</span>
+                  {/* Date & Time Slot */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-jds-on-surface">
+                          Scheduled Visit Date <span className="text-amber-600">*</span>
+                        </label>
+                        <span className="text-[11px] text-jds-on-surface-variant font-medium">Mon – Sat Only</span>
+                      </div>
+                      <input
+                        type="date"
+                        min={minBusinessDateStr}
+                        required
+                        value={modalDate}
+                        onClick={(e) => {
+                          try {
+                            e.currentTarget.showPicker?.()
+                          } catch (err) { }
+                        }}
+                        onChange={(e) => {
+                          setModalDate(e.target.value)
+                          setModalError('')
+                        }}
+                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-jds-on-surface">
+                          Time Slot <span className="text-amber-600">*</span>
+                        </label>
+                        <span className="text-[11px] text-jds-on-surface-variant font-medium">8:00 AM – 5:30 PM</span>
+                      </div>
+                      <input
+                        type="time"
+                        min="09:00"
+                        max="17:00"
+                        step="900"
+                        required
+                        value={modalTime}
+                        onClick={(e) => {
+                          try {
+                            e.currentTarget.showPicker?.()
+                          } catch (err) { }
+                        }}
+                        onChange={(e) => {
+                          setModalTime(e.target.value)
+                          setModalError('')
+                        }}
+                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary font-semibold cursor-pointer"
+                      />
+                    </div>
                   </div>
-                  <input
-                    type="time"
-                    min="09:00"
-                    max="17:00"
-                    step="900"
-                    required
-                    value={modalTime}
-                    onClick={(e) => {
-                      try {
-                        e.currentTarget.showPicker?.()
-                      } catch (err) { }
-                    }}
-                    onChange={(e) => {
-                      setModalTime(e.target.value)
-                      setModalError('')
-                    }}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary font-semibold cursor-pointer"
-                  />
+
+                  {modalError && (
+                    <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{modalError}</span>
+                    </div>
+                  )}
+
+                  {/* Branch */}
+                  <div>
+                    <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                      Showroom Branch
+                    </label>
+                    <select
+                      value={modalBranch}
+                      onChange={(e) => setModalBranch(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
+                    >
+                      <option value="Cavite Distribution Hub">Cavite Distribution Hub</option>
+                      <option value="Quiapo Branch (Manila)">Quiapo Branch (Manila Showroom)</option>
+                    </select>
+                  </div>
+
+                  {/* Staff Notes */}
+                  <div>
+                    <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                      Staff Notes & Next Steps
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={modalStaffNotes}
+                      onChange={(e) => setModalStaffNotes(e.target.value)}
+                      placeholder="Record customer notes, requirements, or conversation summaries..."
+                      className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary resize-none"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {modalError && (
-                <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{modalError}</span>
-                </div>
-              )}
-
-              {/* Branch */}
-              <div>
-                <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                  Showroom Branch
-                </label>
-                <select
-                  value={modalBranch}
-                  onChange={(e) => setModalBranch(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
-                >
-                  <option value="Cavite Distribution Hub">Cavite Distribution Hub</option>
-                  <option value="Quiapo Branch (Manila)">Quiapo Branch (Manila Showroom)</option>
-                </select>
-              </div>
-
-              {/* Staff Notes */}
-              <div>
-                <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                  Staff Notes & Next Steps
-                </label>
-                <textarea
-                  rows={3}
-                  value={modalStaffNotes}
-                  onChange={(e) => setModalStaffNotes(e.target.value)}
-                  placeholder="Record customer notes, requirements, or conversation summaries..."
-                  className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary resize-none"
-                />
-              </div>
-            </div>
-
-            {/* Direct Contact Links */}
-            {selectedInquiry.email && (
-              <div className="flex items-center gap-3 pt-2">
-                <a
-                  href={`mailto:${selectedInquiry.email}`}
-                  className="text-xs font-bold text-blue-700 bg-blue-50 dark:bg-blue-950/40 border border-blue-300 dark:border-blue-800 px-3 py-2 rounded-xl flex items-center gap-1.5 hover:bg-blue-100 transition-colors"
-                >
-                  <Mail className="w-3.5 h-3.5" />
-                  <span>Send Email</span>
-                </a>
-              </div>
-            )}
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-between border-t border-jds-outline-variant/20 pt-4">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-xs font-bold rounded-xl border border-jds-outline-variant/40 text-jds-on-surface hover:bg-jds-surface-container transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTicketToDelete(selectedInquiry)}
-                  className="px-3.5 py-2 text-xs font-bold rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete Inquiry</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveModal}
-                disabled={modalSaving}
-                className="px-5 py-2 text-xs font-bold rounded-xl bg-jds-primary text-white hover:bg-jds-primary/90 transition-all flex items-center gap-2 shadow-xs cursor-pointer"
-              >
-                {modalSaving ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Saving to Database...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Save Changes</span>
-                  </>
+                {/* Direct Contact Links */}
+                {selectedInquiry.email && (
+                  <div className="flex items-center gap-3 pt-2">
+                    <a
+                      href={`mailto:${selectedInquiry.email}`}
+                      className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-300 px-3 py-2 rounded-xl flex items-center gap-1.5 hover:bg-blue-100 transition-colors"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>Send Email</span>
+                    </a>
+                  </div>
                 )}
-              </button>
             </div>
-            </>
-            )}
-          </div>
-        </div>
-      )}
+          )
+        )}
+      </InspectorDrawer>
 
       {/* NEW INQUIRY / WALK-IN MODAL */}
       {isNewModalOpen && (
@@ -2542,297 +2665,297 @@ export default function InquiriesScreen({ initialViewMode = 'calendar' }) {
               />
             ) : (
               <>
-            <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-jds-on-surface">Log New Customer Inquiry</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsNewModalOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-jds-surface-container text-jds-on-surface-variant transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {newError && (
-              <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{newError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateInquiry} className="space-y-3.5">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                    Customer Name <span className="text-amber-600">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Full Name"
-                    value={newCustName}
-                    onChange={(e) => setNewCustName(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                    Contact Number <span className="text-amber-600">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="09XXXXXXXXX"
-                    value={newCustPhone}
-                    onChange={(e) => setNewCustPhone(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                  Email Address <span className="text-amber-600">*</span>
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder="customer@example.com"
-                  value={newCustEmail}
-                  onChange={(e) => {
-                    setNewCustEmail(e.target.value)
-                    if (newError) setNewError('')
-                  }}
-                  className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                  Facebook Profile / Username
-                </label>
-                <div className="flex items-center rounded-xl border border-jds-outline-variant/40 bg-jds-surface transition-all overflow-hidden focus-within:border-jds-primary">
-                  <div className="flex items-center gap-1.5 pl-3 pr-2 py-2 bg-jds-surface-container-low border-r border-jds-outline-variant/30 text-jds-on-surface-variant select-none shrink-0">
-                    <FaFacebook className="h-3.5 w-3.5 text-[#1877F2] shrink-0" />
-                    <span className="text-xs font-mono text-jds-on-surface-variant font-semibold">facebook.com/</span>
+                <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-jds-on-surface">Log New Customer Inquiry</h3>
                   </div>
-                  <input
-                    type="text"
-                    placeholder="username or profile ID (optional)"
-                    value={newCustFacebook}
-                    onChange={(e) => setNewCustFacebook(extractFacebookHandle(e.target.value))}
-                    className="w-full bg-transparent px-3 py-2 text-xs text-jds-on-surface outline-none placeholder:text-jds-on-surface-variant/50"
-                  />
-                </div>
-              </div>
-
-              {/* Philippine Cascading Address Selector for Staff / Admin */}
-              <div className="p-3 rounded-xl bg-jds-surface-container-low/40 border border-jds-outline-variant/30 space-y-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant block">
-                  Customer Location & Address
-                </span>
-                <PhilippineAddressSelect
-                  provinceCode={newCustProvinceCode}
-                  provinceName={newCustProvince}
-                  cityCode={newCustCityCode}
-                  cityName={newCustCity}
-                  barangayCode={newCustBarangayCode}
-                  barangayName={newCustBarangay}
-                  streetAddress={newCustStreetAddress}
-                  errors={newLocationErrors}
-                  required={false}
-                  onLocationChange={({
-                    provinceCode: pCode,
-                    provinceName: pName,
-                    cityCode: cCode,
-                    cityName: cName,
-                    barangayCode: bCode,
-                    barangayName: bName,
-                    streetAddress: sAddress,
-                  }) => {
-                    setNewCustProvinceCode(pCode)
-                    setNewCustProvince(pName)
-                    setNewCustCityCode(cCode)
-                    setNewCustCity(cName)
-                    setNewCustBarangayCode(bCode)
-                    setNewCustBarangay(bName)
-                    if (sAddress !== undefined) {
-                      setNewCustStreetAddress(sAddress)
-                    }
-                    setNewLocationErrors({})
-                  }}
-                  variant="admin"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                    Inquiry Type
-                  </label>
-                  <select
-                    value={newType}
-                    onChange={(e) => setNewType(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
+                  <button
+                    type="button"
+                    onClick={() => setIsNewModalOpen(false)}
+                    className="p-1.5 rounded-lg hover:bg-jds-surface-container text-jds-on-surface-variant transition-colors"
                   >
-                    <option value="INQUIRY">Showroom Consultation</option>
-                    <option value="PICKUP">Store Pickup & Reservation</option>
-                  </select>
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                    Showroom Branch
-                  </label>
-                  <select
-                    value={newBranch}
-                    onChange={(e) => setNewBranch(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
-                  >
-                    <option value="Cavite Distribution Hub">Cavite Distribution Hub</option>
-                    <option value="Quiapo Branch (Manila)">Quiapo Showroom (Manila)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                    Product / System Inquired
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 5kW Hybrid Solar Package"
-                    value={newProduct}
-                    onChange={(e) => setNewProduct(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                    Quantity
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={newQuantity}
-                    onChange={(e) => setNewQuantity(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
-                  />
-                </div>
-              </div>
-
-              {/* Showroom Business Hours Banner */}
-              <div className="p-3 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/60 text-xs text-jds-on-surface flex items-start gap-2.5">
-                <Clock className="h-4 w-4 text-jds-primary shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold block text-jds-on-surface">Showroom Business Hours</span>
-                  <span className="text-[11px] text-jds-on-surface-variant block mt-0.5">
-                    Monday to Saturday: 8:00 AM – 5:30 PM • Closed on Sundays
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-semibold text-jds-on-surface">
-                      Visit Date <span className="text-amber-600">*</span>
-                    </label>
-                    <span className="text-[11px] text-jds-on-surface-variant font-medium">Mon – Sat Only</span>
+                {newError && (
+                  <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{newError}</span>
                   </div>
-                  <input
-                    type="date"
-                    min={minBusinessDateStr}
-                    required
-                    value={newVisitDate}
-                    onClick={(e) => {
-                      try {
-                        e.currentTarget.showPicker?.()
-                      } catch (err) { }
-                    }}
-                    onChange={(e) => {
-                      setNewVisitDate(e.target.value)
-                      setNewError('')
-                    }}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
-                  />
-                </div>
+                )}
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-semibold text-jds-on-surface">
-                      Time Slot <span className="text-amber-600">*</span>
-                    </label>
-                    <span className="text-[11px] text-jds-on-surface-variant font-medium">8:00 AM – 5:30 PM</span>
+                <form onSubmit={handleCreateInquiry} className="space-y-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                        Customer Name <span className="text-amber-600">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Full Name"
+                        value={newCustName}
+                        onChange={(e) => setNewCustName(e.target.value)}
+                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                        Contact Number <span className="text-amber-600">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="09XXXXXXXXX"
+                        value={newCustPhone}
+                        onChange={(e) => setNewCustPhone(e.target.value)}
+                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                      />
+                    </div>
                   </div>
-                  <input
-                    type="time"
-                    min="09:00"
-                    max="17:00"
-                    step="900"
-                    required
-                    value={newVisitTime}
-                    onClick={(e) => {
-                      try {
-                        e.currentTarget.showPicker?.()
-                      } catch (err) { }
-                    }}
-                    onChange={(e) => {
-                      setNewVisitTime(e.target.value)
-                      setNewError('')
-                    }}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary font-semibold cursor-pointer"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                  Staff Notes
-                </label>
-                <textarea
-                  rows={2}
-                  value={newStaffNotes}
-                  onChange={(e) => setNewStaffNotes(e.target.value)}
-                  placeholder="Additional customer requirements or background notes..."
-                  className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary resize-none"
-                />
-              </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                      Email Address <span className="text-amber-600">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="customer@example.com"
+                      value={newCustEmail}
+                      onChange={(e) => {
+                        setNewCustEmail(e.target.value)
+                        if (newError) setNewError('')
+                      }}
+                      className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                    />
+                  </div>
 
-              <div className="flex items-center justify-between border-t border-jds-outline-variant/20 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsNewModalOpen(false)}
-                  className="px-4 py-2 text-xs font-bold rounded-xl border border-jds-outline-variant/40 text-jds-on-surface hover:bg-jds-surface-container transition-colors"
-                >
-                  Cancel
-                </button>
+                  <div>
+                    <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                      Facebook Profile / Username
+                    </label>
+                    <div className="flex items-center rounded-xl border border-jds-outline-variant/40 bg-jds-surface transition-all overflow-hidden focus-within:border-jds-primary">
+                      <div className="flex items-center gap-1.5 pl-3 pr-2 py-2 bg-jds-surface-container-low border-r border-jds-outline-variant/30 text-jds-on-surface-variant select-none shrink-0">
+                        <FaFacebook className="h-3.5 w-3.5 text-[#1877F2] shrink-0" />
+                        <span className="text-xs font-mono text-jds-on-surface-variant font-semibold">facebook.com/</span>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="username or profile ID (optional)"
+                        value={newCustFacebook}
+                        onChange={(e) => setNewCustFacebook(extractFacebookHandle(e.target.value))}
+                        className="w-full bg-transparent px-3 py-2 text-xs text-jds-on-surface outline-none placeholder:text-jds-on-surface-variant/50"
+                      />
+                    </div>
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={newCreating}
-                  className="px-5 py-2 text-xs font-bold rounded-xl bg-jds-primary text-white hover:bg-jds-primary/90 transition-all flex items-center gap-2 shadow-xs cursor-pointer"
-                >
-                  {newCreating ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Recording...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Confirm & Add to Calendar</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-            </>
+                  {/* Philippine Cascading Address Selector for Staff / Admin */}
+                  <div className="p-3 rounded-xl bg-jds-surface-container-low/40 border border-jds-outline-variant/30 space-y-3">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant block">
+                      Customer Location & Address
+                    </span>
+                    <PhilippineAddressSelect
+                      provinceCode={newCustProvinceCode}
+                      provinceName={newCustProvince}
+                      cityCode={newCustCityCode}
+                      cityName={newCustCity}
+                      barangayCode={newCustBarangayCode}
+                      barangayName={newCustBarangay}
+                      streetAddress={newCustStreetAddress}
+                      errors={newLocationErrors}
+                      required={false}
+                      onLocationChange={({
+                        provinceCode: pCode,
+                        provinceName: pName,
+                        cityCode: cCode,
+                        cityName: cName,
+                        barangayCode: bCode,
+                        barangayName: bName,
+                        streetAddress: sAddress,
+                      }) => {
+                        setNewCustProvinceCode(pCode)
+                        setNewCustProvince(pName)
+                        setNewCustCityCode(cCode)
+                        setNewCustCity(cName)
+                        setNewCustBarangayCode(bCode)
+                        setNewCustBarangay(bName)
+                        if (sAddress !== undefined) {
+                          setNewCustStreetAddress(sAddress)
+                        }
+                        setNewLocationErrors({})
+                      }}
+                      variant="admin"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                        Inquiry Type
+                      </label>
+                      <select
+                        value={newType}
+                        onChange={(e) => setNewType(e.target.value)}
+                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
+                      >
+                        <option value="INQUIRY">Showroom Consultation</option>
+                        <option value="PICKUP">Store Pickup & Reservation</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                        Showroom Branch
+                      </label>
+                      <select
+                        value={newBranch}
+                        onChange={(e) => setNewBranch(e.target.value)}
+                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
+                      >
+                        <option value="Cavite Distribution Hub">Cavite Distribution Hub</option>
+                        <option value="Quiapo Branch (Manila)">Quiapo Showroom (Manila)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                        Product / System Inquired
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 5kW Hybrid Solar Package"
+                        value={newProduct}
+                        onChange={(e) => setNewProduct(e.target.value)}
+                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                        Quantity
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newQuantity}
+                        onChange={(e) => setNewQuantity(e.target.value)}
+                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Showroom Business Hours Banner */}
+                  <div className="p-3 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/60 text-xs text-jds-on-surface flex items-start gap-2.5">
+                    <Clock className="h-4 w-4 text-jds-primary shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block text-jds-on-surface">Showroom Business Hours</span>
+                      <span className="text-[11px] text-jds-on-surface-variant block mt-0.5">
+                        Monday to Saturday: 8:00 AM – 5:30 PM • Closed on Sundays
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-jds-on-surface">
+                          Visit Date <span className="text-amber-600">*</span>
+                        </label>
+                        <span className="text-[11px] text-jds-on-surface-variant font-medium">Mon – Sat Only</span>
+                      </div>
+                      <input
+                        type="date"
+                        min={minBusinessDateStr}
+                        required
+                        value={newVisitDate}
+                        onClick={(e) => {
+                          try {
+                            e.currentTarget.showPicker?.()
+                          } catch (err) { }
+                        }}
+                        onChange={(e) => {
+                          setNewVisitDate(e.target.value)
+                          setNewError('')
+                        }}
+                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-jds-on-surface">
+                          Time Slot <span className="text-amber-600">*</span>
+                        </label>
+                        <span className="text-[11px] text-jds-on-surface-variant font-medium">8:00 AM – 5:30 PM</span>
+                      </div>
+                      <input
+                        type="time"
+                        min="09:00"
+                        max="17:00"
+                        step="900"
+                        required
+                        value={newVisitTime}
+                        onClick={(e) => {
+                          try {
+                            e.currentTarget.showPicker?.()
+                          } catch (err) { }
+                        }}
+                        onChange={(e) => {
+                          setNewVisitTime(e.target.value)
+                          setNewError('')
+                        }}
+                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary font-semibold cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                      Staff Notes
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={newStaffNotes}
+                      onChange={(e) => setNewStaffNotes(e.target.value)}
+                      placeholder="Additional customer requirements or background notes..."
+                      className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary resize-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-jds-outline-variant/20 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setIsNewModalOpen(false)}
+                      className="px-4 py-2 text-xs font-bold rounded-xl border border-jds-outline-variant/40 text-jds-on-surface hover:bg-jds-surface-container transition-colors"
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={newCreating}
+                      className="px-5 py-2 text-xs font-bold rounded-xl bg-jds-primary text-white hover:bg-jds-primary/90 transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+                    >
+                      {newCreating ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Recording...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Confirm & Add to Calendar</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </>
             )}
           </div>
         </div>

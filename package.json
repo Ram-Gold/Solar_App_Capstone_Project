@@ -12,6 +12,7 @@
     "keepalive": "node scripts/keepalive.js"
   },
   "devDependencies": {
+    "agentation": "^3.1.2",
     "wrangler": "^4.156.0"
   },
   "dependencies": {

@@ -211,7 +211,7 @@ export default function BrowsePage() {
           </div>
           <Link
             to="/match"
-            className="self-start sm:self-auto flex items-center gap-1.5 sm:gap-2 bg-jds-primary hover:bg-jds-primary/90 text-white font-bold text-xs sm:text-label-md px-3.5 py-2 sm:px-5 sm:py-3 rounded-xl shadow-xs hover:shadow-md transition-all active:scale-95 shrink-0"
+            className="self-start sm:self-auto min-h-[44px] sm:min-h-0 flex items-center gap-1.5 sm:gap-2 bg-jds-primary hover:bg-jds-primary/90 text-white font-bold text-xs sm:text-label-md px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl shadow-xs hover:shadow-md transition-all active:scale-95 shrink-0"
           >
             <HiOutlineSparkles className="text-base sm:text-lg" />
             <span>Product Matcher</span>
@@ -222,7 +222,7 @@ export default function BrowsePage() {
           {/* Mobile Filter Toggle Button */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="md:hidden flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-jds-surface-container-high rounded-xl text-xs font-bold text-jds-on-surface border border-jds-outline-variant hover:bg-jds-surface-container-highest transition-colors cursor-pointer"
+            className="md:hidden min-h-[44px] flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-jds-surface-container-high rounded-xl text-xs font-bold text-jds-on-surface border border-jds-outline-variant hover:bg-jds-surface-container-highest transition-colors cursor-pointer"
           >
             <HiOutlineFunnel className="text-base" />
             {showFilters ? 'Hide Filters' : 'Show Filters'}
@@ -250,7 +250,7 @@ export default function BrowsePage() {
                   <button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
-                    className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-xs sm:text-label-md w-full text-left transition-colors ${activeCategory === cat
+                    className={`flex items-center justify-between min-h-[44px] sm:min-h-0 px-3 py-2 sm:py-1.5 rounded-lg text-xs sm:text-label-md w-full text-left transition-colors ${activeCategory === cat
                       ? 'bg-jds-secondary/10 text-jds-secondary font-semibold'
                       : 'text-jds-on-surface-variant hover:bg-jds-surface-container-high'
                       }`}
@@ -274,7 +274,7 @@ export default function BrowsePage() {
                 ].map((opt) => (
                   <label
                     key={opt.value}
-                    className={`flex items-center gap-2.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer transition-all ${waterproofFilter === opt.value
+                    className={`min-h-[44px] sm:min-h-0 flex items-center gap-2.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer transition-all ${waterproofFilter === opt.value
                       ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary'
                       : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
                       }`}
@@ -305,7 +305,7 @@ export default function BrowsePage() {
                 ].map((opt) => (
                   <label
                     key={opt.value}
-                    className={`flex items-center gap-2.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer transition-all ${powerFilter === opt.value
+                    className={`min-h-[44px] sm:min-h-0 flex items-center gap-2.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer transition-all ${powerFilter === opt.value
                       ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary'
                       : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
                       }`}
@@ -332,7 +332,7 @@ export default function BrowsePage() {
                   <button
                     type="button"
                     onClick={() => setBudgetFilter(null)}
-                    className="text-[11px] text-jds-primary hover:underline font-semibold cursor-pointer"
+                    className="min-h-[44px] sm:min-h-0 px-2 flex items-center text-[11px] text-jds-primary hover:underline font-semibold cursor-pointer"
                   >
                     Reset
                   </button>
@@ -376,7 +376,7 @@ export default function BrowsePage() {
                 ].map((opt) => (
                   <label
                     key={opt.value}
-                    className={`flex items-center gap-2.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer transition-all ${batteryFilter === opt.value
+                    className={`min-h-[44px] sm:min-h-0 flex items-center gap-2.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer transition-all ${batteryFilter === opt.value
                       ? 'border-jds-secondary bg-jds-secondary/10 text-jds-secondary'
                       : 'border-jds-outline-variant/30 bg-jds-surface-container-lowest text-jds-on-surface-variant hover:bg-jds-surface-container-high'
                       }`}
@@ -403,7 +403,7 @@ export default function BrowsePage() {
                 Showing {loading ? '...' : `${Math.min(visibleCount, filtered.length)} of ${filtered.length}`} products
               </p>
               <select
-                className="bg-transparent border-none text-label-md text-jds-primary focus:ring-0 cursor-pointer"
+                className="min-h-[44px] sm:min-h-0 px-2 bg-transparent border-none text-label-md text-jds-primary focus:ring-0 cursor-pointer"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
               >
@@ -415,7 +415,7 @@ export default function BrowsePage() {
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="bg-jds-surface-container-lowest border border-jds-outline-variant rounded-lg p-2.5 sm:p-4 animate-pulse">
                     <div className="aspect-square rounded-lg bg-jds-surface-variant mb-2.5 sm:mb-4" />
@@ -428,16 +428,17 @@ export default function BrowsePage() {
             ) : filtered.length > 0 ? (
               <>
                 <motion.div
+                  data-testid="browse-product-grid"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4 }}
-                  className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6"
+                  className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6"
                 >
                   {displayedProducts.map((product, index) => (
                     <Link
                       key={product.id}
                       to={`/product/${product.id}`}
-                      className="bg-jds-surface-container-lowest flex flex-col border border-jds-outline-variant card-shadow rounded-lg p-2.5 sm:p-4 cursor-pointer no-underline text-inherit group hover:border-jds-primary/40 transition-colors"
+                      className="min-w-0 bg-jds-surface-container-lowest flex flex-col border border-jds-outline-variant card-shadow rounded-lg p-2.5 sm:p-4 cursor-pointer no-underline text-inherit group hover:border-jds-primary/40 transition-colors"
                     >
                       <div className="aspect-square rounded-lg bg-jds-surface-variant mb-2 sm:mb-4 overflow-hidden relative flex items-center justify-center">
                         {getMainProductImage(product.image_url) ? (
@@ -492,7 +493,7 @@ export default function BrowsePage() {
                         )}
                       </div>
                       <div
-                        className="w-full border border-jds-secondary text-jds-secondary py-1.5 sm:py-2 rounded text-[11px] sm:text-label-md font-semibold text-center block mt-auto group-hover:bg-jds-secondary group-hover:text-white transition-colors"
+                        className="w-full min-h-[44px] sm:min-h-0 flex items-center justify-center border border-jds-secondary text-jds-secondary py-2.5 sm:py-2 rounded text-xs sm:text-label-md font-semibold text-center mt-auto group-hover:bg-jds-secondary group-hover:text-white transition-colors"
                       >
                         View Details
                       </div>
@@ -528,7 +529,7 @@ export default function BrowsePage() {
                     setBudgetFilter(null)
                     setBatteryFilter('All')
                   }}
-                  className="border border-jds-secondary text-jds-secondary px-6 py-2 rounded-lg text-label-md hover:bg-jds-secondary hover:text-white transition-colors"
+                  className="min-h-[44px] border border-jds-secondary text-jds-secondary px-6 py-2 rounded-lg text-label-md hover:bg-jds-secondary hover:text-white transition-colors cursor-pointer"
                 >
                   Clear Filters
                 </button>
@@ -547,7 +548,7 @@ export default function BrowsePage() {
             <div className="flex flex-wrap gap-4">
               <Link
                 to="/chat"
-                className="bg-jds-primary text-jds-on-primary px-6 py-3 sm:px-8 sm:py-4 rounded-lg text-xs sm:text-label-md font-bold hover:scale-105 transition-transform"
+                className="inline-flex items-center justify-center min-h-[44px] bg-jds-primary text-jds-on-primary px-6 py-3 sm:px-8 sm:py-4 rounded-lg text-xs sm:text-label-md font-bold hover:scale-105 transition-transform"
               >
                 Ask Solar Assistant
               </Link>

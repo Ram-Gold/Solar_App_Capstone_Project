@@ -90,7 +90,7 @@ export default function OrdersScreen() {
 
       {/* Add / Edit Form */}
       {showForm && (
-        <div className="rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-8 space-y-6 shadow-lg animate-in slide-in-from-top-4 duration-300">
+        <div className="rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-4 sm:p-8 space-y-6 shadow-lg animate-in slide-in-from-top-4 duration-300">
           <div className="flex items-center justify-between border-b border-jds-outline-variant/20 pb-4">
             <h3 className="text-body-lg font-bold text-jds-on-surface">{editingId ? 'Edit Order Details' : 'Create New Order'}</h3>
             <Button variant="ghost" size="icon" onClick={resetForm} className="h-10 w-10 text-jds-on-surface-variant hover:bg-jds-surface-container-low">
@@ -141,9 +141,61 @@ export default function OrdersScreen() {
         </div>
       )}
 
-      {/* Orders Table */}
+      {/* Orders Table (stacked cards on < md, table on md+) */}
       <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+        <div className="md:hidden divide-y divide-jds-outline-variant/20">
+          {orders.length === 0 ? (
+            <div className="py-12 px-4 text-center text-body-md text-jds-on-surface-variant/50">
+              No orders currently in the system.
+            </div>
+          ) : (
+            orders.map((o) => (
+              <div key={o.id} className="p-4 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-bold text-jds-on-surface truncate">{o.customer_name}</div>
+                    <div className="text-xs text-jds-on-surface-variant line-clamp-2">{o.address}</div>
+                  </div>
+                  <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold uppercase ${o.status === 'Delivered' ? 'bg-emerald-500/10 text-emerald-700'
+                    : o.status === 'Cancelled' ? 'bg-jds-error-container text-jds-error'
+                      : 'bg-jds-primary-fixed text-jds-primary'
+                    }`}>
+                    {o.status}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="text-jds-on-surface-variant truncate pr-2">{o.product_name} × {o.quantity}</span>
+                  {role !== 'staff' && (
+                    <span className="font-bold text-jds-on-surface shrink-0 tabular-nums">₱{Number(o.price * o.quantity).toLocaleString()}</span>
+                  )}
+                </div>
+                {role === 'admin' && (
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(o)}
+                      className="text-jds-on-surface"
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(o.id)}
+                      className="text-jds-error"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+        <div className="hidden md:block overflow-x-auto">
           <Table>
             <TableHeader className="bg-jds-surface-container-low/10">
               <TableRow>
@@ -151,7 +203,9 @@ export default function OrdersScreen() {
                 <TableHead className="text-jds-on-surface-variant font-bold">Location</TableHead>
                 <TableHead className="text-jds-on-surface-variant font-bold">Product</TableHead>
                 <TableHead className="text-jds-on-surface-variant font-bold">Qty</TableHead>
-                <TableHead className="text-jds-on-surface-variant font-bold">Total Price</TableHead>
+                {role !== 'staff' && (
+                  <TableHead className="text-jds-on-surface-variant font-bold">Total Price</TableHead>
+                )}
                 <TableHead className="text-jds-on-surface-variant font-bold">Status</TableHead>
                 {role === 'admin' && (
                   <TableHead className="text-right text-jds-on-surface-variant font-bold">Actions</TableHead>
@@ -169,12 +223,14 @@ export default function OrdersScreen() {
                     <TableCell className="font-bold text-jds-on-surface">{o.customer_name}</TableCell>
                     <TableCell className="text-jds-on-surface-variant max-w-[200px] truncate">{o.address}</TableCell>
                     <TableCell className="text-jds-on-surface-variant">{o.product_name}</TableCell>
-                    <TableCell className="text-jds-on-surface font-medium">{o.quantity}</TableCell>
-                    <TableCell className="text-jds-on-surface font-bold">₱{Number(o.price * o.quantity).toLocaleString()}</TableCell>
+                    <TableCell className="text-jds-on-surface font-medium tabular-nums">{o.quantity}</TableCell>
+                    {role !== 'staff' && (
+                      <TableCell className="text-jds-on-surface font-bold tabular-nums">₱{Number(o.price * o.quantity).toLocaleString()}</TableCell>
+                    )}
                     <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-label-sm font-bold uppercase ${o.status === 'Delivered' ? 'bg-jds-secondary-container/10 text-jds-secondary'
-                          : o.status === 'Cancelled' ? 'bg-jds-error-container/10 text-jds-error'
-                            : 'bg-jds-primary-container/10 text-jds-primary'
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-label-sm font-bold uppercase ${o.status === 'Delivered' ? 'bg-emerald-500/10 text-emerald-700'
+                        : o.status === 'Cancelled' ? 'bg-jds-error-container text-jds-error'
+                          : 'bg-jds-primary-fixed text-jds-primary'
                         }`}>
                         {o.status}
                       </span>
@@ -186,7 +242,7 @@ export default function OrdersScreen() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleEdit(o)}
-                            className="h-9 w-9 text-jds-secondary hover:bg-jds-secondary-container/10"
+                            className="text-jds-on-surface-variant hover:text-jds-primary hover:bg-jds-surface-container"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -194,7 +250,7 @@ export default function OrdersScreen() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDelete(o.id)}
-                            className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
+                            className="text-jds-error hover:bg-jds-error-container/40"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

@@ -2,17 +2,17 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { Button } from '../ui/button'
 import useModalBehavior from '../../hooks/useModalBehavior'
-import { 
-  Upload, 
-  Image as ImageIcon, 
-  Copy, 
-  Check, 
-  Trash2, 
-  Search, 
-  RefreshCw, 
-  ExternalLink, 
-  X, 
-  Eye, 
+import {
+  Upload,
+  Image as ImageIcon,
+  Copy,
+  Check,
+  Trash2,
+  Search,
+  RefreshCw,
+  ExternalLink,
+  X,
+  Eye,
   HardDrive,
   FileImage,
   ArrowUpDown
@@ -20,7 +20,7 @@ import {
 
 const BUCKET_NAME = 'product-images'
 
-export default function ImagesScreen() {
+export default function ImagesScreen({ embedded = false }) {
   const [images, setImages] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -35,7 +35,7 @@ export default function ImagesScreen() {
   })
   const [uploadFeedback, setUploadFeedback] = useState(null) // { type: 'success' | 'error', message: '' }
   const [dragOver, setDragOver] = useState(false)
-  
+
   // Pending files selected for upload
   const [pendingFiles, setPendingFiles] = useState([])
   const fileInputRef = useRef(null)
@@ -109,7 +109,7 @@ export default function ImagesScreen() {
       const sanitizedName = file.name
         .toLowerCase()
         .replace(/[^a-z0-9._-]/g, '_')
-      
+
       // Ensure file doesn't accidentally overwrite unless intended, append timestamp
       const fileExt = sanitizedName.substring(sanitizedName.lastIndexOf('.'))
       const baseName = sanitizedName.substring(0, sanitizedName.lastIndexOf('.'))
@@ -135,9 +135,9 @@ export default function ImagesScreen() {
     if (failedCount === 0) {
       setUploadFeedback({ type: 'success', message: `Successfully uploaded ${successCount} image(s)!` })
     } else {
-      setUploadFeedback({ 
-        type: 'error', 
-        message: `Uploaded ${successCount} image(s), but ${failedCount} failed.` 
+      setUploadFeedback({
+        type: 'error',
+        message: `Uploaded ${successCount} image(s), but ${failedCount} failed.`
       })
     }
 
@@ -185,7 +185,7 @@ export default function ImagesScreen() {
   }
 
   // Filter and sort
-  const filteredImages = images.filter(img => 
+  const filteredImages = images.filter(img =>
     img.name.toLowerCase().includes(search.toLowerCase())
   ).sort((a, b) => {
     if (sortBy === 'newest') {
@@ -204,12 +204,16 @@ export default function ImagesScreen() {
   })
 
   return (
-    <div className="max-w-[1300px] mx-auto space-y-8 pb-12">
+    <div className={embedded ? 'space-y-6 pb-8' : 'max-w-[1300px] mx-auto space-y-8 pb-12'}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-headline-md font-bold text-jds-on-surface">Image Storage & Assets</h1>
+            {embedded ? (
+              <h2 className="text-lg font-bold text-jds-on-surface">Media Library Assets</h2>
+            ) : (
+              <h1 className="text-headline-md font-bold text-jds-on-surface">Image Storage & Assets</h1>
+            )}
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-jds-primary/10 text-jds-primary border border-jds-primary/20">
               <HardDrive className="h-3 w-3" />
               {BUCKET_NAME}
@@ -218,9 +222,9 @@ export default function ImagesScreen() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            onClick={fetchImages} 
+          <Button
+            variant="outline"
+            onClick={fetchImages}
             disabled={loading}
             className="border-jds-outline-variant text-jds-on-surface-variant hover:bg-jds-surface-container gap-2"
           >
@@ -239,12 +243,11 @@ export default function ImagesScreen() {
 
       {/* Upload Alerts */}
       {uploadFeedback && (
-        <div 
-          className={`p-4 rounded-xl border flex items-center justify-between animate-in fade-in ${
-            uploadFeedback.type === 'success' 
-              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400' 
+        <div
+          className={`p-4 rounded-xl border flex items-center justify-between animate-in fade-in ${uploadFeedback.type === 'success'
+              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
               : 'bg-jds-error-container/20 border-jds-error/30 text-jds-error'
-          }`}
+            }`}
         >
           <span className="text-body-sm font-medium">{uploadFeedback.message}</span>
           <button onClick={() => setUploadFeedback(null)} className="opacity-60 hover:opacity-100">
@@ -254,7 +257,7 @@ export default function ImagesScreen() {
       )}
 
       {/* Drag & Drop Upload Zone */}
-      <div 
+      <div
         onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
@@ -262,21 +265,20 @@ export default function ImagesScreen() {
           setDragOver(false)
           if (e.dataTransfer.files) handleFilesSelected(e.dataTransfer.files)
         }}
-        className={`rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
-          dragOver 
-            ? 'border-jds-primary bg-jds-primary/5 scale-[1.005]' 
+        className={`rounded-2xl border-2 border-dashed p-8 text-center transition-all ${dragOver
+            ? 'border-jds-primary bg-jds-primary/5 scale-[1.005]'
             : 'border-jds-outline-variant/50 bg-jds-surface-container-lowest hover:border-jds-primary/40'
-        }`}
+          }`}
       >
-        <input 
+        <input
           ref={fileInputRef}
-          type="file" 
-          multiple 
-          accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml" 
+          type="file"
+          multiple
+          accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
           onChange={(e) => {
             if (e.target.files) handleFilesSelected(e.target.files)
           }}
-          className="hidden" 
+          className="hidden"
         />
 
         <div className="max-w-md mx-auto flex flex-col items-center gap-3">
@@ -286,8 +288,8 @@ export default function ImagesScreen() {
           <div className="space-y-1">
             <h3 className="text-body-lg font-bold text-jds-on-surface">
               Drag & Drop product images here, or{' '}
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="text-jds-primary hover:underline font-semibold"
               >
@@ -308,15 +310,15 @@ export default function ImagesScreen() {
                 Files Ready to Upload ({pendingFiles.length})
               </span>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setPendingFiles([])}
                   className="text-xs text-jds-on-surface-variant hover:text-jds-error"
                 >
                   Clear All
                 </Button>
-                <Button 
+                <Button
                   onClick={handleUploadSubmit}
                   disabled={uploading}
                   className="bg-jds-primary text-jds-on-primary hover:opacity-90 gap-2 h-9 px-4 text-xs font-bold shadow-sm"
@@ -338,22 +340,22 @@ export default function ImagesScreen() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {pendingFiles.map((file, idx) => (
-                <div 
-                  key={idx} 
+                <div
+                  key={idx}
                   className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/40"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <img 
-                      src={URL.createObjectURL(file)} 
-                      alt={file.name} 
-                      className="h-10 w-10 rounded-lg object-cover bg-black/5 shrink-0" 
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={file.name}
+                      className="h-10 w-10 rounded-lg object-cover bg-black/5 shrink-0"
                     />
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-jds-on-surface truncate">{file.name}</p>
                       <p className="text-[11px] text-jds-on-surface-variant">{formatFileSize(file.size)}</p>
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => removePendingFile(idx)}
                     className="p-1 rounded-lg text-jds-on-surface-variant hover:text-jds-error hover:bg-jds-surface-container-high transition-colors"
                   >
@@ -378,7 +380,7 @@ export default function ImagesScreen() {
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest text-body-md text-jds-on-surface placeholder:text-jds-on-surface-variant/50 focus:border-jds-primary outline-none transition-all shadow-sm"
           />
           {search && (
-            <button 
+            <button
               onClick={() => setSearch('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-jds-on-surface-variant hover:text-jds-on-surface"
             >
@@ -447,8 +449,8 @@ export default function ImagesScreen() {
                     }}
                   />
 
-                  {/* Overlay Action Buttons on Hover */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+                  {/* Overlay Action Buttons on Hover (md+) */}
+                  <div className="hidden md:flex absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-2 backdrop-blur-[2px]">
                     <button
                       onClick={() => setSelectedImage({ name: img.name, url, metadata: img.metadata, created_at: img.created_at })}
                       title="Enlarge Image"
@@ -478,8 +480,8 @@ export default function ImagesScreen() {
                 {/* Details Footer */}
                 <div className="p-3 flex-1 flex flex-col justify-between gap-2.5">
                   <div>
-                    <p 
-                      className="text-xs font-bold text-jds-on-surface truncate" 
+                    <p
+                      className="text-xs font-bold text-jds-on-surface truncate"
                       title={img.name}
                     >
                       {img.name}
@@ -490,16 +492,44 @@ export default function ImagesScreen() {
                     </div>
                   </div>
 
+                  {/* Mobile Always-Visible Touch Actions (< md) */}
+                  <div className="md:hidden grid grid-cols-3 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedImage({ name: img.name, url, metadata: img.metadata, created_at: img.created_at })}
+                      aria-label={`Enlarge ${img.name}`}
+                      className="min-h-[44px] rounded-lg border border-jds-outline-variant/40 bg-jds-surface-container-low text-jds-on-surface flex items-center justify-center hover:bg-jds-surface-container transition-colors"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Open ${img.name} in new tab`}
+                      className="min-h-[44px] rounded-lg border border-jds-outline-variant/40 bg-jds-surface-container-low text-jds-on-surface flex items-center justify-center hover:bg-jds-surface-container transition-colors"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteImage(img.name)}
+                      aria-label={`Delete ${img.name}`}
+                      className="min-h-[44px] rounded-lg border border-red-500/30 bg-red-500/10 text-red-600 flex items-center justify-center hover:bg-red-500/20 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
                   {/* 1-Click Copy Link Button */}
                   <Button
                     size="sm"
                     variant={isCopied ? "default" : "outline"}
                     onClick={() => copyToClipboard(img.name)}
-                    className={`w-full h-8 text-xs font-semibold gap-1.5 rounded-lg transition-all ${
-                      isCopied 
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-600 border-emerald-600' 
+                    className={`w-full min-h-[44px] md:min-h-0 md:h-8 text-xs font-semibold gap-1.5 rounded-lg transition-all ${isCopied
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-600 border-emerald-600'
                         : 'border-jds-outline-variant/60 text-jds-on-surface hover:bg-jds-primary/10 hover:text-jds-primary hover:border-jds-primary/40'
-                    }`}
+                      }`}
                   >
                     {isCopied ? (
                       <>
@@ -522,11 +552,11 @@ export default function ImagesScreen() {
 
       {/* Enlarged Image Preview Modal */}
       {selectedImage && (
-        <div 
+        <div
           className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
           onClick={() => setSelectedImage(null)}
         >
-          <div 
+          <div
             className="bg-jds-surface-container-lowest rounded-2xl max-w-2xl w-full border border-jds-outline-variant/30 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
@@ -540,9 +570,9 @@ export default function ImagesScreen() {
                   {formatFileSize(selectedImage.metadata?.size)} • Uploaded {formatDate(selectedImage.created_at)}
                 </p>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setSelectedImage(null)}
                 className="h-8 w-8 rounded-lg text-jds-on-surface-variant hover:bg-jds-surface-container"
               >
@@ -552,9 +582,9 @@ export default function ImagesScreen() {
 
             {/* Modal Image Body */}
             <div className="flex-1 bg-black/5 dark:bg-black/40 p-6 flex items-center justify-center overflow-auto min-h-[300px]">
-              <img 
-                src={selectedImage.url} 
-                alt={selectedImage.name} 
+              <img
+                src={selectedImage.url}
+                alt={selectedImage.name}
                 className="max-h-[55vh] max-w-full object-contain rounded-lg shadow-sm"
               />
             </div>
@@ -562,13 +592,13 @@ export default function ImagesScreen() {
             {/* Modal URL & Action Footer */}
             <div className="p-4 border-t border-jds-outline-variant/20 bg-jds-surface space-y-3">
               <div className="flex items-center gap-2">
-                <input 
-                  type="text" 
-                  readOnly 
+                <input
+                  type="text"
+                  readOnly
                   value={selectedImage.url}
                   className="flex-1 h-9 px-3 rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/50 text-xs text-jds-on-surface select-all outline-none font-mono"
                 />
-                <Button 
+                <Button
                   size="sm"
                   onClick={() => copyToClipboard(selectedImage.name)}
                   className="bg-jds-primary text-jds-on-primary hover:opacity-90 text-xs font-bold gap-1.5 h-9 px-4 shrink-0"

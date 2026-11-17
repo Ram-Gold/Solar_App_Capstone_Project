@@ -390,7 +390,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
         {/* Floating Minimalist Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 sm:top-5 sm:right-5 p-1.5 sm:p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors z-20 cursor-pointer"
+          className="absolute top-3 right-3 sm:top-5 sm:right-5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors z-20 cursor-pointer"
           aria-label="Close"
         >
           <X className="h-4 w-4" />
@@ -446,7 +446,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               <button
                 type="button"
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="text-stone-400 hover:text-stone-900 p-0.5"
+                className="text-stone-400 hover:text-stone-900 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center p-1 sm:p-0.5"
                 title="Decrease quantity"
               >
                 <Minus className="h-3 w-3" />
@@ -455,7 +455,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               <button
                 type="button"
                 onClick={() => setQuantity(quantity + 1)}
-                className="text-stone-400 hover:text-stone-900 p-0.5"
+                className="text-stone-400 hover:text-stone-900 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center p-1 sm:p-0.5"
                 title="Increase quantity"
               >
                 <Plus className="h-3 w-3" />

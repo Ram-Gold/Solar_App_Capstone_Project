@@ -167,7 +167,7 @@ export default function ProfileScreen() {
       </div>
 
       <div className="max-w-2xl">
-        <div className="rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-8 space-y-8 shadow-sm">
+        <div className="rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-4 sm:p-8 space-y-6 sm:space-y-8 shadow-sm">
           <div className="flex items-center gap-4 border-b border-jds-outline-variant/20 pb-6">
             <div className="h-16 w-16 rounded-full bg-jds-primary/10 flex items-center justify-center text-jds-primary">
               <span className="text-headline-sm font-bold">{form.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}</span>
@@ -260,7 +260,7 @@ export default function ProfileScreen() {
         </div>
 
         {/* Security & Password Card */}
-        <div className="mt-8 rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-8 space-y-6 shadow-sm">
+        <div className="mt-8 rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-4 sm:p-8 space-y-6 shadow-sm">
           <div className="flex items-center gap-3 border-b border-jds-outline-variant/20 pb-4">
             <div className="h-10 w-10 rounded-lg bg-jds-primary/10 flex items-center justify-center text-jds-primary">
               <KeyRound className="h-5 w-5" />
@@ -401,7 +401,7 @@ export default function ProfileScreen() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150"
+            className="w-full max-w-md max-h-[92dvh] overflow-y-auto bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-150"
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">

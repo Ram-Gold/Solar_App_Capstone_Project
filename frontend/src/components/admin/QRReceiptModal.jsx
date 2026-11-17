@@ -132,7 +132,7 @@ export default function QRReceiptModal({
         onClick={(e) => e.stopPropagation()}
         className="bg-jds-surface border border-jds-outline-variant/40 rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200"
       >
-        
+
         {/* Header */}
         <div className="p-6 border-b border-jds-outline-variant/30 flex items-center justify-between bg-jds-surface-container/50">
           <div className="flex items-center gap-3">
@@ -156,15 +156,14 @@ export default function QRReceiptModal({
           {/* Account Creation Email & Confirmation Status Banner */}
           {customerEmail && (
             <div
-              className={`p-4 rounded-xl border space-y-2.5 ${
-                currentStatus === 'confirmed'
+              className={`p-4 rounded-xl border space-y-2.5 ${currentStatus === 'confirmed'
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
                   : currentStatus === 'queued' || resendingEmail
                     ? 'bg-jds-primary/10 border-jds-primary/30 text-jds-primary'
                     : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
-              }`}
+                }`}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div className="flex items-start gap-2.5">
                   {currentStatus === 'confirmed' ? (
                     <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
@@ -207,8 +206,8 @@ export default function QRReceiptModal({
           )}
 
           {/* Centered QR Display */}
-          <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow-inner border border-gray-200 text-slate-900">
-            <div className="p-3 bg-white rounded-xl shadow-md border border-gray-100">
+          <div className="flex flex-col items-center justify-center p-6 bg-jds-surface-container-lowest rounded-2xl shadow-inner border border-jds-outline-variant/60 text-jds-on-surface">
+            <div className="p-3 bg-white rounded-xl shadow-md border border-jds-outline-variant/40">
               <QRCodeSVG
                 value={computedQrUrl || ''}
                 size={200}
@@ -216,7 +215,7 @@ export default function QRReceiptModal({
                 includeMargin={false}
               />
             </div>
-            <p className="mt-3 text-xs font-semibold tracking-wider uppercase text-slate-500">
+            <p className="mt-3 text-xs font-semibold tracking-wider uppercase text-jds-on-surface-variant text-center">
               Scan with mobile camera to open warranty portal
             </p>
 
@@ -226,15 +225,15 @@ export default function QRReceiptModal({
                 type="text"
                 readOnly
                 value={computedQrUrl || ''}
-                className="text-xs bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 w-full text-slate-700 truncate select-all font-mono"
+                className="text-xs bg-jds-surface-container-low border border-jds-outline-variant rounded-lg px-3 py-1.5 w-full text-jds-on-surface truncate select-all font-mono"
               />
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors flex items-center gap-1.5 shrink-0"
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-jds-primary text-jds-on-primary hover:bg-jds-primary/90 transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
                 title="Copy customer portal link"
               >
-                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedLink ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
                 {copiedLink ? 'Copied' : 'Copy Link'}
               </button>
             </div>
@@ -416,7 +415,7 @@ export default function QRReceiptModal({
           <div className="text-[10px] text-gray-600 mb-1">1645 Soler St. Brgy. 309 Cor Calero, Quiapo, Manila</div>
           <div className="text-[9px] text-gray-600 mb-2">0966 843 1913 &bull; fozjeremy@gmail.com</div>
           <div className="border-b border-dashed border-gray-400 my-2"></div>
-          
+
           <div className="text-left space-y-1 mb-3 text-[11px]">
             <div><strong>Customer:</strong> {customer.full_name || customer.name}</div>
             <div><strong>Contact:</strong> {customer.phone_number || customer.phone}</div>

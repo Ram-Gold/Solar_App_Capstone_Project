@@ -636,7 +636,8 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                 type="button"
                 onClick={handleReset}
                 title="Restart Troubleshooter"
-                className="p-2 text-jds-on-surface-variant hover:text-jds-primary rounded-xl hover:bg-jds-surface-container transition-colors"
+                aria-label="Restart Troubleshooter"
+                className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center p-2 text-jds-on-surface-variant hover:text-jds-primary rounded-xl hover:bg-jds-surface-container transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
@@ -644,7 +645,8 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
             <button
               type="button"
               onClick={handleClose}
-              className="p-2 text-jds-on-surface-variant hover:text-jds-on-surface rounded-xl hover:bg-jds-surface-container transition-colors"
+              aria-label="Close"
+              className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center p-2 text-jds-on-surface-variant hover:text-jds-on-surface rounded-xl hover:bg-jds-surface-container transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1184,7 +1186,7 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                       onClick={handleClose}
                       className="w-full py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-semibold text-xs hover:bg-jds-primary/90 transition-all shadow-sm cursor-pointer"
                     >
-                      Return to Customer Dashboard
+                      Return to Customer Portal
                     </button>
                   </div>
                 </div>
@@ -1413,7 +1415,7 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
           onClick={() => setIsSafetyModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-lg bg-jds-surface border border-rose-500/40 rounded-2xl shadow-2xl p-6 text-jds-on-surface space-y-5 animate-in fade-in duration-150 cursor-default"
+            className="relative w-full max-w-lg max-h-[92dvh] overflow-y-auto bg-jds-surface border border-rose-500/40 rounded-2xl shadow-2xl p-4 sm:p-6 text-jds-on-surface space-y-5 animate-in fade-in duration-150 cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-3.5">

@@ -90,7 +90,7 @@ export default function AdminProductCard({
                   e.stopPropagation()
                   onRequestDirectStockChange?.(product, -1)
                 }}
-                className="h-6 w-6 rounded flex items-center justify-center border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container-high transition-all disabled:opacity-30 disabled:pointer-events-none text-xs cursor-pointer"
+                className="min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:h-6 md:w-6 rounded flex items-center justify-center border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container-high transition-all disabled:opacity-30 disabled:pointer-events-none text-xs cursor-pointer"
                 title="Decrease stock by 1"
                 aria-label="Decrease stock"
               >
@@ -112,7 +112,7 @@ export default function AdminProductCard({
                   e.stopPropagation()
                   onRequestDirectStockChange?.(product, +1)
                 }}
-                className="h-6 w-6 rounded flex items-center justify-center border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container-high transition-all text-xs cursor-pointer"
+                className="min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:h-6 md:w-6 rounded flex items-center justify-center border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container-high transition-all text-xs cursor-pointer"
                 title="Increase stock by 1"
                 aria-label="Increase stock"
               >
@@ -156,7 +156,7 @@ export default function AdminProductCard({
                   e.stopPropagation()
                   onRequestDirectSaleChange?.(product, -1)
                 }}
-                className="h-6 w-6 rounded flex items-center justify-center border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container-high transition-all disabled:opacity-30 disabled:pointer-events-none text-xs cursor-pointer"
+                className="min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:h-6 md:w-6 rounded flex items-center justify-center border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container-high transition-all disabled:opacity-30 disabled:pointer-events-none text-xs cursor-pointer"
                 title="Reverse 1 sale (+1 stock)"
                 aria-label="Reverse sale"
               >
@@ -179,7 +179,7 @@ export default function AdminProductCard({
                   e.stopPropagation()
                   onRequestDirectSaleChange?.(product, +1)
                 }}
-                className="h-6 w-6 rounded flex items-center justify-center border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition-all disabled:opacity-30 disabled:pointer-events-none text-xs cursor-pointer"
+                className="min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:h-6 md:w-6 rounded flex items-center justify-center border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition-all disabled:opacity-30 disabled:pointer-events-none text-xs cursor-pointer"
                 title={availableQty <= 0 ? 'No unreserved units available to sell' : 'Record 1 walk-in sale (-1 stock)'}
                 aria-label="Record sale"
               >
@@ -200,10 +200,10 @@ export default function AdminProductCard({
             e.stopPropagation()
             onOpenRecordSale?.(product)
           }}
-          className="flex-1 text-xs font-semibold h-8 gap-1 border-jds-outline-variant hover:border-emerald-500 hover:text-emerald-600 disabled:opacity-40 cursor-pointer"
+          className="flex-1 text-xs font-semibold md:h-8 gap-1 border-jds-outline-variant hover:border-jds-primary hover:text-jds-primary disabled:opacity-40 cursor-pointer"
           title={availableQty <= 0 ? (reservedQty > 0 ? 'All units temporarily reserved - Cannot record walk-in sale' : 'Out of Stock - Cannot record sale') : 'Record Customer Sale'}
         >
-          <ShoppingBag className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+          <ShoppingBag className="h-3.5 w-3.5 text-jds-on-surface-variant shrink-0" />
           <span>Sale</span>
         </Button>
 
@@ -214,10 +214,10 @@ export default function AdminProductCard({
             e.stopPropagation()
             onOpenStockStepper?.(product, 0)
           }}
-          className="flex-1 text-xs font-semibold h-8 gap-1 border-jds-outline-variant hover:border-jds-primary hover:text-jds-primary cursor-pointer"
+          className="flex-1 text-xs font-semibold md:h-8 gap-1 border-jds-outline-variant hover:border-jds-primary hover:text-jds-primary cursor-pointer"
           title="Adjust Inventory Stock"
         >
-          <Boxes className="h-3.5 w-3.5 text-jds-primary shrink-0" />
+          <Boxes className="h-3.5 w-3.5 text-jds-on-surface-variant shrink-0" />
           <span>Stock</span>
         </Button>
 
@@ -228,10 +228,10 @@ export default function AdminProductCard({
             e.stopPropagation()
             onOpenEdit?.(product)
           }}
-          className="flex-1 text-xs font-semibold h-8 gap-1 border-jds-outline-variant hover:border-jds-secondary hover:text-jds-secondary cursor-pointer"
+          className="flex-1 text-xs font-semibold md:h-8 gap-1 border-jds-outline-variant hover:border-jds-primary hover:text-jds-primary cursor-pointer"
           title="Edit Product Details"
         >
-          <Pencil className="h-3.5 w-3.5 text-jds-secondary shrink-0" />
+          <Pencil className="h-3.5 w-3.5 text-jds-on-surface-variant shrink-0" />
           <span>Edit</span>
         </Button>
 
@@ -243,7 +243,7 @@ export default function AdminProductCard({
               e.stopPropagation()
               onInitiateDelete(product)
             }}
-            className="h-8 w-8 text-jds-error hover:bg-jds-error-container/20 rounded-lg shrink-0 cursor-pointer"
+            className="text-jds-error hover:bg-jds-error-container/40 rounded-lg shrink-0 cursor-pointer"
             title="Delete product"
             aria-label="Delete product"
           >

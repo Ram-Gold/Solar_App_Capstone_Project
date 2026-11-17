@@ -1,6 +1,7 @@
 import { supabase, createIsolatedAuthClient } from './supabaseClient'
 import { calculateExpiryDate } from './warrantyUtils'
 import { getMainProductImage } from './productImageUtils'
+import { notifyOpsUpdated } from './inquiryStatusUtils'
 import {
   sanitizeText,
   sanitizePhone,
@@ -669,49 +670,62 @@ export async function registerCustomerAndSale({
 
   // 5. Deduct inventory and fulfill any linked reservation ticket in Supabase
   try {
-    let pendingTicketId = ticketId ? Number(ticketId) : null
+    const countsByProduct = new Map()
     for (const item of items) {
       if (item.productId) {
         const pId = Number(item.productId)
-        const tId = pendingTicketId
-        pendingTicketId = null
-        const { data: fulfillData, error: fulfillErr } = await supabase.rpc('fulfill_reservation_sale', {
-          p_ticket_id: tId,
-          p_product_id: pId,
-          p_quantity: 1
-        })
+        countsByProduct.set(pId, (countsByProduct.get(pId) || 0) + 1)
+      }
+    }
 
-        if (fulfillErr || fulfillData?.success === false) {
-          console.warn('RPC fulfill_reservation_sale fallback:', fulfillErr?.message || fulfillData?.error)
-          // Fallback direct product update if RPC fails
-          const { data: prod } = await supabase
+    let pendingTicketId = ticketId ? Number(ticketId) : null
+    for (const [pId, qty] of countsByProduct.entries()) {
+      const tId = pendingTicketId
+      pendingTicketId = null
+      const { data: fulfillData, error: fulfillErr } = await supabase.rpc('fulfill_reservation_sale', {
+        p_ticket_id: tId,
+        p_product_id: pId,
+        p_quantity: qty,
+        p_branch: branch
+      })
+
+      if (fulfillErr || fulfillData?.success === false) {
+        console.warn('RPC fulfill_reservation_sale fallback:', fulfillErr?.message || fulfillData?.error)
+        // Fallback direct product update if RPC fails
+        const { data: prod } = await supabase
+          .from('products')
+          .select('id, stock_quantity, stock_quiapo, stock_cavite, sales')
+          .eq('id', pId)
+          .maybeSingle()
+
+        if (prod) {
+          const isCavite = branch.toLowerCase().includes('cavite')
+          const nextStock = Math.max(0, (Number(prod.stock_quantity) || 0) - qty)
+          const directUpdate = {
+            stock_quantity: nextStock,
+            sales: (Number(prod.sales) || 0) + qty,
+            in_stock: nextStock > 0
+          }
+          if (isCavite && prod.stock_cavite !== undefined && prod.stock_cavite !== null) {
+            directUpdate.stock_cavite = Math.max(0, Number(prod.stock_cavite) - qty)
+          } else if (!isCavite && prod.stock_quiapo !== undefined && prod.stock_quiapo !== null) {
+            directUpdate.stock_quiapo = Math.max(0, Number(prod.stock_quiapo) - qty)
+          }
+          await supabase
             .from('products')
-            .select('id, stock_quantity, sales')
+            .update(directUpdate)
             .eq('id', pId)
-            .maybeSingle()
+        }
 
-          if (prod) {
-            const nextStock = Math.max(0, (Number(prod.stock_quantity) || 1) - 1)
-            await supabase
-              .from('products')
-              .update({
-                stock_quantity: nextStock,
-                sales: (Number(prod.sales) || 0) + 1,
-                in_stock: nextStock > 0
-              })
-              .eq('id', pId)
-          }
-
-          if (tId) {
-            await supabase
-              .from('quote_tickets')
-              .update({
-                status: 'Completed',
-                is_reservation: false,
-                reservation_expires_at: null
-              })
-              .eq('id', tId)
-          }
+        if (tId) {
+          await supabase
+            .from('quote_tickets')
+            .update({
+              status: 'Completed',
+              is_reservation: false,
+              reservation_expires_at: null
+            })
+            .eq('id', tId)
         }
       }
     }
@@ -1077,6 +1091,7 @@ export async function updateClaimStatus(claimId, status, staffNotes = '') {
       .single()
 
     if (error) throw error
+    notifyOpsUpdated()
     return { data, error: null }
   } catch (err) {
     console.error('updateClaimStatus error:', err)
@@ -1105,6 +1120,7 @@ export async function archiveWarrantyClaim(claimId, staffNotes = '') {
       .single()
 
     if (error) throw error
+    notifyOpsUpdated()
     return { data, error: null }
   } catch (err) {
     console.error('archiveWarrantyClaim error:', err)
@@ -1133,6 +1149,7 @@ export async function restoreWarrantyClaim(claimId, targetStatus = 'in_review', 
       .single()
 
     if (error) throw error
+    notifyOpsUpdated()
     return { data, error: null }
   } catch (err) {
     console.error('restoreWarrantyClaim error:', err)
@@ -1151,6 +1168,7 @@ export async function deleteWarrantyClaim(claimId) {
       .eq('id', claimId)
 
     if (error) throw error
+    notifyOpsUpdated()
     return { success: true, error: null }
   } catch (err) {
     console.error('deleteWarrantyClaim error:', err)

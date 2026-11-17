@@ -38,6 +38,7 @@ import {
 } from '../../lib/customerService'
 import { formatDate, getClaimStatusMeta, isWarrantyActive, getRemainingDays } from '../../lib/warrantyUtils'
 import useModalBehavior from '../../hooks/useModalBehavior'
+import InspectorDrawer from './InspectorDrawer'
 
 const KANBAN_COLUMNS = [
   {
@@ -91,8 +92,9 @@ export default function WarrantyClaimsScreen() {
   const [searchQuery, setSearchQuery] = useState('')
   const [branchFilter, setBranchFilter] = useState('all') // 'all' | 'Cavite' | 'Quiapo'
   const [activeView, setActiveView] = useState('board') // 'board' | 'archived'
-  
+
   const [activeModalClaim, setActiveModalClaim] = useState(null)
+  const [claimDrawerTab, setClaimDrawerTab] = useState('triage') // 'dossier' | 'triage'
   const [modalStatus, setModalStatus] = useState('')
   const [modalNotes, setModalNotes] = useState('')
   const [modalSaving, setModalSaving] = useState(false)
@@ -112,7 +114,6 @@ export default function WarrantyClaimsScreen() {
   }
 
   const anyClaimModalOpen = Boolean(
-    activeModalClaim ||
     selectedMedia ||
     claimToArchive ||
     claimToDelete ||
@@ -130,9 +131,10 @@ export default function WarrantyClaimsScreen() {
     },
   })
 
-  // Drag-and-drop state
+  // Drag-and-drop & mobile tab state
   const [draggingClaimId, setDraggingClaimId] = useState(null)
   const [dragOverColumnId, setDragOverColumnId] = useState(null)
+  const [mobileActiveTab, setMobileActiveTab] = useState('in_review')
   const [statusToast, setStatusToast] = useState('')
 
   const loadClaims = async () => {
@@ -172,7 +174,7 @@ export default function WarrantyClaimsScreen() {
     try {
       setModalSaving(true)
       await updateClaimStatus(activeModalClaim.id, modalStatus, modalNotes)
-      
+
       // Update local state
       setClaims((prev) =>
         prev.map((c) =>
@@ -400,11 +402,10 @@ export default function WarrantyClaimsScreen() {
             <button
               type="button"
               onClick={() => setActiveView('board')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                activeView === 'board'
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${activeView === 'board'
                   ? 'bg-jds-primary text-jds-on-primary shadow-xs'
                   : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-              }`}
+                }`}
             >
               <Kanban className="w-3.5 h-3.5" />
               <span>Active Board ({activeClaimsCount})</span>
@@ -412,11 +413,10 @@ export default function WarrantyClaimsScreen() {
             <button
               type="button"
               onClick={() => setActiveView('archived')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                activeView === 'archived'
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${activeView === 'archived'
                   ? 'bg-jds-primary text-jds-on-primary shadow-xs'
                   : 'text-jds-on-surface-variant hover:text-jds-on-surface'
-              }`}
+                }`}
             >
               <Archive className="w-3.5 h-3.5" />
               <span>Archived ({archivedClaimsCount})</span>
@@ -639,575 +639,321 @@ export default function WarrantyClaimsScreen() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start pb-6">
-          {KANBAN_COLUMNS.map((col) => {
-            const ColumnIcon = col.icon
-            const colClaims = claimsByColumn[col.id] || []
-            const isDropTarget = dragOverColumnId === col.id
+        <div className="space-y-4 pb-6">
+          {/* Mobile Tabbed Status Switcher (< md) */}
+          <div className="md:hidden flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {KANBAN_COLUMNS.map((col) => {
+              const ColumnIcon = col.icon
+              const count = (claimsByColumn[col.id] || []).length
+              const isActive = mobileActiveTab === col.id
+              return (
+                <button
+                  key={col.id}
+                  type="button"
+                  onClick={() => setMobileActiveTab(col.id)}
+                  className={`min-h-[44px] shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${isActive
+                      ? `${col.headerBg} ${col.accentBorder} shadow-xs`
+                      : 'bg-jds-surface border-jds-outline-variant/30 text-jds-on-surface-variant'
+                    }`}
+                >
+                  <ColumnIcon className="w-4 h-4 shrink-0" />
+                  <span>{col.title}</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-extrabold border ${col.countBadge}`}>
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
 
-            return (
-              <div
-                key={col.id}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  e.dataTransfer.dropEffect = 'move'
-                  if (dragOverColumnId !== col.id) setDragOverColumnId(col.id)
-                }}
-                onDragEnter={(e) => {
-                  e.preventDefault()
-                  setDragOverColumnId(col.id)
-                }}
-                onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget)) {
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
+            {KANBAN_COLUMNS.map((col) => {
+              const ColumnIcon = col.icon
+              const colClaims = claimsByColumn[col.id] || []
+              const isDropTarget = dragOverColumnId === col.id
+              const isMobileVisible = mobileActiveTab === col.id
+
+              return (
+                <div
+                  key={col.id}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                    if (dragOverColumnId !== col.id) setDragOverColumnId(col.id)
+                  }}
+                  onDragEnter={(e) => {
+                    e.preventDefault()
+                    setDragOverColumnId(col.id)
+                  }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget)) {
+                      setDragOverColumnId(null)
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
                     setDragOverColumnId(null)
-                  }
-                }}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  setDragOverColumnId(null)
-                  const claimId = e.dataTransfer.getData('text/plain') || draggingClaimId
-                  if (claimId) handleDropClaim(claimId, col.id)
-                }}
-                className={`flex flex-col bg-jds-surface-container-low/40 rounded-2xl border transition-all min-w-[280px] max-w-full shadow-2xs overflow-hidden ${
-                  isDropTarget
-                    ? 'border-jds-primary ring-2 ring-jds-primary/60 bg-jds-primary/[0.04]'
-                    : 'border-jds-outline-variant/30'
-                }`}
-              >
-                {/* Column Header */}
-                <div className={`p-4 border-b border-jds-outline-variant/30 flex items-center justify-between ${col.headerBg}`}>
-                  <div className="flex items-center gap-2">
-                    <ColumnIcon className="w-4 h-4 shrink-0" />
-                    <h2 className="text-xs font-bold uppercase tracking-wider">{col.title}</h2>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-extrabold border ${col.countBadge}`}>
-                      {colClaims.length}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Cards Container with Independent Vertical Scroll */}
-                <div className="p-4 space-y-4 min-h-[460px] max-h-[calc(100vh-270px)] overflow-y-auto pr-2">
-                  {/* Drop zone placeholder indicator when dragged over */}
-                  {isDropTarget && draggingClaimId && (
-                    <div className="p-3.5 rounded-xl border-2 border-dashed border-jds-primary/60 bg-jds-primary/10 text-center text-xs font-semibold text-jds-primary animate-pulse flex items-center justify-center gap-2">
-                      <ColumnIcon className="w-4 h-4" />
-                      <span>Drop to move to {col.title}</span>
+                    const claimId = e.dataTransfer.getData('text/plain') || draggingClaimId
+                    if (claimId) handleDropClaim(claimId, col.id)
+                  }}
+                  className={`${isMobileVisible ? 'flex' : 'hidden md:flex'} flex-col bg-jds-surface-container-low/40 rounded-2xl border transition-all md:min-w-[280px] max-w-full shadow-2xs overflow-hidden ${isDropTarget
+                      ? 'border-jds-primary ring-2 ring-jds-primary/60 bg-jds-primary/[0.04]'
+                      : 'border-jds-outline-variant/30'
+                    }`}
+                >
+                  {/* Column Header */}
+                  <div className={`p-4 border-b border-jds-outline-variant/30 flex items-center justify-between ${col.headerBg}`}>
+                    <div className="flex items-center gap-2">
+                      <ColumnIcon className="w-4 h-4 shrink-0" />
+                      <h2 className="text-xs font-bold uppercase tracking-wider">{col.title}</h2>
                     </div>
-                  )}
-
-                  {colClaims.length === 0 ? (
-                    <div className="h-44 flex flex-col items-center justify-center text-center p-4 rounded-xl border border-dashed border-jds-outline-variant/40 bg-jds-surface/30">
-                      <ColumnIcon className="w-6 h-6 text-jds-on-surface-variant/30 mb-2" />
-                      <p className="text-[11px] text-jds-on-surface-variant/60 font-medium">{col.emptyText}</p>
-                    </div>
-                  ) : (
-                    colClaims.map((claim) => {
-                      const customer = claim.customer_purchases?.customers
-                      const product = claim.customer_purchases?.products
-                      const purchase = claim.customer_purchases
-                      const warrantyActive = isWarrantyActive(purchase?.warranty_expires_at)
-                      const daysLeft = getRemainingDays(purchase?.warranty_expires_at)
-                      const isDragging = draggingClaimId === claim.id
-
-                      return (
-                        <div
-                          key={claim.id}
-                          draggable={true}
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('text/plain', claim.id)
-                            e.dataTransfer.effectAllowed = 'move'
-                            setDraggingClaimId(claim.id)
-                          }}
-                          onDragEnd={() => {
-                            setDraggingClaimId(null)
-                            setDragOverColumnId(null)
-                          }}
-                          onClick={() => handleOpenModal(claim)}
-                          className={`group relative rounded-xl border bg-jds-surface p-4 transition-all cursor-grab active:cursor-grabbing space-y-3.5 select-none ${
-                            isDragging
-                              ? 'border-jds-primary ring-2 ring-jds-primary shadow-xl z-20 opacity-100'
-                              : 'border-jds-outline-variant/40 shadow-xs hover:shadow-md hover:border-jds-primary/60'
-                          }`}
-                        >
-                          {/* Card Header: Drag Handle + Claim ID + Date */}
-                          <div className="flex items-center justify-between text-xs pb-2 border-b border-jds-outline-variant/20">
-                            <div className="flex items-center gap-1.5">
-                              <GripVertical className="w-3.5 h-3.5 text-jds-on-surface-variant/40 group-hover:text-jds-primary transition-colors shrink-0" />
-                              <span className="font-mono text-[11px] font-bold text-jds-primary bg-jds-primary/10 px-2 py-0.5 rounded-md border border-jds-primary/20">
-                                CLAIM-{claim.id.slice(0, 8).toUpperCase()}
-                              </span>
-                            </div>
-                            <span className="text-[11px] text-jds-on-surface-variant/70 font-medium">
-                              {formatDate(claim.created_at)}
-                            </span>
-                          </div>
-
-                          {/* Customer & Branch */}
-                          <div className="space-y-0.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-jds-on-surface flex items-center gap-1.5 truncate">
-                                <User className="w-3.5 h-3.5 text-jds-on-surface-variant shrink-0" />
-                                <span className="truncate">{customer?.full_name || 'Customer'}</span>
-                              </span>
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-jds-surface-container text-jds-on-surface-variant border border-jds-outline-variant/30 shrink-0">
-                                {purchase?.branch_location || 'Cavite'}
-                              </span>
-                            </div>
-                            <div className="text-[11px] font-mono text-jds-on-surface-variant/70 pl-5">
-                              {customer?.phone_number || 'No phone'}
-                            </div>
-                          </div>
-
-                          {/* Product Info & Warranty Tag */}
-                          <div className="p-3 rounded-lg bg-jds-surface-container-low/50 border border-jds-outline-variant/20 space-y-1.5">
-                            <div className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5 truncate">
-                              <Package className="w-3.5 h-3.5 text-jds-primary shrink-0" />
-                              <span className="truncate">{product?.name || 'Solar Light Unit'}</span>
-                            </div>
-                            {purchase?.serial_number && (
-                              <div className="text-[10px] font-mono text-jds-on-surface-variant flex items-center gap-1">
-                                <span>S/N:</span>
-                                <span className="font-semibold text-jds-on-surface">{purchase.serial_number}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-1.5 pt-0.5">
-                              <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                                  warrantyActive
-                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                                }`}
-                              >
-                                {warrantyActive ? `${daysLeft}d warranty` : 'Warranty Expired'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Issue Category & Truncated Note */}
-                          <div className="space-y-1">
-                            <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-jds-surface-container-high text-jds-on-surface border border-jds-outline-variant/40">
-                              {claim.issue_category}
-                            </span>
-                            <p className="text-[11px] text-jds-on-surface-variant line-clamp-2 leading-relaxed">
-                              {claim.description}
-                            </p>
-                          </div>
-
-                          {/* Media Preview Indicator */}
-                          {claim.media_urls && claim.media_urls.length > 0 && (
-                            <div className="flex items-center gap-2 pt-1 border-t border-jds-outline-variant/15 text-[11px] text-jds-on-surface-variant/80">
-                              <ImageIcon className="w-3.5 h-3.5 text-jds-primary" />
-                              <span className="font-semibold">{claim.media_urls.length} attachment{claim.media_urls.length === 1 ? '' : 's'}</span>
-                              <div className="flex items-center gap-1 ml-auto">
-                                {claim.media_urls.slice(0, 3).map((url, i) => (
-                                  <img
-                                    key={i}
-                                    src={url}
-                                    alt="Evidence thumbnail"
-                                    className="w-5 h-5 rounded-md object-cover border border-jds-outline-variant/40 bg-black/10"
-                                    onError={(e) => {
-                                      e.currentTarget.style.display = 'none'
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Card Footer: Click affordance & Staff notes badge */}
-                          <div className="flex items-center justify-between pt-2 border-t border-jds-outline-variant/15 text-[11px]">
-                            {claim.staff_notes ? (
-                              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1 truncate max-w-[170px]">
-                                <MessageSquare className="w-3 h-3 shrink-0" />
-                                <span className="truncate">{claim.staff_notes}</span>
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-jds-on-surface-variant/40">No staff notes</span>
-                            )}
-                            <span className="text-[10px] font-bold text-jds-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
-                              <span>Inspect</span>
-                              <ChevronRight className="w-3 h-3" />
-                            </span>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Customer Ticket Detail Modal (UI/UX Pro Max Tonal Layout) */}
-      {activeModalClaim && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !modalSaving) handleCloseModal()
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-5xl max-h-[90vh] flex flex-col rounded-3xl bg-jds-surface dark:bg-[#18140e] shadow-2xl border border-jds-outline-variant/20 dark:border-white/10 overflow-hidden my-auto animate-in zoom-in-95 duration-200"
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-7 py-5 border-b border-jds-outline-variant/15 bg-jds-surface-container-lowest/80 dark:bg-white/[0.02] backdrop-blur-sm shrink-0">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="font-mono text-xs font-bold text-jds-primary bg-jds-primary/10 px-3.5 py-1 rounded-full border border-jds-primary/20">
-                  CLAIM-{activeModalClaim.id.slice(0, 8).toUpperCase()}
-                </span>
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getClaimStatusMeta(activeModalClaim.status).color}`}>
-                  {getClaimStatusMeta(activeModalClaim.status).label}
-                </span>
-                <span className="text-xs font-semibold px-3 py-1 rounded-full bg-jds-surface-container text-jds-on-surface-variant flex items-center gap-1.5">
-                  <Store className="w-3.5 h-3.5 text-jds-primary" />
-                  <span>{activeModalClaim.customer_purchases?.branch_location || 'Cavite'} Store</span>
-                </span>
-              </div>
-              <button
-                type="button"
-                disabled={modalSaving}
-                onClick={handleCloseModal}
-                className="rounded-full p-2 text-jds-on-surface-variant hover:bg-jds-surface-container hover:text-jds-on-surface transition-colors disabled:opacity-50 cursor-pointer"
-                title="Close ticket details"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body: Split 2-Column with Generous Spacing */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 p-7 overflow-y-auto flex-1 max-h-[calc(90vh-140px)]">
-              {/* Left Column: Customer Profile, Equipment & Diagnostic Evidence (7 cols) */}
-              <div className="lg:col-span-7 space-y-6">
-                {modalSuccessMsg && (
-                  <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2.5 animate-in fade-in">
-                    <Check className="w-4 h-4 shrink-0" />
-                    <span>{modalSuccessMsg}</span>
-                  </div>
-                )}
-
-                {/* Equipment & Customer Dossier */}
-                <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl p-6 shadow-sm space-y-4">
-                  {/* Eyebrow Header */}
-                  <div className="flex items-center justify-between pb-3.5 border-b border-jds-outline-variant/15 text-xs">
-                    <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-jds-on-surface-variant">
-                      <User className="w-4 h-4 text-jds-primary" />
-                      <span>Customer & Equipment Details</span>
-                    </div>
-                    <span className="text-xs text-jds-on-surface-variant/70">
-                      Submitted: {formatDate(activeModalClaim.created_at)}
-                    </span>
-                  </div>
-
-                  {/* Customer Information Row */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-                    <div>
-                      <h3 className="text-base font-bold text-jds-on-surface">
-                        {activeModalClaim.customer_purchases?.customers?.full_name || 'Customer'}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <Phone className="w-3.5 h-3.5 text-jds-on-surface-variant/60" />
-                        <span className="font-mono text-xs font-semibold text-jds-on-surface">
-                          {activeModalClaim.customer_purchases?.customers?.phone_number || 'No contact phone'}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyPhone(activeModalClaim.customer_purchases?.customers?.phone_number)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-jds-surface-container hover:bg-jds-primary/10 hover:text-jds-primary text-xs font-medium text-jds-on-surface-variant transition-colors cursor-pointer"
-                          title="Copy customer phone"
-                        >
-                          <Copy className="w-3 h-3" />
-                          <span>{copiedPhone ? 'Copied' : 'Copy'}</span>
-                        </button>
-                      </div>
-                    </div>
-                    <span
-                      className={`self-start sm:self-auto text-xs font-bold px-3 py-1 rounded-full border ${
-                        isWarrantyActive(activeModalClaim.customer_purchases?.warranty_expires_at)
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                          : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                      }`}
-                    >
-                      {isWarrantyActive(activeModalClaim.customer_purchases?.warranty_expires_at)
-                        ? 'Active Warranty'
-                        : 'Warranty Expired'}
-                    </span>
-                  </div>
-
-                  {/* Hardware Specification Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-3">
-                    <div className="bg-jds-surface-container-low/60 dark:bg-white/[0.04] rounded-xl p-3.5 space-y-1">
-                      <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
-                        <Package className="w-3.5 h-3.5 text-jds-primary" /> Solar Product Unit
+                    <div className="flex items-center gap-1.5">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-extrabold border ${col.countBadge}`}>
+                        {colClaims.length}
                       </span>
-                      <div className="text-xs font-bold text-jds-on-surface">
-                        {activeModalClaim.customer_purchases?.products?.name || 'Solar Light Unit'}
-                      </div>
-                    </div>
-
-                    <div className="bg-jds-surface-container-low/60 dark:bg-white/[0.04] rounded-xl p-3.5 space-y-1">
-                      <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-jds-primary" /> Serial Number
-                      </span>
-                      <div className="font-mono text-xs font-bold text-jds-on-surface">
-                        {activeModalClaim.customer_purchases?.serial_number || 'N/A'}
-                      </div>
-                    </div>
-
-                    <div className="bg-jds-surface-container-low/60 dark:bg-white/[0.04] rounded-xl p-3.5 space-y-1">
-                      <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-jds-primary" /> Purchase Date & Period
-                      </span>
-                      <div className="text-xs font-semibold text-jds-on-surface">
-                        {formatDate(activeModalClaim.customer_purchases?.purchase_date)} ({activeModalClaim.customer_purchases?.warranty_months || 12} Mos)
-                      </div>
-                    </div>
-
-                    <div className="bg-jds-surface-container-low/60 dark:bg-white/[0.04] rounded-xl p-3.5 space-y-1">
-                      <span className="text-[11px] font-semibold text-jds-on-surface-variant flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-jds-primary" /> Coverage Countdown
-                      </span>
-                      <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                        {getRemainingDays(activeModalClaim.customer_purchases?.warranty_expires_at)} days remaining
-                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Customer Fault Diagnostic Report & Evidence Gallery */}
-                <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl p-6 shadow-sm space-y-5">
-                  {/* Eyebrow Header */}
-                  <div className="flex items-center justify-between pb-3.5 border-b border-jds-outline-variant/15 text-xs">
-                    <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-jds-on-surface">
-                      <FileText className="w-4 h-4 text-jds-primary" />
-                      <span>Diagnostic Fault Report</span>
-                    </div>
-                    <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
-                      Category: {activeModalClaim.issue_category}
-                    </span>
-                  </div>
+                  {/* Cards Container (independent vertical scroll on md+, natural flow on mobile) */}
+                  <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 md:min-h-[460px] md:max-h-[calc(100vh-270px)] md:overflow-y-auto md:pr-2">
+                    {/* Drop zone placeholder indicator when dragged over */}
+                    {isDropTarget && draggingClaimId && (
+                      <div className="p-3.5 rounded-xl border-2 border-dashed border-jds-primary/60 bg-jds-primary/10 text-center text-xs font-semibold text-jds-primary animate-pulse flex items-center justify-center gap-2">
+                        <ColumnIcon className="w-4 h-4" />
+                        <span>Drop to move to {col.title}</span>
+                      </div>
+                    )}
 
-                  {/* Fault Explanation */}
-                  <div className="bg-jds-surface-container-low/50 dark:bg-white/[0.04] rounded-2xl p-4.5 space-y-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
-                      Customer Problem Statement
-                    </span>
-                    <p className="text-xs text-jds-on-surface whitespace-pre-line leading-relaxed pt-1">
-                      {activeModalClaim.description}
-                    </p>
-                  </div>
-
-                  {/* Evidence Gallery */}
-                  <div className="space-y-3 pt-1">
-                    <span className="text-xs font-bold text-jds-on-surface flex items-center gap-2">
-                      <ImageIcon className="w-4 h-4 text-jds-primary" />
-                      <span>Photographic Fault Evidence</span>
-                      <span className="text-[11px] font-normal text-jds-on-surface-variant">
-                        ({activeModalClaim.media_urls?.length || 0} attached)
-                      </span>
-                    </span>
-
-                    {activeModalClaim.media_urls && activeModalClaim.media_urls.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-1">
-                        {activeModalClaim.media_urls.map((url, imgIdx) => (
-                          <div
-                            key={imgIdx}
-                            onClick={() => setSelectedMedia(url)}
-                            className="group relative aspect-4/3 rounded-xl overflow-hidden bg-black/10 cursor-pointer shadow-xs hover:shadow-md transition-all ring-1 ring-black/5 dark:ring-white/10"
-                          >
-                            <img
-                              src={url}
-                              alt="Fault evidence"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none'
-                              }}
-                            />
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white font-semibold text-xs gap-1.5 backdrop-blur-[2px]">
-                              <Maximize2 className="w-4 h-4" />
-                              <span>Enlarge</span>
-                            </div>
-                          </div>
-                        ))}
+                    {colClaims.length === 0 ? (
+                      <div className="h-44 flex flex-col items-center justify-center text-center p-4 rounded-xl border border-dashed border-jds-outline-variant/40 bg-jds-surface/30">
+                        <ColumnIcon className="w-6 h-6 text-jds-on-surface-variant/30 mb-2" />
+                        <p className="text-[11px] text-jds-on-surface-variant/60 font-medium">{col.emptyText}</p>
                       </div>
                     ) : (
-                      <div className="p-4 rounded-xl bg-jds-surface-container-low/40 dark:bg-white/[0.02] text-center text-xs text-jds-on-surface-variant/60 italic">
-                        No customer media files attached for this claim.
-                      </div>
+                      colClaims.map((claim) => {
+                        const customer = claim.customer_purchases?.customers
+                        const product = claim.customer_purchases?.products
+                        const purchase = claim.customer_purchases
+                        const warrantyActive = isWarrantyActive(purchase?.warranty_expires_at)
+                        const daysLeft = getRemainingDays(purchase?.warranty_expires_at)
+                        const isDragging = draggingClaimId === claim.id
+
+                        return (
+                          <div
+                            key={claim.id}
+                            draggable={true}
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('text/plain', claim.id)
+                              e.dataTransfer.effectAllowed = 'move'
+                              setDraggingClaimId(claim.id)
+                            }}
+                            onDragEnd={() => {
+                              setDraggingClaimId(null)
+                              setDragOverColumnId(null)
+                            }}
+                            onClick={() => handleOpenModal(claim)}
+                            className={`group relative rounded-xl border bg-jds-surface p-4 transition-all cursor-grab active:cursor-grabbing space-y-3.5 select-none ${isDragging
+                                ? 'border-jds-primary ring-2 ring-jds-primary shadow-xl z-20 opacity-100'
+                                : 'border-jds-outline-variant/40 shadow-xs hover:shadow-md hover:border-jds-primary/60'
+                              }`}
+                          >
+                            {/* Card Header: Drag Handle + Claim ID + Date */}
+                            <div className="flex items-center justify-between text-xs pb-2 border-b border-jds-outline-variant/20">
+                              <div className="flex items-center gap-1.5">
+                                <GripVertical className="w-3.5 h-3.5 text-jds-on-surface-variant/40 group-hover:text-jds-primary transition-colors shrink-0" />
+                                <span className="font-mono text-[11px] font-bold text-jds-primary bg-jds-primary/10 px-2 py-0.5 rounded-md border border-jds-primary/20">
+                                  CLAIM-{claim.id.slice(0, 8).toUpperCase()}
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-jds-on-surface-variant/70 font-medium">
+                                {formatDate(claim.created_at)}
+                              </span>
+                            </div>
+
+                            {/* Customer & Branch */}
+                            <div className="space-y-0.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-jds-on-surface flex items-center gap-1.5 truncate">
+                                  <User className="w-3.5 h-3.5 text-jds-on-surface-variant shrink-0" />
+                                  <span className="truncate">{customer?.full_name || 'Customer'}</span>
+                                </span>
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-jds-surface-container text-jds-on-surface-variant border border-jds-outline-variant/30 shrink-0">
+                                  {purchase?.branch_location || 'Cavite'}
+                                </span>
+                              </div>
+                              <div className="text-[11px] font-mono text-jds-on-surface-variant/70 pl-5">
+                                {customer?.phone_number || 'No phone'}
+                              </div>
+                            </div>
+
+                            {/* Product Info & Warranty Tag */}
+                            <div className="p-3 rounded-lg bg-jds-surface-container-low/50 border border-jds-outline-variant/20 space-y-1.5">
+                              <div className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5 truncate">
+                                <Package className="w-3.5 h-3.5 text-jds-primary shrink-0" />
+                                <span className="truncate">{product?.name || 'Solar Light Unit'}</span>
+                              </div>
+                              {purchase?.serial_number && (
+                                <div className="text-[10px] font-mono text-jds-on-surface-variant flex items-center gap-1">
+                                  <span>S/N:</span>
+                                  <span className="font-semibold text-jds-on-surface">{purchase.serial_number}</span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5 pt-0.5">
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded border ${warrantyActive
+                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                      : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                                    }`}
+                                >
+                                  {warrantyActive ? `${daysLeft}d warranty` : 'Warranty Expired'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Issue Category & Truncated Note */}
+                            <div className="space-y-1">
+                              <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-jds-surface-container-high text-jds-on-surface border border-jds-outline-variant/40">
+                                {claim.issue_category}
+                              </span>
+                              <p className="text-[11px] text-jds-on-surface-variant line-clamp-2 leading-relaxed">
+                                {claim.description}
+                              </p>
+                            </div>
+
+                            {/* Media Preview Indicator */}
+                            {claim.media_urls && claim.media_urls.length > 0 && (
+                              <div className="flex items-center gap-2 pt-1 border-t border-jds-outline-variant/15 text-[11px] text-jds-on-surface-variant/80">
+                                <ImageIcon className="w-3.5 h-3.5 text-jds-primary" />
+                                <span className="font-semibold">{claim.media_urls.length} attachment{claim.media_urls.length === 1 ? '' : 's'}</span>
+                                <div className="flex items-center gap-1 ml-auto">
+                                  {claim.media_urls.slice(0, 3).map((url, i) => (
+                                    <img
+                                      key={i}
+                                      src={url}
+                                      alt="Evidence thumbnail"
+                                      className="w-5 h-5 rounded-md object-cover border border-jds-outline-variant/40 bg-black/10"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none'
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Quick Touch Status Move + Card Footer */}
+                            <div className="space-y-2 pt-2 border-t border-jds-outline-variant/15">
+                              <div
+                                className="flex items-center gap-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <label className="text-[10px] font-semibold text-jds-on-surface-variant shrink-0">
+                                  Status:
+                                </label>
+                                <select
+                                  aria-label={`Move claim ${claim.id.slice(0, 8)} status`}
+                                  value={claim.status === 'pending' ? 'in_review' : (claim.status || 'in_review')}
+                                  onChange={(e) => handleDropClaim(claim.id, e.target.value)}
+                                  className="flex-1 min-h-[44px] md:min-h-[30px] rounded-lg border border-jds-outline-variant/40 bg-jds-surface-container-low px-2.5 py-1 text-xs font-semibold text-jds-on-surface focus:outline-none focus:ring-2 focus:ring-jds-primary/40 cursor-pointer"
+                                >
+                                  {KANBAN_COLUMNS.map((opt) => (
+                                    <option key={opt.id} value={opt.id}>
+                                      {opt.title}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex items-center justify-between text-[11px]">
+                                {claim.staff_notes ? (
+                                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1 truncate max-w-[170px]">
+                                    <MessageSquare className="w-3 h-3 shrink-0" />
+                                    <span className="truncate">{claim.staff_notes}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-jds-on-surface-variant/40">No staff notes</span>
+                                )}
+                                <span className="text-[10px] font-bold text-jds-primary opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                                  <span>Inspect</span>
+                                  <ChevronRight className="w-3 h-3" />
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })
                     )}
                   </div>
                 </div>
-              </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
-              {/* Right Column: Lifecycle Stage & Technician Triage (5 cols) */}
-              <div className="lg:col-span-5 space-y-6">
-                {/* Visual Claim Lifecycle Pipeline */}
-                <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl p-6 shadow-sm space-y-4">
-                  <div className="flex items-center gap-2 pb-3.5 border-b border-jds-outline-variant/15 text-xs font-bold uppercase tracking-wider text-jds-on-surface">
-                    <Layers className="w-4 h-4 text-jds-primary" />
-                    <span>Claim Lifecycle Progression</span>
-                  </div>
-
-                  <div className="space-y-2 pt-1">
-                    {KANBAN_COLUMNS.map((col) => {
-                      const ColIcon = col.icon
-                      const isCurrent = (modalStatus || activeModalClaim.status) === col.id
-                      return (
-                        <div
-                          key={col.id}
-                          onClick={() => setModalStatus(col.id)}
-                          className={`flex items-center justify-between p-3 rounded-xl text-xs cursor-pointer transition-all ${
-                            isCurrent
-                              ? `${col.headerBg} font-bold shadow-xs ring-1 ring-jds-primary/40`
-                              : 'text-jds-on-surface-variant hover:bg-jds-surface-container-low/60 hover:text-jds-on-surface'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`p-1.5 rounded-lg ${isCurrent ? 'bg-white/30 dark:bg-black/30' : 'bg-jds-surface-container'}`}>
-                              <ColIcon className="w-4 h-4 shrink-0" />
-                            </div>
-                            <div>
-                              <div className="font-semibold text-xs leading-none">{col.title}</div>
-                              <div className="text-[10px] text-jds-on-surface-variant/70 mt-1">{col.description}</div>
-                            </div>
-                          </div>
-                          {isCurrent && (
-                            <span className="text-[10px] uppercase tracking-wide font-extrabold px-2.5 py-0.5 rounded-full bg-white/30 dark:bg-black/30 border border-current">
-                              Active
-                            </span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Technician Triage Form */}
-                <div className="bg-jds-surface-container-lowest dark:bg-white/[0.03] rounded-2xl p-6 shadow-sm space-y-5">
-                  <div className="flex items-center gap-2 pb-3.5 border-b border-jds-outline-variant/15 text-xs font-bold uppercase tracking-wider text-jds-on-surface">
-                    <ShieldCheck className="w-4 h-4 text-jds-primary" />
-                    <span>Technician Decision & Notes</span>
-                  </div>
-
-                  {/* Stage Dropdown */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-jds-on-surface-variant block">
-                      Target Ticket Stage
-                    </label>
-                    <select
-                      value={modalStatus === 'pending' ? 'in_review' : modalStatus}
-                      onChange={(e) => setModalStatus(e.target.value)}
-                      className="w-full bg-jds-surface-container-low/50 dark:bg-white/[0.04] border border-jds-outline-variant/30 rounded-xl px-4 py-3 text-xs font-semibold text-jds-on-surface focus:outline-none focus:ring-2 focus:ring-jds-primary transition-all cursor-pointer"
-                    >
-                      <option value="in_review">Diagnostic Intake (Triage & Inspection)</option>
-                      <option value="approved">Approved for Replacement / Repair</option>
-                      <option value="resolved">Handover Complete (Closed)</option>
-                      <option value="rejected">Claim Declined (Void / Not Covered)</option>
-                      {modalStatus === 'archived' && (
-                        <option value="archived">Archived / Concluded</option>
-                      )}
-                    </select>
-                  </div>
-
-                  {/* Technician Notes */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-jds-on-surface-variant">
-                        Technician Notes
-                      </label>
-                      <span className="text-[11px] text-jds-on-surface-variant/60">Visible to customer</span>
-                    </div>
-                    <textarea
-                      rows={3}
-                      placeholder="e.g. Unit inspected at counter. Battery fault confirmed; replacement authorized."
-                      value={modalNotes}
-                      onChange={(e) => setModalNotes(e.target.value)}
-                      className="w-full bg-jds-surface-container-low/50 dark:bg-white/[0.04] border border-jds-outline-variant/30 rounded-xl p-4 text-xs text-jds-on-surface focus:outline-none focus:ring-2 focus:ring-jds-primary placeholder:text-jds-on-surface-variant/40 transition-all leading-relaxed"
-                    />
-
-                    {/* Quick Presets */}
-                    <div className="space-y-2 pt-2">
-                      <span className="text-[11px] font-semibold text-jds-on-surface-variant/80 block">
-                        One-Click Preset Responses:
-                      </span>
-                      <div className="flex flex-wrap gap-2">
-                        {[
-                          'Approved: Bring solar unit to counter for direct swap.',
-                          'Inspection: Unit passed test. Please verify cable connection.',
-                          'Claim approved: Replacement module ready for pickup.',
-                          'Declined: Physical fracture outside warranty terms.'
-                        ].map((preset, pIdx) => (
-                          <button
-                            key={pIdx}
-                            type="button"
-                            onClick={() => setModalNotes(preset)}
-                            className="px-3 py-1.5 rounded-full bg-jds-surface-container dark:bg-white/[0.06] text-[11px] font-medium text-jds-on-surface-variant hover:text-jds-primary hover:bg-jds-primary/10 transition-colors text-left cursor-pointer"
-                          >
-                            {preset.slice(0, 32)}...
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 px-7 py-4.5 border-t border-jds-outline-variant/15 bg-jds-surface-container-lowest/80 dark:bg-white/[0.02] backdrop-blur-sm shrink-0">
-              {/* Admin Actions: Archive, Restore, Delete */}
+      {/* Warranty Claim Slide-Over Inspector Drawer */}
+      <InspectorDrawer
+        isOpen={Boolean(activeModalClaim)}
+        onClose={handleCloseModal}
+        disableClose={modalSaving || Boolean(selectedMedia || claimToArchive || claimToDelete || claimToRestore)}
+        widthClass="max-w-[560px]"
+        subtitle={
+          activeModalClaim
+            ? `CLAIM-${activeModalClaim.id.slice(0, 8).toUpperCase()} · ${activeModalClaim.customer_purchases?.branch_location || 'Cavite'} Store`
+            : ''
+        }
+        title={activeModalClaim?.customer_purchases?.products?.name || 'Warranty Claim Ticket'}
+        tabs={[
+          { id: 'triage', label: 'Review & Triage' },
+          { id: 'dossier', label: 'Dossier & Evidence' },
+        ]}
+        activeTab={claimDrawerTab}
+        onTabChange={setClaimDrawerTab}
+        footer={
+          activeModalClaim && (
+            <div className="flex flex-wrap items-center justify-between gap-2 w-full">
               {isAdmin ? (
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2">
                   {activeModalClaim.status === 'archived' ? (
                     <button
                       type="button"
                       disabled={modalSaving}
                       onClick={() => handleInitiateRestore(activeModalClaim)}
-                      className="px-3.5 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                      title="Restore ticket back to active triage"
+                      className="jds-btn-motion px-3 py-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Restore to Board</span>
+                      <span>Restore</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       disabled={modalSaving}
                       onClick={() => handleInitiateArchive(activeModalClaim)}
-                      className="px-3.5 py-2 rounded-xl border border-jds-outline-variant/40 bg-jds-surface hover:bg-jds-surface-container text-jds-on-surface text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                      title="Move ticket to archive"
+                      className="jds-btn-motion px-3 py-2 rounded-lg border border-jds-outline-variant/40 bg-jds-surface-container-lowest text-jds-on-surface text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                     >
                       <Archive className="w-3.5 h-3.5 text-jds-on-surface-variant" />
-                      <span>Archive Claim</span>
+                      <span>Archive</span>
                     </button>
                   )}
                   <button
                     type="button"
                     disabled={modalSaving}
                     onClick={() => handleInitiateDelete(activeModalClaim)}
-                    className="px-3.5 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                    title="Permanently remove ticket"
+                    className="jds-btn-motion px-3 py-2 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete Claim</span>
+                    <span>Delete</span>
                   </button>
                 </div>
               ) : (
-                <span className="text-xs text-jds-on-surface-variant/60 hidden sm:inline">
-                  Press <kbd className="px-1.5 py-0.5 rounded bg-jds-surface-container text-[11px] font-mono">Esc</kbd> to close
-                </span>
+                <span />
               )}
 
-              <div className="flex items-center gap-3 ml-auto">
+              <div className="flex items-center gap-2 ml-auto">
                 <button
                   type="button"
                   onClick={handleCloseModal}
                   disabled={modalSaving}
-                  className="px-5 py-2.5 rounded-xl text-xs font-semibold text-jds-on-surface-variant hover:bg-jds-surface-container transition-colors disabled:opacity-50 cursor-pointer"
+                  className="jds-btn-motion px-4 py-2 rounded-lg border border-jds-outline-variant/40 bg-jds-surface-container-lowest text-xs font-semibold text-jds-on-surface-variant hover:text-jds-on-surface cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -1215,25 +961,239 @@ export default function WarrantyClaimsScreen() {
                   type="button"
                   disabled={modalSaving}
                   onClick={handleSaveModalChanges}
-                  className="px-6 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-bold hover:bg-jds-primary/90 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="jds-btn-motion px-5 py-2 rounded-lg bg-jds-primary text-jds-on-primary text-xs font-bold hover:bg-jds-primary/90 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {modalSaving ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                      <span>Updating Ticket...</span>
+                      <span>Saving...</span>
                     </>
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      <span>Save & Update Ticket</span>
+                      <span>Save Ticket</span>
                     </>
                   )}
                 </button>
               </div>
             </div>
+          )
+        }
+      >
+        {activeModalClaim && (
+          <div className="space-y-5">
+            {modalSuccessMsg && (
+              <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-xs font-semibold flex items-center gap-2">
+                <Check className="w-4 h-4 shrink-0" />
+                <span>{modalSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Status & Warranty Strip */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-jds-outline-variant/25">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getClaimStatusMeta(activeModalClaim.status).color}`}>
+                  {getClaimStatusMeta(activeModalClaim.status).label}
+                </span>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-800 border border-amber-500/20">
+                  {activeModalClaim.issue_category}
+                </span>
+              </div>
+              <span
+                className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
+                  isWarrantyActive(activeModalClaim.customer_purchases?.warranty_expires_at)
+                    ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                    : 'bg-rose-500/10 text-rose-700 border-rose-500/20'
+                }`}
+              >
+                {isWarrantyActive(activeModalClaim.customer_purchases?.warranty_expires_at)
+                  ? 'Active Warranty'
+                  : 'Warranty Expired'}
+              </span>
+            </div>
+
+            {claimDrawerTab === 'triage' ? (
+              <div className="space-y-5">
+                {/* Visual Claim Lifecycle Pipeline */}
+                <div className="space-y-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-jds-on-surface-variant block">
+                    Claim Lifecycle Stage
+                  </span>
+                  <div className="space-y-2">
+                    {KANBAN_COLUMNS.map((col) => {
+                      const ColIcon = col.icon
+                      const isCurrent = (modalStatus || activeModalClaim.status) === col.id
+                      return (
+                        <button
+                          key={col.id}
+                          type="button"
+                          onClick={() => setModalStatus(col.id)}
+                          className={`w-full text-left flex items-center justify-between p-3 rounded-xl text-xs cursor-pointer transition-all border ${
+                            isCurrent
+                              ? `${col.headerBg} font-bold border-jds-primary/40`
+                              : 'border-jds-outline-variant/25 bg-jds-surface-container-low/40 text-jds-on-surface-variant hover:bg-jds-surface-container'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <ColIcon className="w-4 h-4 shrink-0" />
+                            <div>
+                              <div className="font-semibold text-xs leading-none">{col.title}</div>
+                              <div className="text-[11px] opacity-80 mt-1">{col.description}</div>
+                            </div>
+                          </div>
+                          {isCurrent && (
+                            <span className="text-[10px] uppercase tracking-wide font-extrabold px-2 py-0.5 rounded-full border border-current">
+                              Active
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Target Stage Select & Technician Notes */}
+                <div className="space-y-2">
+                  <label htmlFor="claim-target-stage" className="text-xs font-bold text-jds-on-surface-variant block">
+                    Target Ticket Stage
+                  </label>
+                  <select
+                    id="claim-target-stage"
+                    value={modalStatus === 'pending' ? 'in_review' : modalStatus}
+                    onChange={(e) => setModalStatus(e.target.value)}
+                    className="w-full h-10 bg-jds-surface-container-low border border-jds-outline-variant/40 rounded-lg px-3 text-xs font-semibold text-jds-on-surface outline-none focus:border-jds-primary cursor-pointer"
+                  >
+                    <option value="in_review">Diagnostic Intake (Triage & Inspection)</option>
+                    <option value="approved">Approved for Replacement / Repair</option>
+                    <option value="resolved">Handover Complete (Closed)</option>
+                    <option value="rejected">Claim Declined (Void / Not Covered)</option>
+                    {modalStatus === 'archived' && (
+                      <option value="archived">Archived / Concluded</option>
+                    )}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="claim-tech-notes" className="text-xs font-bold text-jds-on-surface-variant">
+                      Technician Notes
+                    </label>
+                    <span className="text-[11px] text-jds-on-surface-variant">Visible to customer</span>
+                  </div>
+                  <textarea
+                    id="claim-tech-notes"
+                    rows={3}
+                    placeholder="e.g. Unit inspected at counter. Battery fault confirmed; replacement authorized."
+                    value={modalNotes}
+                    onChange={(e) => setModalNotes(e.target.value)}
+                    className="w-full bg-jds-surface-container-low border border-jds-outline-variant/40 rounded-lg p-3 text-xs text-jds-on-surface outline-none focus:border-jds-primary leading-relaxed"
+                  />
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {[
+                      'Approved: Bring solar unit to counter for direct swap.',
+                      'Inspection: Unit passed test. Please verify cable connection.',
+                      'Claim approved: Replacement module ready for pickup.',
+                      'Declined: Physical fracture outside warranty terms.',
+                    ].map((preset, pIdx) => (
+                      <button
+                        key={pIdx}
+                        type="button"
+                        onClick={() => setModalNotes(preset)}
+                        className="px-2.5 py-1 rounded-full bg-jds-surface-container text-[11px] font-medium text-jds-on-surface-variant hover:text-jds-primary hover:bg-jds-primary/10 cursor-pointer"
+                      >
+                        {preset.slice(0, 32)}...
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {/* Customer & Hardware Dossier */}
+                <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-sm font-bold text-jds-on-surface">
+                        {activeModalClaim.customer_purchases?.customers?.full_name || 'Customer'}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="font-mono text-xs text-jds-on-surface-variant">
+                          {activeModalClaim.customer_purchases?.customers?.phone_number || 'No contact phone'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyPhone(activeModalClaim.customer_purchases?.customers?.phone_number)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-jds-surface-container text-[11px] font-semibold text-jds-on-surface-variant hover:text-jds-primary cursor-pointer"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>{copiedPhone ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-jds-on-surface-variant tabular-nums">
+                      Submitted {formatDate(activeModalClaim.created_at)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5 text-xs pt-2 border-t border-jds-outline-variant/25">
+                    <div>
+                      <span className="text-[11px] text-jds-on-surface-variant block">Serial Number</span>
+                      <span className="font-mono font-bold text-jds-on-surface">
+                        {activeModalClaim.customer_purchases?.serial_number || 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-jds-on-surface-variant block">Coverage Remaining</span>
+                      <span className="font-bold text-emerald-700 tabular-nums">
+                        {getRemainingDays(activeModalClaim.customer_purchases?.warranty_expires_at)} days
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fault Statement */}
+                <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/50 p-4 space-y-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant">
+                    Customer Problem Statement
+                  </span>
+                  <p className="text-xs text-jds-on-surface whitespace-pre-line leading-relaxed">
+                    {activeModalClaim.description}
+                  </p>
+                </div>
+
+                {/* Photographic Fault Evidence */}
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-jds-on-surface block">
+                    Fault Evidence ({activeModalClaim.media_urls?.length || 0} attached)
+                  </span>
+                  {activeModalClaim.media_urls && activeModalClaim.media_urls.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                      {activeModalClaim.media_urls.map((url, imgIdx) => (
+                        <button
+                          key={imgIdx}
+                          type="button"
+                          onClick={() => setSelectedMedia(url)}
+                          className="group relative aspect-4/3 rounded-lg overflow-hidden bg-jds-surface-container cursor-pointer border border-jds-outline-variant/30"
+                        >
+                          <img
+                            src={url}
+                            alt="Fault evidence"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-jds-surface-container-low/40 text-center text-xs text-jds-on-surface-variant">
+                      No customer media files attached for this claim.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </InspectorDrawer>
 
       {/* ARCHIVE CONFIRMATION MODAL */}
       {claimToArchive && (
@@ -1245,7 +1205,7 @@ export default function WarrantyClaimsScreen() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl border border-jds-outline-variant/40 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
+            className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-2xl border border-jds-outline-variant/40 bg-jds-surface p-5 sm:p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
           >
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
               <div className="flex items-center gap-3">
@@ -1342,7 +1302,7 @@ export default function WarrantyClaimsScreen() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl border border-emerald-500/30 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
+            className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-2xl border border-emerald-500/30 bg-jds-surface p-5 sm:p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
           >
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
               <div className="flex items-center gap-3">
@@ -1433,7 +1393,7 @@ export default function WarrantyClaimsScreen() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl border border-rose-500/30 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
+            className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-2xl border border-rose-500/30 bg-jds-surface p-5 sm:p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
           >
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
               <div className="flex items-center gap-3">

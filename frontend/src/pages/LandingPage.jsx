@@ -64,16 +64,16 @@ const features = [
 ]
 
 const galleryItems = [
-  { src: pic8, title: 'Industrial Scale Solar', rowSpan: 2, width: 'w-[450px] md:w-[600px]' },
-  { src: pic5, title: 'Precision Cells', rowSpan: 1, width: 'w-[300px] md:w-[400px]' },
-  { src: pic9, title: 'Expert Installation', rowSpan: 1, width: 'w-[300px] md:w-[400px]' },
-  { src: pic7, title: 'Residential Excellence', rowSpan: 2, width: 'w-[350px] md:w-[500px]' },
-  { src: pic10, title: 'Future Ready', rowSpan: 1, width: 'w-[400px] md:w-[550px]' },
-  { src: pic12, title: 'Maximum Efficiency', rowSpan: 1, width: 'w-[400px] md:w-[550px]' },
-  { src: pic11, title: 'Urban Integration', rowSpan: 2, width: 'w-[500px] md:w-[700px]' },
-  { src: pic13, title: 'Quality Assurance', rowSpan: 1, width: 'w-[350px] md:w-[450px]' },
-  { src: pic15, title: 'Sustainable Future', rowSpan: 1, width: 'w-[350px] md:w-[450px]' },
-  { src: pic14, title: 'Clean Power', rowSpan: 2, width: 'w-[300px] md:w-[400px]' },
+  { src: pic8, title: 'Industrial Scale Solar', rowSpan: 2, width: 'w-[280px] max-w-[82vw] sm:w-[450px] md:w-[600px]' },
+  { src: pic5, title: 'Precision Cells', rowSpan: 1, width: 'w-[240px] max-w-[82vw] sm:w-[300px] md:w-[400px]' },
+  { src: pic9, title: 'Expert Installation', rowSpan: 1, width: 'w-[240px] max-w-[82vw] sm:w-[300px] md:w-[400px]' },
+  { src: pic7, title: 'Residential Excellence', rowSpan: 2, width: 'w-[260px] max-w-[82vw] sm:w-[350px] md:w-[500px]' },
+  { src: pic10, title: 'Future Ready', rowSpan: 1, width: 'w-[260px] max-w-[82vw] sm:w-[400px] md:w-[550px]' },
+  { src: pic12, title: 'Maximum Efficiency', rowSpan: 1, width: 'w-[260px] max-w-[82vw] sm:w-[400px] md:w-[550px]' },
+  { src: pic11, title: 'Urban Integration', rowSpan: 2, width: 'w-[280px] max-w-[82vw] sm:w-[500px] md:w-[700px]' },
+  { src: pic13, title: 'Quality Assurance', rowSpan: 1, width: 'w-[250px] max-w-[82vw] sm:w-[350px] md:w-[450px]' },
+  { src: pic15, title: 'Sustainable Future', rowSpan: 1, width: 'w-[250px] max-w-[82vw] sm:w-[350px] md:w-[450px]' },
+  { src: pic14, title: 'Clean Power', rowSpan: 2, width: 'w-[240px] max-w-[82vw] sm:w-[300px] md:w-[400px]' },
 ]
 
 export default function LandingPage() {
@@ -246,11 +246,11 @@ export default function LandingPage() {
                     <HiStar key={i} className="text-[#ffb700] text-base sm:text-xl" />
                   ))}
                 </div>
-                
+
                 <p className="text-jd-on-surface text-xs sm:text-body-md italic mb-4 sm:mb-8 flex-grow leading-relaxed">
                   "{review.review}"
                 </p>
-                
+
                 <div className="mt-auto">
                   <h3 className="text-xs sm:text-label-lg font-bold text-jd-on-surface mb-0.5">
                     {review.name}
@@ -355,11 +355,10 @@ export default function LandingPage() {
             <button
               onClick={() => scroll('left')}
               disabled={!canScrollLeft}
-              className={`w-9 h-9 sm:w-12 sm:h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface transition-all shadow-sm ${
-                canScrollLeft
+              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface transition-all shadow-sm ${canScrollLeft
                   ? 'hover:bg-jd-primary hover:text-jd-on-primary hover:border-jd-primary cursor-pointer'
                   : 'opacity-40 cursor-not-allowed pointer-events-none'
-              }`}
+                }`}
               aria-label="Scroll left"
             >
               <HiOutlineChevronLeft className="w-4 h-4 sm:w-6 sm:h-6" />
@@ -367,11 +366,10 @@ export default function LandingPage() {
             <button
               onClick={() => scroll('right')}
               disabled={!canScrollRight}
-              className={`w-9 h-9 sm:w-12 sm:h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface transition-all shadow-sm ${
-                canScrollRight
+              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full border border-jd-outline flex items-center justify-center text-jd-on-surface transition-all shadow-sm ${canScrollRight
                   ? 'hover:bg-jd-primary hover:text-jd-on-primary hover:border-jd-primary cursor-pointer'
                   : 'opacity-40 cursor-not-allowed pointer-events-none'
-              }`}
+                }`}
               aria-label="Scroll right"
             >
               <HiOutlineChevronRight className="w-4 h-4 sm:w-6 sm:h-6" />

@@ -183,7 +183,7 @@ export default function ProductInfoPage() {
         {/* Back Navigation */}
         <Link
           to="/browse"
-          className="inline-flex items-center gap-1.5 sm:gap-2 text-jds-on-surface-variant hover:text-jds-primary transition-colors mb-4 sm:mb-8 group"
+          className="inline-flex items-center gap-1.5 sm:gap-2 min-h-[44px] text-jds-on-surface-variant hover:text-jds-primary transition-colors mb-4 sm:mb-8 group"
         >
           <HiOutlineArrowLeft className="text-lg sm:text-xl" />
           <span className="text-xs sm:text-label-md">Back to Browse</span>
@@ -227,7 +227,7 @@ export default function ProductInfoPage() {
                     type="button"
                     onClick={() => setSelectedThumb((prev) => (prev > 0 ? prev - 1 : productImages.length - 1))}
                     aria-label="Previous picture"
-                    className="absolute left-2.5 sm:left-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/85 dark:bg-stone-900/85 backdrop-blur-xs text-jds-on-surface flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-stone-800 transition-all opacity-80 group-hover:opacity-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-jds-primary z-10"
+                    className="absolute left-2.5 sm:left-4 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-10 sm:h-10 rounded-full bg-white/85 dark:bg-stone-900/85 backdrop-blur-xs text-jds-on-surface flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-stone-800 transition-all opacity-80 group-hover:opacity-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-jds-primary z-10"
                   >
                     <HiOutlineChevronLeft className="text-lg sm:text-xl" />
                   </button>
@@ -237,7 +237,7 @@ export default function ProductInfoPage() {
                     type="button"
                     onClick={() => setSelectedThumb((prev) => (prev < productImages.length - 1 ? prev + 1 : 0))}
                     aria-label="Next picture"
-                    className="absolute right-2.5 sm:right-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/85 dark:bg-stone-900/85 backdrop-blur-xs text-jds-on-surface flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-stone-800 transition-all opacity-80 group-hover:opacity-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-jds-primary z-10"
+                    className="absolute right-2.5 sm:right-4 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-10 sm:h-10 rounded-full bg-white/85 dark:bg-stone-900/85 backdrop-blur-xs text-jds-on-surface flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-stone-800 transition-all opacity-80 group-hover:opacity-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-jds-primary z-10"
                   >
                     <HiOutlineChevronRight className="text-lg sm:text-xl" />
                   </button>
@@ -254,11 +254,10 @@ export default function ProductInfoPage() {
                     type="button"
                     onClick={() => setSelectedThumb(i)}
                     aria-label={`View picture ${i + 1}`}
-                    className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 overflow-hidden bg-white cursor-pointer transition-all flex items-center justify-center p-1 ${
-                      selectedThumb === i
+                    className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 overflow-hidden bg-white cursor-pointer transition-all flex items-center justify-center p-1 ${selectedThumb === i
                         ? 'border-jds-secondary shadow-xs ring-2 ring-jds-secondary/30 scale-102'
                         : 'border-jds-outline-variant/60 hover:border-jds-secondary opacity-70 hover:opacity-100'
-                    }`}
+                      }`}
                   >
                     <img
                       className="w-full h-full object-contain"
@@ -290,13 +289,12 @@ export default function ProductInfoPage() {
                   </span>
                 )}
                 <div className="relative inline-flex items-center gap-1.5">
-                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] sm:text-label-sm font-semibold ${
-                    stockBadge?.tier === 'out'
+                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] sm:text-label-sm font-semibold ${stockBadge?.tier === 'out'
                       ? 'bg-jds-error-container/20 text-jds-error'
                       : stockBadge?.tier === 'low'
                         ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
                         : 'bg-jds-secondary-container/20 text-jds-secondary'
-                  }`}>
+                    }`}>
                     {stockBadge?.tier === 'out'
                       ? (stockBadge.reserved > 0 ? `Out of Stock (${stockBadge.reserved} Reserved)` : 'Out of Stock')
                       : `In Stock (${stockBadge.quantity} available)`}
@@ -309,7 +307,7 @@ export default function ProductInfoPage() {
                       onMouseEnter={() => setShowBranchTooltip(true)}
                       onMouseLeave={() => setShowBranchTooltip(false)}
                       onClick={() => setShowBranchTooltip(!showBranchTooltip)}
-                      className="px-2 py-0.5 rounded-full text-[10px] sm:text-label-sm font-bold bg-jds-surface-container-high text-jds-on-surface hover:bg-jds-surface-container-highest transition-colors flex items-center gap-1 border border-jds-outline-variant/30 cursor-pointer"
+                      className="min-h-[44px] sm:min-h-0 px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-full text-[11px] sm:text-label-sm font-bold bg-jds-surface-container-high text-jds-on-surface hover:bg-jds-surface-container-highest transition-colors inline-flex items-center gap-1 border border-jds-outline-variant/30 cursor-pointer"
                       title="View branch showroom stock"
                     >
                       <HiOutlineMapPin className="text-xs text-jds-primary" />
@@ -317,7 +315,7 @@ export default function ProductInfoPage() {
                     </button>
 
                     {showBranchTooltip && branchBreakdown && (
-                      <div className="absolute right-0 top-full mt-1.5 w-64 max-w-[calc(100vw-2rem)] p-3 rounded-xl bg-jds-surface border border-jds-outline-variant/60 shadow-lg text-xs z-30 space-y-2">
+                      <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-64 max-w-[calc(100vw-2rem)] p-3 rounded-xl bg-jds-surface border border-jds-outline-variant/60 shadow-lg text-xs z-30 space-y-2">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant">
                           Showroom Availability
                         </div>
@@ -389,7 +387,7 @@ export default function ProductInfoPage() {
                     setModalMode('reserve')
                     setIsQuoteModalOpen(true)
                   }}
-                  className="w-full py-3 sm:py-3.5 bg-gradient-to-r from-[#fdb813] via-[#f7ad0c] to-[#e69f05] text-stone-950 font-black rounded-xl shadow-xs hover:shadow-md hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-xs sm:text-sm border border-[#f5b311] cursor-pointer"
+                  className="w-full min-h-[44px] py-3 sm:py-3.5 bg-gradient-to-r from-[#fdb813] via-[#f7ad0c] to-[#e69f05] text-stone-950 font-black rounded-xl shadow-xs hover:shadow-md hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-xs sm:text-sm border border-[#f5b311] cursor-pointer"
                 >
                   <HiOutlineBuildingStorefront className="text-lg sm:text-xl" />
                   <span>Reserve for Store Pickup</span>
@@ -397,29 +395,29 @@ export default function ProductInfoPage() {
               ) : (
                 <button
                   disabled
-                  className="w-full py-3 sm:py-3.5 bg-stone-200 text-stone-500 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 text-xs sm:text-sm border border-stone-300"
+                  className="w-full min-h-[44px] py-3 sm:py-3.5 bg-stone-200 text-stone-500 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 text-xs sm:text-sm border border-stone-300"
                 >
                   <HiOutlineLockClosed className="text-base sm:text-lg" />
                   <span>{stockBadge?.reserved > 0 ? 'Fully Reserved (Pickup Unavailable)' : 'Out of Stock (Pickup Unavailable)'}</span>
                 </button>
               )}
 
-              {/* Secondary 2-Column Row: Inquire / Request Quote & Ask Solar Assistant */}
+              {/* Secondary 2-Column Row: Inquire Now & Ask Solar Assistant */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 <button
                   onClick={() => {
                     setModalMode('inquire')
                     setIsQuoteModalOpen(true)
                   }}
-                  className="w-full py-2.5 sm:py-3 border-2 border-jds-secondary text-jds-secondary font-bold rounded-xl hover:bg-jds-secondary-fixed/20 transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm shadow-2xs cursor-pointer"
+                  className="w-full min-h-[44px] py-2.5 sm:py-3 border-2 border-jds-secondary text-jds-secondary font-bold rounded-xl hover:bg-jds-secondary-fixed/20 transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm shadow-2xs cursor-pointer"
                 >
                   <HiOutlineDocumentText className="text-base" />
-                  <span>Inquire / Request Quote</span>
+                  <span>Inquire Now</span>
                 </button>
 
                 <button
                   onClick={handleAskAI}
-                  className="w-full py-2.5 sm:py-3 bg-jds-surface-container-high border border-jds-outline-variant/60 text-jds-on-surface font-semibold rounded-xl hover:bg-jds-surface-container-highest transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm shadow-2xs cursor-pointer"
+                  className="w-full min-h-[44px] py-2.5 sm:py-3 bg-jds-surface-container-high border border-jds-outline-variant/60 text-jds-on-surface font-semibold rounded-xl hover:bg-jds-surface-container-highest transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm shadow-2xs cursor-pointer"
                 >
                   <HiOutlineChatBubbleLeftRight className="text-base text-amber-500" />
                   <span>Ask Solar Assistant</span>
@@ -431,15 +429,18 @@ export default function ProductInfoPage() {
 
         {/* Related Products */}
         {relatedProducts.length > 0 && (
-          <section className="mt-20">
-            <h2 className="text-headline-lg text-jds-on-surface mb-8">Similar Solutions</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <section className="mt-12 sm:mt-20">
+            <h2 className="text-headline-lg text-jds-on-surface mb-5 sm:mb-8">Similar Solutions</h2>
+            <div
+              data-testid="similar-solutions-grid"
+              className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6"
+            >
               {relatedProducts.map((rp) => (
                 <div
                   key={rp.id}
-                  className="bg-jds-surface-container-lowest border border-jds-outline-variant rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group"
+                  className="bg-jds-surface-container-lowest border border-jds-outline-variant rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group flex flex-col min-w-0"
                 >
-                  <div className="aspect-square bg-white flex items-center justify-center p-4">
+                  <div className="aspect-square bg-white flex items-center justify-center p-2.5 sm:p-4">
                     {rp.image_url ? (
                       <img
                         alt={rp.name}
@@ -448,34 +449,33 @@ export default function ProductInfoPage() {
                       />
                     ) : (
                       <div className="flex flex-col items-center gap-2 text-jds-on-surface-variant/30">
-                        <HiOutlineBolt className="text-4xl" />
+                        <HiOutlineBolt className="text-3xl sm:text-4xl" />
                         <span className="text-label-sm">{rp.watt}W</span>
                       </div>
                     )}
                   </div>
-                  <div className="p-4 flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
+                  <div className="p-2.5 sm:p-4 flex flex-col flex-grow gap-1.5 sm:gap-2 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {rp.waterproof_grade && (
-                        <span className="bg-jds-surface-container-high text-jds-on-surface-variant px-2 py-0.5 rounded-full text-[10px] uppercase w-fit tracking-tight font-semibold">
+                        <span className="bg-jds-surface-container-high text-jds-on-surface-variant px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] uppercase w-fit tracking-tight font-semibold">
                           {rp.waterproof_grade}
                         </span>
                       )}
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-tight font-semibold ${
-                        rp.in_stock !== false
+                      <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] uppercase tracking-tight font-semibold ${rp.in_stock !== false
                           ? 'bg-jds-secondary-container/10 text-jds-secondary'
                           : 'bg-jds-error-container/10 text-jds-error'
-                      }`}>
+                        }`}>
                         {rp.in_stock !== false ? 'In Stock' : 'Out of Stock'}
                       </span>
                     </div>
-                    <h3 className="text-label-md font-bold text-jds-on-surface truncate">{rp.name}</h3>
-                    <p className="text-headline-md text-jds-secondary text-[18px]">{rp.watt}W</p>
+                    <h3 className="text-xs sm:text-label-md font-bold text-jds-on-surface line-clamp-2 leading-snug">{rp.name}</h3>
+                    <p className="text-sm sm:text-[18px] font-bold text-jds-secondary">{rp.watt}W</p>
                     {rp.price_range && (
-                      <p className="text-label-md text-jds-primary font-bold">₱{rp.price_range}</p>
+                      <p className="text-xs sm:text-label-md text-jds-primary font-bold truncate">₱{rp.price_range}</p>
                     )}
                     <Link
                       to={`/product/${rp.id}`}
-                      className="mt-2 w-full py-2 border border-jds-secondary text-jds-secondary text-label-md rounded-lg hover:bg-jds-secondary-fixed/20 transition-colors text-center block"
+                      className="mt-auto min-h-[44px] sm:min-h-0 flex items-center justify-center w-full py-2 border border-jds-secondary text-jds-secondary text-xs sm:text-label-md font-semibold rounded-lg hover:bg-jds-secondary-fixed/20 transition-colors text-center"
                     >
                       View Details
                     </Link>

@@ -33,15 +33,19 @@ import {
   fetchDynamicProductImages
 } from '../../lib/productImageUtils'
 import { useAuth } from '../../context/AuthContext'
+import { notifyOpsUpdated } from '../../lib/inquiryStatusUtils'
 import CategoryModal from './CategoryModal'
 import RecordSaleModal from './RecordSaleModal'
 import AdminProductCard from './AdminProductCard'
+import ImagesScreen from './ImagesScreen'
+import InspectorDrawer from './InspectorDrawer'
 import { fetchCategoriesWithCounts, DEFAULT_CATEGORIES } from '../../lib/categories'
 import {
   getStockQuantity,
   getStockTier,
   sortProductsByStockPriority,
   getStockBadgeConfig,
+  getBranchBreakdown,
   SORT_OPTIONS,
 } from '../../lib/inventoryUtils'
 import { sanitizeText, sanitizeNumber } from '../../lib/sanitize.js'
@@ -156,13 +160,14 @@ export const getChangedFields = (orig, curr) => {
   return changes
 }
 
-export default function ProductsScreen({ onNavigate }) {
+export default function ProductsScreen({ onNavigate, initialTab = 'catalog' }) {
+  const [activeSection, setActiveSection] = useState(initialTab) // 'catalog' | 'media'
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [viewMode, setViewMode] = useState('cards') // 'table' | 'cards'
+  const [viewMode, setViewMode] = useState('table') // 'table' | 'cards'
 
   // Filters & Sorting
   const [search, setSearch] = useState('')
@@ -195,11 +200,17 @@ export default function ProductsScreen({ onNavigate }) {
   const [directConfirmAction, setDirectConfirmAction] = useState(null)
   const [directConfirmLoading, setDirectConfirmLoading] = useState(false)
 
+  // Inspector Drawer State
+  const [inspectedProduct, setInspectedProduct] = useState(null)
+  const [inspectorTab, setInspectorTab] = useState('inspect') // 'inspect' | 'audit' | 'edit'
+
   // Delete Confirmation State
   const [productToDelete, setProductToDelete] = useState(null)
   const [deletingProduct, setDeletingProduct] = useState(false)
 
   const handleCloseEdit = useCallback(() => {
+    setInspectedProduct(null)
+    setQuickRestockItem(null)
     setEditingProduct(null)
     setOriginalProduct(null)
     setShowConfirmModal(false)
@@ -209,8 +220,6 @@ export default function ProductsScreen({ onNavigate }) {
   }, [])
 
   const anyProductModalOpen = Boolean(
-    editingProduct ||
-    quickRestockItem ||
     directConfirmAction ||
     productToDelete
   )
@@ -220,8 +229,6 @@ export default function ProductsScreen({ onNavigate }) {
     onClose: () => {
       if (productToDelete && !deletingProduct) setProductToDelete(null)
       else if (directConfirmAction && !directConfirmLoading) setDirectConfirmAction(null)
-      else if (quickRestockItem && !updatingStock) setQuickRestockItem(null)
-      else if (editingProduct && !savingProduct) handleCloseEdit()
     },
   })
 
@@ -230,6 +237,7 @@ export default function ProductsScreen({ onNavigate }) {
   const toastTimeoutRef = useRef(null)
 
   const { role } = useAuth()
+  const isStaff = role === 'staff'
 
   const showToast = useCallback((title, message, type = 'success') => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
@@ -308,6 +316,7 @@ export default function ProductsScreen({ onNavigate }) {
       const { error } = await supabase.from('products').delete().eq('id', productToDelete.id)
       if (error) throw error
       setProducts((prev) => prev.filter((p) => p.id !== productToDelete.id))
+      notifyOpsUpdated()
       showToast('Product Removed', `${productToDelete.name} was permanently removed from the catalog.`, 'info')
       setProductToDelete(null)
     } catch (err) {
@@ -319,7 +328,7 @@ export default function ProductsScreen({ onNavigate }) {
   }
 
   // Edit Handlers with Review & Confirmation Diff
-  const handleOpenEditProduct = async (product) => {
+  const handleOpenEditProduct = async (product, tabOverride = 'edit') => {
     let minPrice = product.min_price !== undefined && product.min_price !== null ? product.min_price : ''
     let maxPrice = product.max_price !== undefined && product.max_price !== null ? product.max_price : ''
 
@@ -338,6 +347,10 @@ export default function ProductsScreen({ onNavigate }) {
       max_price: maxPrice,
       stock_quantity: getStockQuantity(product),
     }
+    setInspectedProduct(prepared)
+    setInspectorTab(tabOverride || 'edit')
+    setQuickRestockItem(prepared)
+    setQuickQuantity(getStockQuantity(prepared))
     setEditingProduct(prepared)
     setOriginalProduct(prepared)
     setActiveEditTab('all')
@@ -351,10 +364,15 @@ export default function ProductsScreen({ onNavigate }) {
       if (dynamicImages.length > 1) {
         const serialized = serializeProductImages(dynamicImages)
         setEditingProduct((prev) => (prev && prev.id === product.id ? { ...prev, image_url: serialized } : prev))
+        setInspectedProduct((prev) => (prev && prev.id === product.id ? { ...prev, image_url: serialized } : prev))
       }
     } catch (err) {
       console.warn('Could not fetch extra product pictures:', err)
     }
+  }
+
+  const handleOpenInspector = (product, tab = 'inspect') => {
+    handleOpenEditProduct(product, tab)
   }
 
   const handleInitiateSave = () => {
@@ -476,6 +494,7 @@ export default function ProductsScreen({ onNavigate }) {
       setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...updated } : p)))
       setShowConfirmModal(false)
       setEditSuccessMessage(`Modifications saved for ${editingProduct.name || `Product #${id}`}.`)
+      notifyOpsUpdated()
       showToast('Product Updated', `Modifications saved for ${editingProduct.name || `Product #${id}`}.`, 'success')
     } catch (err) {
       console.error('Failed to save product:', err)
@@ -578,7 +597,7 @@ export default function ProductsScreen({ onNavigate }) {
   const handleOpenStockStepper = (product, delta = 0) => {
     const currentQty = getStockQuantity(product)
     const targetQty = Math.max(0, currentQty + delta)
-    setQuickRestockItem(product)
+    handleOpenInspector(product, 'audit')
     setQuickQuantity(targetQty)
   }
 
@@ -611,12 +630,13 @@ export default function ProductsScreen({ onNavigate }) {
             : p
         )
       )
+      notifyOpsUpdated()
       showToast(
         'Inventory Updated',
         `${quickRestockItem.name} stock level confirmed at ${newQty} unit${newQty === 1 ? '' : 's'}.`,
         'success'
       )
-      setQuickRestockItem(null)
+      handleCloseEdit()
     } catch (err) {
       console.error('Quick restock failed:', err)
       showToast('Stock Update Failed', err.message || 'Failed to update stock quantity.', 'error')
@@ -702,7 +722,7 @@ export default function ProductsScreen({ onNavigate }) {
       setProducts((prev) =>
         prev.map((p) => (p.id === product.id ? { ...p, ...updated } : p))
       )
-
+      notifyOpsUpdated()
       showToast(
         'Adjustment Confirmed',
         `${product.name} updated: Stock is ${targetStock}, Sales is ${targetSales}.`,
@@ -876,13 +896,50 @@ export default function ProductsScreen({ onNavigate }) {
 
           <Button
             onClick={() => onNavigate('add-product')}
-            className="bg-jds-primary text-jds-on-primary hover:opacity-90 rounded-xl px-5 h-10 gap-2 font-bold shadow-sm"
+            className="jds-btn-motion bg-jds-primary text-jds-on-primary hover:opacity-90 rounded-xl px-5 h-10 gap-2 font-bold shadow-sm cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             <span>Add Equipment</span>
           </Button>
         </div>
       </div>
+
+      {/* Catalog / Media Library Section Tabs */}
+      <div className="flex items-center gap-1.5 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low p-1 w-fit" role="tablist" aria-label="Products workspace sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeSection === 'catalog'}
+          onClick={() => setActiveSection('catalog')}
+          className={`jds-focus-ring min-h-[36px] flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+            activeSection === 'catalog'
+              ? 'bg-jds-surface-container-lowest text-jds-primary shadow-2xs border border-jds-outline-variant/30'
+              : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+          }`}
+        >
+          <Package className="h-3.5 w-3.5" />
+          <span>Catalog SKUs ({products.length})</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeSection === 'media'}
+          onClick={() => setActiveSection('media')}
+          className={`jds-focus-ring min-h-[36px] flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+            activeSection === 'media'
+              ? 'bg-jds-surface-container-lowest text-jds-primary shadow-2xs border border-jds-outline-variant/30'
+              : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+          }`}
+        >
+          <ImageIcon className="h-3.5 w-3.5" />
+          <span>Images &amp; Media Library</span>
+        </button>
+      </div>
+
+      {activeSection === 'media' ? (
+        <ImagesScreen embedded />
+      ) : (
+        <>
 
       {/* Interactive Inventory Health KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -1169,10 +1226,31 @@ export default function ProductsScreen({ onNavigate }) {
         </div>
       </div>
 
-      {/* Main View: Table View */}
+      {/* Main View: Table View (stacked cards on < md, table on md+) */}
       {viewMode === 'table' ? (
         <div className="rounded-2xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
+          <div className="md:hidden grid grid-cols-1 gap-4 p-3">
+            {prioritizedFiltered.length === 0 ? (
+              <div className="text-center py-12 px-4 text-body-md text-jds-on-surface-variant">
+                No products match your current filters.
+              </div>
+            ) : (
+              prioritizedFiltered.map((p) => (
+                <AdminProductCard
+                  key={p.id}
+                  product={p}
+                  onOpenEdit={handleOpenEditProduct}
+                  onInitiateDelete={handleInitiateDelete}
+                  onOpenStockStepper={handleOpenStockStepper}
+                  onOpenRecordSale={setSaleModalProduct}
+                  onRequestDirectStockChange={handleRequestDirectStockChange}
+                  onRequestDirectSaleChange={handleRequestDirectSaleChange}
+                  showDelete={role === 'admin'}
+                />
+              ))
+            )}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader className="bg-jds-surface-container-low/30 border-b border-jds-outline-variant/20">
                 <TableRow>
@@ -1232,14 +1310,18 @@ export default function ProductsScreen({ onNavigate }) {
                     return (
                       <TableRow
                         key={p.id}
-                        className={`hover:bg-jds-surface-container-low/20 transition-colors ${badge.rowBorderClass} ${badge.rowBgClass}`}
+                        onClick={() => handleOpenInspector(p, 'inspect')}
+                        className={`cursor-pointer hover:bg-jds-surface-container-low/40 transition-colors ${badge.rowBorderClass} ${badge.rowBgClass}`}
                       >
                         {/* Thumbnail */}
                         <TableCell className="w-16 py-3">
                           <button
                             type="button"
-                            onClick={() => handleOpenEditProduct(p)}
-                            title="Click to edit equipment details"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenInspector(p, 'inspect')
+                            }}
+                            title="Inspect equipment details"
                             className="group/img block rounded-xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-jds-primary/40 transition-transform active:scale-95"
                           >
                             <img
@@ -1259,16 +1341,19 @@ export default function ProductsScreen({ onNavigate }) {
                           <div className="space-y-0.5">
                             <button
                               type="button"
-                              onClick={() => handleOpenEditProduct(p)}
-                              title="Click to view and edit product"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleOpenInspector(p, 'inspect')
+                              }}
+                              title="Click to inspect and edit product"
                               className="text-left font-bold text-jds-on-surface hover:text-jds-primary transition-colors focus:outline-none group/title flex items-center gap-1.5 w-full cursor-pointer"
                             >
                               <span className="truncate">{p.name}</span>
                               <Pencil className="h-3 w-3 opacity-0 group-hover/title:opacity-80 text-jds-primary shrink-0 transition-opacity" />
                             </button>
-                            <div className="flex items-center gap-2 text-xs text-jds-on-surface-variant font-mono">
+                            <div className="flex items-center gap-2 text-xs text-jds-on-surface-variant font-mono tabular-nums">
                               <span>ID: {p.id}</span>
-                              {(p.min_price || p.price_range) && (
+                              {!isStaff && (p.min_price || p.price_range) && (
                                 <>
                                   <span>&bull;</span>
                                   <span className="text-jds-primary font-semibold">
@@ -1396,7 +1481,7 @@ export default function ProductsScreen({ onNavigate }) {
                                 e.stopPropagation()
                                 setSaleModalProduct(p)
                               }}
-                              className="h-8 w-8 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 disabled:opacity-30 disabled:pointer-events-none rounded-lg"
+                              className="text-jds-on-surface-variant hover:bg-jds-surface-container hover:text-jds-primary disabled:opacity-30 disabled:pointer-events-none rounded-lg"
                             >
                               <ShoppingBag className="h-4 w-4" />
                             </Button>
@@ -1409,7 +1494,7 @@ export default function ProductsScreen({ onNavigate }) {
                                 e.stopPropagation()
                                 handleOpenStockStepper(p, 0)
                               }}
-                              className="h-8 w-8 text-jds-primary hover:bg-jds-primary/10 rounded-lg"
+                              className="text-jds-on-surface-variant hover:bg-jds-surface-container hover:text-jds-primary rounded-lg"
                             >
                               <Boxes className="h-4 w-4" />
                             </Button>
@@ -1422,7 +1507,7 @@ export default function ProductsScreen({ onNavigate }) {
                                 e.stopPropagation()
                                 handleOpenEditProduct(p)
                               }}
-                              className="h-8 w-8 text-jds-secondary hover:bg-jds-secondary-container/10 rounded-lg"
+                              className="text-jds-on-surface-variant hover:bg-jds-surface-container hover:text-jds-primary rounded-lg"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -1480,208 +1565,6 @@ export default function ProductsScreen({ onNavigate }) {
         </div>
       )}
 
-      {/* QUICK STOCK ADJUSTMENT CONFIRMATION MODAL */}
-      {quickRestockItem && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !updatingStock) {
-              setQuickRestockItem(null)
-            }
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl border border-jds-outline-variant/30 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-jds-primary/10 text-jds-primary">
-                  <Boxes className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-body-lg font-bold text-jds-on-surface">Confirm Stock Adjustment</h3>
-                  <p className="text-label-sm text-jds-on-surface-variant font-medium line-clamp-1">
-                    {quickRestockItem.name} ({quickRestockItem.watt}W)
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={updatingStock}
-                onClick={() => setQuickRestockItem(null)}
-                className="rounded-lg p-1 text-jds-on-surface-variant/60 hover:bg-jds-surface-container-high hover:text-jds-on-surface transition-colors disabled:opacity-50"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Comparison Visualizer */}
-            {(() => {
-              const origQty = getStockQuantity(quickRestockItem)
-              const newQty = Math.max(0, Number(quickQuantity) || 0)
-              const delta = newQty - origQty
-              const oldBadge = getStockBadgeConfig(quickRestockItem)
-              const newBadge = getStockBadgeConfig({ ...quickRestockItem, stock_quantity: newQty })
-
-              return (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-jds-outline-variant/25 bg-jds-surface-container-low/40 p-3.5 space-y-2.5">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
-                      Inventory Level Shift
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <span className="text-xs text-jds-on-surface-variant font-medium">Previous</span>
-                        <div className="font-mono text-lg font-bold text-jds-on-surface">
-                          {origQty} unit{origQty === 1 ? '' : 's'}
-                        </div>
-                        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase ${oldBadge.badgeClass}`}>
-                          {oldBadge.shortLabel}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col items-center justify-center px-3">
-                        <ArrowRight className="h-5 w-5 text-jds-on-surface-variant/40" />
-                        <span
-                          className={`font-mono text-xs font-bold mt-1 ${delta > 0
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : delta < 0
-                              ? 'text-jds-error'
-                              : 'text-jds-on-surface-variant'
-                            }`}
-                        >
-                          {delta > 0 ? `+${delta}` : delta === 0 ? 'No change' : `${delta}`}
-                        </span>
-                      </div>
-
-                      <div className="space-y-1 text-right">
-                        <span className="text-xs text-jds-on-surface-variant font-medium">Adjusted</span>
-                        <div className="font-mono text-lg font-bold text-jds-primary">
-                          {newQty} unit{newQty === 1 ? '' : 's'}
-                        </div>
-                        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase ${newBadge.badgeClass}`}>
-                          {newBadge.shortLabel}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Quantity Stepper Input */}
-                  <div className="space-y-2">
-                    <label className="text-label-sm font-bold uppercase tracking-wider text-jds-on-surface-variant/80">
-                      Target Available Inventory
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setQuickQuantity((prev) => Math.max(0, Number(prev || 0) - 1))}
-                        className="flex h-12 w-12 items-center justify-center rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/30 text-jds-on-surface hover:bg-jds-surface-container-high active:scale-95 transition-all"
-                        title="Deduct 1 unit"
-                      >
-                        <Minus className="h-5 w-5" />
-                      </button>
-
-                      <input
-                        type="number"
-                        min="0"
-                        value={quickQuantity}
-                        onChange={(e) =>
-                          setQuickQuantity(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))
-                        }
-                        className="h-12 flex-1 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-center font-mono text-headline-sm font-bold text-jds-on-surface outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => setQuickQuantity((prev) => Number(prev || 0) + 1)}
-                        className="flex h-12 w-12 items-center justify-center rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/30 text-jds-on-surface hover:bg-jds-surface-container-high active:scale-95 transition-all"
-                        title="Add 1 unit"
-                      >
-                        <Plus className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Quick Delta Presets */}
-                  <div className="space-y-1.5">
-                    <label className="text-label-sm font-medium text-jds-on-surface-variant/70">
-                      Quick Adjustment Presets
-                    </label>
-                    <div className="grid grid-cols-5 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setQuickQuantity(0)}
-                        className="rounded-lg border border-jds-error/30 bg-jds-error-container/10 py-1.5 text-xs font-bold text-jds-error hover:bg-jds-error-container/20 transition-all"
-                      >
-                        Set 0
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setQuickQuantity((prev) => Math.max(0, Number(prev || 0) - 5))}
-                        className="rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/30 py-1.5 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container-high transition-all"
-                      >
-                        -5
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setQuickQuantity((prev) => Number(prev || 0) + 1)}
-                        className="rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/30 py-1.5 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container-high transition-all"
-                      >
-                        +1
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setQuickQuantity((prev) => Number(prev || 0) + 5)}
-                        className="rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/30 py-1.5 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container-high transition-all"
-                      >
-                        +5
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setQuickQuantity((prev) => Number(prev || 0) + 10)}
-                        className="rounded-lg border border-jds-outline-variant/30 bg-jds-surface-container-low/30 py-1.5 text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container-high transition-all"
-                      >
-                        +10
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-4 border-t border-jds-outline-variant/20">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={updatingStock}
-                onClick={() => setQuickRestockItem(null)}
-                className="flex-1 border-jds-outline-variant text-jds-on-surface-variant h-11 rounded-xl"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                disabled={updatingStock}
-                onClick={handleQuickRestockSave}
-                className="flex-1 bg-jds-primary text-jds-on-primary font-bold h-11 rounded-xl"
-              >
-                {updatingStock ? (
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    <span>Updating...</span>
-                  </div>
-                ) : (
-                  'Confirm Stock Adjustment'
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* DIRECT BUTTON ADJUSTMENT CONFIRMATION MODAL */}
       {directConfirmAction && (
         <div
@@ -1694,7 +1577,7 @@ export default function ProductsScreen({ onNavigate }) {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm rounded-2xl border border-jds-outline-variant/30 bg-jds-surface p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
+            className="w-full max-w-sm max-h-[92dvh] overflow-y-auto rounded-2xl border border-jds-outline-variant/30 bg-jds-surface p-5 sm:p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
           >
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-3">
               <div className="flex items-center gap-2.5">
@@ -1782,7 +1665,7 @@ export default function ProductsScreen({ onNavigate }) {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl border border-jds-error/30 bg-jds-surface p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
+            className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-2xl border border-jds-error/30 bg-jds-surface p-5 sm:p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
           >
             {/* Header */}
             <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-4">
@@ -1866,282 +1749,395 @@ export default function ProductsScreen({ onNavigate }) {
         </div>
       )}
 
-      {/* EDIT PRODUCT SPECIFICATIONS MODAL */}
-      {editingProduct && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !savingProduct && !showConfirmModal) {
-              handleCloseEdit()
-            }
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-5xl max-h-[92vh] flex flex-col rounded-2xl border border-jds-outline-variant/30 bg-jds-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-auto"
-          >
-            {editSuccessMessage ? (
-              <div className="p-10 flex items-center justify-center min-h-[300px]">
-                <AnimatedConfirmation
-                  title="Product Specifications Saved"
-                  description={editSuccessMessage}
-                  duration={1800}
-                  onComplete={() => handleCloseEdit()}
-                />
-              </div>
-            ) : (
-              <>
-            {/* Inline Confirmation Diff Modal */}
-            {showConfirmModal && (
-              <div
-                className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-150"
-                onClick={(e) => {
-                  if (e.target === e.currentTarget && !savingProduct) {
-                    setShowConfirmModal(false)
-                  }
-                }}
+      {/* SLIDE-OVER RIGHT INSPECTOR DRAWER (Inspect | Audit Stock | Edit Specs) */}
+      <InspectorDrawer
+        isOpen={Boolean(inspectedProduct)}
+        onClose={handleCloseEdit}
+        disableClose={updatingStock || savingProduct}
+        widthClass="max-w-[520px]"
+        subtitle={`Equipment #${inspectedProduct?.id ?? ''} · ${inspectedProduct?.type || 'Solar Hardware'}`}
+        title={inspectedProduct?.name}
+        tabs={
+          editSuccessMessage
+            ? []
+            : [
+                { id: 'inspect', label: 'Inspect' },
+                { id: 'audit', label: 'Audit Stock' },
+                { id: 'edit', label: 'Edit Specs' },
+              ]
+        }
+        activeTab={inspectorTab}
+        onTabChange={(nextTab) => {
+          setInspectorTab(nextTab)
+          setShowConfirmModal(false)
+        }}
+        footer={
+          editSuccessMessage ? null : inspectorTab === 'inspect' ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={getStockQuantity(inspectedProduct) === 0}
+                onClick={() => setSaleModalProduct(inspectedProduct)}
+                className="jds-btn-motion border-jds-outline-variant text-jds-on-surface h-10 px-4 rounded-lg text-xs font-semibold cursor-pointer"
               >
-                <div className="w-full max-w-lg rounded-2xl border border-jds-outline-variant/30 bg-jds-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh]">
-                  {/* Header */}
-                  <div className="border-b border-jds-outline-variant/20 px-6 py-4 bg-jds-surface-container-low/40 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-jds-primary/10 text-jds-primary">
-                        <Save className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h4 className="text-body-lg font-bold text-jds-on-surface">Confirm Equipment Modifications</h4>
-                        <p className="text-label-sm text-jds-on-surface-variant font-medium">
-                          {editingProduct.name || `Product #${editingProduct.id}`}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={savingProduct}
-                      onClick={() => setShowConfirmModal(false)}
-                      className="rounded-lg p-1.5 text-jds-on-surface-variant/60 hover:bg-jds-surface-container-high hover:text-jds-on-surface transition-colors disabled:opacity-50"
-                      title="Return to editing"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
+                <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
+                Record Sale
+              </Button>
+              <div className="flex items-center gap-2 ml-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setInspectorTab('audit')}
+                  className="jds-btn-motion border-jds-outline-variant text-jds-on-surface h-10 px-3.5 rounded-lg text-xs font-semibold cursor-pointer"
+                >
+                  Audit Stock
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setInspectorTab('edit')}
+                  className="jds-btn-motion bg-jds-primary text-jds-on-primary h-10 px-4 rounded-lg text-xs font-bold cursor-pointer"
+                >
+                  Edit Specs
+                </Button>
+              </div>
+            </>
+          ) : inspectorTab === 'audit' ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={updatingStock}
+                onClick={handleCloseEdit}
+                className="jds-btn-motion border-jds-outline-variant text-jds-on-surface-variant h-10 px-4 rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={updatingStock}
+                onClick={handleQuickRestockSave}
+                className="jds-btn-motion bg-jds-primary text-jds-on-primary h-10 px-5 rounded-lg text-xs font-bold cursor-pointer ml-auto"
+              >
+                {updatingStock ? 'Saving Stock...' : 'Save Stock Adjustment'}
+              </Button>
+            </>
+          ) : showConfirmModal ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={savingProduct}
+                onClick={() => setShowConfirmModal(false)}
+                className="jds-btn-motion border-jds-outline-variant text-jds-on-surface-variant h-10 px-4 rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Back to Edit
+              </Button>
+              <Button
+                type="button"
+                disabled={savingProduct}
+                onClick={handleEditSave}
+                className="jds-btn-motion bg-jds-primary text-jds-on-primary h-10 px-5 rounded-lg text-xs font-bold cursor-pointer ml-auto"
+              >
+                {savingProduct ? 'Saving Changes...' : 'Confirm & Save'}
+              </Button>
+            </>
+          ) : (
+            <>
+              {!isStaff && inspectedProduct && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const target = inspectedProduct
+                    handleCloseEdit()
+                    handleInitiateDelete(target)
+                  }}
+                  className="jds-btn-motion border-jds-error/30 text-jds-error hover:bg-jds-error/10 h-10 px-3.5 rounded-lg text-xs font-semibold cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  Delete
+                </Button>
+              )}
+              <div className="flex items-center gap-2 ml-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={savingProduct}
+                  onClick={handleCloseEdit}
+                  className="jds-btn-motion border-jds-outline-variant text-jds-on-surface-variant h-10 px-4 rounded-lg text-xs font-semibold cursor-pointer"
+                >
+                  Discard
+                </Button>
+                <Button
+                  type="button"
+                  disabled={savingProduct}
+                  onClick={handleInitiateSave}
+                  className="jds-btn-motion bg-jds-primary text-jds-on-primary h-10 px-5 rounded-lg text-xs font-bold cursor-pointer"
+                >
+                  Review &amp; Save
+                </Button>
+              </div>
+            </>
+          )
+        }
+      >
+        {editSuccessMessage ? (
+          <div className="py-12 flex items-center justify-center">
+            <AnimatedConfirmation
+              title="Product Specifications Saved"
+              description={editSuccessMessage}
+              duration={1800}
+              onComplete={() => handleCloseEdit()}
+            />
+          </div>
+        ) : inspectedProduct && inspectorTab === 'inspect' ? (() => {
+          const badge = getStockBadgeConfig(inspectedProduct)
+          const branch = getBranchBreakdown(inspectedProduct)
+          const mainImg = getMainProductImage(inspectedProduct.image_url)
+          return (
+            <div className="space-y-5">
+              <div className="grid grid-cols-[1fr_96px] gap-4 items-start">
+                <dl className="space-y-2 text-xs">
+                  <div className="grid grid-cols-[96px_1fr] gap-2">
+                    <dt className="text-jds-on-surface-variant">Category</dt>
+                    <dd className="font-semibold text-jds-on-surface">{inspectedProduct.type || 'Solar Hardware'}</dd>
                   </div>
+                  <div className="grid grid-cols-[96px_1fr] gap-2">
+                    <dt className="text-jds-on-surface-variant">Power</dt>
+                    <dd className="font-semibold text-jds-on-surface tabular-nums">{inspectedProduct.watt}W</dd>
+                  </div>
+                  {!isStaff && (
+                    <div className="grid grid-cols-[96px_1fr] gap-2">
+                      <dt className="text-jds-on-surface-variant">Price</dt>
+                      <dd className="font-semibold text-jds-on-surface tabular-nums">
+                        {inspectedProduct.min_price && inspectedProduct.max_price
+                          ? `₱${Number(inspectedProduct.min_price).toLocaleString()} - ₱${Number(inspectedProduct.max_price).toLocaleString()}`
+                          : inspectedProduct.price_range || (inspectedProduct.min_price ? `₱${Number(inspectedProduct.min_price).toLocaleString()}` : 'Not set')}
+                      </dd>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-[96px_1fr] gap-2">
+                    <dt className="text-jds-on-surface-variant">On Hand</dt>
+                    <dd className="font-bold text-jds-on-surface tabular-nums">{badge.quantity} units</dd>
+                  </div>
+                  <div className="grid grid-cols-[96px_1fr] gap-2">
+                    <dt className="text-jds-on-surface-variant">Total Sales</dt>
+                    <dd className="font-semibold text-jds-on-surface tabular-nums">{Number(inspectedProduct.sales || 0)} sold</dd>
+                  </div>
+                  <div className="grid grid-cols-[96px_1fr] gap-2">
+                    <dt className="text-jds-on-surface-variant">Status</dt>
+                    <dd>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${badge.badgeClass}`}>
+                        {badge.shortLabel}
+                      </span>
+                    </dd>
+                  </div>
+                </dl>
 
-                  {/* Body */}
-                  <div className="p-6 overflow-y-auto space-y-4 flex-1">
-                    {pendingChanges.length > 0 ? (
-                      <>
-                        <div className="rounded-xl bg-jds-surface-container-low/50 border border-jds-outline-variant/20 p-3.5 flex items-start gap-3">
-                          <AlertCircle className="h-5 w-5 text-jds-primary shrink-0 mt-0.5" />
-                          <div className="text-body-sm text-jds-on-surface-variant">
-                            <span className="font-semibold text-jds-on-surface">
-                              {pendingChanges.length} specification{pendingChanges.length > 1 ? 's' : ''} modified.
-                            </span>{' '}
-                            Please review and confirm these changes before updating the catalog.
-                          </div>
-                        </div>
+                <div className="h-24 w-24 rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container flex items-center justify-center overflow-hidden p-1.5">
+                  {mainImg ? (
+                    <img src={mainImg} alt={inspectedProduct.name} className="h-full w-full object-contain" />
+                  ) : (
+                    <Package className="h-7 w-7 text-jds-on-surface-variant/50" />
+                  )}
+                </div>
+              </div>
 
-                        <div className="space-y-2">
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
-                            Summary of Modifications
-                          </p>
-                          <div className="divide-y divide-jds-outline-variant/15 rounded-xl border border-jds-outline-variant/25 bg-jds-surface-container-lowest overflow-hidden max-h-60 overflow-y-auto">
-                            {pendingChanges.map((change) => (
-                              <div key={change.key} className="p-3 space-y-1.5 text-xs">
-                                <div className="font-bold text-jds-on-surface">{change.label}</div>
-                                {change.isImage ? (
-                                  <div className="flex items-center gap-3">
-                                    <div className="text-center">
-                                      <p className="text-[10px] text-jds-on-surface-variant mb-1">Previous</p>
-                                      <img
-                                        src={change.oldImgUrl || 'https://placehold.co/60x60?text=None'}
-                                        alt="Old preview"
-                                        className="h-10 w-10 object-contain rounded border border-jds-outline-variant/30"
-                                      />
-                                    </div>
-                                    <ArrowRight className="h-4 w-4 text-jds-on-surface-variant/50 shrink-0" />
-                                    <div className="text-center">
-                                      <p className="text-[10px] text-emerald-600 font-bold mb-1">New</p>
-                                      <img
-                                        src={change.newImgUrl || 'https://placehold.co/60x60?text=None'}
-                                        alt="New preview"
-                                        className="h-10 w-10 object-contain rounded border border-emerald-500/40"
-                                      />
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-2">
-                                    <span className="rounded bg-jds-surface-container px-2 py-0.5 font-mono text-jds-on-surface-variant line-through truncate max-w-[170px]">
-                                      {change.oldValue}
-                                    </span>
-                                    <ArrowRight className="h-3.5 w-3.5 text-jds-on-surface-variant/50 shrink-0" />
-                                    <span className="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 font-mono font-semibold text-emerald-700 dark:text-emerald-400 truncate max-w-[190px]">
-                                      {change.newValue}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="py-6 text-center space-y-2">
-                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-jds-surface-container text-jds-on-surface-variant">
-                          <RotateCcw className="h-6 w-6" />
-                        </div>
-                        <h5 className="text-body-md font-bold text-jds-on-surface">No Changes Detected</h5>
-                        <p className="text-body-sm text-jds-on-surface-variant max-w-xs mx-auto">
-                          No product specifications were modified. You can continue editing or close this dialog.
-                        </p>
+              <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low p-3.5 space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-jds-on-surface-variant">
+                  Branch Stock Breakdown
+                </h3>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-lg bg-jds-surface-container-lowest p-2.5 border border-jds-outline-variant/25">
+                    <span className="text-jds-on-surface-variant block text-[11px]">Quiapo Showroom</span>
+                    <span className="font-bold text-sm text-jds-on-surface tabular-nums">{branch.quiapo.stock} units</span>
+                    <span className="text-[11px] text-jds-on-surface-variant block tabular-nums">{branch.quiapo.available} available</span>
+                  </div>
+                  <div className="rounded-lg bg-jds-surface-container-lowest p-2.5 border border-jds-outline-variant/25">
+                    <span className="text-jds-on-surface-variant block text-[11px]">Cavite Hub</span>
+                    <span className="font-bold text-sm text-jds-on-surface tabular-nums">{branch.cavite.stock} units</span>
+                    <span className="text-[11px] text-jds-on-surface-variant block tabular-nums">{branch.cavite.available} available</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })() : quickRestockItem && inspectorTab === 'audit' ? (() => {
+          const origQty = getStockQuantity(quickRestockItem)
+          const newQty = Math.max(0, Number(quickQuantity) || 0)
+          const delta = newQty - origQty
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-2 text-xs rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low p-3.5">
+                <div>
+                  <span className="text-jds-on-surface-variant block text-[10px] uppercase">Previous</span>
+                  <span className="font-bold text-jds-on-surface text-base tabular-nums">{origQty}</span>
+                </div>
+                <div>
+                  <span className="text-jds-on-surface-variant block text-[10px] uppercase">Shift</span>
+                  <span className={`font-bold text-base tabular-nums ${delta > 0 ? 'text-emerald-700' : delta < 0 ? 'text-jds-error' : 'text-jds-on-surface-variant'}`}>
+                    {delta > 0 ? `+${delta}` : delta}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-jds-on-surface-variant block text-[10px] uppercase">Adjusted</span>
+                  <span className="font-bold text-jds-primary text-base tabular-nums">{newQty}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="prod-drawer-stock-target" className="text-xs font-bold text-jds-on-surface block">
+                  Target units in stock
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={newQty <= 0}
+                    onClick={() => setQuickQuantity((prev) => Math.max(0, Number(prev || 0) - 1))}
+                    aria-label="Decrease stock quantity"
+                    className="h-11 w-11 rounded-lg border border-jds-outline-variant bg-jds-surface-container-low flex items-center justify-center hover:bg-jds-surface-container disabled:opacity-30 cursor-pointer"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <input
+                    id="prod-drawer-stock-target"
+                    type="number"
+                    min="0"
+                    value={quickQuantity}
+                    onChange={(e) => setQuickQuantity(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                    className="h-11 flex-1 text-center font-mono font-bold text-lg rounded-lg border border-jds-outline-variant bg-jds-surface-container-lowest outline-none focus:border-jds-primary tabular-nums"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setQuickQuantity((prev) => Number(prev || 0) + 1)}
+                    aria-label="Increase stock quantity"
+                    className="h-11 w-11 rounded-lg border border-jds-outline-variant bg-jds-surface-container-low flex items-center justify-center hover:bg-jds-surface-container cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-5 gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setQuickQuantity(0)}
+                    className="min-h-[36px] rounded-lg border border-jds-error/30 bg-jds-error-container/15 text-xs font-bold text-jds-error hover:bg-jds-error-container/25 cursor-pointer"
+                  >
+                    Set 0
+                  </button>
+                  {[-5, 1, 5, 10].map((step) => (
+                    <button
+                      key={step}
+                      type="button"
+                      onClick={() => setQuickQuantity((prev) => Math.max(0, Number(prev || 0) + step))}
+                      className="min-h-[36px] rounded-lg border border-jds-outline-variant/40 bg-jds-surface-container-low text-xs font-semibold text-jds-on-surface hover:bg-jds-surface-container cursor-pointer tabular-nums"
+                    >
+                      {step > 0 ? `+${step}` : step}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )
+        })() : editingProduct && inspectorTab === 'edit' ? (
+          showConfirmModal ? (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-jds-primary/30 bg-jds-surface-container-low p-3.5">
+                <h3 className="text-sm font-bold text-jds-on-surface">Review &amp; Confirm Updates</h3>
+                <p className="text-xs text-jds-on-surface-variant mt-0.5">
+                  {pendingChanges.length} specification{pendingChanges.length === 1 ? '' : 's'} modified.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {pendingChanges.map((chg) => (
+                  <div
+                    key={chg.key}
+                    className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/50 p-3 text-xs space-y-1"
+                  >
+                    <div className="font-bold text-jds-on-surface flex items-center justify-between">
+                      <span>{chg.label}</span>
+                      <span className="font-mono text-[11px] text-jds-on-surface-variant">{chg.key}</span>
+                    </div>
+                    {!chg.isImage && (
+                      <div className="flex items-center gap-2 font-mono text-[11px] flex-wrap">
+                        <span className="line-through text-jds-error bg-jds-error-container/20 px-2 py-0.5 rounded">
+                          {chg.oldValue}
+                        </span>
+                        <ArrowRight className="h-3.5 w-3.5 text-jds-primary shrink-0" />
+                        <span className="font-bold text-emerald-700 bg-emerald-500/10 px-2 py-0.5 rounded">
+                          {chg.newValue}
+                        </span>
                       </div>
                     )}
                   </div>
-
-                  {/* Footer */}
-                  <div className="border-t border-jds-outline-variant/20 px-6 py-4 bg-jds-surface-container-low/20 flex items-center justify-end gap-3 shrink-0">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={savingProduct}
-                      onClick={() => setShowConfirmModal(false)}
-                      className="border-jds-outline-variant text-jds-on-surface-variant hover:bg-jds-surface-container-high h-11 px-5 rounded-xl"
-                    >
-                      Back to Editing
-                    </Button>
-                    <Button
-                      type="button"
-                      disabled={savingProduct || pendingChanges.length === 0}
-                      onClick={handleEditSave}
-                      className="bg-jds-primary text-jds-on-primary font-bold px-6 h-11 rounded-xl"
-                    >
-                      {savingProduct ? (
-                        <div className="flex items-center gap-2">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                          <span>Saving Changes...</span>
-                        </div>
-                      ) : (
-                        'Confirm & Save Changes'
-                      )}
-                    </Button>
-                  </div>
-                </div>
+                ))}
               </div>
-            )}
-
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-jds-outline-variant/20 px-6 py-4 bg-jds-surface-container-low/30 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-jds-primary/10 text-jds-primary">
-                  <Pencil className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-body-lg font-bold text-jds-on-surface">Edit Product Specifications</h3>
-                  <p className="text-label-sm text-jds-on-surface-variant font-medium">
-                    Equipment ID: <span className="font-mono font-bold text-jds-on-surface">{editingProduct.id}</span>
-                    {editingProduct.name && ` — ${editingProduct.name}`}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={savingProduct}
-                onClick={handleCloseEdit}
-                className="rounded-lg p-1.5 text-jds-on-surface-variant/60 hover:bg-jds-surface-container-high hover:text-jds-on-surface transition-colors disabled:opacity-50"
-                title="Close modal"
-              >
-                <X className="h-5 w-5" />
-              </button>
             </div>
-
-            {/* Section Tab Bar */}
-            <div className="border-b border-jds-outline-variant/20 px-6 py-2 bg-jds-surface-container-low/10 flex items-center gap-2 overflow-x-auto shrink-0">
-              {EDIT_FIELD_GROUPS.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveEditTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-label-sm font-semibold whitespace-nowrap transition-all ${activeEditTab === tab.id
-                    ? 'bg-jds-primary text-jds-on-primary shadow-sm'
-                    : 'text-jds-on-surface-variant hover:bg-jds-surface-container-high hover:text-jds-on-surface'
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {EDIT_FIELD_GROUPS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveEditTab(tab.id)}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer ${
+                      activeEditTab === tab.id
+                        ? 'bg-jds-primary text-jds-on-primary'
+                        : 'bg-jds-surface-container text-jds-on-surface-variant hover:text-jds-on-surface'
                     }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-            {/* Modal Scrollable Body */}
-            <div className="overflow-y-auto p-6 space-y-6 flex-1 max-h-[calc(92vh-190px)]">
-              {/* Product Media & Image Row (Shown in 'all' and 'general') */}
               {(activeEditTab === 'all' || activeEditTab === 'general') && (
-                <div className="rounded-2xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 p-4 space-y-4">
+                <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/60 p-3.5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-label-sm font-bold uppercase tracking-wider text-jds-on-surface-variant/80">
-                        Product Pictures & Catalog Media
-                      </span>
-                      <p className="text-xs text-jds-on-surface-variant/60 mt-0.5">
-                        Multiple pictures can be attached. The first picture serves as the primary catalog thumbnail.
-                      </p>
-                    </div>
-                    <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-jds-surface-container border border-jds-outline-variant/30 text-jds-on-surface-variant">
-                      {parseProductImages(editingProduct.image_url).length} Picture{parseProductImages(editingProduct.image_url).length === 1 ? '' : 's'}
+                    <span className="text-xs font-bold uppercase tracking-wider text-jds-on-surface-variant">
+                      Catalog Media
+                    </span>
+                    <span className="text-[11px] font-mono font-semibold text-jds-on-surface-variant">
+                      {parseProductImages(editingProduct.image_url).length} picture(s)
                     </span>
                   </div>
-
-                  {/* Pictures Gallery Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     {parseProductImages(editingProduct.image_url).map((url, idx) => (
-                      <div
-                        key={`${url}-${idx}`}
-                        className="relative group rounded-xl border border-jds-outline-variant/40 bg-white dark:bg-stone-900 overflow-hidden flex flex-col p-1.5 shadow-xs"
-                      >
-                        <div className="aspect-square w-full rounded-lg bg-black/5 flex items-center justify-center overflow-hidden relative">
-                          <img
-                            src={url}
-                            alt={`Picture ${idx + 1}`}
-                            className="w-full h-full object-contain"
-                            onError={(e) => {
-                              e.target.onerror = null
-                              e.target.src = 'https://placehold.co/100x100?text=None'
-                            }}
-                          />
-                          {idx === 0 && (
-                            <span className="absolute top-1 left-1 bg-jds-secondary text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-xs">
-                              Primary
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-2 flex items-center justify-between gap-1 text-[11px]">
+                      <div key={`${url}-${idx}`} className="relative rounded-lg border border-jds-outline-variant/40 bg-white p-1">
+                        <img
+                          src={url}
+                          alt={`Product media ${idx + 1}`}
+                          className="h-16 w-full object-contain rounded"
+                        />
+                        <div className="mt-1 flex items-center justify-between text-[10px]">
                           {idx > 0 ? (
                             <button
                               type="button"
                               onClick={() => handleSetPrimaryProductImage(idx)}
-                              className="text-jds-primary hover:underline font-semibold truncate"
-                              title="Set as primary thumbnail"
+                              className="text-jds-primary font-semibold hover:underline cursor-pointer"
                             >
-                              Make Primary
+                              Primary
                             </button>
                           ) : (
-                            <span className="text-jds-on-surface-variant/70 font-mono text-[10px]">#1 Default</span>
+                            <span className="text-jds-on-surface-variant">#1</span>
                           )}
                           <button
                             type="button"
                             onClick={() => handleRemoveProductImage(idx)}
-                            className="text-jds-error/80 hover:text-jds-error p-1 rounded hover:bg-jds-error/10 transition-colors"
-                            title="Remove this picture"
+                            aria-label="Remove picture"
+                            className="text-jds-error p-0.5 cursor-pointer"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3 w-3" />
                           </button>
                         </div>
                       </div>
                     ))}
-
-                    {/* Upload New Picture Tile */}
-                    <div
+                    <button
+                      type="button"
                       onClick={() => editFileInputRef.current?.click()}
-                      className="border-2 border-dashed border-jds-outline-variant/50 hover:border-jds-primary/60 rounded-xl aspect-square flex flex-col items-center justify-center p-3 text-center cursor-pointer bg-jds-surface-container-lowest hover:bg-jds-primary/5 transition-all group"
-                      title="Upload new picture to Supabase Storage"
+                      className="border-2 border-dashed border-jds-outline-variant/50 rounded-lg min-h-[82px] flex flex-col items-center justify-center p-2 text-center cursor-pointer hover:border-jds-primary"
                     >
                       <input
                         ref={editFileInputRef}
@@ -2150,167 +2146,68 @@ export default function ProductsScreen({ onNavigate }) {
                         onChange={handleEditImageUpload}
                         className="hidden"
                       />
-                      {editingImageUploading ? (
-                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-jds-primary border-t-transparent mb-1.5" />
-                      ) : (
-                        <Upload className="h-5 w-5 text-jds-primary mb-1.5 group-hover:scale-110 transition-transform" />
-                      )}
-                      <span className="text-xs font-semibold text-jds-on-surface">Upload Picture</span>
-                      <span className="text-[10px] text-jds-on-surface-variant/60 mt-0.5">PNG, JPG, WebP</span>
-                    </div>
-                  </div>
-
-                  {/* Add Image via URL & Raw Edit */}
-                  <div className="pt-2 border-t border-jds-outline-variant/20 flex flex-col sm:flex-row items-center gap-2">
-                    <input
-                      type="text"
-                      value={newImageUrlInput}
-                      onChange={(e) => setNewImageUrlInput(e.target.value)}
-                      placeholder="Or paste image URL (e.g. from Storage library)..."
-                      className="h-9 flex-1 w-full rounded-xl border border-jds-outline-variant/30 bg-jds-surface px-3 text-xs font-mono outline-none focus:border-jds-secondary transition-all"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handleAddNewImageUrl()
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAddNewImageUrl}
-                      disabled={!newImageUrlInput.trim()}
-                      className="h-9 text-xs border-jds-outline-variant w-full sm:w-auto shrink-0 gap-1.5"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add Picture URL
-                    </Button>
+                      <Upload className="h-4 w-4 text-jds-primary mb-1" />
+                      <span className="text-[11px] font-semibold text-jds-on-surface">
+                        {editingImageUploading ? 'Uploading...' : 'Upload'}
+                      </span>
+                    </button>
                   </div>
                 </div>
               )}
 
-              {/* Dynamic Field Grid */}
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {EDIT_FIELDS.filter((f) => activeEditTab === 'all' || f.group === activeEditTab).map((f) => (
-                  <div key={f.key} className="space-y-1.5 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="text-label-sm font-bold text-jds-on-surface-variant/80 truncate">
-                        {f.label}
-                      </label>
-                      {f.key === 'type' && (
-                        <span className="text-[11px] text-jds-on-surface-variant/60 font-medium whitespace-nowrap shrink-0">
-                          Add via +
-                        </span>
-                      )}
-                    </div>
-
+              <div className="space-y-3">
+                {EDIT_FIELDS.filter(
+                  (f) =>
+                    (activeEditTab === 'all' || f.group === activeEditTab) &&
+                    (!isStaff || (f.key !== 'min_price' && f.key !== 'max_price'))
+                ).map((f) => (
+                  <div key={f.key} className="space-y-1">
+                    <label htmlFor={`prod-drawer-field-${f.key}`} className="text-xs font-semibold text-jds-on-surface-variant block">
+                      {f.label}
+                    </label>
                     {f.key === 'type' ? (
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-2">
                         <select
+                          id={`prod-drawer-field-${f.key}`}
                           value={editingProduct.type ?? ''}
                           onChange={(e) => handleFieldChange('type', e.target.value, 'text')}
-                          className="h-11 min-w-0 flex-1 w-full rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-3 text-body-md outline-none focus:bg-jds-surface-container-lowest focus:border-jds-secondary transition-all cursor-pointer truncate"
+                          className="h-10 flex-1 rounded-lg border border-jds-outline-variant/40 bg-jds-surface-container-lowest px-3 text-sm outline-none focus:border-jds-primary"
                         >
                           <option value="">Select Category</option>
                           {categories.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
+                            <option key={c} value={c}>{c}</option>
                           ))}
                         </select>
                         <button
                           type="button"
                           onClick={() => setIsCategoryModalOpen(true)}
-                          className="h-11 w-11 flex items-center justify-center rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 hover:bg-jds-primary/10 hover:border-jds-primary hover:text-jds-primary text-jds-on-surface-variant transition-all shrink-0 cursor-pointer"
-                          title="Manage Categories"
+                          aria-label="Manage Categories"
+                          className="h-10 w-10 flex items-center justify-center rounded-lg border border-jds-outline-variant/40 bg-jds-surface-container-low hover:text-jds-primary cursor-pointer"
                         >
-                          <Plus className="h-5 w-5" />
+                          <Plus className="h-4 w-4" />
                         </button>
                       </div>
                     ) : (
                       <input
+                        id={`prod-drawer-field-${f.key}`}
                         type={f.type}
                         value={editingProduct[f.key] ?? ''}
                         onChange={(e) => handleFieldChange(f.key, e.target.value, f.type)}
-                        className={`h-11 w-full min-w-0 rounded-xl border bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:bg-jds-surface-container-lowest transition-all ${
-                          validationErrors[f.key]
-                            ? 'border-jds-error focus:border-jds-error focus:ring-1 focus:ring-jds-error/20'
-                            : 'border-jds-outline-variant/30 focus:border-jds-secondary'
+                        className={`h-10 w-full rounded-lg border bg-jds-surface-container-lowest px-3 text-sm outline-none ${
+                          validationErrors[f.key] ? 'border-jds-error' : 'border-jds-outline-variant/40 focus:border-jds-primary'
                         }`}
                       />
                     )}
-
                     {validationErrors[f.key] && (
-                      <p className="text-label-sm text-jds-error font-medium">{validationErrors[f.key]}</p>
+                      <p className="text-xs text-jds-error font-medium">{validationErrors[f.key]}</p>
                     )}
                   </div>
                 ))}
-
-                {/* Stock Status Availability (In Stock boolean) */}
-                {(activeEditTab === 'all' || activeEditTab === 'inventory') && (
-                  <div className="space-y-1.5">
-                    <label className="text-label-sm font-bold text-jds-on-surface-variant/80">
-                      Catalog In-Stock Status
-                    </label>
-                    <select
-                      value={editingProduct.in_stock ? 'true' : 'false'}
-                      onChange={(e) => {
-                        const isInStock = e.target.value === 'true'
-                        setEditingProduct((prev) => {
-                          const currentQty = Number(prev.stock_quantity) || 0
-                          return {
-                            ...prev,
-                            in_stock: isInStock,
-                            stock_quantity: !isInStock ? 0 : currentQty > 0 ? currentQty : 10,
-                          }
-                        })
-                      }}
-                      className="h-11 w-full rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/20 px-4 text-body-md outline-none focus:border-jds-secondary focus:bg-jds-surface-container-lowest transition-all"
-                    >
-                      <option value="true">Active & In Stock</option>
-                      <option value="false">Out of Stock (Zero Units)</option>
-                    </select>
-                  </div>
-                )}
               </div>
             </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between border-t border-jds-outline-variant/20 px-6 py-4 bg-jds-surface-container-low/20 shrink-0">
-              <div className="text-label-sm text-jds-on-surface-variant">
-                {validationErrors.watt && (
-                  <span className="text-jds-error font-medium flex items-center gap-1.5">
-                    <AlertCircle className="h-4 w-4" />
-                    {validationErrors.watt}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={savingProduct}
-                  onClick={handleCloseEdit}
-                  className="border-jds-outline-variant text-jds-on-surface-variant hover:bg-jds-surface-container-high h-11 px-5 rounded-xl"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleInitiateSave}
-                  disabled={savingProduct}
-                  className="bg-jds-primary text-jds-on-primary font-bold px-7 h-11 rounded-xl"
-                >
-                  Review & Confirm Changes
-                </Button>
-              </div>
-            </div>
-            </>
-            )}
-          </div>
-        </div>
-      )}
+          )
+        ) : null}
+      </InspectorDrawer>
 
       {/* CATEGORY MANAGEMENT MODAL */}
       <CategoryModal
@@ -2344,6 +2241,8 @@ export default function ProductsScreen({ onNavigate }) {
           )
         }}
       />
+        </>
+      )}
     </div>
   )
 }

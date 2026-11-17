@@ -79,8 +79,8 @@ export default function Navbar() {
                   key={link.label}
                   to={link.to}
                   className={`relative font-inter text-label-md tracking-wide transition-all duration-300 px-1 py-1 ${isActive
-                      ? 'text-jds-primary font-semibold'
-                      : 'text-jds-on-surface-variant hover:text-jds-primary'
+                    ? 'text-jds-primary font-semibold'
+                    : 'text-jds-on-surface-variant hover:text-jds-primary'
                     }`}
                 >
                   {link.label}
@@ -109,7 +109,7 @@ export default function Navbar() {
               placeholder="Search guide..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-jds-surface-container-low border border-jds-outline-variant/30 rounded-xl py-2 pl-10 pr-4 text-label-md text-jds-on-surface focus:ring-2 focus:ring-jds-primary/20 focus:border-jds-primary focus:bg-jds-surface transition-all outline-none"
+              className="w-full bg-jds-surface-container-lowest border border-jds-chrome-border rounded-xl py-2 pl-10 pr-4 text-label-md text-jds-on-surface focus:ring-2 focus:ring-jds-primary/20 focus:border-jds-primary transition-all outline-none"
             />
           </form>
 
@@ -121,7 +121,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={handleAuthClick}
-                className="border border-jds-outline-variant/60 text-jds-on-surface hover:bg-jds-surface-container-high hover:border-jds-outline px-5 py-2 rounded-lg font-inter text-label-md font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer"
+                className="bg-jds-surface-container-lowest border border-jds-chrome-border text-jds-on-surface hover:bg-jds-chrome-hover px-5 py-2 rounded-lg font-inter text-label-md font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer"
               >
                 Sign Out
               </button>
@@ -148,7 +148,7 @@ export default function Navbar() {
           {/* Hamburger button (lg:hidden) */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="lg:hidden p-2 rounded-xl text-jds-on-surface hover:bg-jds-surface-container-high transition-colors focus:outline-none"
+            className="lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-xl text-jds-on-surface hover:bg-jds-surface-container-high transition-colors focus:outline-none"
             aria-label="Toggle navigation menu"
           >
             {isOpen ? (
@@ -168,7 +168,7 @@ export default function Navbar() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="lg:hidden border-t border-jds-outline-variant/20 bg-jds-surface-container-lowest overflow-hidden shadow-xl"
+            className="lg:hidden border-t border-jds-chrome-border bg-jds-chrome overflow-hidden shadow-xl"
           >
             <div className="px-4 py-3 sm:px-6 sm:py-4 flex flex-col gap-4 sm:gap-6">
               {/* Search Input for Mobile/Tablet (hidden sm and up since it is in header there) */}
@@ -179,7 +179,7 @@ export default function Navbar() {
                   placeholder="Search guide..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-jds-surface-container-low border border-jds-outline-variant/30 rounded-xl py-2 pl-9 pr-3 text-xs text-jds-on-surface focus:ring-2 focus:ring-jds-primary/20 focus:border-jds-primary focus:bg-jds-surface transition-all outline-none"
+                  className="w-full min-h-[44px] bg-jds-surface-container-low border border-jds-outline-variant/30 rounded-xl py-2.5 pl-9 pr-3 text-base sm:text-xs text-jds-on-surface focus:ring-2 focus:ring-jds-primary/20 focus:border-jds-primary focus:bg-jds-surface transition-all outline-none"
                 />
               </form>
 
@@ -192,9 +192,9 @@ export default function Navbar() {
                       key={link.label}
                       to={link.to}
                       onClick={() => setIsOpen(false)}
-                      className={`font-inter text-xs sm:text-sm tracking-wide transition-all duration-300 py-1.5 px-2 rounded-lg ${isActive
-                          ? 'text-jds-primary font-bold bg-jds-primary/10'
-                          : 'text-jds-on-surface-variant hover:text-jds-primary hover:bg-jds-surface-container'
+                      className={`font-inter text-sm tracking-wide transition-all duration-300 min-h-[44px] flex items-center py-2.5 px-3 rounded-lg ${isActive
+                        ? 'text-jds-primary font-bold bg-jds-primary/10'
+                        : 'text-jds-on-surface-variant hover:text-jds-primary hover:bg-jds-surface-container'
                         }`}
                     >
                       {link.label}
@@ -214,7 +214,7 @@ export default function Navbar() {
                       setIsOpen(false)
                       handleAuthClick()
                     }}
-                    className="border border-jds-outline-variant/60 text-jds-on-surface hover:bg-jds-surface-container-high hover:border-jds-outline font-inter text-xs sm:text-sm font-semibold text-center py-2.5 rounded-xl transition-all cursor-pointer w-full"
+                    className="min-h-[44px] border border-jds-outline-variant/60 text-jds-on-surface hover:bg-jds-surface-container-high hover:border-jds-outline font-inter text-sm font-semibold text-center py-2.5 rounded-xl transition-all cursor-pointer w-full"
                   >
                     Sign Out
                   </button>
@@ -226,7 +226,7 @@ export default function Navbar() {
                         setIsOpen(false)
                         handleAuthClick()
                       }}
-                      className="font-inter text-xs sm:text-sm text-center py-2.5 bg-jds-surface-container-high hover:bg-jds-surface-container-highest rounded-xl text-jds-on-surface-variant font-medium transition-colors cursor-pointer"
+                      className="min-h-[44px] font-inter text-sm text-center py-2.5 bg-jds-surface-container-high hover:bg-jds-surface-container-highest rounded-xl text-jds-on-surface-variant font-medium transition-colors cursor-pointer"
                     >
                       Login
                     </button>
@@ -236,7 +236,7 @@ export default function Navbar() {
                         setIsOpen(false)
                         setIsInquireModalOpen(true)
                       }}
-                      className="bg-jds-primary text-jds-on-primary text-center py-2.5 rounded-xl font-inter text-xs sm:text-sm font-bold shadow-sm hover:shadow-md transition-all cursor-pointer w-full"
+                      className="min-h-[44px] bg-jds-primary text-jds-on-primary text-center py-2.5 rounded-xl font-inter text-sm font-bold shadow-sm hover:shadow-md transition-all cursor-pointer w-full"
                     >
                       Inquire
                     </button>
@@ -253,17 +253,17 @@ export default function Navbar() {
   if (isMatchPage) {
     return (
       <>
-        <div className="fixed top-0 left-0 right-0 z-50 group/nav pointer-events-none">
-          {/* Invisible top hover trigger rail */}
-          <div className="absolute top-0 left-0 right-0 h-4 sm:h-5 pointer-events-auto" />
+        <div className="sticky top-0 lg:fixed lg:top-0 left-0 right-0 z-50 group/nav lg:pointer-events-none">
+          {/* Invisible top hover trigger rail (desktop only) */}
+          <div className="hidden lg:block absolute top-0 left-0 right-0 h-5 pointer-events-auto" />
 
-          {/* Subtle indicator hint at top center when hidden */}
-          <div className="absolute top-1 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-neutral-400/30 dark:bg-neutral-600/40 pointer-events-none transition-opacity duration-300 group-hover/nav:opacity-0" />
+          {/* Subtle indicator hint at top center when hidden (desktop only) */}
+          <div className="hidden lg:block absolute top-1 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-neutral-400/30 dark:bg-neutral-600/40 pointer-events-none transition-opacity duration-300 group-hover/nav:opacity-0" />
 
           <header
-            className={`pointer-events-auto bg-jds-surface/95 backdrop-blur-xl border-b border-jds-outline-variant/20 shadow-md transition-all duration-300 ease-out transform ${isOpen
-                ? 'translate-y-0 opacity-100'
-                : '-translate-y-full opacity-0 group-hover/nav:translate-y-0 group-hover/nav:opacity-100 group-focus-within/nav:translate-y-0 group-focus-within/nav:opacity-100'
+            className={`pointer-events-auto bg-jds-chrome border-b border-jds-chrome-border shadow-md transition-all duration-300 ease-out transform ${isOpen
+              ? 'translate-y-0 opacity-100'
+              : 'translate-y-0 opacity-100 lg:-translate-y-full lg:opacity-0 lg:group-hover/nav:translate-y-0 lg:group-hover/nav:opacity-100 lg:group-focus-within/nav:translate-y-0 lg:group-focus-within/nav:opacity-100'
               }`}
           >
             {navContent}
@@ -282,7 +282,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="bg-jds-surface/95 backdrop-blur-xl sticky top-0 z-50 border-b border-jds-outline-variant/20 shadow-sm transition-colors duration-200">
+      <header className="bg-jds-chrome sticky top-0 z-50 border-b border-jds-chrome-border transition-colors duration-200">
         {navContent}
       </header>
 

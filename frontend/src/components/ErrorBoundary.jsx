@@ -49,7 +49,7 @@ export class ErrorBoundary extends React.Component {
         <div
           role="alert"
           className={`flex flex-col items-center justify-center p-6 ${
-            isSubtree ? 'min-h-[320px] w-full' : 'min-h-screen w-full bg-jds-background'
+            isSubtree ? 'min-h-[320px] w-full' : 'min-h-screen w-full bg-jds-surface'
           }`}
         >
           <div className="max-w-lg w-full rounded-2xl border border-jds-outline-variant/30 bg-jds-surface p-6 sm:p-8 shadow-xl text-center space-y-5">

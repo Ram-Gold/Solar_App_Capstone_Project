@@ -8,6 +8,8 @@ import { Button } from '../ui/button'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 import { Trash2, X, Shield, Users as UsersIcon, CalendarDays, Mail, Phone, Briefcase, UserPlus, AlertTriangle, KeyRound, Eye, EyeOff } from 'lucide-react'
 import useModalBehavior from '../../hooks/useModalBehavior'
+import useIsMobile from '../../hooks/useIsMobile'
+import InspectorDrawer from './InspectorDrawer'
 
 export default function UsersScreen() {
   const { user: currentUser, signOut } = useAuth()
@@ -20,6 +22,8 @@ export default function UsersScreen() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  const isMobile = useIsMobile()
 
   // User detail & deletion confirmation modal states
   const [selectedUser, setSelectedUser] = useState(null)
@@ -36,14 +40,13 @@ export default function UsersScreen() {
   const [pwdUpdating, setPwdUpdating] = useState(false)
   const [pwdModalError, setPwdModalError] = useState('')
 
-  const anyUserModalOpen = Boolean(selectedUser || deletingUser || passwordUser)
+  const anyUserModalOpen = Boolean(deletingUser || passwordUser)
 
   useModalBehavior({
     isOpen: anyUserModalOpen,
     onClose: () => {
       if (passwordUser && !pwdUpdating) setPasswordUser(null)
       else if (deletingUser && !isDeleting) setDeletingUser(null)
-      else if (selectedUser) setSelectedUser(null)
     },
   })
 
@@ -246,8 +249,8 @@ export default function UsersScreen() {
         <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <p className="text-label-sm font-bold uppercase tracking-wider text-jds-on-surface-variant/70">Staff Members</p>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-jds-secondary-container/20">
-              <UsersIcon className="h-5 w-5 text-jds-secondary" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-jds-surface-container-low border border-jds-outline-variant">
+              <UsersIcon className="h-5 w-5 text-jds-on-surface-variant" />
             </div>
           </div>
           <p className="text-headline-md font-bold text-jds-on-surface">{staffList.length}</p>
@@ -255,7 +258,7 @@ export default function UsersScreen() {
         <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <p className="text-label-sm font-bold uppercase tracking-wider text-jds-on-surface-variant/70">Administrators</p>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-jds-primary-container/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-jds-surface-container-low border border-jds-outline-variant">
               <Shield className="h-5 w-5 text-jds-primary" />
             </div>
           </div>
@@ -265,7 +268,7 @@ export default function UsersScreen() {
 
       {/* Create Account Form */}
       {showForm && (
-        <div className="rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-8 space-y-6 shadow-lg animate-in slide-in-from-top-4 duration-300">
+        <div className="rounded-xl border border-jds-outline-variant/40 bg-jds-surface-container-lowest p-4 sm:p-8 space-y-6 shadow-lg animate-in slide-in-from-top-4 duration-300">
           <div className="flex items-center justify-between border-b border-jds-outline-variant/20 pb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-jds-primary-container/20">
@@ -369,88 +372,151 @@ export default function UsersScreen() {
         </div>
 
         <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-jds-surface-container-low/10">
-                <TableRow>
-                  <TableHead className="text-jds-on-surface-variant font-bold">Name</TableHead>
-                  <TableHead className="text-jds-on-surface-variant font-bold">Email</TableHead>
-                  <TableHead className="text-jds-on-surface-variant font-bold">Phone</TableHead>
-                  <TableHead className="text-jds-on-surface-variant font-bold">Position</TableHead>
-                  <TableHead className="text-jds-on-surface-variant font-bold">Joined</TableHead>
-                  <TableHead className="text-right text-jds-on-surface-variant font-bold">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {staffList.length === 0 ? (
+          {isMobile ? (
+            /* Mobile Stacked Cards (< md) */
+            <div className="divide-y divide-jds-outline-variant/20">
+              {staffList.length === 0 ? (
+                <div className="py-12 px-4 text-center text-body-md text-jds-on-surface-variant/50">
+                  No staff members registered yet.
+                </div>
+              ) : (
+                staffList.map((u) => (
+                  <div
+                    key={u.id}
+                    onClick={() => setSelectedUser({ ...u, table: 'staff' })}
+                    className="p-4 space-y-2.5 cursor-pointer hover:bg-jds-surface-container-low/5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-jds-secondary-container/20 text-jds-secondary text-xs font-bold shrink-0">
+                          {u.full_name?.charAt(0)?.toUpperCase() || 'S'}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-jds-on-surface truncate">{u.full_name}</div>
+                          <div className="text-xs text-jds-on-surface-variant truncate">{u.email}</div>
+                        </div>
+                      </div>
+                      <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-jds-surface-container-high/30 px-2.5 py-1 text-[11px] font-bold text-jds-on-surface-variant">
+                        {u.position || 'Staff Member'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1 text-xs text-jds-on-surface-variant">
+                      <span>{u.phone || '—'} • {formatDate(u.created_at)}</span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenChangePassword(u, 'staff')
+                          }}
+                          className="text-jds-primary hover:bg-jds-primary/10"
+                          title={`Change ${u.full_name}'s password`}
+                        >
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenDeleteConfirm(u, 'staff')
+                          }}
+                          className="text-jds-error hover:bg-jds-error-container/10"
+                          title="Delete staff account"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-jds-surface-container-low/10">
                   <TableRow>
-                    <TableCell colSpan={6} className="py-16 text-center text-body-md text-jds-on-surface-variant/50">
-                      No staff members registered yet.
-                    </TableCell>
+                    <TableHead className="text-jds-on-surface-variant font-bold">Name</TableHead>
+                    <TableHead className="text-jds-on-surface-variant font-bold">Email</TableHead>
+                    <TableHead className="text-jds-on-surface-variant font-bold">Phone</TableHead>
+                    <TableHead className="text-jds-on-surface-variant font-bold">Position</TableHead>
+                    <TableHead className="text-jds-on-surface-variant font-bold">Joined</TableHead>
+                    <TableHead className="text-right text-jds-on-surface-variant font-bold">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  staffList.map((u) => (
-                    <TableRow
-                      key={u.id}
-                      onClick={() => setSelectedUser({ ...u, table: 'staff' })}
-                      className="hover:bg-jds-surface-container-low/5 transition-colors cursor-pointer"
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-jds-secondary-container/20 text-jds-secondary text-xs font-bold shrink-0">
-                            {u.full_name?.charAt(0)?.toUpperCase() || 'S'}
-                          </div>
-                          <span className="font-bold text-jds-on-surface">{u.full_name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-jds-on-surface-variant font-medium">{u.email}</TableCell>
-                      <TableCell className="text-jds-on-surface-variant font-medium">{u.phone || '—'}</TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-jds-surface-container-high/30 px-3 py-1 text-label-sm font-bold text-jds-on-surface-variant">
-                          <Briefcase className="h-3 w-3" />
-                          {u.position || 'Staff Member'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-jds-on-surface-variant text-label-sm">
-                        <span className="inline-flex items-center gap-1.5">
-                          <CalendarDays className="h-3 w-3" />
-                          {formatDate(u.created_at)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleOpenChangePassword(u, 'staff')
-                            }}
-                            className="h-9 w-9 text-jds-primary hover:bg-jds-primary/10"
-                            title={`Change ${u.full_name}'s password`}
-                          >
-                            <KeyRound className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleOpenDeleteConfirm(u, 'staff')
-                            }}
-                            className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
-                            title="Delete staff account"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {staffList.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-16 text-center text-body-md text-jds-on-surface-variant/50">
+                        No staff members registered yet.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : (
+                    staffList.map((u) => (
+                      <TableRow
+                        key={u.id}
+                        onClick={() => setSelectedUser({ ...u, table: 'staff' })}
+                        className="hover:bg-jds-surface-container-low/5 transition-colors cursor-pointer"
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-jds-secondary-container/20 text-jds-secondary text-xs font-bold shrink-0">
+                              {u.full_name?.charAt(0)?.toUpperCase() || 'S'}
+                            </div>
+                            <span className="font-bold text-jds-on-surface">{u.full_name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-jds-on-surface-variant font-medium">{u.email}</TableCell>
+                        <TableCell className="text-jds-on-surface-variant font-medium">{u.phone || '—'}</TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-jds-surface-container-high/30 px-3 py-1 text-label-sm font-bold text-jds-on-surface-variant">
+                            <Briefcase className="h-3 w-3" />
+                            {u.position || 'Staff Member'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-jds-on-surface-variant text-label-sm">
+                          <span className="inline-flex items-center gap-1.5">
+                            <CalendarDays className="h-3 w-3" />
+                            {formatDate(u.created_at)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleOpenChangePassword(u, 'staff')
+                              }}
+                              className="h-9 w-9 text-jds-primary hover:bg-jds-primary/10"
+                              title={`Change ${u.full_name}'s password`}
+                            >
+                              <KeyRound className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleOpenDeleteConfirm(u, 'staff')
+                              }}
+                              className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
+                              title="Delete staff account"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       </div>
 
@@ -466,211 +532,237 @@ export default function UsersScreen() {
         </div>
 
         <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-jds-surface-container-low/10">
-                <TableRow>
-                  <TableHead className="text-jds-on-surface-variant font-bold">Name</TableHead>
-                  <TableHead className="text-jds-on-surface-variant font-bold">Email</TableHead>
-                  <TableHead className="text-jds-on-surface-variant font-bold">Phone</TableHead>
-                  <TableHead className="text-jds-on-surface-variant font-bold">Position</TableHead>
-                  <TableHead className="text-jds-on-surface-variant font-bold">Joined</TableHead>
-                  <TableHead className="text-right text-jds-on-surface-variant font-bold">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {adminList.length === 0 ? (
+          {isMobile ? (
+            /* Mobile Stacked Cards (< md) */
+            <div className="divide-y divide-jds-outline-variant/20">
+              {adminList.length === 0 ? (
+                <div className="py-12 px-4 text-center text-body-md text-jds-on-surface-variant/50">
+                  No administrators registered yet.
+                </div>
+              ) : (
+                adminList.map((u) => (
+                  <div
+                    key={u.id}
+                    onClick={() => setSelectedUser({ ...u, table: 'admins' })}
+                    className="p-4 space-y-2.5 cursor-pointer hover:bg-jds-surface-container-low/5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-jds-primary-container/20 text-jds-primary text-xs font-bold shrink-0">
+                          {u.full_name?.charAt(0)?.toUpperCase() || 'A'}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-jds-on-surface truncate">{u.full_name}</div>
+                          <div className="text-xs text-jds-on-surface-variant truncate">{u.email}</div>
+                        </div>
+                      </div>
+                      <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-jds-primary-container/10 px-2.5 py-1 text-[11px] font-bold text-jds-primary">
+                        {u.position || 'Administrator'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1 text-xs text-jds-on-surface-variant">
+                      <span>{u.phone || '—'} • {formatDate(u.created_at)}</span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenChangePassword(u, 'admins')
+                          }}
+                          className="text-jds-primary hover:bg-jds-primary/10"
+                          title={`Change ${u.full_name}'s password`}
+                        >
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenDeleteConfirm(u, 'admins')
+                          }}
+                          className="text-jds-error hover:bg-jds-error-container/10"
+                          title="Delete administrator account"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-jds-surface-container-low/10">
                   <TableRow>
-                    <TableCell colSpan={6} className="py-16 text-center text-body-md text-jds-on-surface-variant/50">
-                      No administrators registered yet.
-                    </TableCell>
+                    <TableHead className="text-jds-on-surface-variant font-bold">Name</TableHead>
+                    <TableHead className="text-jds-on-surface-variant font-bold">Email</TableHead>
+                    <TableHead className="text-jds-on-surface-variant font-bold">Phone</TableHead>
+                    <TableHead className="text-jds-on-surface-variant font-bold">Position</TableHead>
+                    <TableHead className="text-jds-on-surface-variant font-bold">Joined</TableHead>
+                    <TableHead className="text-right text-jds-on-surface-variant font-bold">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  adminList.map((u) => (
-                    <TableRow
-                      key={u.id}
-                      onClick={() => setSelectedUser({ ...u, table: 'admins' })}
-                      className="hover:bg-jds-surface-container-low/5 transition-colors cursor-pointer"
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-jds-primary-container/20 text-jds-primary text-xs font-bold shrink-0">
-                            {u.full_name?.charAt(0)?.toUpperCase() || 'A'}
-                          </div>
-                          <span className="font-bold text-jds-on-surface">{u.full_name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-jds-on-surface-variant font-medium">{u.email}</TableCell>
-                      <TableCell className="text-jds-on-surface-variant font-medium">{u.phone || '—'}</TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-jds-primary-container/10 px-3 py-1 text-label-sm font-bold text-jds-primary">
-                          <Shield className="h-3 w-3" />
-                          {u.position || 'Administrator'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-jds-on-surface-variant text-label-sm">
-                        <span className="inline-flex items-center gap-1.5">
-                          <CalendarDays className="h-3 w-3" />
-                          {formatDate(u.created_at)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleOpenChangePassword(u, 'admins')
-                            }}
-                            className="h-9 w-9 text-jds-primary hover:bg-jds-primary/10"
-                            title={`Change ${u.full_name}'s password`}
-                          >
-                            <KeyRound className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleOpenDeleteConfirm(u, 'admins')
-                            }}
-                            className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
-                            title="Delete administrator account"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {adminList.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-16 text-center text-body-md text-jds-on-surface-variant/50">
+                        No administrators registered yet.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : (
+                    adminList.map((u) => (
+                      <TableRow
+                        key={u.id}
+                        onClick={() => setSelectedUser({ ...u, table: 'admins' })}
+                        className="hover:bg-jds-surface-container-low/5 transition-colors cursor-pointer"
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-jds-primary-container/20 text-jds-primary text-xs font-bold shrink-0">
+                              {u.full_name?.charAt(0)?.toUpperCase() || 'A'}
+                            </div>
+                            <span className="font-bold text-jds-on-surface">{u.full_name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-jds-on-surface-variant font-medium">{u.email}</TableCell>
+                        <TableCell className="text-jds-on-surface-variant font-medium">{u.phone || '—'}</TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-jds-primary-container/10 px-3 py-1 text-label-sm font-bold text-jds-primary">
+                            <Shield className="h-3 w-3" />
+                            {u.position || 'Administrator'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-jds-on-surface-variant text-label-sm">
+                          <span className="inline-flex items-center gap-1.5">
+                            <CalendarDays className="h-3 w-3" />
+                            {formatDate(u.created_at)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleOpenChangePassword(u, 'admins')
+                              }}
+                              className="h-9 w-9 text-jds-primary hover:bg-jds-primary/10"
+                              title={`Change ${u.full_name}'s password`}
+                            >
+                              <KeyRound className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleOpenDeleteConfirm(u, 'admins')
+                              }}
+                              className="h-9 w-9 text-jds-error hover:bg-jds-error-container/10"
+                              title="Delete administrator account"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* User Account Detail Modal (with Delete Account at the bottom) */}
-      {selectedUser && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedUser(null)
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
-          >
-            <div className="p-5 border-b border-jds-outline-variant/30 flex items-center justify-between gap-3 bg-jds-surface-container-low/20">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-jds-primary/10 text-jds-primary flex items-center justify-center font-bold text-base shrink-0">
-                  {selectedUser.full_name?.charAt(0)?.toUpperCase() || 'U'}
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-body-lg font-bold text-jds-on-surface truncate">
-                    {selectedUser.full_name}
-                  </h2>
-                  <p className="text-label-sm text-jds-on-surface-variant">
-                    {selectedUser.table === 'admins' ? 'Administrator Account' : 'Staff Member Account'}
-                  </p>
-                </div>
-              </div>
+      {/* User Account Slide-Over Inspector Drawer */}
+      <InspectorDrawer
+        isOpen={Boolean(selectedUser)}
+        onClose={() => setSelectedUser(null)}
+        disableClose={Boolean(deletingUser || passwordUser)}
+        subtitle={selectedUser?.table === 'admins' ? 'Administrator Account' : 'Staff Member Account'}
+        title={selectedUser?.full_name}
+        footer={
+          selectedUser && (
+            <div className="flex items-center justify-between w-full gap-2">
+              <button
+                type="button"
+                onClick={() => handleOpenDeleteConfirm(selectedUser, selectedUser.table)}
+                className="jds-btn-motion inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg border border-rose-500/30 text-rose-600 hover:bg-rose-500/10 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete User</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setSelectedUser(null)}
-                className="p-1.5 text-jds-on-surface-variant hover:text-jds-on-surface rounded-lg hover:bg-jds-surface-container transition-colors"
+                className="jds-btn-motion px-4 py-2 text-xs font-semibold rounded-lg border border-jds-outline-variant/50 bg-jds-surface-container-lowest text-jds-on-surface hover:bg-jds-surface-container cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                Done
               </button>
             </div>
-
-            <div className="p-5 space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-lowest p-4 text-xs">
-                <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70 block mb-0.5">
-                    Email Address
-                  </span>
-                  <span className="font-semibold text-jds-on-surface break-all">{selectedUser.email}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70 block mb-0.5">
-                    Phone Number
-                  </span>
-                  <span className="font-semibold text-jds-on-surface">{selectedUser.phone || '—'}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70 block mb-0.5">
-                    Role / Position
-                  </span>
-                  <span className="font-semibold text-jds-on-surface">
-                    {selectedUser.position || (selectedUser.table === 'admins' ? 'Administrator' : 'Staff Member')}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70 block mb-0.5">
-                    Date Joined
-                  </span>
-                  <span className="font-semibold text-jds-on-surface">{formatDate(selectedUser.created_at)}</span>
-                </div>
+          )
+        }
+      >
+        {selectedUser && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low p-4 text-xs">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70 block mb-0.5">
+                  Email Address
+                </span>
+                <span className="font-semibold text-jds-on-surface break-all">{selectedUser.email}</span>
               </div>
-
-              {/* Password Management for This User */}
-              <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-xs font-bold text-jds-on-surface flex items-center gap-1.5">
-                    <KeyRound className="w-4 h-4 shrink-0 text-jds-primary" />
-                    <span>Password Management</span>
-                  </h3>
-                  <p className="text-xs text-jds-on-surface-variant leading-relaxed">
-                    Set a new password for this {selectedUser.table === 'admins' ? 'administrator' : 'staff'} account.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleOpenChangePassword(selectedUser, selectedUser.table)}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-jds-primary hover:bg-jds-primary/90 text-jds-on-primary text-xs font-bold transition-colors shrink-0 cursor-pointer shadow-xs"
-                >
-                  <KeyRound className="w-3.5 h-3.5" />
-                  <span>Set New Password</span>
-                </button>
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70 block mb-0.5">
+                  Phone Number
+                </span>
+                <span className="font-semibold text-jds-on-surface tabular-nums">{selectedUser.phone || '—'}</span>
               </div>
-
-              {/* Danger Zone at Bottom of User's View */}
-              <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                    <span>Delete User Account</span>
-                  </h3>
-                  <p className="text-xs text-jds-on-surface-variant leading-relaxed">
-                    Permanently remove this {selectedUser.table === 'admins' ? 'administrator' : 'staff'} account and revoke all platform access.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleOpenDeleteConfirm(selectedUser, selectedUser.table)}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shrink-0 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete User</span>
-                </button>
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70 block mb-0.5">
+                  Role / Position
+                </span>
+                <span className="font-semibold text-jds-on-surface">
+                  {selectedUser.position || (selectedUser.table === 'admins' ? 'Administrator' : 'Staff Member')}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70 block mb-0.5">
+                  Date Joined
+                </span>
+                <span className="font-semibold text-jds-on-surface tabular-nums">{formatDate(selectedUser.created_at)}</span>
               </div>
             </div>
 
-            <div className="p-4 border-t border-jds-outline-variant/20 bg-jds-surface-container-low/20 flex justify-end">
+            {/* Password Management */}
+            <div className="rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/60 p-4 space-y-3">
+              <div className="space-y-1">
+                <h3 className="text-xs font-bold text-jds-on-surface flex items-center gap-1.5">
+                  <KeyRound className="w-4 h-4 shrink-0 text-jds-primary" />
+                  <span>Password Management</span>
+                </h3>
+                <p className="text-xs text-jds-on-surface-variant leading-relaxed">
+                  Set a new password for this {selectedUser.table === 'admins' ? 'administrator' : 'staff'} account.
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => setSelectedUser(null)}
-                className="px-5 py-2 text-xs font-semibold rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface hover:bg-jds-surface-container transition-all"
+                onClick={() => handleOpenChangePassword(selectedUser, selectedUser.table)}
+                className="jds-btn-motion inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-jds-primary hover:bg-jds-primary/90 text-jds-on-primary text-xs font-bold cursor-pointer"
               >
-                Close
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Set New Password</span>
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </InspectorDrawer>
 
       {/* Delete Platform User Confirmation Modal */}
       {deletingUser && (
@@ -682,7 +774,7 @@ export default function UsersScreen() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150"
+            className="w-full max-w-md max-h-[92dvh] overflow-y-auto bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-150"
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
@@ -751,7 +843,7 @@ export default function UsersScreen() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+            className="w-full max-w-md max-h-[92dvh] overflow-y-auto bg-jds-surface border border-jds-outline-variant/40 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-150"
           >
             <div className="p-5 border-b border-jds-outline-variant/30 flex items-center justify-between gap-3 bg-jds-surface-container-low/20">
               <div className="flex items-center gap-3 min-w-0">

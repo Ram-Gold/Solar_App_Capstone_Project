@@ -6,6 +6,34 @@
 
 export const INQUIRY_STATUSES = ['Pending', 'Confirmed', 'Completed', 'Cancelled']
 
+export const OPS_UPDATED_EVENT = 'jds:ops-updated'
+
+/**
+ * Broadcasts an in-app notification when inquiries, reservations, claims, products, or sales mutate
+ * so the summary rail and sidebar badge counts refresh immediately.
+ */
+export function notifyOpsUpdated(detail = {}) {
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(new CustomEvent(OPS_UPDATED_EVENT, { detail }))
+  }
+}
+
+/**
+ * Classifies whether an inquiry ticket is a Store Pickup (vs Consultation Inquiry) per GLOSSARY.md.
+ */
+export function isPickupInquiry(ticket) {
+  if (!ticket) return false
+  if (ticket.ticket_code?.startsWith('JDS-RES-')) return true
+  if (ticket.ticket_code?.startsWith('JDS-INQ-')) return false
+  const purpose = String(ticket.purpose_of_visitation || '').toLowerCase()
+  return (
+    purpose.includes('purchase') ||
+    purpose.includes('pickup') ||
+    purpose.includes('cash & carry') ||
+    purpose.includes('reservation')
+  )
+}
+
 /**
  * Normalizes legacy or non-standard statuses into one of the 4 canonical states.
  * Merges 'Visited' into 'Completed'.

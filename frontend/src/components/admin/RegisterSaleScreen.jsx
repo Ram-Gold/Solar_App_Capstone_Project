@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Plus,
   Trash2,
@@ -21,6 +21,7 @@ import {
 import { supabase } from '../../lib/supabaseClient'
 import { searchCustomerByPhone, registerCustomerAndSale } from '../../lib/customerService'
 import { getAvailableQuantity, getBranchStock, getReservedQuantity } from '../../lib/inventoryUtils'
+import { isPickupInquiry, notifyOpsUpdated } from '../../lib/inquiryStatusUtils'
 import {
   sanitizePhone,
   isValidPhone,
@@ -32,7 +33,8 @@ import {
 } from '../../lib/sanitize.js'
 import QRReceiptModal from './QRReceiptModal'
 
-export default function RegisterSaleScreen({ onNavigate }) {
+export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = null }) {
+  const autoSelectedTicketRef = useRef(null)
   const [phoneNumber, setPhoneNumber] = useState('')
   const [phoneTouched, setPhoneTouched] = useState(false)
 
@@ -79,12 +81,17 @@ export default function RegisterSaleScreen({ onNavigate }) {
         setLoadingReservations(true)
         const { data, error } = await supabase
           .from('quote_tickets')
-          .select('id, ticket_code, customer_name, mobile_contact, email, product_id, product_name, quantity, store_branch, is_reservation, status')
+          .select('id, ticket_code, customer_name, mobile_contact, email, product_id, product_name, quantity, store_branch, is_reservation, status, purpose_of_visitation')
           .in('status', ['Pending', 'Confirmed'])
           .order('id', { ascending: false })
 
         if (!error && data) {
-          const resOnly = data.filter(t => t.is_reservation || (t.ticket_code && t.ticket_code.includes('RES')))
+          const resOnly = data.filter(
+            (t) =>
+              t.is_reservation ||
+              isPickupInquiry(t) ||
+              (preselectedTicketId && String(t.id) === String(preselectedTicketId))
+          )
           setActiveReservations(resOnly)
         }
       } catch (err) {
@@ -94,7 +101,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
       }
     }
     loadActiveReservations()
-  }, [])
+  }, [preselectedTicketId])
 
   // Fetch catalog products on mount
   useEffect(() => {
@@ -159,7 +166,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
     return () => clearTimeout(timer)
   }, [phoneNumber])
 
-  const handleSelectReservation = (ticketId) => {
+  const handleSelectReservation = useCallback((ticketId) => {
     setSelectedReservationId(ticketId)
     if (!ticketId) {
       setSelectedReservation(null)
@@ -191,7 +198,20 @@ export default function RegisterSaleScreen({ onNavigate }) {
         setItems(newItems)
       }
     }
-  }
+  }, [activeReservations, catalogProducts])
+
+  // Auto-select Store Pickup ticket when navigated from InquiriesScreen
+  useEffect(() => {
+    if (!preselectedTicketId || loadingReservations || loadingProducts) return
+    if (autoSelectedTicketRef.current === String(preselectedTicketId)) return
+    const match = activeReservations.find((t) => String(t.id) === String(preselectedTicketId))
+    if (!match) return
+    autoSelectedTicketRef.current = String(preselectedTicketId)
+    const timer = setTimeout(() => {
+      handleSelectReservation(String(match.id))
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [preselectedTicketId, activeReservations, loadingReservations, loadingProducts, handleSelectReservation])
 
   const handleClearReservation = () => {
     setSelectedReservationId('')
@@ -350,16 +370,21 @@ export default function RegisterSaleScreen({ onNavigate }) {
           setQrModalData(prev =>
             prev
               ? {
-                  ...prev,
-                  emailConfirmation: {
-                    ...(prev.emailConfirmation || {}),
-                    ...statusUpdate
-                  }
+                ...prev,
+                emailConfirmation: {
+                  ...(prev.emailConfirmation || {}),
+                  ...statusUpdate
                 }
+              }
               : prev
           )
         }
       })
+
+      if (selectedReservation?.id) {
+        setActiveReservations((prev) => prev.filter((t) => String(t.id) !== String(selectedReservation.id)))
+      }
+      notifyOpsUpdated()
 
       setQrModalData({
         ...result,
@@ -401,7 +426,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-1 sm:p-4 max-w-[1280px] mx-auto space-y-6">
 
 
       {/* Header */}
@@ -416,10 +441,11 @@ export default function RegisterSaleScreen({ onNavigate }) {
         </div>
 
         {/* Branch Selector */}
-        <div className="flex items-center gap-2 bg-jds-surface border border-jds-outline-variant/40 rounded-xl px-3 py-2 text-sm">
+        <div className="flex items-center gap-2 bg-jds-surface-container-lowest border border-jds-outline-variant/40 rounded-xl px-3 py-2 text-sm">
           <Store className="w-4 h-4 text-jds-primary shrink-0" />
-          <span className="text-xs text-jds-on-surface-variant">Store Branch:</span>
+          <label htmlFor="reg-branch-select" className="text-xs text-jds-on-surface-variant">Store Branch:</label>
           <select
+            id="reg-branch-select"
             value={branchLocation}
             onChange={(e) => setBranchLocation(e.target.value)}
             className="bg-transparent font-semibold text-jds-on-surface focus:outline-none cursor-pointer"
@@ -438,7 +464,8 @@ export default function RegisterSaleScreen({ onNavigate }) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-[1.45fr_1fr] gap-6 items-start">
+        <div className="space-y-6 min-w-0">
 
         {/* CARD 0: Online Reservation Link (Optional) */}
         <div className="p-5 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-3">
@@ -489,7 +516,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
         </div>
 
         {/* CARD 1: Customer Information */}
-        <div className="p-6 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-4">
+        <div className="p-4 sm:p-6 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-bold text-jds-on-surface">
               <User className="w-4 h-4 text-jds-primary" />
@@ -652,7 +679,7 @@ export default function RegisterSaleScreen({ onNavigate }) {
         </div>
 
         {/* CARD 2: Products & Warranties */}
-        <div className="p-6 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-4">
+        <div className="p-4 sm:p-6 rounded-2xl bg-jds-surface border border-jds-outline-variant/40 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-bold text-jds-on-surface">
               <Package className="w-4 h-4 text-jds-primary" />
@@ -743,16 +770,74 @@ export default function RegisterSaleScreen({ onNavigate }) {
             ))}
           </div>
         </div>
+        </div>
 
-        {/* Submit Bar */}
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-jds-surface border border-jds-outline-variant/40">
-          <div className="text-xs text-jds-on-surface-variant">
-            Total Items to Register: <strong className="text-jds-on-surface font-semibold">{items.length}</strong>
+        {/* Right Column: Live Branch Stock & QR Summary */}
+        <aside className="p-5 rounded-2xl bg-jds-surface-container-low border border-jds-outline-variant/40 space-y-4 lg:sticky lg:top-4">
+          <div className="flex items-center justify-between border-b border-jds-outline-variant/25 pb-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-jds-on-surface-variant">
+              Live Branch &amp; QR Summary
+            </h2>
+            <span className="text-xs font-bold text-jds-primary">{branchLocation} Branch</span>
           </div>
+
+          <div className="rounded-xl bg-jds-surface-container-lowest border border-jds-outline-variant/30 p-3.5 space-y-2.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-jds-on-surface-variant">Customer Status</span>
+              <span className="font-bold text-jds-on-surface">
+                {isReturningCustomer ? 'Returning Account' : 'New Portal Account'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-jds-on-surface-variant">Reservation Hold</span>
+              <span className="font-bold text-jds-on-surface">
+                {selectedReservation ? selectedReservation.ticket_code : 'Walk-In Counter'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-jds-on-surface-variant">Items to Register</span>
+              <span className="font-bold text-jds-on-surface tabular-nums">{items.length} line(s)</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-jds-on-surface-variant">
+              Branch Stock Check
+            </p>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {items.map((item, idx) => {
+                const prod = catalogProducts.find((c) => String(c.id) === String(item.productId))
+                const branchInfo = prod ? getBranchStock(prod, branchLocation) : null
+                const branchAvail = Number(branchInfo?.available ?? 0)
+                return (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-jds-surface-container-lowest border border-jds-outline-variant/25 px-3 py-2 text-xs"
+                  >
+                    <span className="truncate font-semibold text-jds-on-surface">
+                      {prod?.name || 'Select equipment'}
+                    </span>
+                    <span className={`font-mono font-bold tabular-nums shrink-0 ${branchAvail > 0 ? 'text-emerald-700' : 'text-jds-error'}`}>
+                      {branchAvail} avail
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-dashed border-jds-outline-variant bg-jds-surface-container-lowest p-4 text-center space-y-1">
+            <QrCode className="w-7 h-7 text-jds-primary mx-auto" />
+            <p className="text-xs font-semibold text-jds-on-surface">QR Warranty Pass Ready</p>
+            <p className="text-[11px] text-jds-on-surface-variant">
+              Official receipt slip and portal token open automatically on submit.
+            </p>
+          </div>
+
           <button
             type="submit"
             disabled={submitting || loadingProducts}
-            className="px-6 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-semibold hover:bg-jds-primary/90 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50"
+            className="jds-btn-motion jds-focus-ring w-full min-h-[44px] px-6 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary font-bold hover:bg-jds-primary/90 flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
           >
             {submitting ? (
               <span className="flex items-center gap-2">
@@ -762,11 +847,11 @@ export default function RegisterSaleScreen({ onNavigate }) {
             ) : (
               <>
                 <QrCode className="w-4 h-4" />
-                Complete Sale & Generate QR
+                Complete Sale &amp; Generate QR
               </>
             )}
           </button>
-        </div>
+        </aside>
       </form>
 
       {/* QR & Print Slip Modal */}
