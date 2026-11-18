@@ -174,7 +174,7 @@
   }
 
   .jds-control {
-    @apply h-9 rounded-lg border border-jds-outline-variant bg-jds-surface text-xs text-jds-on-surface outline-none focus:border-jds-primary transition-colors;
+    @apply h-9 rounded-lg border border-jds-outline-variant bg-jds-surface px-3 text-xs text-jds-on-surface outline-none focus:border-jds-primary transition-colors;
   }
 }
 

@@ -60,21 +60,25 @@ function getCoverageState(purchase, hasClaimedReplacement) {
 export default function EquipmentCard({
   purchase,
   linkedClaims = [],
+  existingAccountClaim = null,
   onTroubleshoot,
   onFileClaim,
   onViewClaims,
 }) {
+  const existingClaim = linkedClaims[0] || null
+  const hasExistingClaim = linkedClaims.length > 0
+  const hasAccountClaim = Boolean(existingAccountClaim)
   const hasClaimedReplacement = linkedClaims.some(
-    (c) => c.status === 'resolved' || c.status === 'approved'
+    (c) => c.status === 'resolved' || c.status === 'approved' || c.status === 'ready_for_release'
   )
   const openClaim = linkedClaims.find((c) =>
-    ['in_review', 'pending', 'approved'].includes(c.status || 'in_review')
+    ['in_review', 'pending', 'checking', 'approved', 'ready_for_release'].includes(c.status || 'in_review')
   )
   const coverage = getCoverageState(purchase, hasClaimedReplacement)
   const StatusIcon = coverage.icon
   const thumbUrl = getMainProductImage(purchase.product_image)
   const warrantyMonths = purchase.warranty_months || 24
-  const isSupportOnly = purchase.is_voided || hasClaimedReplacement
+  const isSupportOnly = purchase.is_voided || hasExistingClaim || hasAccountClaim
 
   return (
     <article className="rounded-2xl bg-jds-surface-container-lowest dark:bg-jds-surface border border-jds-outline-variant/50 p-5 flex flex-col justify-between gap-4 shadow-xs hover:border-jds-outline transition-all">
@@ -159,15 +163,17 @@ export default function EquipmentCard({
           </div>
         </div>
 
-        {openClaim && (
+        {existingClaim && (
           <button
             type="button"
             onClick={onViewClaims}
             className="w-full min-h-[44px] sm:min-h-[36px] px-3 py-1.5 rounded-xl bg-jds-secondary/10 border border-jds-secondary/25 text-xs font-semibold text-jds-secondary flex items-center justify-between hover:bg-jds-secondary/15 transition-colors cursor-pointer"
           >
-            <span>Active Ticket #{String(openClaim.id || '').slice(0, 8).toUpperCase()}</span>
+            <span>
+              {openClaim ? 'Active Ticket' : 'Claim Filed'} #{String(existingClaim.id || '').slice(0, 8).toUpperCase()}
+            </span>
             <span className="inline-flex items-center gap-1 font-bold">
-              Track Status <ExternalLink className="w-3 h-3" />
+              {openClaim ? 'Track Status' : 'View Claim'} <ExternalLink className="w-3 h-3" />
             </span>
           </button>
         )}
@@ -178,7 +184,11 @@ export default function EquipmentCard({
             <p className="text-[11px] text-jds-on-surface-variant leading-snug">
               {purchase.is_voided
                 ? 'Self-diagnostic guide and non-warranty branch servicing remain available.'
-                : '1-time replacement fulfilled. Self-diagnostics and branch servicing remain available.'}
+                : hasClaimedReplacement
+                  ? '1-time replacement fulfilled. Self-diagnostics and branch servicing remain available.'
+                  : hasExistingClaim
+                    ? 'One warranty claim has already been filed for this unit. Self-diagnostics remain available.'
+                    : 'A warranty claim is already on file for your account. Self-diagnostics remain available.'}
             </p>
             <button
               type="button"

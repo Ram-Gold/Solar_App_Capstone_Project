@@ -56,11 +56,14 @@ import InspectorDrawer from './InspectorDrawer'
 import ViewModeToggle from './ViewModeToggle'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 
-export default function CustomersScreen({ onNavigate, onSelectCustomerForSale }) {
+export default function CustomersScreen({ onNavigate, onSelectCustomerForSale, initialSearch = '' }) {
   const { role } = useAuth()
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
+  useEffect(() => {
+    if (initialSearch) setSearchQuery(initialSearch)
+  }, [initialSearch])
   const [branchFilter, setBranchFilter] = useState('All')
   const [warrantyFilter, setWarrantyFilter] = useState('All')
   const [emailFilter, setEmailFilter] = useState('All')

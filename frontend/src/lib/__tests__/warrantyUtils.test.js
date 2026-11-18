@@ -6,6 +6,10 @@ import {
   isWarrantyActive,
   formatRemainingText,
   getClaimStatusMeta,
+  isForwardClaimTransition,
+  isCompletedClaimStage,
+  isClaimTransitionAllowed,
+  appendAdminOverrideNote,
 } from '../warrantyUtils'
 
 describe('warrantyUtils', () => {
@@ -48,9 +52,43 @@ describe('warrantyUtils', () => {
   })
 
   it('returns claim status metadata and safe fallback for unknown statuses', () => {
-    expect(getClaimStatusMeta('approved').label).toBe('Approved for Replacement')
-    expect(getClaimStatusMeta('rejected').label).toBe('Claim Declined')
+    expect(getClaimStatusMeta('checking').label).toBe('For Verification / Checking')
+    expect(getClaimStatusMeta('checking').nextAction).toContain('bench test')
+    expect(getClaimStatusMeta('approved').label).toBe('Approved for Repair / Replacement')
+    expect(getClaimStatusMeta('ready_for_release').label).toBe('Ready for Release / Pickup')
+    expect(getClaimStatusMeta('rejected').label).toBe('Declined')
     expect(getClaimStatusMeta('custom_state').label).toBe('custom_state')
     expect(getClaimStatusMeta('').label).toBe('Pending')
+  })
+
+  it('enforces forward-only claim transitions and admin-only reversals', () => {
+    expect(isForwardClaimTransition('in_review', 'checking')).toBe(true)
+    expect(isForwardClaimTransition('checking', 'approved')).toBe(true)
+    expect(isForwardClaimTransition('in_review', 'rejected')).toBe(true)
+    expect(isForwardClaimTransition('approved', 'rejected')).toBe(false)
+    expect(isForwardClaimTransition('approved', 'checking')).toBe(false)
+    expect(isForwardClaimTransition('resolved', 'approved')).toBe(false)
+
+    expect(isCompletedClaimStage('approved', 'in_review')).toBe(true)
+    expect(isCompletedClaimStage('approved', 'checking')).toBe(true)
+    expect(isCompletedClaimStage('approved', 'approved')).toBe(false)
+
+    expect(isClaimTransitionAllowed({ fromStatus: 'approved', toStatus: 'checking', isAdmin: false })).toEqual({
+      allowed: false,
+      requiresOverride: false,
+    })
+    expect(isClaimTransitionAllowed({ fromStatus: 'approved', toStatus: 'checking', isAdmin: true })).toEqual({
+      allowed: true,
+      requiresOverride: true,
+    })
+
+    const note = appendAdminOverrideNote('Initial bench test', {
+      fromStatus: 'approved',
+      toStatus: 'checking',
+      reason: 'Need voltage re-test',
+    })
+    expect(note).toContain('Initial bench test')
+    expect(note).toContain('[ADMIN OVERRIDE')
+    expect(note).toContain('Approved for Repair / Replacement -> For Verification / Checking: Need voltage re-test')
   })
 })

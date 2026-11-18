@@ -421,8 +421,9 @@ export default function CustomerPortalPage() {
   }
 
   const { customer, purchases = [], claims = [] } = portalData
+  const existingAccountClaim = claims[0] || null
   const activeWarrantiesCount = purchases.filter(p => p.is_warranty_active).length
-  const openClaims = claims.filter(c => ['in_review', 'pending', 'approved'].includes(c.status || 'in_review'))
+  const openClaims = claims.filter(c => ['in_review', 'pending', 'checking', 'approved', 'ready_for_release'].includes(c.status || 'in_review'))
   const resolvedCustomerEmail = authStatus.email || customer.email || ''
   const isEmailConfirmed = Boolean(
     emailJustConfirmedMessage ||
@@ -642,11 +643,16 @@ export default function CustomerPortalPage() {
                       key={p.id}
                       purchase={p}
                       linkedClaims={linkedClaims}
+                      existingAccountClaim={existingAccountClaim}
                       onTroubleshoot={(item) => {
                         setSelectedPurchaseForClaim(item)
                         setDiagnosticMode('assistant')
                       }}
                       onFileClaim={(item) => {
+                        if (existingAccountClaim || claims.some((c) => c.purchase_id === item.id)) {
+                          setActiveTab('claims')
+                          return
+                        }
                         setSelectedPurchaseForClaim(item)
                         setDiagnosticMode('claim')
                       }}
@@ -907,6 +913,7 @@ export default function CustomerPortalPage() {
           onClose={() => setSelectedPurchaseForClaim(null)}
           purchase={selectedPurchaseForClaim}
           customerToken={token}
+          existingAccountClaim={existingAccountClaim}
           onClaimSubmitted={handleClaimSubmitted}
           onTrackClaims={() => setActiveTab('claims')}
           initialMode={diagnosticMode}

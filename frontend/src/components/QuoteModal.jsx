@@ -319,9 +319,16 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       }
     } catch (err) {
       console.error('Submission error:', err)
+      const rawMessage = err?.message || ''
+      const isRateLimited =
+        err?.code === 'P0001' || rawMessage.includes('RATE_LIMIT_EXCEEDED:')
+      const friendlyMessage = isRateLimited
+        ? rawMessage.replace(/^.*RATE_LIMIT_EXCEEDED:\s*/i, '').trim() ||
+          'Limit of 3 inquiries per hour reached. Please try again later.'
+        : 'Unable to submit your request right now. Please check your connection and try again.'
       setErrors((prev) => ({
         ...prev,
-        submit: 'Unable to submit your request right now. Please check your connection and try again.',
+        submit: friendlyMessage,
       }))
     } finally {
       setLoading(false)

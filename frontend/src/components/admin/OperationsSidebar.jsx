@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import {
   LayoutDashboard,
   Package,
@@ -61,7 +61,14 @@ export default function OperationsSidebar({
 
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
-  const [liveResults, setLiveResults] = useState({ products: [], customers: [] })
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const [liveResults, setLiveResults] = useState({
+    products: [],
+    inquiries: [],
+    claims: [],
+    customers: [],
+    orders: [],
+  })
   const [searchingLive, setSearchingLive] = useState(false)
   const [badges, setBadges] = useState({ inquiries: 0, claims: 0 })
   const searchInputRef = useRef(null)
@@ -89,11 +96,11 @@ export default function OperationsSidebar({
           supabase
             .from('quote_tickets')
             .select('id', { count: 'exact', head: true })
-            .eq('status', 'Pending'),
+            .in('status', ['Pending', 'Confirmed', 'pending', 'confirmed']),
           supabase
             .from('warranty_claims')
             .select('id', { count: 'exact', head: true })
-            .in('status', ['Pending', 'Under Review', 'Inspecting', 'pending', 'in_review']),
+            .in('status', ['Pending', 'Under Review', 'Inspecting', 'pending', 'in_review', 'checking']),
         ])
         if (!ignore) {
           setBadges({
@@ -167,29 +174,80 @@ export default function OperationsSidebar({
     }
 
     let cancelled = false
+    const cleanClaimQ = q.replace(/^claim-/i, '')
+    const isHexPrefix = /^[a-f0-9-]{2,}$/i.test(cleanClaimQ)
+    const orderOr = /^\d+$/.test(q)
+      ? `customer_name.ilike.%${q}%,product_name.ilike.%${q}%,address.ilike.%${q}%,id.eq.${Number(q)}`
+      : `customer_name.ilike.%${q}%,product_name.ilike.%${q}%,address.ilike.%${q}%`
+
     const timer = setTimeout(async () => {
       setSearchingLive(true)
       try {
-        const [{ data: prods }, { data: custs }] = await Promise.all([
+        const queries = [
           supabase
             .from('products')
             .select('id, name, type, watt, is_archived')
-            .ilike('name', `%${q}%`)
+            .or(`name.ilike.%${q}%,type.ilike.%${q}%`)
             .limit(6),
+          supabase
+            .from('quote_tickets')
+            .select('id, ticket_code, customer_name, customer_phone, purpose, status')
+            .or(`ticket_code.ilike.%${q}%,customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,purpose.ilike.%${q}%`)
+            .limit(4),
+          supabase
+            .from('warranty_claims')
+            .select('id, issue_category, description, status')
+            .or(`issue_category.ilike.%${q}%,description.ilike.%${q}%`)
+            .limit(4),
           supabase
             .from('customers')
             .select('id, full_name, phone_number, access_token')
             .or(`full_name.ilike.%${q}%,phone_number.ilike.%${q}%,access_token.ilike.%${q}%`)
             .limit(4),
-        ])
+          supabase
+            .from('orders')
+            .select('id, customer_name, product_name, status')
+            .or(orderOr)
+            .limit(4),
+        ]
+
+        if (isHexPrefix) {
+          queries.push(
+            supabase
+              .from('warranty_claims')
+              .select('id, issue_category, description, status')
+              .order('created_at', { ascending: false })
+              .limit(20)
+          )
+        }
+
+        const results = await Promise.allSettled(queries)
+        const getRows = (idx) =>
+          results[idx]?.status === 'fulfilled' && Array.isArray(results[idx].value?.data)
+            ? results[idx].value.data
+            : []
+
+        const textClaims = getRows(2)
+        const idClaims = isHexPrefix
+          ? getRows(5).filter((c) => String(c.id || '').toLowerCase().includes(cleanClaimQ.toLowerCase()))
+          : []
+        const mergedClaims = [...textClaims, ...idClaims].filter(
+          (c, idx, arr) => arr.findIndex((x) => x.id === c.id) === idx
+        ).slice(0, 4)
+
         if (!cancelled) {
           setLiveResults({
-            products: Array.isArray(prods) ? prods.filter((p) => !p.is_archived).slice(0, 4) : [],
-            customers: Array.isArray(custs) ? custs : [],
+            products: getRows(0).filter((p) => !p.is_archived).slice(0, 4),
+            inquiries: getRows(1).slice(0, 4),
+            claims: mergedClaims,
+            customers: getRows(3).slice(0, 4),
+            orders: getRows(4).slice(0, 4),
           })
         }
       } catch {
-        if (!cancelled) setLiveResults({ products: [], customers: [] })
+        if (!cancelled) {
+          setLiveResults({ products: [], inquiries: [], claims: [], customers: [], orders: [] })
+        }
       } finally {
         if (!cancelled) setSearchingLive(false)
       }
@@ -201,8 +259,8 @@ export default function OperationsSidebar({
     }
   }, [searchQuery])
 
-  const displayedResults =
-    searchQuery.trim().length >= 2 ? liveResults : { products: [], customers: [] }
+  const EMPTY_RESULTS = { products: [], inquiries: [], claims: [], customers: [], orders: [] }
+  const displayedResults = searchQuery.trim().length >= 2 ? liveResults : EMPTY_RESULTS
 
   const allRoutes = useMemo(() => {
     return [...OPERATIONS_LINKS, ...CATALOG_LINKS].filter((item) => isAdmin || !item.adminOnly)
@@ -219,11 +277,86 @@ export default function OperationsSidebar({
     navigate('/')
   }
 
-  const handleJump = (screenId) => {
-    onNavigate(screenId)
-    setSearchOpen(false)
-    setSearchQuery('')
-    if (onClose) onClose()
+  const handleJump = useCallback(
+    (screenId, payload = null) => {
+      if (payload) onNavigate(screenId, payload)
+      else onNavigate(screenId)
+      setSearchOpen(false)
+      setSearchQuery('')
+      setActiveIndex(-1)
+      if (onClose) onClose()
+    },
+    [onNavigate, onClose]
+  )
+
+  const selectableItems = useMemo(() => {
+    const items = matchedRoutes.map((route) => ({
+      key: `route-${route.id}`,
+      onSelect: () => handleJump(route.id),
+    }))
+    if (searchQuery.trim().length >= 2) {
+      displayedResults.products.forEach((p) =>
+        items.push({
+          key: `prod-${p.id}`,
+          onSelect: () => handleJump('products', { searchQuery: p.name, itemId: p.id }),
+        })
+      )
+      displayedResults.inquiries.forEach((inq) =>
+        items.push({
+          key: `inq-${inq.id}`,
+          onSelect: () =>
+            handleJump('inquiries', {
+              searchQuery: inq.ticket_code || inq.customer_name || '',
+              itemId: inq.id,
+            }),
+        })
+      )
+      displayedResults.claims.forEach((cl) =>
+        items.push({
+          key: `claim-${cl.id}`,
+          onSelect: () =>
+            handleJump('claims', {
+              searchQuery: cl.id ? cl.id.slice(0, 8) : cl.issue_category || '',
+              itemId: cl.id,
+            }),
+        })
+      )
+      displayedResults.customers.forEach((c) =>
+        items.push({
+          key: `cust-${c.id}`,
+          onSelect: () =>
+            handleJump('customers', {
+              searchQuery: c.full_name || c.phone_number || '',
+              itemId: c.id,
+            }),
+        })
+      )
+      displayedResults.orders.forEach((o) =>
+        items.push({
+          key: `order-${o.id}`,
+          onSelect: () =>
+            handleJump('orders', {
+              searchQuery: o.customer_name || o.product_name || String(o.id),
+              itemId: o.id,
+            }),
+        })
+      )
+    }
+    return items
+  }, [matchedRoutes, searchQuery, displayedResults, handleJump])
+
+  const handleSearchKeyDown = (e) => {
+    if (!searchOpen || selectableItems.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIndex((prev) => (prev + 1) % selectableItems.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIndex((prev) => (prev <= 0 ? selectableItems.length - 1 : prev - 1))
+    } else if (e.key === 'Enter' && activeIndex >= 0 && selectableItems[activeIndex]) {
+      e.preventDefault()
+      selectableItems[activeIndex].onSelect()
+    }
   }
 
   const isRouteActive = (id) => {
@@ -245,8 +378,8 @@ export default function OperationsSidebar({
         title={collapsed ? item.label : undefined}
         aria-label={item.label}
         aria-current={active ? 'page' : undefined}
-        className={`jds-btn-motion jds-focus-ring flex w-full min-h-[44px] items-center ${collapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3'
-          } gap-2.5 rounded-lg py-2 text-[13.5px] border transition-colors cursor-pointer ${active
+        className={`jds-focus-ring flex w-full min-h-[44px] items-center ${collapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3'
+          } gap-2.5 rounded-lg py-2 text-[13.5px] border cursor-pointer ${active
             ? 'bg-jds-surface-container-lowest border-jds-chrome-border text-jds-primary font-bold shadow-2xs'
             : 'border-transparent text-jds-on-surface-variant hover:bg-jds-chrome-hover hover:text-jds-on-surface font-medium'
           }`}
@@ -260,9 +393,7 @@ export default function OperationsSidebar({
             className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ${collapsed ? 'lg:hidden' : ''
               } ${active
                 ? 'bg-jds-primary text-jds-on-primary'
-                : item.badgeKey === 'inquiries'
-                  ? 'bg-jds-error text-white'
-                  : 'bg-jds-surface-container-high text-jds-on-surface-variant'
+                : 'bg-jds-surface-container-high text-jds-on-surface-variant'
               }`}
           >
             {badgeCount}
@@ -316,7 +447,7 @@ export default function OperationsSidebar({
       {/* Quick-Jump & Live Lookup Search */}
       <div ref={searchBoxRef} className={`px-3 pt-3 pb-1 relative ${collapsed ? 'lg:hidden' : ''}`}>
         <label htmlFor="ops-sidebar-search" className="sr-only">
-          Search screens, equipment, or customers
+          Search items, inquiries, claims, customers, or orders
         </label>
         <div className="flex items-center gap-2 rounded-lg border border-jds-chrome-border bg-jds-surface-container-lowest px-2.5 py-2 text-jds-on-surface-variant focus-within:border-jds-primary">
           <Search className="h-3.5 w-3.5 shrink-0" />
@@ -329,8 +460,10 @@ export default function OperationsSidebar({
             onChange={(e) => {
               setSearchQuery(e.target.value)
               setSearchOpen(true)
+              setActiveIndex(-1)
             }}
-            placeholder="Jump or search..."
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Search items, inquiries, claims..."
             className="w-full bg-transparent text-[13px] text-jds-on-surface placeholder:text-jds-on-surface-variant/60 outline-none"
           />
           <kbd className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-jds-surface-container border border-jds-outline-variant/40 text-jds-on-surface-variant shrink-0">
@@ -339,7 +472,7 @@ export default function OperationsSidebar({
         </div>
 
         {searchOpen && (
-          <div className="absolute left-3 right-3 top-full mt-1.5 z-50 rounded-xl border border-jds-outline-variant/50 bg-jds-surface-container-lowest p-2 shadow-xl space-y-2 max-h-72 overflow-y-auto">
+          <div className="absolute left-3 right-3 top-full mt-1.5 z-50 rounded-xl border border-jds-outline-variant/50 bg-jds-surface-container-lowest p-2 shadow-xl space-y-2 max-h-80 overflow-y-auto">
             <div>
               <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
                 Screens
@@ -347,17 +480,20 @@ export default function OperationsSidebar({
               {matchedRoutes.length === 0 ? (
                 <p className="px-2 py-1 text-xs text-jds-on-surface-variant">No matching screen</p>
               ) : (
-                matchedRoutes.map((route) => (
-                  <button
-                    key={route.id}
-                    type="button"
-                    onClick={() => handleJump(route.id)}
-                    className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs text-jds-on-surface hover:bg-jds-surface-container cursor-pointer text-left"
-                  >
-                    <span>{route.label}</span>
-                    <ArrowUpRight className="h-3.5 w-3.5 text-jds-primary" />
-                  </button>
-                ))
+                matchedRoutes.map((route) => {
+                  const isHighlighted = selectableItems[activeIndex]?.key === `route-${route.id}`
+                  return (
+                    <button
+                      key={route.id}
+                      type="button"
+                      onClick={() => handleJump(route.id)}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs text-jds-on-surface hover:bg-jds-surface-container cursor-pointer text-left ${isHighlighted ? 'bg-jds-surface-container ring-1 ring-jds-primary/40' : ''}`}
+                    >
+                      <span>{route.label}</span>
+                      <ArrowUpRight className="h-3.5 w-3.5 text-jds-primary" />
+                    </button>
+                  )
+                })
               )}
             </div>
 
@@ -365,42 +501,142 @@ export default function OperationsSidebar({
               <>
                 <div className="border-t border-jds-outline-variant/30 pt-1.5">
                   <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
-                    {searchingLive ? 'Searching catalog...' : 'Equipment Matches'}
+                    {searchingLive ? 'Searching...' : 'Equipment Matches'}
                   </p>
-                  {displayedResults.products.map((prod) => (
-                    <button
-                      key={prod.id}
-                      type="button"
-                      onClick={() => handleJump('products')}
-                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs text-jds-on-surface hover:bg-jds-surface-container cursor-pointer text-left gap-2"
-                    >
-                      <span className="truncate">{prod.name}</span>
-                      <span className="text-[10px] text-jds-on-surface-variant shrink-0">{prod.watt}W</span>
-                    </button>
-                  ))}
+                  {displayedResults.products.map((prod) => {
+                    const isHighlighted = selectableItems[activeIndex]?.key === `prod-${prod.id}`
+                    return (
+                      <button
+                        key={prod.id}
+                        type="button"
+                        onClick={() => handleJump('products', { searchQuery: prod.name, itemId: prod.id })}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs text-jds-on-surface hover:bg-jds-surface-container cursor-pointer text-left gap-2 ${isHighlighted ? 'bg-jds-surface-container ring-1 ring-jds-primary/40' : ''}`}
+                      >
+                        <span className="truncate">{prod.name}</span>
+                        <span className="text-[10px] text-jds-on-surface-variant shrink-0">{prod.watt}W</span>
+                      </button>
+                    )
+                  })}
                   {!searchingLive && displayedResults.products.length === 0 && (
                     <p className="px-2 py-1 text-xs text-jds-on-surface-variant">No equipment matched</p>
                   )}
                 </div>
+
+                {displayedResults.inquiries.length > 0 && (
+                  <div className="border-t border-jds-outline-variant/30 pt-1.5">
+                    <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
+                      Inquiries &amp; Requests
+                    </p>
+                    {displayedResults.inquiries.map((inq) => {
+                      const isHighlighted = selectableItems[activeIndex]?.key === `inq-${inq.id}`
+                      return (
+                        <button
+                          key={inq.id}
+                          type="button"
+                          onClick={() =>
+                            handleJump('inquiries', {
+                              searchQuery: inq.ticket_code || inq.customer_name || '',
+                              itemId: inq.id,
+                            })
+                          }
+                          className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs text-jds-on-surface hover:bg-jds-surface-container cursor-pointer text-left gap-2 ${isHighlighted ? 'bg-jds-surface-container ring-1 ring-jds-primary/40' : ''}`}
+                        >
+                          <span className="truncate">{inq.customer_name || inq.purpose || 'Inquiry'}</span>
+                          <span className="font-mono text-[10px] text-jds-primary shrink-0">
+                            {inq.ticket_code || inq.status}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {displayedResults.claims.length > 0 && (
+                  <div className="border-t border-jds-outline-variant/30 pt-1.5">
+                    <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
+                      Warranty Claims
+                    </p>
+                    {displayedResults.claims.map((cl) => {
+                      const isHighlighted = selectableItems[activeIndex]?.key === `claim-${cl.id}`
+                      return (
+                        <button
+                          key={cl.id}
+                          type="button"
+                          onClick={() =>
+                            handleJump('claims', {
+                              searchQuery: cl.id ? cl.id.slice(0, 8) : cl.issue_category || '',
+                              itemId: cl.id,
+                            })
+                          }
+                          className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs text-jds-on-surface hover:bg-jds-surface-container cursor-pointer text-left gap-2 ${isHighlighted ? 'bg-jds-surface-container ring-1 ring-jds-primary/40' : ''}`}
+                        >
+                          <span className="truncate">{cl.issue_category || cl.description || 'Warranty Claim'}</span>
+                          <span className="font-mono text-[10px] text-jds-primary shrink-0">
+                            CLAIM-{String(cl.id || '').slice(0, 8).toUpperCase()}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
 
                 {displayedResults.customers.length > 0 && (
                   <div className="border-t border-jds-outline-variant/30 pt-1.5">
                     <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
                       Customers
                     </p>
-                    {displayedResults.customers.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => handleJump('customers')}
-                        className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs text-jds-on-surface hover:bg-jds-surface-container cursor-pointer text-left gap-2"
-                      >
-                        <span className="truncate">{c.full_name}</span>
-                        <span className="font-mono text-[10px] text-jds-primary shrink-0">
-                          {c.access_token || c.phone_number}
-                        </span>
-                      </button>
-                    ))}
+                    {displayedResults.customers.map((c) => {
+                      const isHighlighted = selectableItems[activeIndex]?.key === `cust-${c.id}`
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() =>
+                            handleJump('customers', {
+                              searchQuery: c.full_name || c.phone_number || '',
+                              itemId: c.id,
+                            })
+                          }
+                          className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs text-jds-on-surface hover:bg-jds-surface-container cursor-pointer text-left gap-2 ${isHighlighted ? 'bg-jds-surface-container ring-1 ring-jds-primary/40' : ''}`}
+                        >
+                          <span className="truncate">{c.full_name}</span>
+                          <span className="font-mono text-[10px] text-jds-primary shrink-0">
+                            {c.access_token || c.phone_number}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {displayedResults.orders.length > 0 && (
+                  <div className="border-t border-jds-outline-variant/30 pt-1.5">
+                    <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
+                      Orders
+                    </p>
+                    {displayedResults.orders.map((o) => {
+                      const isHighlighted = selectableItems[activeIndex]?.key === `order-${o.id}`
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          onClick={() =>
+                            handleJump('orders', {
+                              searchQuery: o.customer_name || o.product_name || String(o.id),
+                              itemId: o.id,
+                            })
+                          }
+                          className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs text-jds-on-surface hover:bg-jds-surface-container cursor-pointer text-left gap-2 ${isHighlighted ? 'bg-jds-surface-container ring-1 ring-jds-primary/40' : ''}`}
+                        >
+                          <span className="truncate">
+                            {o.customer_name} — {o.product_name}
+                          </span>
+                          <span className="font-mono text-[10px] text-jds-on-surface-variant shrink-0">
+                            #{o.id}
+                          </span>
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </>

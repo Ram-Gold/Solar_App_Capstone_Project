@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../context/AuthContext'
+import { useToast } from '../ui/toast'
 import {
   Package,
   AlertTriangle,
@@ -37,8 +38,9 @@ import {
 } from '../../lib/inventoryUtils'
 import {
   inventoryOperations,
-  createDebouncedStockQueue,
 } from '../../lib/inventoryOperations'
+import { useStagedInventoryChanges } from '../../hooks/useStagedInventoryChanges'
+import StagedInventoryBar from './StagedInventoryBar'
 import useModalBehavior from '../../hooks/useModalBehavior'
 
 export default function DashboardScreen({ onNavigate }) {
@@ -56,13 +58,7 @@ export default function DashboardScreen({ onNavigate }) {
   const [inspectorState, setInspectorState] = useState(null) // { product, tab: 'inspect' | 'audit' | 'edit' }
 
   // Toast feedback
-  const [toast, setToast] = useState(null)
-  const showToast = useCallback((title, message, type = 'info') => {
-    setToast({ title, message, type })
-    setTimeout(() => {
-      setToast((curr) => (curr?.title === title ? null : curr))
-    }, 4500)
-  }, [])
+  const { showToast } = useToast()
 
   // Categories
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES)
@@ -71,22 +67,9 @@ export default function DashboardScreen({ onNavigate }) {
   // Modals state
   const [saleModalProduct, setSaleModalProduct] = useState(null)
 
-  // Direct Button Handlers Confirmation State (for Sales + / -)
-  const [directConfirmAction, setDirectConfirmAction] = useState(null)
-  const [directConfirmLoading, setDirectConfirmLoading] = useState(false)
-
   const handleCloseEdit = useCallback(() => {
     setInspectorState(null)
   }, [])
-
-  const anyDashboardModalOpen = Boolean(directConfirmAction)
-
-  useModalBehavior({
-    isOpen: anyDashboardModalOpen,
-    onClose: () => {
-      if (directConfirmAction && !directConfirmLoading) setDirectConfirmAction(null)
-    },
-  })
 
   const loadCategories = useCallback(async () => {
     try {
@@ -144,7 +127,7 @@ export default function DashboardScreen({ onNavigate }) {
         const { count: cCount } = await supabase
           .from('warranty_claims')
           .select('id', { count: 'exact', head: true })
-          .in('status', ['Pending', 'Under Review', 'Inspecting', 'pending', 'in_review'])
+          .in('status', ['Pending', 'Under Review', 'Inspecting', 'pending', 'in_review', 'checking'])
         if (typeof cCount === 'number') setOpenClaimsCount(cCount)
       } catch {
         // Non-blocking claims badge fetch
@@ -183,111 +166,16 @@ export default function DashboardScreen({ onNavigate }) {
     handleOpenInspector(product, 'edit')
   }, [handleOpenInspector])
 
-  // Optimistic + Debounced Direct Stock Queue (~400ms)
-  const stockQueueRef = useRef(null)
-  useEffect(() => {
-    const queue = createDebouncedStockQueue({
-      operations: inventoryOperations,
-      delayMs: 400,
-      onSnapshot: (updatedProduct) => {
-        setProducts((prev) =>
-          prev.map((p) => (p.id === updatedProduct.id ? { ...p, ...updatedProduct } : p))
-        )
-      },
-      onRollback: (productId, baseline) => {
-        setProducts((prev) =>
-          prev.map((p) => (p.id === productId ? { ...p, ...baseline } : p))
-        )
-      },
-      onError: (err) => {
-        showToast('Stock Update Failed', err?.message || 'Could not save stock change. Reverted.', 'error')
-      },
-    })
-    stockQueueRef.current = queue
-    return () => {
-      queue.flushAll()
-      stockQueueRef.current = null
-    }
-  }, [showToast])
+  const stagedInventory = useStagedInventoryChanges({
+    setProducts,
+    inventoryOperations,
+    supabase,
+    onToast: showToast,
+    notifyOpsUpdated,
+  })
 
-  const handleRequestDirectStockChange = useCallback((product, delta) => {
-    const currentStock = getStockQuantity(product)
-    if (delta < 0 && currentStock <= 0) return
-    stockQueueRef.current?.queueDelta(product, delta)
-  }, [])
-
-  // Direct Sale Adjustment Handlers (with Confirmation Modal)
-  const handleRequestDirectSaleChange = useCallback((product, delta) => {
-    const currentStock = getStockQuantity(product)
-    const currentSales = Number(product.sales || 0)
-    const targetSales = Math.max(0, currentSales + delta)
-    const targetStock = delta > 0 ? Math.max(0, currentStock - 1) : currentStock + 1
-
-    if (delta > 0 && currentStock <= 0) return
-    if (delta < 0 && currentSales <= 0) return
-
-    setDirectConfirmAction({
-      product,
-      type: 'sale',
-      delta,
-      currentStock,
-      targetStock,
-      currentSales,
-      targetSales,
-      title: delta > 0 ? 'Confirm Record Sale' : 'Confirm Reverse Sale',
-      description: delta > 0
-        ? `Are you sure you want to record 1 sale for ${product.name}? This will decrease stock to ${targetStock} unit${targetStock === 1 ? '' : 's'}.`
-        : `Are you sure you want to reverse 1 sale for ${product.name}? This will restore stock to ${targetStock} unit${targetStock === 1 ? '' : 's'}.`,
-    })
-  }, [])
-
-  const handleExecuteDirectConfirm = async () => {
-    if (!directConfirmAction) return
-    setDirectConfirmLoading(true)
-    const { product, delta, targetStock, targetSales } = directConfirmAction
-
-    try {
-      if (delta > 0) {
-        const res = await inventoryOperations.recordSale(product, { unitsSold: 1, branch: 'Quiapo' })
-        setProducts((prev) =>
-          prev.map((p) =>
-            p.id === product.id
-              ? {
-                  ...p,
-                  stock_quantity: res.newStock,
-                  sales: res.newSales,
-                  in_stock: res.newInStock,
-                  ...(res.stock_quiapo !== undefined ? { stock_quiapo: res.stock_quiapo } : {}),
-                  ...(res.stock_cavite !== undefined ? { stock_cavite: res.stock_cavite } : {}),
-                }
-              : p
-          )
-        )
-      } else {
-        const updatedStock = await inventoryOperations.setStockLevel(product, targetStock)
-        const { data, error } = await supabase
-          .from('products')
-          .update({ sales: targetSales })
-          .eq('id', product.id)
-          .select()
-        if (error) throw error
-        const updated = data && data.length > 0 ? { ...updatedStock, ...data[0] } : { ...updatedStock, sales: targetSales }
-        setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, ...updated } : p)))
-      }
-      notifyOpsUpdated('inventory')
-      showToast(
-        'Adjustment Confirmed',
-        `${product.name} updated: Stock is ${targetStock}, Sales is ${targetSales}.`,
-        'success'
-      )
-      setDirectConfirmAction(null)
-    } catch (err) {
-      console.error('Direct adjustment failed:', err)
-      showToast('Adjustment Failed', err.message || 'Could not update product.', 'error')
-    } finally {
-      setDirectConfirmLoading(false)
-    }
-  }
+  const handleRequestDirectStockChange = stagedInventory.stageStockDelta
+  const handleRequestDirectSaleChange = stagedInventory.stageSaleDelta
 
   const totalProducts = products.length
   const totalWarehouseUnits = products.reduce((sum, p) => sum + getStockQuantity(p), 0)
@@ -295,12 +183,6 @@ export default function DashboardScreen({ onNavigate }) {
   const lowStockProducts = products.filter((p) => getStockTier(p) === 'low')
   const inStockProducts = products.filter((p) => getStockTier(p) !== 'out')
   const criticalAttentionCount = outOfStockProducts.length + lowStockProducts.length
-
-  const estimatedValuation = products.reduce((sum, p) => {
-    const qty = getStockQuantity(p)
-    const price = Number(p.min_price) || 0
-    return sum + qty * price
-  }, 0)
 
   const filteredProducts = filterAndSortProducts(products, {
     search,
@@ -344,25 +226,19 @@ export default function DashboardScreen({ onNavigate }) {
       action: () => onNavigate && onNavigate('inquiries'),
       sub: `${quoteStats.visits} visits · ${quoteStats.total} total`,
     },
-    isStaff
-      ? {
-        label: 'Open Warranty Claims',
-        value: openClaimsCount,
-        icon: ShieldCheck,
-        color: 'text-jds-on-surface-variant',
-        bg: 'bg-jds-surface-container-low border border-jds-outline-variant',
-        action: () => onNavigate && onNavigate('claims'),
-        sub: openClaimsCount > 0 ? 'Review active claims' : 'Queue clear',
-      }
-      : {
-        label: 'Inventory Valuation',
-        value: estimatedValuation > 0 ? `₱${estimatedValuation.toLocaleString()}` : `${totalProducts} SKUs`,
-        icon: Boxes,
-        color: 'text-jds-on-surface-variant',
-        bg: 'bg-jds-surface-container-low border border-jds-outline-variant',
-        action: () => onNavigate && onNavigate('products'),
-        sub: 'Estimated stock value',
-      },
+    ...(isStaff
+      ? [
+        {
+          label: 'Open Warranty Claims',
+          value: openClaimsCount,
+          icon: ShieldCheck,
+          color: 'text-jds-on-surface-variant',
+          bg: 'bg-jds-surface-container-low border border-jds-outline-variant',
+          action: () => onNavigate && onNavigate('claims'),
+          sub: openClaimsCount > 0 ? 'Review active claims' : 'Queue clear',
+        },
+      ]
+      : []),
   ]
 
   if (loading) {
@@ -378,38 +254,6 @@ export default function DashboardScreen({ onNavigate }) {
 
   return (
     <div className="max-w-[1440px] mx-auto space-y-4 font-inter">
-      {/* Toast Alert Banner */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-200">
-          <div
-            className={`flex items-start gap-3 rounded-xl border p-4 shadow-xl backdrop-blur-md max-w-sm ${toast.type === 'error'
-              ? 'border-jds-error/40 bg-jds-surface text-jds-error shadow-jds-error/10'
-              : toast.type === 'success'
-                ? 'border-emerald-500/40 bg-jds-surface text-emerald-700 dark:text-emerald-400 shadow-emerald-500/10'
-                : 'border-jds-primary/40 bg-jds-surface text-jds-on-surface shadow-jds-primary/10'
-              }`}
-          >
-            {toast.type === 'success' ? (
-              <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
-            ) : toast.type === 'error' ? (
-              <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-            ) : (
-              <Package className="h-5 w-5 shrink-0 mt-0.5 text-jds-primary" />
-            )}
-            <div className="flex-1 text-xs">
-              <p className="font-bold text-body-sm">{toast.title}</p>
-              <p className="text-jds-on-surface-variant mt-0.5 leading-relaxed">{toast.message}</p>
-            </div>
-            <button
-              onClick={() => setToast(null)}
-              className="text-jds-on-surface-variant/60 hover:text-jds-on-surface"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Operations Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -494,8 +338,8 @@ export default function DashboardScreen({ onNavigate }) {
         </div>
       )}
 
-      {/* 4-Card Summary Strip */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      {/* Summary Strip */}
+      <div className={`grid gap-3 sm:gap-4 ${cards.length === 4 ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>
         {cards.map((card) => {
           const Icon = card.icon
           return (
@@ -644,27 +488,15 @@ export default function DashboardScreen({ onNavigate }) {
         ) : viewMode === 'cards' ? (
           /* Responsive Card Grid View */
           <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredProducts.slice(0, 8).map((p) => (
-              <AdminProductCard
-                key={p.id}
-                product={p}
-                onOpenEdit={handleOpenEditProduct}
-                onOpenStockStepper={handleOpenStockStepper}
-                onOpenRecordSale={setSaleModalProduct}
-                onRequestDirectStockChange={handleRequestDirectStockChange}
-                onRequestDirectSaleChange={handleRequestDirectSaleChange}
-                showDelete={false}
-              />
-            ))}
-          </div>
-        ) : (
-          /* Table View (stacked cards on < md, table on md+) */
-          <>
-            <div className="md:hidden grid grid-cols-1 gap-4 p-3">
-              {filteredProducts.slice(0, 8).map((p) => (
+            {filteredProducts.slice(0, 8).map((p) => {
+              const staged = stagedInventory.getStagedProduct(p)
+              const displayProduct = staged.isPending
+                ? { ...p, stock_quantity: staged.stock, sales: staged.sales, _staged: staged }
+                : p
+              return (
                 <AdminProductCard
                   key={p.id}
-                  product={p}
+                  product={displayProduct}
                   onOpenEdit={handleOpenEditProduct}
                   onOpenStockStepper={handleOpenStockStepper}
                   onOpenRecordSale={setSaleModalProduct}
@@ -672,7 +504,31 @@ export default function DashboardScreen({ onNavigate }) {
                   onRequestDirectSaleChange={handleRequestDirectSaleChange}
                   showDelete={false}
                 />
-              ))}
+              )
+            })}
+          </div>
+        ) : (
+          /* Table View (stacked cards on < md, table on md+) */
+          <>
+            <div className="md:hidden grid grid-cols-1 gap-4 p-3">
+              {filteredProducts.slice(0, 8).map((p) => {
+                const staged = stagedInventory.getStagedProduct(p)
+                const displayProduct = staged.isPending
+                  ? { ...p, stock_quantity: staged.stock, sales: staged.sales, _staged: staged }
+                  : p
+                return (
+                  <AdminProductCard
+                    key={p.id}
+                    product={displayProduct}
+                    onOpenEdit={handleOpenEditProduct}
+                    onOpenStockStepper={handleOpenStockStepper}
+                    onOpenRecordSale={setSaleModalProduct}
+                    onRequestDirectStockChange={handleRequestDirectStockChange}
+                    onRequestDirectSaleChange={handleRequestDirectSaleChange}
+                    showDelete={false}
+                  />
+                )
+              })}
             </div>
             <div className="hidden md:block overflow-x-auto">
               <Table>
@@ -689,15 +545,19 @@ export default function DashboardScreen({ onNavigate }) {
                 </TableHeader>
                 <TableBody>
                   {filteredProducts.slice(0, 8).map((p) => {
-                    const badge = getStockBadgeConfig(p)
+                    const staged = stagedInventory.getStagedProduct(p)
+                    const displayProduct = staged.isPending
+                      ? { ...p, stock_quantity: staged.stock, sales: staged.sales }
+                      : p
+                    const badge = getStockBadgeConfig(displayProduct)
                     const stockQty = badge.quantity
-                    const salesQty = Number(p.sales || 0)
+                    const salesQty = Number(displayProduct.sales || 0)
 
                     return (
                       <TableRow
                         key={p.id}
                         onClick={() => handleOpenInspector(p, 'inspect')}
-                        className={`cursor-pointer ${badge.rowBorderClass} ${badge.rowBgClass}`}
+                        className={`cursor-pointer ${badge.rowBorderClass} ${badge.rowBgClass} ${staged.isPending ? 'border-l-[3px] border-l-amber-500 bg-amber-500/[0.04]' : ''}`}
                       >
                         <TableCell className="font-bold text-jds-on-surface max-w-[220px]">
                           <span className="line-clamp-1" title={p.name}>{p.name}</span>
@@ -729,6 +589,11 @@ export default function DashboardScreen({ onNavigate }) {
                             <span className="font-mono text-body-sm font-semibold text-jds-on-surface px-1 min-w-[24px] text-center">
                               {salesQty}
                             </span>
+                            {staged.salesDelta !== 0 && (
+                              <span className="px-1 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold">
+                                {staged.salesDelta > 0 ? `+${staged.salesDelta}` : staged.salesDelta}
+                              </span>
+                            )}
                             <button
                               type="button"
                               disabled={stockQty <= 0}
@@ -771,6 +636,11 @@ export default function DashboardScreen({ onNavigate }) {
                             >
                               {stockQty}
                             </span>
+                            {staged.stockDelta !== 0 && (
+                              <span className="px-1 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold">
+                                {staged.stockDelta > 0 ? `+${staged.stockDelta}` : staged.stockDelta}
+                              </span>
+                            )}
                             <button
                               type="button"
                               onClick={(e) => {
@@ -890,93 +760,17 @@ export default function DashboardScreen({ onNavigate }) {
         onToast={showToast}
       />
 
-      {/* DIRECT BUTTON ADJUSTMENT CONFIRMATION MODAL */}
-      {directConfirmAction && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !directConfirmLoading) {
-              setDirectConfirmAction(null)
-            }
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm max-h-[92dvh] overflow-y-auto rounded-2xl border border-jds-outline-variant/30 bg-jds-surface p-5 sm:p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
-          >
-            <div className="flex items-start justify-between border-b border-jds-outline-variant/20 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-jds-primary/10 text-jds-primary">
-                  {directConfirmAction.type === 'stock' ? (
-                    <Boxes className="h-4 w-4" />
-                  ) : (
-                    <ShoppingBag className="h-4 w-4" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-body-md font-bold text-jds-on-surface">
-                    {directConfirmAction.title}
-                  </h3>
-                  <p className="text-xs text-jds-on-surface-variant line-clamp-1">
-                    {directConfirmAction.product.name}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={directConfirmLoading}
-                onClick={() => setDirectConfirmAction(null)}
-                className="rounded-lg p-1 text-jds-on-surface-variant/60 hover:bg-jds-surface-container-high hover:text-jds-on-surface transition-colors disabled:opacity-50 cursor-pointer"
-                aria-label="Close modal"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-jds-on-surface-variant leading-relaxed">
-              {directConfirmAction.description}
-            </p>
-
-            <div className="rounded-xl border border-jds-outline-variant/20 bg-jds-surface-container-low/30 p-3 text-xs space-y-1.5 font-mono">
-              <div className="flex justify-between">
-                <span className="text-jds-on-surface-variant">Target Stock:</span>
-                <span className="font-bold text-jds-on-surface">{directConfirmAction.targetStock} unit{directConfirmAction.targetStock === 1 ? '' : 's'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-jds-on-surface-variant">Target Sales:</span>
-                <span className="font-bold text-jds-on-surface">{directConfirmAction.targetSales} unit{directConfirmAction.targetSales === 1 ? '' : 's'}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-2.5 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={directConfirmLoading}
-                onClick={() => setDirectConfirmAction(null)}
-                className="flex-1 border-jds-outline-variant text-jds-on-surface-variant h-10 rounded-xl text-xs font-semibold cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                disabled={directConfirmLoading}
-                onClick={handleExecuteDirectConfirm}
-                className="flex-1 bg-jds-primary text-jds-on-primary font-bold h-10 rounded-xl text-xs cursor-pointer"
-              >
-                {directConfirmLoading ? (
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    <span>Confirming...</span>
-                  </div>
-                ) : (
-                  'Confirm'
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* STAGED STOCK & SALE SAVE CHANGES BAR + CONFIRMATION MODAL */}
+      <StagedInventoryBar
+        pendingList={stagedInventory.pendingList}
+        pendingCount={stagedInventory.pendingCount}
+        confirmOpen={stagedInventory.confirmOpen}
+        setConfirmOpen={stagedInventory.setConfirmOpen}
+        saving={stagedInventory.saving}
+        onDiscard={stagedInventory.discardChanges}
+        onRequestSave={stagedInventory.requestSave}
+        onConfirmSave={stagedInventory.commitChanges}
+      />
 
       {/* CATEGORY MANAGEMENT MODAL */}
       <CategoryModal

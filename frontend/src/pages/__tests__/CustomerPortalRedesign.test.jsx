@@ -163,6 +163,10 @@ describe('CustomerPortalPage — Calm Device Hub & Modal Verification', () => {
   })
 
   it('opens FaultDiagnosticModal in both Troubleshoot and File Claim modes and closes cleanly', async () => {
+    customerService.fetchCustomerPortalData.mockResolvedValueOnce({
+      data: { ...mockPortalPayload.data, claims: [] },
+      error: null,
+    })
     renderPortal()
 
     await waitFor(() => {

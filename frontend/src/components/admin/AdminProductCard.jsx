@@ -36,11 +36,10 @@ const AdminProductCard = memo(function AdminProductCard({
   return (
     <div
       onClick={() => onOpenEdit?.(product)}
-      className={`flex flex-col justify-between rounded-xl border bg-jds-surface-container-lowest p-4 transition-colors cursor-pointer group ${
-        selected
-          ? 'ring-2 ring-jds-primary border-jds-primary'
-          : `border-jds-outline-variant hover:border-jds-primary/45 ${badge.rowBorderClass}`
-      }`}
+      className={`flex flex-col justify-between rounded-xl border bg-jds-surface-container-lowest p-4 transition-colors cursor-pointer group ${selected
+        ? 'ring-2 ring-jds-primary border-jds-primary'
+        : `border-jds-outline-variant hover:border-jds-primary/45 ${badge.rowBorderClass}`
+        } ${product._staged?.isPending ? 'border-l-[3px] border-l-amber-500 bg-amber-500/[0.04]' : ''}`}
       title={`Click to view and edit ${product.name}`}
     >
       <div className="space-y-3">
@@ -132,6 +131,11 @@ const AdminProductCard = memo(function AdminProductCard({
               >
                 {totalStockQty}
               </span>
+              {product._staged?.stockDelta !== 0 && product._staged?.stockDelta !== undefined && (
+                <span className="px-1 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold">
+                  {product._staged.stockDelta > 0 ? `+${product._staged.stockDelta}` : product._staged.stockDelta}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={(e) => {
@@ -190,6 +194,11 @@ const AdminProductCard = memo(function AdminProductCard({
               >
                 {salesQty}
               </span>
+              {product._staged?.salesDelta !== 0 && product._staged?.salesDelta !== undefined && (
+                <span className="px-1 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold">
+                  {product._staged.salesDelta > 0 ? `+${product._staged.salesDelta}` : product._staged.salesDelta}
+                </span>
+              )}
               <button
                 type="button"
                 disabled={availableQty <= 0}

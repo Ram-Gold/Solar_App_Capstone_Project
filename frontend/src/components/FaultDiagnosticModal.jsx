@@ -226,11 +226,15 @@ export default function FaultDiagnosticModal({
   onClose,
   purchase,
   customerToken,
+  existingAccountClaim = null,
   onClaimSubmitted,
   onTrackClaims,
   initialMode = 'assistant', // 'assistant' | 'claim'
 }) {
-  const [activeTab, setActiveTab] = useState(initialMode === 'claim' ? 'claim' : 'wizard')
+  const isClaimBlocked = Boolean(existingAccountClaim)
+  const [activeTab, setActiveTab] = useState(
+    initialMode === 'claim' && !isClaimBlocked ? 'claim' : 'wizard'
+  )
 
   // === WIZARD STATE (Simple question & multiple choices flow) ===
   const [history, setHistory] = useState(['ROOT'])
@@ -564,6 +568,11 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
     setClaimError('')
     setDescriptionError('')
 
+    if (isClaimBlocked) {
+      setClaimError('A warranty claim has already been filed on your account.')
+      return
+    }
+
     if (!description.trim()) {
       setDescriptionError('Please provide a brief description of the fault.')
       return
@@ -678,20 +687,25 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
 
               <button
                 type="button"
+                disabled={isClaimBlocked}
                 onClick={() => {
+                  if (isClaimBlocked) return
                   if (!description && (selectedRootSymptoms.length > 0 || currentDiagnosis)) {
                     transferToClaim()
                   } else {
                     setActiveTab('claim')
                   }
                 }}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${activeTab === 'claim'
-                  ? 'bg-jds-primary text-jds-on-primary shadow-sm'
-                  : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
+                title={isClaimBlocked ? 'A warranty claim is already on file for your account' : undefined}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${isClaimBlocked
+                    ? 'opacity-50 cursor-not-allowed text-jds-on-surface-variant'
+                    : activeTab === 'claim'
+                      ? 'bg-jds-primary text-jds-on-primary shadow-sm'
+                      : 'text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
                   }`}
               >
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>File Warranty Claim</span>
+                <span>{isClaimBlocked ? 'Claim On File' : 'File Warranty Claim'}</span>
               </button>
             </div>
 
@@ -882,14 +896,28 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                                 </p>
                               </div>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => transferToClaim()}
-                              className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shrink-0 cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-sm"
-                            >
-                              <ShieldCheck className="w-4 h-4" />
-                              <span>File Warranty Claim</span>
-                            </button>
+                            {isClaimBlocked ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleClose()
+                                  onTrackClaims?.()
+                                }}
+                                className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-jds-surface-container border border-jds-outline-variant/60 hover:bg-jds-surface-container-high text-jds-on-surface text-xs font-semibold shrink-0 cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                              >
+                                <ShieldCheck className="w-4 h-4 text-jds-primary" />
+                                <span>View Existing Claim</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => transferToClaim()}
+                                className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shrink-0 cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                              >
+                                <ShieldCheck className="w-4 h-4" />
+                                <span>File Warranty Claim</span>
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -935,14 +963,28 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                     </button>
 
                     <div className="w-full sm:w-auto flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => transferToClaim()}
-                        className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>File Warranty Claim</span>
-                      </button>
+                      {isClaimBlocked ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleClose()
+                            onTrackClaims?.()
+                          }}
+                          className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-jds-surface-container border border-jds-outline-variant/60 text-jds-on-surface text-xs font-semibold hover:bg-jds-surface-container-high flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-jds-primary" />
+                          <span>View Existing Claim</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => transferToClaim()}
+                          className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-jds-primary text-jds-on-primary text-xs font-semibold hover:bg-jds-primary/90 flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                          <span>File Warranty Claim</span>
+                        </button>
+                      )}
 
                       <button
                         type="button"

@@ -29,7 +29,7 @@ export default function InspectorDrawer({
 
   return (
     <div
-      className="fixed inset-x-0 top-[54px] sm:top-[73px] bottom-0 z-50 flex justify-end bg-[#211b11]/30 backdrop-blur-[1px]"
+      className="fixed inset-x-0 top-[65px] sm:top-[73px] lg:top-[69px] bottom-0 !mt-0 z-50 flex justify-end bg-[#211b11]/30 backdrop-blur-[1px]"
       onClick={(e) => {
         if (e.target === e.currentTarget && !disableClose && onClose) {
           onClose()
@@ -78,11 +78,10 @@ export default function InspectorDrawer({
                     role="tab"
                     aria-selected={active}
                     onClick={() => onTabChange && onTabChange(tab.id)}
-                    className={`jds-focus-ring min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
-                      active
+                    className={`jds-focus-ring min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${active
                         ? 'bg-jds-surface-container-lowest border-jds-outline-variant text-jds-primary shadow-2xs'
                         : 'border-transparent text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container'
-                    }`}
+                      }`}
                   >
                     {tab.label}
                   </button>

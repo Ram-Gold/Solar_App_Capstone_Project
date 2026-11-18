@@ -8,13 +8,16 @@ import ViewModeToggle from './ViewModeToggle'
 const emptyOrder = { customer_name: '', address: '', product_name: '', quantity: 1, price: '', status: 'Pending' }
 const ORDER_STATUSES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled']
 
-export default function OrdersScreen() {
+export default function OrdersScreen({ initialSearch = '' }) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyOrder)
   const [editingId, setEditingId] = useState(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
+  useEffect(() => {
+    if (initialSearch) setSearchQuery(initialSearch)
+  }, [initialSearch])
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [sortOrder, setSortOrder] = useState('newest')
   const [viewMode, setViewMode] = useState('table') // 'table' | 'cards'

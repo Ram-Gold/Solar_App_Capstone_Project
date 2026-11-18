@@ -18,6 +18,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import CustomerPortalPage from './pages/CustomerPortalPage'
 import { ChatProvider } from './context/ChatContext'
 import { AuthProvider } from './context/AuthContext'
+import { ToastProvider } from './components/ui/toast'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function AppLayout() {
@@ -96,9 +97,11 @@ function App() {
     <ErrorBoundary>
       <Router>
         <AuthProvider>
-          <ChatProvider>
-            <AppLayout />
-          </ChatProvider>
+          <ToastProvider>
+            <ChatProvider>
+              <AppLayout />
+            </ChatProvider>
+          </ToastProvider>
         </AuthProvider>
       </Router>
     </ErrorBoundary>

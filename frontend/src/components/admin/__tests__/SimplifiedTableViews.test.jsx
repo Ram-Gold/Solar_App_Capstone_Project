@@ -169,9 +169,50 @@ describe('Simplified Table-Default & Card-Toggle Admin Views', () => {
       expect(screen.getByText('Carlos Mendoza')).toBeTruthy()
     })
 
+    const tableStatusSelect = screen.getByLabelText(/Claim claim-12 status/i)
+    expect(tableStatusSelect.className).toContain('bg-amber-500/10')
+
     fireEvent.click(screen.getByRole('button', { name: /Cards view/i }))
     expect(screen.queryByRole('table')).toBeNull()
     expect(screen.getByText('Carlos Mendoza')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /Board view/i }))
+    expect(screen.getByRole('heading', { name: 'Diagnostic Intake' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'For Verification / Checking' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Approved for Repair / Replacement' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Ready for Release / Pickup' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Handover Complete' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Declined' })).toBeTruthy()
+
+    expect(screen.queryByLabelText(/Move claim claim-12 status/i)).toBeNull()
+    const cardTitle = screen.getByText('Deye 8kW Inverter')
+    expect(cardTitle.closest('[draggable="true"]').className).toContain('border-l-amber-500')
+
+    const helpBtn = screen.getByRole('button', { name: /Next action for Diagnostic Intake/i })
+    fireEvent.click(helpBtn)
+    const tooltip = screen.getByRole('tooltip')
+    expect(tooltip.textContent).toContain('Next Action Required')
+    expect(tooltip.className).toContain('fixed')
+    expect(tooltip.className).toContain('bg-neutral-800')
+
+    // Stage a claim status change via Table view -> Save Changes -> Confirmation Modal
+    fireEvent.click(screen.getByRole('button', { name: /Table view/i }))
+    fireEvent.change(screen.getByLabelText(/Claim claim-12 status/i), {
+      target: { value: 'checking' },
+    })
+    const pendingBar = screen.getByRole('region', { name: /Pending claim stage changes/i })
+    expect(pendingBar.textContent).toContain('CLAIM-CLAIM-12')
+    expect(pendingBar.textContent).toContain('For Verification / Checking')
+    fireEvent.click(screen.getByRole('button', { name: /Save Changes \(1\)/i }))
+    expect(screen.getByText(/Confirm Claim Stage Changes/i)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Confirm & Save/i }))
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: /Pending claim stage changes/i })).toBeNull()
+    })
+
+    // Visible button to view Archived Claims
+    fireEvent.click(screen.getByRole('button', { name: /Archived Claims \(0\)/i }))
+    expect(screen.getByText(/No archived claims found/i)).toBeTruthy()
   })
 
   it('CustomersScreen defaults to Table view and toggles to Cards', async () => {

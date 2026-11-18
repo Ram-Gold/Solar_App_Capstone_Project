@@ -28,14 +28,13 @@ export default function ViewModeToggle({ value = 'table', onChange, extraModes =
             aria-pressed={active}
             title={`${mode.label} view`}
             aria-label={`${mode.label} view`}
-            className={`jds-focus-ring inline-flex h-full items-center gap-1.5 px-2.5 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+            className={`jds-focus-ring inline-flex h-full w-8 items-center justify-center rounded-md text-xs font-bold transition-colors cursor-pointer ${
               active
                 ? 'bg-jds-surface-container text-jds-primary'
                 : 'text-jds-on-surface-variant hover:text-jds-on-surface'
             }`}
           >
             {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
-            <span>{mode.label}</span>
           </button>
         )
       })}

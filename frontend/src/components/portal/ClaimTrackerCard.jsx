@@ -9,7 +9,7 @@ const LIFECYCLE_STEPS = [
 
 function getActiveStepIndex(status) {
   if (status === 'resolved' || status === 'archived') return 2
-  if (status === 'approved') return 1
+  if (status === 'approved' || status === 'ready_for_release') return 1
   if (status === 'rejected') return -1
   return 0
 }

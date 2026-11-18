@@ -987,6 +987,7 @@ export async function submitWarrantyClaim({
   const cleanDescription = sanitizeText(description, { maxLength: 2000, allowMultiline: true })
 
   // 1. Try secure RPC
+  let rpcErrored = false
   try {
     const { data: rpcResult, error: rpcErr } = await supabase.rpc('submit_warranty_claim', {
       p_token: token,
@@ -999,11 +1000,45 @@ export async function submitWarrantyClaim({
     if (!rpcErr && rpcResult?.success) {
       return { success: true, claimId: rpcResult.claim_id }
     }
+    if (!rpcErr && rpcResult && rpcResult.success === false) {
+      throw new Error(rpcResult.error || 'A warranty claim has already been filed for this purchased product.')
+    }
+    if (rpcErr) rpcErrored = true
   } catch (err) {
+    if (!rpcErrored && err?.message && !/function|rpc|schema/i.test(err.message)) {
+      throw err
+    }
     console.warn('RPC submit_warranty_claim failed, trying direct insert fallback:', err)
   }
 
-  // 2. Direct insert fallback
+  // 2. Direct insert fallback (account-level + per-purchase duplicate claim guard)
+  const { data: purchaseRow } = await supabase
+    .from('customer_purchases')
+    .select('customer_id')
+    .eq('id', purchaseId)
+    .maybeSingle()
+
+  let purchaseIdsToCheck = [purchaseId]
+  if (purchaseRow?.customer_id) {
+    const { data: accountPurchases } = await supabase
+      .from('customer_purchases')
+      .select('id')
+      .eq('customer_id', purchaseRow.customer_id)
+    if (Array.isArray(accountPurchases) && accountPurchases.length > 0) {
+      purchaseIdsToCheck = accountPurchases.map((p) => p.id)
+    }
+  }
+
+  const { data: existingClaims } = await supabase
+    .from('warranty_claims')
+    .select('id')
+    .in('purchase_id', purchaseIdsToCheck)
+    .limit(1)
+
+  if (Array.isArray(existingClaims) && existingClaims.length > 0) {
+    throw new Error('A warranty claim has already been filed for your account.')
+  }
+
   const { data, error } = await supabase
     .from('warranty_claims')
     .insert({

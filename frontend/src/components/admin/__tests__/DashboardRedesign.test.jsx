@@ -164,12 +164,12 @@ describe('JD Solar Dashboard Redesign', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  it('DashboardScreen defaults to table view, opens InspectorDrawer on row click, and gates valuation/prices for staff', async () => {
+  it('DashboardScreen defaults to table view, opens InspectorDrawer on row click, and gates prices/claims for staff', async () => {
     const { rerender } = render(<DashboardScreen onNavigate={vi.fn()} />)
 
     await waitFor(() => {
       expect(screen.getByText('Operations Overview')).toBeTruthy()
-      expect(screen.getByText('Inventory Valuation')).toBeTruthy()
+      expect(screen.queryByText('Inventory Valuation')).toBeNull()
       expect(screen.getByRole('table')).toBeTruthy()
     })
 
@@ -181,7 +181,7 @@ describe('JD Solar Dashboard Redesign', () => {
       expect(screen.getByText('Branch Stock Breakdown')).toBeTruthy()
     })
 
-    // Staff mode swaps Inventory Valuation for Open Warranty Claims & hides price_range
+    // Staff mode shows Open Warranty Claims & hides price_range
     mockRole.current = 'staff'
     rerender(<DashboardScreen onNavigate={vi.fn()} />)
 

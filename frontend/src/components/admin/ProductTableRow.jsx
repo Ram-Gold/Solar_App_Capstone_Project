@@ -32,12 +32,13 @@ const ProductTableRow = memo(function ProductTableRow({
   const badge = getStockBadgeConfig(p)
   const stockQty = badge.quantity
   const archived = isProductArchived(p)
+  const staged = p._staged
 
   return (
     <TableRow
       data-state={isSelected ? 'selected' : undefined}
       onClick={() => onInspect(p, 'inspect')}
-      className={`cursor-pointer hover:bg-jds-surface-container-low/40 transition-colors ${badge.rowBorderClass} ${badge.rowBgClass}`}
+      className={`cursor-pointer hover:bg-jds-surface-container-low/40 transition-colors ${badge.rowBorderClass} ${badge.rowBgClass} ${staged?.isPending ? 'border-l-[3px] border-l-amber-500 bg-amber-500/[0.04]' : ''}`}
     >
       {/* Selection Checkbox */}
       <TableCell className="w-10 pl-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -142,6 +143,11 @@ const ProductTableRow = memo(function ProductTableRow({
               {p.sales || 0}
             </span>
           </button>
+          {staged?.salesDelta !== 0 && staged?.salesDelta !== undefined && (
+            <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold">
+              {staged.salesDelta > 0 ? `+${staged.salesDelta}` : staged.salesDelta}
+            </span>
+          )}
 
           <button
             type="button"
@@ -180,6 +186,11 @@ const ProductTableRow = memo(function ProductTableRow({
               {stockQty} unit{stockQty === 1 ? '' : 's'}
             </span>
           </button>
+          {staged?.stockDelta !== 0 && staged?.stockDelta !== undefined && (
+            <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold">
+              {staged.stockDelta > 0 ? `+${staged.stockDelta}` : staged.stockDelta}
+            </span>
+          )}
 
           <button
             type="button"

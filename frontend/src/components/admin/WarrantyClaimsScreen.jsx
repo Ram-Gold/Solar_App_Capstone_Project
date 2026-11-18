@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ShieldCheck,
   Search,
@@ -26,9 +27,13 @@ import {
   Archive,
   Trash2,
   RotateCcw,
-  Inbox
+  Inbox,
+  HelpCircle,
+  Save,
+  Lock
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { useToast } from '../ui/toast'
 import {
   fetchAllWarrantyClaims,
   updateClaimStatus,
@@ -36,38 +41,87 @@ import {
   restoreWarrantyClaim,
   deleteWarrantyClaim
 } from '../../lib/customerService'
-import { formatDate, getClaimStatusMeta, isWarrantyActive, getRemainingDays } from '../../lib/warrantyUtils'
+import {
+  CLAIM_STATUSES,
+  formatDate,
+  getClaimStatusMeta,
+  isWarrantyActive,
+  getRemainingDays,
+  normalizeClaimStatus,
+  isCompletedClaimStage,
+  isClaimTransitionAllowed,
+  appendAdminOverrideNote,
+} from '../../lib/warrantyUtils'
 import useModalBehavior from '../../hooks/useModalBehavior'
 import InspectorDrawer from './InspectorDrawer'
 import ViewModeToggle from './ViewModeToggle'
+import { Button } from '../ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
 
 const KANBAN_COLUMNS = [
   {
     id: 'in_review',
-    title: 'Diagnostic Intake',
-    description: 'Triage & bench inspection in progress',
+    title: CLAIM_STATUSES.in_review.label,
+    description: 'Triage & coverage check',
+    nextAction: CLAIM_STATUSES.in_review.nextAction,
     accentBorder: 'border-amber-500/40',
+    cardAccent: 'border-l-[3px] border-l-amber-500',
     headerBg: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
     countBadge: 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30',
     icon: AlertTriangle,
     emptyText: 'No tickets in diagnostic intake',
   },
   {
+    id: 'checking',
+    title: CLAIM_STATUSES.checking.label,
+    description: 'Bench test & fault verification',
+    nextAction: CLAIM_STATUSES.checking.nextAction,
+    accentBorder: 'border-sky-500/40',
+    cardAccent: 'border-l-[3px] border-l-sky-500',
+    headerBg: 'bg-sky-500/10 text-sky-700 dark:text-sky-400',
+    countBadge: 'bg-sky-500/20 text-sky-700 dark:text-sky-300 border-sky-500/30',
+    icon: Search,
+    emptyText: 'No tickets under verification',
+  },
+  {
     id: 'approved',
-    title: 'Approved for Release',
+    title: CLAIM_STATUSES.approved.label,
     description: 'Replacement or repair authorized',
+    nextAction: CLAIM_STATUSES.approved.nextAction,
     accentBorder: 'border-emerald-500/40',
+    cardAccent: 'border-l-[3px] border-l-emerald-500',
     headerBg: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
     countBadge: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
     icon: CheckCircle2,
-    emptyText: 'No tickets awaiting customer pickup',
+    emptyText: 'No tickets awaiting repair or allocation',
+  },
+  {
+    id: 'ready_for_release',
+    title: CLAIM_STATUSES.ready_for_release.label,
+    description: 'Staged at branch for customer pickup',
+    nextAction: CLAIM_STATUSES.ready_for_release.nextAction,
+    accentBorder: 'border-indigo-500/40',
+    cardAccent: 'border-l-[3px] border-l-indigo-500',
+    headerBg: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400',
+    countBadge: 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
+    icon: Package,
+    emptyText: 'No tickets ready for pickup',
   },
   {
     id: 'resolved',
-    title: 'Handover Complete',
-    description: 'Replacement delivered / case closed',
+    title: CLAIM_STATUSES.resolved.label,
+    description: 'Unit handed over / case closed',
+    nextAction: CLAIM_STATUSES.resolved.nextAction,
     accentBorder: 'border-teal-500/40',
+    cardAccent: 'border-l-[3px] border-l-teal-500',
     headerBg: 'bg-teal-500/10 text-teal-700 dark:text-teal-400',
     countBadge: 'bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-500/30',
     icon: ShieldCheck,
@@ -75,9 +129,11 @@ const KANBAN_COLUMNS = [
   },
   {
     id: 'rejected',
-    title: 'Declined',
+    title: CLAIM_STATUSES.rejected.label,
     description: 'Outside terms or warranty void',
+    nextAction: CLAIM_STATUSES.rejected.nextAction,
     accentBorder: 'border-rose-500/40',
+    cardAccent: 'border-l-[3px] border-l-rose-500',
     headerBg: 'bg-rose-500/10 text-rose-700 dark:text-rose-400',
     countBadge: 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30',
     icon: XCircle,
@@ -85,13 +141,85 @@ const KANBAN_COLUMNS = [
   },
 ]
 
-export default function WarrantyClaimsScreen() {
+function NextActionTooltip({ stageTitle, nextAction, align = 'right' }) {
+  const [open, setOpen] = useState(false)
+  const [coords, setCoords] = useState({ top: 0, left: 0 })
+  const buttonRef = useRef(null)
+
+  const updatePosition = () => {
+    if (!buttonRef.current) return
+    const rect = buttonRef.current.getBoundingClientRect()
+    const tooltipWidth = 240
+    const padding = 12
+    const rawLeft = align === 'left' ? rect.left : rect.right - tooltipWidth
+    const clampedLeft = Math.max(
+      padding,
+      Math.min(rawLeft, (typeof window !== 'undefined' ? window.innerWidth : 1200) - tooltipWidth - padding)
+    )
+    setCoords({
+      top: rect.bottom + 6,
+      left: clampedLeft,
+    })
+  }
+
+  const handleOpen = () => {
+    updatePosition()
+    setOpen(true)
+  }
+
+  if (!nextAction) return null
+
+  return (
+    <div
+      className="relative inline-flex items-center"
+      onMouseEnter={handleOpen}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-label={`Next action for ${stageTitle}`}
+        aria-expanded={open}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (open) setOpen(false)
+          else handleOpen()
+        }}
+        onFocus={handleOpen}
+        onBlur={() => setOpen(false)}
+        className="p-1 rounded-full text-current/70 hover:text-current hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-neutral-400/50 transition-colors cursor-pointer"
+      >
+        <HelpCircle className="w-3.5 h-3.5" />
+      </button>
+      {open && typeof document !== 'undefined' && createPortal(
+        <div
+          role="tooltip"
+          style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
+          className="fixed z-[9999] w-60 px-3 py-2 rounded-lg bg-neutral-800 dark:bg-neutral-900 text-neutral-100 border border-neutral-700/80 shadow-lg text-left pointer-events-none"
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 mb-0.5">
+            Next Action Required
+          </p>
+          <p className="text-xs text-neutral-100 leading-relaxed">
+            {nextAction}
+          </p>
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
+export default function WarrantyClaimsScreen({ initialSearch = '' }) {
   const { role } = useAuth()
   const isAdmin = role === 'admin'
 
   const [claims, setClaims] = useState([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
+  useEffect(() => {
+    if (initialSearch) setSearchQuery(initialSearch)
+  }, [initialSearch])
   const [branchFilter, setBranchFilter] = useState('all') // 'all' | 'Cavite' | 'Quiapo'
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'in_review' | 'approved' | 'resolved' | 'rejected'
   const [sortOrder, setSortOrder] = useState('newest') // 'newest' | 'oldest'
@@ -140,7 +268,16 @@ export default function WarrantyClaimsScreen() {
   const [draggingClaimId, setDraggingClaimId] = useState(null)
   const [dragOverColumnId, setDragOverColumnId] = useState(null)
   const [mobileActiveTab, setMobileActiveTab] = useState('in_review')
-  const [statusToast, setStatusToast] = useState('')
+  const [pendingClaimChanges, setPendingClaimChanges] = useState({})
+  const [claimConfirmOpen, setClaimConfirmOpen] = useState(false)
+  const [savingStagedClaims, setSavingStagedClaims] = useState(false)
+  const [overridePrompt, setOverridePrompt] = useState(null) // { claim, baseStatus, targetStatus }
+  const [overrideReason, setOverrideReason] = useState('')
+  const [drawerOverrideReason, setDrawerOverrideReason] = useState('')
+  const { showToast } = useToast()
+
+  const pendingClaimList = Object.values(pendingClaimChanges)
+  const pendingClaimCount = pendingClaimList.length
 
   const loadClaims = async () => {
     try {
@@ -165,6 +302,7 @@ export default function WarrantyClaimsScreen() {
       const rawStatus = activeModalClaim.status || 'in_review'
       setModalStatus(rawStatus === 'pending' ? 'in_review' : rawStatus)
       setModalNotes(activeModalClaim.staff_notes || '')
+      setDrawerOverrideReason('')
       setModalSuccessMsg('')
       setCopiedPhone(false)
     }
@@ -176,28 +314,55 @@ export default function WarrantyClaimsScreen() {
 
   const handleSaveModalChanges = async () => {
     if (!activeModalClaim) return
+    const baseStatus = normalizeClaimStatus(activeModalClaim.status)
+    const transition = isClaimTransitionAllowed({
+      fromStatus: baseStatus,
+      toStatus: modalStatus,
+      isAdmin,
+    })
+
+    if (modalStatus !== baseStatus && !transition.allowed) {
+      showToast('Transition Locked', 'Warranty claims can only move forward.', 'warning')
+      return
+    }
+    if (transition.requiresOverride && !drawerOverrideReason.trim()) {
+      showToast('Override Reason Required', 'Enter a reason before reversing a completed or closed stage.', 'warning')
+      return
+    }
+
+    const finalNotes = transition.requiresOverride
+      ? appendAdminOverrideNote(modalNotes, {
+          fromStatus: baseStatus,
+          toStatus: modalStatus,
+          reason: drawerOverrideReason,
+        })
+      : modalNotes
+
     try {
       setModalSaving(true)
-      await updateClaimStatus(activeModalClaim.id, modalStatus, modalNotes)
+      await updateClaimStatus(activeModalClaim.id, modalStatus, finalNotes)
 
       // Update local state
       setClaims((prev) =>
         prev.map((c) =>
           c.id === activeModalClaim.id
-            ? { ...c, status: modalStatus, staff_notes: modalNotes, updated_at: new Date().toISOString() }
+            ? { ...c, status: modalStatus, staff_notes: finalNotes, updated_at: new Date().toISOString() }
             : c
         )
       )
 
       setActiveModalClaim((prev) =>
-        prev ? { ...prev, status: modalStatus, staff_notes: modalNotes } : null
+        prev ? { ...prev, status: modalStatus, staff_notes: finalNotes } : null
       )
+      setModalNotes(finalNotes)
+      setDrawerOverrideReason('')
 
       setModalSuccessMsg('Ticket updated successfully.')
+      showToast('Ticket Updated', `CLAIM-${activeModalClaim.id.slice(0, 8).toUpperCase()} saved.`, 'success')
       setTimeout(() => setModalSuccessMsg(''), 3000)
     } catch (err) {
       console.error('Failed to update ticket:', err)
-      alert('Error updating claim: ' + err.message)
+      showToast('Update Failed', err.message || 'Could not update claim.', 'error')
     } finally {
       setModalSaving(false)
     }
@@ -227,8 +392,7 @@ export default function WarrantyClaimsScreen() {
         setActiveModalClaim((prev) => (prev ? { ...prev, status: 'archived' } : null))
       }
 
-      setStatusToast(`Ticket CLAIM-${claimToArchive.id.slice(0, 8).toUpperCase()} moved to Archived Tickets.`)
-      setTimeout(() => setStatusToast(''), 4000)
+      showToast('Ticket Archived', `Ticket CLAIM-${claimToArchive.id.slice(0, 8).toUpperCase()} moved to Archived Tickets.`, 'info')
       setClaimToArchive(null)
     } catch (err) {
       console.error('Failed to archive ticket:', err)
@@ -262,8 +426,7 @@ export default function WarrantyClaimsScreen() {
         setActiveModalClaim((prev) => (prev ? { ...prev, status: targetStatus } : null))
       }
 
-      setStatusToast(`Ticket CLAIM-${claimToRestore.id.slice(0, 8).toUpperCase()} restored to Active Board.`)
-      setTimeout(() => setStatusToast(''), 4000)
+      showToast('Ticket Restored', `Ticket CLAIM-${claimToRestore.id.slice(0, 8).toUpperCase()} restored to Active Board.`, 'success')
       setClaimToRestore(null)
     } catch (err) {
       console.error('Failed to restore ticket:', err)
@@ -291,8 +454,7 @@ export default function WarrantyClaimsScreen() {
         handleCloseModal()
       }
 
-      setStatusToast(`Ticket CLAIM-${claimToDelete.id.slice(0, 8).toUpperCase()} permanently deleted.`)
-      setTimeout(() => setStatusToast(''), 4000)
+      showToast('Ticket Deleted', `Ticket CLAIM-${claimToDelete.id.slice(0, 8).toUpperCase()} permanently deleted.`, 'info')
       setClaimToDelete(null)
     } catch (err) {
       console.error('Failed to delete ticket:', err)
@@ -302,38 +464,122 @@ export default function WarrantyClaimsScreen() {
     }
   }
 
-  // Handle Drag & Drop status updates
-  const handleDropClaim = async (claimId, targetStatus) => {
+  // Stage Drag & Drop / Quick Select status updates (forward-only for staff; admin override for reversals)
+  const handleDropClaim = (claimId, targetStatus) => {
     const claim = claims.find((c) => c.id === claimId)
     if (!claim) return
-    const prevStatus = claim.status || 'in_review'
-    if (prevStatus === targetStatus || (prevStatus === 'pending' && targetStatus === 'in_review')) return
+    const baseStatus = normalizeClaimStatus(claim.status)
 
-    const targetCol = KANBAN_COLUMNS.find((col) => col.id === targetStatus)
-    const targetTitle = targetCol?.title || targetStatus
+    if (targetStatus === baseStatus) {
+      setPendingClaimChanges((prev) => {
+        if (!prev[claimId]) return prev
+        const next = { ...prev }
+        delete next[claimId]
+        return next
+      })
+      return
+    }
 
-    // Optimistic UI update
-    setClaims((prev) =>
-      prev.map((c) =>
-        c.id === claimId
-          ? { ...c, status: targetStatus, updated_at: new Date().toISOString() }
-          : c
+    const { allowed, requiresOverride } = isClaimTransitionAllowed({
+      fromStatus: baseStatus,
+      toStatus: targetStatus,
+      isAdmin,
+    })
+
+    if (!allowed) {
+      showToast(
+        'Transition Locked',
+        'Warranty claims can only move forward. Backward movement is restricted.',
+        'warning'
       )
-    )
+      return
+    }
 
-    setStatusToast(`Ticket CLAIM-${claimId.slice(0, 8).toUpperCase()} moved to ${targetTitle}`)
-    setTimeout(() => setStatusToast(''), 4000)
+    if (requiresOverride) {
+      setOverridePrompt({ claim, baseStatus, targetStatus })
+      setOverrideReason('')
+      return
+    }
+
+    setPendingClaimChanges((prev) => ({
+      ...prev,
+      [claimId]: {
+        claim,
+        baseStatus,
+        targetStatus,
+        overrideReason: null,
+      },
+    }))
+  }
+
+  const handleConfirmAdminOverride = () => {
+    if (!overridePrompt || !overrideReason.trim()) return
+    const { claim, baseStatus, targetStatus } = overridePrompt
+    setPendingClaimChanges((prev) => ({
+      ...prev,
+      [claim.id]: {
+        claim,
+        baseStatus,
+        targetStatus,
+        overrideReason: overrideReason.trim(),
+      },
+    }))
+    setOverridePrompt(null)
+    setOverrideReason('')
+  }
+
+  const handleDiscardClaimChanges = () => {
+    setPendingClaimChanges({})
+    setClaimConfirmOpen(false)
+  }
+
+  const handleConfirmSaveClaimChanges = async () => {
+    if (pendingClaimList.length === 0) return
+    setSavingStagedClaims(true)
+    const nowIso = new Date().toISOString()
+    const updatedMap = new Map()
 
     try {
-      const { error } = await updateClaimStatus(claimId, targetStatus, claim.staff_notes || '')
-      if (error) throw error
-    } catch (err) {
-      console.error('Failed to update ticket status via drag-and-drop:', err)
-      // Rollback on failure
+      for (const entry of pendingClaimList) {
+        const finalNotes = entry.overrideReason
+          ? appendAdminOverrideNote(entry.claim.staff_notes, {
+              fromStatus: entry.baseStatus,
+              toStatus: entry.targetStatus,
+              reason: entry.overrideReason,
+            })
+          : entry.claim.staff_notes || ''
+
+        const { error } = await updateClaimStatus(
+          entry.claim.id,
+          entry.targetStatus,
+          finalNotes
+        )
+        if (error) throw error
+        updatedMap.set(entry.claim.id, {
+          status: entry.targetStatus,
+          staff_notes: finalNotes,
+        })
+      }
+
       setClaims((prev) =>
-        prev.map((c) => (c.id === claimId ? { ...c, status: prevStatus } : c))
+        prev.map((c) =>
+          updatedMap.has(c.id)
+            ? { ...c, ...updatedMap.get(c.id), updated_at: nowIso }
+            : c
+        )
       )
-      alert('Failed to update ticket status: ' + (err.message || 'Server error'))
+      setPendingClaimChanges({})
+      setClaimConfirmOpen(false)
+      showToast(
+        'Changes Saved',
+        `${pendingClaimList.length} warranty ${pendingClaimList.length === 1 ? 'claim' : 'claims'} updated successfully.`,
+        'success'
+      )
+    } catch (err) {
+      console.error('Failed to save staged claim changes:', err)
+      showToast('Save Failed', err.message || 'Could not save claim stage changes.', 'error')
+    } finally {
+      setSavingStagedClaims(false)
     }
   }
 
@@ -344,12 +590,18 @@ export default function WarrantyClaimsScreen() {
     setTimeout(() => setCopiedPhone(false), 2000)
   }
 
+  // Merge staged status previews into claims for Table, Cards, and Board views
+  const displayClaims = claims.map((c) => {
+    const staged = pendingClaimChanges[c.id]
+    return staged ? { ...c, status: staged.targetStatus, _isStaged: true } : c
+  })
+
   // Calculate totals
-  const activeClaimsCount = claims.filter((c) => (c.status || 'in_review') !== 'archived').length
-  const archivedClaimsCount = claims.filter((c) => (c.status || 'in_review') === 'archived').length
+  const activeClaimsCount = displayClaims.filter((c) => (c.status || 'in_review') !== 'archived').length
+  const archivedClaimsCount = displayClaims.filter((c) => (c.status || 'in_review') === 'archived').length
 
   // Filter & sort claims based on activeView, branch, status, search
-  const filteredClaims = claims
+  const filteredClaims = displayClaims
     .filter((c) => {
       const isArchived = (c.status || 'in_review') === 'archived'
       if (activeView === 'board' && isArchived) return false
@@ -405,21 +657,40 @@ export default function WarrantyClaimsScreen() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-lg sm:text-xl font-bold text-jds-on-surface">Claims</h1>
-          <select
+          <div
+            role="group"
             aria-label="Claims scope"
-            value={activeView}
-            onChange={(e) => {
-              const next = e.target.value
-              setActiveView(next)
-              if (next === 'archived' && viewMode === 'board') {
-                setViewMode('table')
-              }
-            }}
-            className="jds-control font-bold cursor-pointer"
+            className="inline-flex h-9 items-center rounded-lg border border-jds-outline-variant bg-jds-surface p-0.5 shrink-0"
           >
-            <option value="board">Active Claims ({activeClaimsCount})</option>
-            <option value="archived">Archived Claims ({archivedClaimsCount})</option>
-          </select>
+            <button
+              type="button"
+              onClick={() => setActiveView('board')}
+              aria-pressed={activeView !== 'archived'}
+              className={`jds-focus-ring inline-flex h-full items-center gap-1.5 px-3 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+                activeView !== 'archived'
+                  ? 'bg-jds-surface-container text-jds-primary'
+                  : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+              }`}
+            >
+              <span>Active Claims ({activeClaimsCount})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveView('archived')
+                if (viewMode === 'board') setViewMode('table')
+              }}
+              aria-pressed={activeView === 'archived'}
+              className={`jds-focus-ring inline-flex h-full items-center gap-1.5 px-3 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+                activeView === 'archived'
+                  ? 'bg-jds-surface-container text-jds-primary'
+                  : 'text-jds-on-surface-variant hover:text-jds-on-surface'
+              }`}
+            >
+              <Archive className="w-3.5 h-3.5 shrink-0" />
+              <span>Archived Claims ({archivedClaimsCount})</span>
+            </button>
+          </div>
         </div>
 
         <button
@@ -523,22 +794,6 @@ export default function WarrantyClaimsScreen() {
         </div>
       </div>
 
-      {/* Drag Status Toast Notification */}
-      {statusToast && (
-        <div className="p-3.5 rounded-xl bg-jds-primary/10 border border-jds-primary/30 text-jds-primary text-xs font-semibold flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>{statusToast}</span>
-          </div>
-          <button
-            onClick={() => setStatusToast('')}
-            className="p-1 hover:bg-jds-primary/20 rounded-md transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
       {/* Main Content: Table (default) | Cards | Board */}
       {loading ? (
         <div className="py-24 text-center space-y-3">
@@ -611,13 +866,25 @@ export default function WarrantyClaimsScreen() {
                               aria-label={`Claim ${claim.id.slice(0, 8)} status`}
                               value={claim.status === 'pending' ? 'in_review' : (claim.status || 'in_review')}
                               onChange={(e) => handleDropClaim(claim.id, e.target.value)}
-                              className={`rounded-lg border px-2.5 py-1 text-xs font-bold cursor-pointer focus:outline-none ${statusMeta?.badgeClass || 'bg-jds-surface border-jds-outline-variant/40 text-jds-on-surface'}`}
+                              className={`rounded-lg border px-2.5 py-1 text-xs font-bold cursor-pointer focus:outline-none ${statusMeta?.color || 'bg-jds-surface border-jds-outline-variant/40 text-jds-on-surface'}`}
                             >
-                              {KANBAN_COLUMNS.map((opt) => (
-                                <option key={opt.id} value={opt.id}>
-                                  {opt.title}
-                                </option>
-                              ))}
+                              {KANBAN_COLUMNS.map((opt) => {
+                                const current = normalizeClaimStatus(claim.status)
+                                const { allowed } = isClaimTransitionAllowed({
+                                  fromStatus: current,
+                                  toStatus: opt.id,
+                                  isAdmin,
+                                })
+                                return (
+                                  <option
+                                    key={opt.id}
+                                    value={opt.id}
+                                    disabled={opt.id !== current && !allowed}
+                                  >
+                                    {opt.title}
+                                  </option>
+                                )
+                              })}
                             </select>
                           )}
                         </TableCell>
@@ -733,11 +1000,25 @@ export default function WarrantyClaimsScreen() {
                       aria-label={`Move claim ${claim.id.slice(0, 8)} status`}
                       value={claim.status === 'pending' ? 'in_review' : (claim.status || 'in_review')}
                       onChange={(e) => handleDropClaim(claim.id, e.target.value)}
-                      className="flex-1 rounded-lg border border-jds-outline-variant bg-jds-surface px-2.5 py-1.5 text-xs font-semibold text-jds-on-surface cursor-pointer"
+                      className={`flex-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold cursor-pointer ${getClaimStatusMeta(claim.status).color || 'border-jds-outline-variant bg-jds-surface text-jds-on-surface'}`}
                     >
-                      {KANBAN_COLUMNS.map((opt) => (
-                        <option key={opt.id} value={opt.id}>{opt.title}</option>
-                      ))}
+                      {KANBAN_COLUMNS.map((opt) => {
+                        const current = normalizeClaimStatus(claim.status)
+                        const { allowed } = isClaimTransitionAllowed({
+                          fromStatus: current,
+                          toStatus: opt.id,
+                          isAdmin,
+                        })
+                        return (
+                          <option
+                            key={opt.id}
+                            value={opt.id}
+                            disabled={opt.id !== current && !allowed}
+                          >
+                            {opt.title}
+                          </option>
+                        )
+                      })}
                     </select>
                     <button
                       type="button"
@@ -924,19 +1205,36 @@ export default function WarrantyClaimsScreen() {
             })}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
+          <div className="flex flex-col md:flex-row md:overflow-x-auto gap-4 pb-2 items-stretch md:items-start">
             {KANBAN_COLUMNS.map((col) => {
               const ColumnIcon = col.icon
               const colClaims = claimsByColumn[col.id] || []
               const isDropTarget = dragOverColumnId === col.id
               const isMobileVisible = mobileActiveTab === col.id
+              const draggedClaim = draggingClaimId
+                ? displayClaims.find((c) => c.id === draggingClaimId)
+                : null
+              const dragTransition = draggedClaim
+                ? isClaimTransitionAllowed({
+                    fromStatus: draggedClaim.status,
+                    toStatus: col.id,
+                    isAdmin,
+                  })
+                : { allowed: true, requiresOverride: false }
+              const isLockedDrop = Boolean(
+                isDropTarget &&
+                  draggingClaimId &&
+                  draggedClaim &&
+                  normalizeClaimStatus(draggedClaim.status) !== col.id &&
+                  !dragTransition.allowed
+              )
 
               return (
                 <div
                   key={col.id}
                   onDragOver={(e) => {
                     e.preventDefault()
-                    e.dataTransfer.dropEffect = 'move'
+                    e.dataTransfer.dropEffect = isLockedDrop ? 'none' : 'move'
                     if (dragOverColumnId !== col.id) setDragOverColumnId(col.id)
                   }}
                   onDragEnter={(e) => {
@@ -954,18 +1252,21 @@ export default function WarrantyClaimsScreen() {
                     const claimId = e.dataTransfer.getData('text/plain') || draggingClaimId
                     if (claimId) handleDropClaim(claimId, col.id)
                   }}
-                  className={`${isMobileVisible ? 'flex' : 'hidden md:flex'} flex-col bg-jds-surface-container-low/40 rounded-2xl border transition-all md:min-w-[280px] max-w-full shadow-2xs overflow-hidden ${isDropTarget
-                      ? 'border-jds-primary ring-2 ring-jds-primary/60 bg-jds-primary/[0.04]'
-                      : 'border-jds-outline-variant/30'
+                  className={`${isMobileVisible ? 'flex' : 'hidden md:flex'} flex-col bg-jds-surface-container-low/40 rounded-2xl border transition-all md:w-[275px] lg:w-[285px] md:shrink-0 max-w-full shadow-2xs overflow-visible ${isLockedDrop
+                      ? 'border-rose-500/50 ring-2 ring-rose-500/30 bg-rose-500/[0.03]'
+                      : isDropTarget
+                        ? 'border-jds-primary ring-2 ring-jds-primary/60 bg-jds-primary/[0.04]'
+                        : 'border-jds-outline-variant/30'
                     }`}
                 >
                   {/* Column Header */}
-                  <div className={`p-4 border-b border-jds-outline-variant/30 flex items-center justify-between ${col.headerBg}`}>
-                    <div className="flex items-center gap-2">
+                  <div className={`p-4 rounded-t-2xl border-b border-jds-outline-variant/30 flex items-center justify-between gap-2 ${col.headerBg}`}>
+                    <div className="flex items-center gap-2 min-w-0">
                       <ColumnIcon className="w-4 h-4 shrink-0" />
-                      <h2 className="text-xs font-bold uppercase tracking-wider">{col.title}</h2>
+                      <h2 className="text-xs font-bold uppercase tracking-wider leading-tight">{col.title}</h2>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <NextActionTooltip stageTitle={col.title} nextAction={col.nextAction} align="right" />
                       <span className={`px-2 py-0.5 rounded-full text-xs font-extrabold border ${col.countBadge}`}>
                         {colClaims.length}
                       </span>
@@ -976,10 +1277,17 @@ export default function WarrantyClaimsScreen() {
                   <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 md:min-h-[460px] md:max-h-[calc(100vh-270px)] md:overflow-y-auto md:pr-2">
                     {/* Drop zone placeholder indicator when dragged over */}
                     {isDropTarget && draggingClaimId && (
-                      <div className="p-3.5 rounded-xl border-2 border-dashed border-jds-primary/60 bg-jds-primary/10 text-center text-xs font-semibold text-jds-primary animate-pulse flex items-center justify-center gap-2">
-                        <ColumnIcon className="w-4 h-4" />
-                        <span>Drop to move to {col.title}</span>
-                      </div>
+                      isLockedDrop ? (
+                        <div className="p-3.5 rounded-xl border-2 border-dashed border-rose-500/50 bg-rose-500/10 text-center text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center justify-center gap-2">
+                          <Lock className="w-4 h-4 shrink-0" />
+                          <span>Locked (forward-only)</span>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-xl border-2 border-dashed border-jds-primary/60 bg-jds-primary/10 text-center text-xs font-semibold text-jds-primary flex items-center justify-center gap-2">
+                          <ColumnIcon className="w-4 h-4" />
+                          <span>Drop to move to {col.title}</span>
+                        </div>
+                      )
                     )}
 
                     {colClaims.length === 0 ? (
@@ -995,12 +1303,18 @@ export default function WarrantyClaimsScreen() {
                         const warrantyActive = isWarrantyActive(purchase?.warranty_expires_at)
                         const daysLeft = getRemainingDays(purchase?.warranty_expires_at)
                         const isDragging = draggingClaimId === claim.id
+                        const normStatus = normalizeClaimStatus(claim.status)
+                        const isTerminalForStaff = !isAdmin && (normStatus === 'resolved' || normStatus === 'rejected')
 
                         return (
                           <div
                             key={claim.id}
-                            draggable={true}
+                            draggable={!isTerminalForStaff}
                             onDragStart={(e) => {
+                              if (isTerminalForStaff) {
+                                e.preventDefault()
+                                return
+                              }
                               e.dataTransfer.setData('text/plain', claim.id)
                               e.dataTransfer.effectAllowed = 'move'
                               setDraggingClaimId(claim.id)
@@ -1010,131 +1324,76 @@ export default function WarrantyClaimsScreen() {
                               setDragOverColumnId(null)
                             }}
                             onClick={() => handleOpenModal(claim)}
-                            className={`group relative rounded-xl border bg-jds-surface p-4 transition-all cursor-grab active:cursor-grabbing space-y-3.5 select-none ${isDragging
+                            className={`group relative rounded-lg border bg-jds-surface p-3 transition-all ${isTerminalForStaff ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'} space-y-2 select-none overflow-hidden ${col.cardAccent || ''} ${isDragging
                                 ? 'border-jds-primary ring-2 ring-jds-primary shadow-xl z-20 opacity-100'
-                                : 'border-jds-outline-variant/40 shadow-xs hover:shadow-md hover:border-jds-primary/60'
+                                : 'border-jds-outline-variant/40 shadow-2xs hover:shadow-sm hover:border-jds-primary/50'
                               }`}
                           >
-                            {/* Card Header: Drag Handle + Claim ID + Date */}
-                            <div className="flex items-center justify-between text-xs pb-2 border-b border-jds-outline-variant/20">
-                              <div className="flex items-center gap-1.5">
-                                <GripVertical className="w-3.5 h-3.5 text-jds-on-surface-variant/40 group-hover:text-jds-primary transition-colors shrink-0" />
-                                <span className="font-mono text-[11px] font-bold text-jds-primary bg-jds-primary/10 px-2 py-0.5 rounded-md border border-jds-primary/20">
+                            {/* Row 1: Identifier + Branch & Date */}
+                            <div className="flex items-center justify-between gap-2 text-[11px]">
+                              <div className="flex items-center gap-1 min-w-0">
+                                <GripVertical className="w-3.5 h-3.5 text-jds-on-surface-variant/35 group-hover:text-jds-primary transition-colors shrink-0" />
+                                <span className="font-mono font-semibold text-jds-on-surface-variant truncate">
                                   CLAIM-{claim.id.slice(0, 8).toUpperCase()}
                                 </span>
                               </div>
-                              <span className="text-[11px] text-jds-on-surface-variant/70 font-medium">
-                                {formatDate(claim.created_at)}
-                              </span>
-                            </div>
-
-                            {/* Customer & Branch */}
-                            <div className="space-y-0.5">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-jds-on-surface flex items-center gap-1.5 truncate">
-                                  <User className="w-3.5 h-3.5 text-jds-on-surface-variant shrink-0" />
-                                  <span className="truncate">{customer?.full_name || 'Customer'}</span>
-                                </span>
-                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-jds-surface-container text-jds-on-surface-variant border border-jds-outline-variant/30 shrink-0">
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-jds-surface-container text-jds-on-surface-variant border border-jds-outline-variant/30">
                                   {purchase?.branch_location || 'Cavite'}
                                 </span>
-                              </div>
-                              <div className="text-[11px] font-mono text-jds-on-surface-variant/70 pl-5">
-                                {customer?.phone_number || 'No phone'}
-                              </div>
-                            </div>
-
-                            {/* Product Info & Warranty Tag */}
-                            <div className="p-3 rounded-lg bg-jds-surface-container-low/50 border border-jds-outline-variant/20 space-y-1.5">
-                              <div className="text-xs font-semibold text-jds-on-surface flex items-center gap-1.5 truncate">
-                                <Package className="w-3.5 h-3.5 text-jds-primary shrink-0" />
-                                <span className="truncate">{product?.name || 'Solar Light Unit'}</span>
-                              </div>
-                              {purchase?.serial_number && (
-                                <div className="text-[10px] font-mono text-jds-on-surface-variant flex items-center gap-1">
-                                  <span>S/N:</span>
-                                  <span className="font-semibold text-jds-on-surface">{purchase.serial_number}</span>
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1.5 pt-0.5">
-                                <span
-                                  className={`text-[10px] font-bold px-2 py-0.5 rounded border ${warrantyActive
-                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                                      : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                                    }`}
-                                >
-                                  {warrantyActive ? `${daysLeft}d warranty` : 'Warranty Expired'}
+                                <span className="text-[10px] text-jds-on-surface-variant/70">
+                                  {formatDate(claim.created_at)}
                                 </span>
                               </div>
                             </div>
 
-                            {/* Issue Category & Truncated Note */}
-                            <div className="space-y-1">
-                              <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-jds-surface-container-high text-jds-on-surface border border-jds-outline-variant/40">
+                            {/* Row 2: Product Title & 1-line Issue Summary */}
+                            <div className="space-y-0.5">
+                              <div className="text-xs font-semibold text-jds-on-surface truncate">
+                                {product?.name || 'Solar Light Unit'}
+                              </div>
+                              {claim.description && (
+                                <p className="text-[11px] text-jds-on-surface-variant line-clamp-1">
+                                  {claim.description}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Row 3: Compact Metadata Pills (Customer, Category, Warranty, Signals) */}
+                            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                              <span className="inline-flex items-center gap-1 font-medium text-jds-on-surface-variant max-w-[105px] truncate">
+                                <User className="w-3 h-3 shrink-0 opacity-70" />
+                                <span className="truncate">{customer?.full_name || 'Customer'}</span>
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded bg-jds-surface-container-low text-jds-on-surface-variant border border-jds-outline-variant/30 truncate max-w-[100px]">
                                 {claim.issue_category}
                               </span>
-                              <p className="text-[11px] text-jds-on-surface-variant line-clamp-2 leading-relaxed">
-                                {claim.description}
-                              </p>
-                            </div>
-
-                            {/* Media Preview Indicator */}
-                            {claim.media_urls && claim.media_urls.length > 0 && (
-                              <div className="flex items-center gap-2 pt-1 border-t border-jds-outline-variant/15 text-[11px] text-jds-on-surface-variant/80">
-                                <ImageIcon className="w-3.5 h-3.5 text-jds-primary" />
-                                <span className="font-semibold">{claim.media_urls.length} attachment{claim.media_urls.length === 1 ? '' : 's'}</span>
-                                <div className="flex items-center gap-1 ml-auto">
-                                  {claim.media_urls.slice(0, 3).map((url, i) => (
-                                    <img
-                                      key={i}
-                                      src={url}
-                                      alt="Evidence thumbnail"
-                                      className="w-5 h-5 rounded-md object-cover border border-jds-outline-variant/40 bg-black/10"
-                                      onError={(e) => {
-                                        e.currentTarget.style.display = 'none'
-                                      }}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Quick Touch Status Move + Card Footer */}
-                            <div className="space-y-2 pt-2 border-t border-jds-outline-variant/15">
-                              <div
-                                className="flex items-center gap-2"
-                                onClick={(e) => e.stopPropagation()}
+                              <span
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-medium border ${
+                                  warrantyActive
+                                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
+                                    : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20'
+                                }`}
                               >
-                                <label className="text-[10px] font-semibold text-jds-on-surface-variant shrink-0">
-                                  Status:
-                                </label>
-                                <select
-                                  aria-label={`Move claim ${claim.id.slice(0, 8)} status`}
-                                  value={claim.status === 'pending' ? 'in_review' : (claim.status || 'in_review')}
-                                  onChange={(e) => handleDropClaim(claim.id, e.target.value)}
-                                  className="flex-1 min-h-[44px] md:min-h-[30px] rounded-lg border border-jds-outline-variant/40 bg-jds-surface-container-low px-2.5 py-1 text-xs font-semibold text-jds-on-surface focus:outline-none focus:ring-2 focus:ring-jds-primary/40 cursor-pointer"
-                                >
-                                  {KANBAN_COLUMNS.map((opt) => (
-                                    <option key={opt.id} value={opt.id}>
-                                      {opt.title}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div className="flex items-center justify-between text-[11px]">
-                                {claim.staff_notes ? (
-                                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1 truncate max-w-[170px]">
-                                    <MessageSquare className="w-3 h-3 shrink-0" />
-                                    <span className="truncate">{claim.staff_notes}</span>
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] text-jds-on-surface-variant/40">No staff notes</span>
-                                )}
-                                <span className="text-[10px] font-bold text-jds-primary opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
-                                  <span>Inspect</span>
-                                  <ChevronRight className="w-3 h-3" />
+                                <span className={`w-1.5 h-1.5 rounded-full ${warrantyActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                {warrantyActive ? `${daysLeft}d` : 'Exp'}
+                              </span>
+                              {claim._isStaged && (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-semibold border border-amber-500/30">
+                                  Staged
                                 </span>
-                              </div>
+                              )}
+                              {claim.media_urls && claim.media_urls.length > 0 && (
+                                <span className="inline-flex items-center gap-0.5 text-jds-on-surface-variant/80 ml-auto" title={`${claim.media_urls.length} attachment(s)`}>
+                                  <ImageIcon className="w-3 h-3" />
+                                  <span>{claim.media_urls.length}</span>
+                                </span>
+                              )}
+                              {claim.staff_notes && (
+                                <span className="inline-flex items-center text-blue-600 dark:text-blue-400" title="Has technician notes">
+                                  <MessageSquare className="w-3 h-3" />
+                                </span>
+                              )}
                             </div>
                           </div>
                         )
@@ -1147,6 +1406,167 @@ export default function WarrantyClaimsScreen() {
           </div>
         </div>
       )}
+
+      {/* STAGED CLAIM STAGE SAVE CHANGES BAR + CONFIRMATION MODAL */}
+      {pendingClaimCount > 0 && (
+        <div
+          role="region"
+          aria-label="Pending claim stage changes"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-4xl rounded-xl border border-jds-primary/40 bg-jds-surface/95 backdrop-blur-md px-4 py-3 shadow-xl flex flex-wrap items-center justify-between gap-3"
+        >
+          <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+            <span className="text-xs font-bold text-jds-on-surface">
+              {pendingClaimCount} unsaved {pendingClaimCount === 1 ? 'claim change' : 'claim changes'}
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {pendingClaimList.map((entry) => (
+                <span
+                  key={entry.claim.id}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/25 text-[11px] font-medium text-jds-on-surface max-w-full"
+                >
+                  <span className="font-mono font-semibold">
+                    CLAIM-{entry.claim.id.slice(0, 8).toUpperCase()}
+                  </span>
+                  <span className="text-[10px] text-amber-700 dark:text-amber-300 font-bold truncate">
+                    ({getClaimStatusMeta(entry.baseStatus).label} {'->'} {getClaimStatusMeta(entry.targetStatus).label})
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 ml-auto shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDiscardClaimChanges}
+              disabled={savingStagedClaims}
+              className="gap-1.5"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Discard
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setClaimConfirmOpen(true)}
+              disabled={savingStagedClaims}
+              className="gap-1.5"
+            >
+              <Save className="w-3.5 h-3.5" />
+              Save Changes ({pendingClaimCount})
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={claimConfirmOpen} onOpenChange={(open) => !savingStagedClaims && setClaimConfirmOpen(open)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+              Confirm Claim Stage Changes
+            </DialogTitle>
+            <DialogDescription>
+              Review the {pendingClaimCount} pending {pendingClaimCount === 1 ? 'claim update' : 'claim updates'} below before saving to the database.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-60 overflow-y-auto space-y-2 py-1">
+            {pendingClaimList.map((entry) => (
+              <div
+                key={entry.claim.id}
+                className="rounded-lg border border-jds-outline-variant/40 bg-jds-surface-container-low/60 px-3 py-2 text-xs space-y-1"
+              >
+                <div className="font-mono font-semibold text-jds-on-surface">
+                  CLAIM-{entry.claim.id.slice(0, 8).toUpperCase()}
+                </div>
+                <div className="text-[11px] text-jds-on-surface-variant">
+                  <span>{getClaimStatusMeta(entry.baseStatus).label}</span>{' -> '}
+                  <strong className="text-jds-primary">{getClaimStatusMeta(entry.targetStatus).label}</strong>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setClaimConfirmOpen(false)}
+              disabled={savingStagedClaims}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmSaveClaimChanges}
+              disabled={savingStagedClaims}
+              className="gap-1.5"
+            >
+              <Check className="w-3.5 h-3.5" />
+              {savingStagedClaims ? 'Saving...' : 'Confirm & Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(overridePrompt)} onOpenChange={(open) => !open && setOverridePrompt(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+              Admin Stage Reversal Override
+            </DialogTitle>
+            <DialogDescription>
+              Reversing a completed or closed stage is audited. Enter a reason for moving{' '}
+              <span className="font-mono font-semibold text-jds-on-surface">
+                {overridePrompt ? `CLAIM-${overridePrompt.claim.id.slice(0, 8).toUpperCase()}` : ''}
+              </span>{' '}
+              from{' '}
+              <strong>{overridePrompt ? getClaimStatusMeta(overridePrompt.baseStatus).label : ''}</strong>{' '}
+              back to{' '}
+              <strong>{overridePrompt ? getClaimStatusMeta(overridePrompt.targetStatus).label : ''}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-1.5 py-1">
+            <label htmlFor="admin-override-reason" className="text-xs font-bold text-jds-on-surface-variant block">
+              Override Reason (Logged to Technician Notes)
+            </label>
+            <textarea
+              id="admin-override-reason"
+              rows={3}
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              placeholder="e.g., Customer returned unit for secondary bench verification"
+              className="w-full rounded-lg border border-jds-outline-variant/50 bg-jds-surface-container-low p-2.5 text-xs text-jds-on-surface outline-none focus:border-jds-primary"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setOverridePrompt(null)
+                setOverrideReason('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!overrideReason.trim()}
+              onClick={handleConfirmAdminOverride}
+              className="gap-1.5"
+            >
+              <Check className="w-3.5 h-3.5" />
+              Stage Reversal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Warranty Claim Slide-Over Inspector Drawer */}
       <InspectorDrawer
@@ -1274,22 +1694,43 @@ export default function WarrantyClaimsScreen() {
               <div className="space-y-5">
                 {/* Visual Claim Lifecycle Pipeline */}
                 <div className="space-y-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-jds-on-surface-variant block">
-                    Claim Lifecycle Stage
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold uppercase tracking-wider text-jds-on-surface-variant">
+                      Claim Lifecycle Stage
+                    </span>
+                    <NextActionTooltip
+                      stageTitle={getClaimStatusMeta(modalStatus === 'pending' ? 'in_review' : (modalStatus || activeModalClaim.status || 'in_review')).label}
+                      nextAction={getClaimStatusMeta(modalStatus === 'pending' ? 'in_review' : (modalStatus || activeModalClaim.status || 'in_review')).nextAction}
+                      align="left"
+                    />
+                  </div>
                   <div className="space-y-2">
                     {KANBAN_COLUMNS.map((col) => {
                       const ColIcon = col.icon
-                      const isCurrent = (modalStatus || activeModalClaim.status) === col.id
+                      const drawerBase = normalizeClaimStatus(activeModalClaim.status)
+                      const isCurrent = (modalStatus || drawerBase) === col.id
+                      const isCompleted = isCompletedClaimStage(drawerBase, col.id)
+                      const transition = isClaimTransitionAllowed({
+                        fromStatus: drawerBase,
+                        toStatus: col.id,
+                        isAdmin,
+                      })
+                      const isDisabled = col.id !== drawerBase && !transition.allowed
+
                       return (
                         <button
                           key={col.id}
                           type="button"
-                          onClick={() => setModalStatus(col.id)}
-                          className={`w-full text-left flex items-center justify-between p-3 rounded-xl text-xs cursor-pointer transition-all border ${
-                            isCurrent
-                              ? `${col.headerBg} font-bold border-jds-primary/40`
-                              : 'border-jds-outline-variant/25 bg-jds-surface-container-low/40 text-jds-on-surface-variant hover:bg-jds-surface-container'
+                          disabled={isDisabled}
+                          onClick={() => !isDisabled && setModalStatus(col.id)}
+                          className={`w-full text-left flex items-center justify-between p-3 rounded-xl text-xs transition-all border ${
+                            isDisabled
+                              ? 'opacity-50 cursor-not-allowed border-jds-outline-variant/20 bg-jds-surface-container-low/20 text-jds-on-surface-variant'
+                              : isCurrent
+                                ? `${col.headerBg} font-bold border-jds-primary/40 cursor-pointer`
+                                : isCompleted
+                                  ? 'opacity-65 cursor-pointer border-jds-outline-variant/25 bg-jds-surface-container-low/30 text-jds-on-surface-variant hover:bg-jds-surface-container'
+                                  : 'cursor-pointer border-jds-outline-variant/25 bg-jds-surface-container-low/40 text-jds-on-surface-variant hover:bg-jds-surface-container'
                           }`}
                         >
                           <div className="flex items-center gap-3">
@@ -1299,11 +1740,21 @@ export default function WarrantyClaimsScreen() {
                               <div className="text-[11px] opacity-80 mt-1">{col.description}</div>
                             </div>
                           </div>
-                          {isCurrent && (
+                          {isCurrent ? (
                             <span className="text-[10px] uppercase tracking-wide font-extrabold px-2 py-0.5 rounded-full border border-current">
                               Active
                             </span>
-                          )}
+                          ) : isCompleted ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-jds-surface-container text-jds-on-surface-variant border border-jds-outline-variant/40">
+                              {!isAdmin && <Lock className="w-2.5 h-2.5" />}
+                              Completed
+                            </span>
+                          ) : isDisabled ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-jds-surface-container text-jds-on-surface-variant border border-jds-outline-variant/40">
+                              <Lock className="w-2.5 h-2.5" />
+                              Locked
+                            </span>
+                          ) : null}
                         </button>
                       )
                     })}
@@ -1312,23 +1763,67 @@ export default function WarrantyClaimsScreen() {
 
                 {/* Target Stage Select & Technician Notes */}
                 <div className="space-y-2">
-                  <label htmlFor="claim-target-stage" className="text-xs font-bold text-jds-on-surface-variant block">
-                    Target Ticket Stage
-                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <label htmlFor="claim-target-stage" className="text-xs font-bold text-jds-on-surface-variant block">
+                      Target Ticket Stage
+                    </label>
+                    <NextActionTooltip
+                      stageTitle={getClaimStatusMeta(modalStatus === 'pending' ? 'in_review' : (modalStatus || activeModalClaim.status || 'in_review')).label}
+                      nextAction={getClaimStatusMeta(modalStatus === 'pending' ? 'in_review' : (modalStatus || activeModalClaim.status || 'in_review')).nextAction}
+                      align="left"
+                    />
+                  </div>
                   <select
                     id="claim-target-stage"
                     value={modalStatus === 'pending' ? 'in_review' : modalStatus}
                     onChange={(e) => setModalStatus(e.target.value)}
                     className="w-full h-10 bg-jds-surface-container-low border border-jds-outline-variant/40 rounded-lg px-3 text-xs font-semibold text-jds-on-surface outline-none focus:border-jds-primary cursor-pointer"
                   >
-                    <option value="in_review">Diagnostic Intake (Triage & Inspection)</option>
-                    <option value="approved">Approved for Replacement / Repair</option>
-                    <option value="resolved">Handover Complete (Closed)</option>
-                    <option value="rejected">Claim Declined (Void / Not Covered)</option>
+                    {KANBAN_COLUMNS.map((col) => {
+                      const drawerBase = normalizeClaimStatus(activeModalClaim.status)
+                      const { allowed } = isClaimTransitionAllowed({
+                        fromStatus: drawerBase,
+                        toStatus: col.id,
+                        isAdmin,
+                      })
+                      return (
+                        <option
+                          key={col.id}
+                          value={col.id}
+                          disabled={col.id !== drawerBase && !allowed}
+                        >
+                          {col.title} ({col.description})
+                        </option>
+                      )
+                    })}
                     {modalStatus === 'archived' && (
                       <option value="archived">Archived / Concluded</option>
                     )}
                   </select>
+
+                  {isAdmin &&
+                    isClaimTransitionAllowed({
+                      fromStatus: normalizeClaimStatus(activeModalClaim.status),
+                      toStatus: modalStatus,
+                      isAdmin: true,
+                    }).requiresOverride && (
+                      <div className="p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 space-y-1.5">
+                        <label
+                          htmlFor="drawer-override-reason"
+                          className="text-[11px] font-bold text-amber-800 dark:text-amber-300 block"
+                        >
+                          Admin Override Reason (Required for Reversal)
+                        </label>
+                        <input
+                          id="drawer-override-reason"
+                          type="text"
+                          value={drawerOverrideReason}
+                          onChange={(e) => setDrawerOverrideReason(e.target.value)}
+                          placeholder="e.g., Re-opened for secondary voltage bench test"
+                          className="w-full h-9 rounded-lg border border-amber-500/40 bg-jds-surface px-3 text-xs text-jds-on-surface outline-none focus:border-jds-primary"
+                        />
+                      </div>
+                    )}
                 </div>
 
                 <div className="space-y-2">
