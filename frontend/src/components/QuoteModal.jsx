@@ -210,6 +210,9 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
 
   const validateStep2 = () => {
     const errs = {}
+    if (!selectedBranch) {
+      errs.selectedBranch = 'Please select a showroom branch.'
+    }
     if (!visitDate) {
       errs.visitDate = 'Please select a visit date.'
     } else {
@@ -436,7 +439,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
 
         {/* ================= STEP 1: CONTACT & INTENT FORM ================= */}
         {!isConfirmedTransition && step === 1 && (
-          <form onSubmit={handleNextToStep2} className="space-y-4">
+          <form noValidate onSubmit={handleNextToStep2} className="space-y-4">
             {/* Inquiry Topic Dropdown (Only for Inquiry Mode) */}
             {!isReserve && (
               <div>
@@ -464,7 +467,16 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 required
                 placeholder="e.g. Engr. Juan Dela Cruz"
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+                onChange={(e) => {
+                  setCustomerName(e.target.value)
+                  if (errors.customerName) {
+                    setErrors((prev) => {
+                      const next = { ...prev }
+                      delete next.customerName
+                      return next
+                    })
+                  }
+                }}
                 className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all ${errors.customerName ? 'border-red-400 bg-red-50/20' : 'border-stone-200 focus:border-amber-500 bg-stone-50/40 focus:bg-white'
                   }`}
               />
@@ -632,11 +644,11 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
 
         {/* ================= STEP 2: STORE VISIT & TIME ================= */}
         {!isConfirmedTransition && step === 2 && (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form noValidate onSubmit={handleSubmit} className="space-y-4">
             {/* Branch Selector Cards */}
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-2">
-                Select Showroom Branch
+                Select Showroom Branch <span className="text-amber-600">*</span>
               </label>
               <div className="space-y-2">
                 {BRANCHES.map((b) => {
@@ -645,7 +657,16 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                   return (
                     <div
                       key={b.id}
-                      onClick={() => setSelectedBranch(b.name)}
+                      onClick={() => {
+                        setSelectedBranch(isSelected ? '' : b.name)
+                        if (errors.selectedBranch) {
+                          setErrors((prev) => {
+                            const next = { ...prev }
+                            delete next.selectedBranch
+                            return next
+                          })
+                        }
+                      }}
                       className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${isSelected
                         ? isReserve
                           ? 'border-amber-500 bg-amber-50/30 ring-1 ring-amber-500'
@@ -675,6 +696,12 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                   )
                 })}
               </div>
+              {errors.selectedBranch && (
+                <p className="text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{errors.selectedBranch}</span>
+                </p>
+              )}
             </div>
 
             {/* Showroom Business Hours Banner */}
@@ -834,13 +861,12 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               <button
                 type="submit"
                 disabled={loading || !consentAccepted}
-                className={`w-2/3 py-3 rounded-xl text-white font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2 ${
-                  !consentAccepted || loading
-                    ? 'opacity-50 cursor-not-allowed bg-stone-400'
-                    : isReserve
-                      ? 'bg-amber-500 hover:bg-amber-600'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                className={`w-2/3 py-3 rounded-xl text-white font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2 ${!consentAccepted || loading
+                  ? 'opacity-50 cursor-not-allowed bg-stone-400'
+                  : isReserve
+                    ? 'bg-amber-500 hover:bg-amber-600'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
               >
                 {loading ? 'Generating...' : (isReserve ? 'Confirm Reservation Pass' : 'Confirm Consultation Pass')}
               </button>
@@ -962,14 +988,12 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
 
               {/* Reservation Hold Notice */}
               {isReserve && (
-                <div className={`flex items-start gap-2 p-3 rounded-xl border text-xs ${
-                  generatedTicket.is_reservation
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-900 dark:text-emerald-300'
-                    : 'bg-amber-500/10 border-amber-500/20 text-amber-900 dark:text-amber-300'
-                }`}>
-                  <Clock className={`h-4 w-4 shrink-0 mt-0.5 ${
-                    generatedTicket.is_reservation ? 'text-emerald-600' : 'text-amber-600'
-                  }`} />
+                <div className={`flex items-start gap-2 p-3 rounded-xl border text-xs ${generatedTicket.is_reservation
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-900 dark:text-emerald-300'
+                  : 'bg-amber-500/10 border-amber-500/20 text-amber-900 dark:text-amber-300'
+                  }`}>
+                  <Clock className={`h-4 w-4 shrink-0 mt-0.5 ${generatedTicket.is_reservation ? 'text-emerald-600' : 'text-amber-600'
+                    }`} />
                   <span className="leading-tight">
                     {generatedTicket.is_reservation ? (
                       <>
