@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 import ViewModeToggle from './ViewModeToggle'
 import { supabase } from '../../lib/supabaseClient'
-import OperatingTimeSelect from '../ui/OperatingTimeSelect'
+import SchedulePicker from '../ui/SchedulePicker'
 import {
   INQUIRY_STATUSES,
   normalizeInquiryStatus,
@@ -2333,51 +2333,29 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate,
                   </div>
                 </div>
 
-                {/* Date & Time Slot */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-semibold text-jds-on-surface">
-                        Scheduled Visit Date <span className="text-amber-600">*</span>
-                      </label>
-                      <span className="text-[11px] text-jds-on-surface-variant font-medium">Mon – Sat Only</span>
-                    </div>
-                    <input
-                      type="date"
-                      min={minBusinessDateStr}
-                      required
-                      value={modalDate}
-                      onClick={(e) => {
-                        try {
-                          e.currentTarget.showPicker?.()
-                        } catch (err) { }
-                      }}
-                      onChange={(e) => {
-                        setModalDate(e.target.value)
-                        setModalError('')
-                      }}
-                      className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
-                    />
+                {/* Combined Mon–Sat Calendar & Hour/5-Min Schedule Picker */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-jds-on-surface">
+                      Visit Schedule <span className="text-amber-600">*</span>
+                    </label>
+                    <span className="text-[11px] text-jds-on-surface-variant font-medium">Mon – Sat · 8:00 AM – 5:30 PM</span>
                   </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-semibold text-jds-on-surface">
-                        Time Slot <span className="text-amber-600">*</span>
-                      </label>
-                      <span className="text-[11px] text-jds-on-surface-variant font-medium">8:00 AM – 5:30 PM</span>
-                    </div>
-                    <OperatingTimeSelect
-                      value={modalTime}
-                      onChange={(nextVal) => {
-                        setModalTime(nextVal)
-                        setModalError('')
-                      }}
-                      hourAriaLabel="Modal Time Hour"
-                      minuteAriaLabel="Modal Time Minute"
-                      selectClassName="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary font-semibold cursor-pointer"
-                    />
-                  </div>
+                  <SchedulePicker
+                    date={modalDate}
+                    time={modalTime}
+                    minDate={minBusinessDateStr}
+                    onDateChange={(nextVal) => {
+                      setModalDate(nextVal)
+                      setModalError('')
+                    }}
+                    onTimeChange={(nextVal) => {
+                      setModalTime(nextVal)
+                      setModalError('')
+                    }}
+                    hasError={Boolean(modalError)}
+                    accent="blue"
+                  />
                 </div>
 
                 {modalError && (
@@ -2672,50 +2650,28 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate,
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs font-semibold text-jds-on-surface">
-                          Visit Date <span className="text-amber-600">*</span>
-                        </label>
-                        <span className="text-[11px] text-jds-on-surface-variant font-medium">Mon – Sat Only</span>
-                      </div>
-                      <input
-                        type="date"
-                        min={minBusinessDateStr}
-                        required
-                        value={newVisitDate}
-                        onClick={(e) => {
-                          try {
-                            e.currentTarget.showPicker?.()
-                          } catch (err) { }
-                        }}
-                        onChange={(e) => {
-                          setNewVisitDate(e.target.value)
-                          setNewError('')
-                        }}
-                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
-                      />
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-semibold text-jds-on-surface">
+                        Visit Schedule <span className="text-amber-600">*</span>
+                      </label>
+                      <span className="text-[11px] text-jds-on-surface-variant font-medium">Mon – Sat · 8:00 AM – 5:30 PM</span>
                     </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs font-semibold text-jds-on-surface">
-                          Time Slot <span className="text-amber-600">*</span>
-                        </label>
-                        <span className="text-[11px] text-jds-on-surface-variant font-medium">8:00 AM – 5:30 PM</span>
-                      </div>
-                      <OperatingTimeSelect
-                        value={newVisitTime}
-                        onChange={(nextVal) => {
-                          setNewVisitTime(nextVal)
-                          setNewError('')
-                        }}
-                        hourAriaLabel="New Visit Time Hour"
-                        minuteAriaLabel="New Visit Time Minute"
-                        selectClassName="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary font-semibold cursor-pointer"
-                      />
-                    </div>
+                    <SchedulePicker
+                      date={newVisitDate}
+                      time={newVisitTime}
+                      minDate={minBusinessDateStr}
+                      onDateChange={(nextVal) => {
+                        setNewVisitDate(nextVal)
+                        setNewError('')
+                      }}
+                      onTimeChange={(nextVal) => {
+                        setNewVisitTime(nextVal)
+                        setNewError('')
+                      }}
+                      hasError={Boolean(newError)}
+                      accent="blue"
+                    />
                   </div>
 
                   <div>

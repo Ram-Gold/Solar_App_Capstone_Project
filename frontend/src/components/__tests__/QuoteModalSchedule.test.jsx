@@ -54,7 +54,10 @@ describe('QuoteModal Branch Hours, Slot Picker & Email Status', () => {
     expect(screen.getAllByText('Mon – Sat, 8:00 AM – 5:30 PM · Closed Sun')).toHaveLength(2)
   })
 
-  it('renders a two-part Hour + 5-Minute selector and omits out-of-hours times like 11:00 PM or 5:45 PM', () => {
+  it('opens combined Mon-Sat Calendar + Hour/5-Min picker and omits Sundays and out-of-hours times', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-18T02:00:00Z'))
+
     render(
       <QuoteModal
         isOpen={true}
@@ -65,47 +68,23 @@ describe('QuoteModal Branch Hours, Slot Picker & Email Status', () => {
     )
 
     expect(document.body.querySelector('input[type="time"]')).toBeNull()
-    const hourSelect = screen.getByLabelText(/Hour/i)
-    const minuteSelect = screen.getByLabelText(/Minute/i)
-    expect(hourSelect.tagName).toBe('SELECT')
-    expect(minuteSelect.tagName).toBe('SELECT')
+    expect(document.body.querySelector('input[type="date"]')).toBeNull()
 
-    const hourValues = Array.from(hourSelect.querySelectorAll('option')).map((o) => o.value)
-    expect(hourValues).toContain('08')
-    expect(hourValues).toContain('17')
-    expect(hourValues).not.toContain('23')
-    expect(hourValues).not.toContain('18')
-    expect(hourValues).not.toContain('07')
+    // Open SchedulePicker
+    fireEvent.click(screen.getByRole('button', { name: /Nov 19, 2026 · 10:00 AM/i }))
 
-    // Select 10:45 AM, then switch hour to 5 PM (17) -> should clamp to 17:30 and omit 45
-    fireEvent.change(hourSelect, { target: { value: '10' } })
-    fireEvent.change(minuteSelect, { target: { value: '45' } })
-    expect(minuteSelect.value).toBe('45')
+    // Sunday column is omitted completely
+    expect(screen.queryByText('Su')).toBeNull()
+    expect(screen.queryByRole('button', { name: '22' })).toBeNull()
 
-    fireEvent.change(hourSelect, { target: { value: '17' } })
-    const fivePmMins = Array.from(minuteSelect.querySelectorAll('option')).map((o) => o.value)
-    expect(fivePmMins).toContain('30')
-    expect(fivePmMins).not.toContain('35')
-    expect(fivePmMins).not.toContain('45')
-    expect(minuteSelect.value).toBe('30')
-  })
+    // Out-of-hours times are omitted completely
+    expect(screen.queryByRole('button', { name: '11 PM' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '6 PM' })).toBeNull()
 
-  it('shows an immediate inline error when a Sunday is selected in visitDate', () => {
-    render(
-      <QuoteModal
-        isOpen={true}
-        onClose={vi.fn()}
-        initialStep={2}
-        initialMode="reserve"
-      />
-    )
-
-    const dateInput = document.body.querySelector('input[type="date"]')
-    fireEvent.change(dateInput, { target: { value: '2026-11-22' } }) // Sunday
-
-    expect(
-      screen.getByText('Our showrooms are closed on Sundays. Please choose Monday through Saturday.')
-    ).toBeDefined()
+    // Select 5 PM -> clamps 5 PM minutes to :30
+    fireEvent.click(screen.getByRole('button', { name: '5 PM' }))
+    expect(screen.getByRole('button', { name: ':30' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: ':35' })).toBeNull()
   })
 
   it('shows email delivery failed status on Step 3 when sendInquiryTicketEmail fails', async () => {

@@ -27,7 +27,7 @@ import { getBranchStock } from '../lib/inventoryUtils'
 import { extractFacebookHandle, formatFacebookUrl } from '../lib/facebookUtils'
 import useModalBehavior from '../hooks/useModalBehavior'
 import AnimatedConfirmation from './ui/AnimatedConfirmation'
-import OperatingTimeSelect from './ui/OperatingTimeSelect'
+import SchedulePicker from './ui/SchedulePicker'
 import { getMainProductImage } from '../lib/productImageUtils'
 import {
   BRANCH_OPERATING_HOURS,
@@ -730,40 +730,28 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               </div>
             </div>
 
-            {/* Date Input */}
+            {/* Combined Mon–Sat Calendar & Hour/5-Min Schedule Picker */}
             <div>
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-semibold text-stone-700">
-                  Target Visit Date <span className="text-amber-600">*</span>
+                  Visit Schedule <span className="text-amber-600">*</span>
                 </label>
-                <span className="text-[11px] text-stone-500 font-medium">Mon – Sat Only</span>
+                <span className="text-[11px] text-stone-500 font-medium">Mon – Sat · 8:00 AM – 5:30 PM</span>
               </div>
-              <input
-                type="date"
-                min={minBusinessDateStr}
-                required
-                value={visitDate}
-                onClick={(e) => {
-                  try {
-                    e.currentTarget.showPicker?.()
-                  } catch (err) { }
-                }}
-                onChange={(e) => {
-                  const nextDate = e.target.value
+              <SchedulePicker
+                date={visitDate}
+                time={visitTime}
+                minDate={minBusinessDateStr}
+                onDateChange={(nextDate) => {
                   setVisitDate(nextDate)
-                  if (nextDate && new Date(`${nextDate}T00:00:00`).getDay() === 0) {
-                    setErrors((prev) => ({
-                      ...prev,
-                      visitDate: 'Our showrooms are closed on Sundays. Please choose Monday through Saturday.',
-                    }))
-                  } else {
-                    clearFieldError('visitDate')
-                  }
+                  clearFieldError('visitDate')
                 }}
-                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors cursor-pointer ${errors.visitDate
-                  ? 'border-red-400 bg-red-50/20'
-                  : 'border-stone-200 bg-stone-50/40 focus:border-amber-500 focus:bg-white'
-                  }`}
+                onTimeChange={(nextTime) => {
+                  setVisitTime(nextTime)
+                  clearFieldError('visitTime')
+                }}
+                hasError={Boolean(errors.visitDate || errors.visitTime)}
+                accent={isReserve ? 'amber' : 'blue'}
               />
               {errors.visitDate && (
                 <p className="text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1.5">
@@ -771,28 +759,6 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                   <span>{errors.visitDate}</span>
                 </p>
               )}
-            </div>
-
-            {/* Two-Part Hour + 5-Minute Selector (Out-of-hours times are omitted) */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-stone-700">
-                  Preferred Time Slot <span className="text-amber-600">*</span>
-                </label>
-                <span className="text-[11px] text-stone-500 font-medium">8:00 AM – 5:30 PM</span>
-              </div>
-
-              <OperatingTimeSelect
-                value={visitTime}
-                onChange={(nextVal) => {
-                  setVisitTime(nextVal)
-                  clearFieldError('visitTime')
-                }}
-                selectClassName={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors cursor-pointer ${errors.visitTime
-                  ? 'border-red-400 bg-red-50/20'
-                  : 'border-stone-200 bg-stone-50/40 focus:border-amber-500 focus:bg-white'
-                  }`}
-              />
               {errors.visitTime && (
                 <p className="text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1.5">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />

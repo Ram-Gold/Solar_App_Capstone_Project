@@ -46,7 +46,7 @@ describe('QuoteModal Inline Validation', () => {
     expect(screen.queryByText('Please enter your full name.')).toBeNull()
   })
 
-  it('shows inline validation errors for required Step 2 schedule fields (date and time) and uses noValidate', () => {
+  it('uses noValidate on Step 2 form and renders SchedulePicker without native date/time inputs', () => {
     render(
       <QuoteModal
         isOpen={true}
@@ -58,18 +58,8 @@ describe('QuoteModal Inline Validation', () => {
 
     const form = document.body.querySelector('form')
     expect(form.noValidate).toBe(true)
-
-    const dateInput = document.body.querySelector('input[type="date"]')
-    const hourSelect = screen.getByLabelText(/Hour/i)
-
-    fireEvent.change(dateInput, { target: { value: '' } })
-    fireEvent.change(hourSelect, { target: { value: '' } })
-    fireEvent.click(screen.getByRole('checkbox'))
-
-    fireEvent.click(screen.getByRole('button', { name: /Confirm Reservation Pass/i }))
-
-    expect(screen.getByText('Please select a visit date.')).toBeDefined()
-    expect(screen.getByText('Please select a visit time slot.')).toBeDefined()
+    expect(document.body.querySelector('input[type="date"]')).toBeNull()
+    expect(document.body.querySelector('input[type="time"]')).toBeNull()
   })
 
   it('shows inline validation error for required branch when deselected and clears it on selection', () => {
