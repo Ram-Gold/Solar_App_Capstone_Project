@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import ViewModeToggle from './ViewModeToggle'
 import { supabase } from '../../lib/supabaseClient'
+import OperatingTimeSelect from '../ui/OperatingTimeSelect'
 import {
   INQUIRY_STATUSES,
   normalizeInquiryStatus,
@@ -37,6 +38,7 @@ import {
 } from '../../lib/inventoryUtils'
 import { inquiryFulfillment } from '../../lib/inquiryFulfillment'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/table'
+import { useToast } from '../ui/toast'
 import useModalBehavior from '../../hooks/useModalBehavior'
 import PhilippineAddressSelect from '../ui/PhilippineAddressSelect'
 import { formatFullAddress } from '../../lib/philippineAddresses'
@@ -393,7 +395,7 @@ function getMonthDays(targetDate) {
   return days
 }
 
-export default function InquiriesScreen({ initialViewMode = 'table', onNavigate }) {
+export default function InquiriesScreen({ initialViewMode = 'table', onNavigate, initialSearch = '' }) {
   const [inquiries, setInquiries] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -408,7 +410,10 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate 
   const [branchFilter, setBranchFilter] = useState('ALL')
   const [typeFilter, setTypeFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
+  useEffect(() => {
+    if (initialSearch) setSearchQuery(initialSearch)
+  }, [initialSearch])
 
   // Drag and drop state
   const [draggingTicketId, setDraggingTicketId] = useState(null)
@@ -520,11 +525,22 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate 
 
   const minBusinessDateStr = getNextBusinessDay()
 
-  const [toastMsg, setToastMsg] = useState('')
+  const { showToast: dispatchToast } = useToast()
 
-  const showToast = (msg) => {
-    setToastMsg(msg)
-    setTimeout(() => setToastMsg(''), 4000)
+  const showToast = (msg, type = 'info') => {
+    const inferredType =
+      type !== 'info'
+        ? type
+        : /error|failed/i.test(msg)
+          ? 'error'
+          : /success|updated|scheduled|rescheduled|released|purged/i.test(msg)
+            ? 'success'
+            : 'info'
+    dispatchToast(
+      inferredType === 'error' ? 'Action Failed' : 'Inquiries',
+      msg,
+      inferredType
+    )
   }
 
   const releaseReservationsForTickets = async (tickets = []) => {
@@ -1112,17 +1128,6 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate 
 
   return (
     <div className="max-w-[1440px] mx-auto space-y-4 overflow-x-hidden font-inter pb-12">
-      {/* Toast Notification */}
-      {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-[110] bg-jds-on-surface text-jds-surface px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs font-semibold animate-in fade-in slide-in-from-bottom-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{toastMsg}</span>
-          <button onClick={() => setToastMsg('')} className="p-1 hover:opacity-70 ml-2">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
       {/* Screen Header & Top Action Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -2139,299 +2144,291 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate 
                 </div>
               )}
 
-                {/* Product Summary & Inventory Hold Gate */}
-                {(() => {
-                  const matchedProd = productsList.find((p) =>
-                    (selectedInquiry.product_id && String(p.id) === String(selectedInquiry.product_id)) ||
-                    (p.name && selectedInquiry.product_name && p.name.trim().toLowerCase() === selectedInquiry.product_name.trim().toLowerCase())
-                  )
-                  const bStock = matchedProd ? getBranchStock(matchedProd, modalBranch) : null
+              {/* Product Summary & Inventory Hold Gate */}
+              {(() => {
+                const matchedProd = productsList.find((p) =>
+                  (selectedInquiry.product_id && String(p.id) === String(selectedInquiry.product_id)) ||
+                  (p.name && selectedInquiry.product_name && p.name.trim().toLowerCase() === selectedInquiry.product_name.trim().toLowerCase())
+                )
+                const bStock = matchedProd ? getBranchStock(matchedProd, modalBranch) : null
 
-                  return (
-                    <div className="p-3.5 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/20 space-y-3">
-                      <div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
-                          Inquired Equipment & Purpose
-                        </div>
-                        <div className="font-bold text-sm text-jds-on-surface">
-                          {selectedInquiry.product_name}
-                        </div>
-                        <div className="text-xs text-jds-on-surface-variant flex items-center gap-2 mt-0.5">
-                          <span>Inquired Quantity: {selectedInquiry.quantity || 1}</span>
-                          {selectedInquiry.product_watt && <span>• {selectedInquiry.product_watt}W</span>}
-                          <span>• {selectedInquiry.purpose_of_visitation || 'Consultation'}</span>
-                        </div>
+                return (
+                  <div className="p-3.5 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/20 space-y-3">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
+                        Inquired Equipment & Purpose
                       </div>
+                      <div className="font-bold text-sm text-jds-on-surface">
+                        {selectedInquiry.product_name}
+                      </div>
+                      <div className="text-xs text-jds-on-surface-variant flex items-center gap-2 mt-0.5">
+                        <span>Inquired Quantity: {selectedInquiry.quantity || 1}</span>
+                        {selectedInquiry.product_watt && <span>• {selectedInquiry.product_watt}W</span>}
+                        <span>• {selectedInquiry.purpose_of_visitation || 'Consultation'}</span>
+                      </div>
+                    </div>
 
-                      {/* Real-time Inventory Status at Selected Branch */}
-                      {matchedProd && bStock && (
-                        <div className="pt-2 border-t border-jds-outline-variant/15 flex flex-wrap items-center justify-between gap-2 text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="text-jds-on-surface-variant font-medium">Branch Inventory ({modalBranch.includes('Quiapo') ? 'Quiapo Showroom' : 'Cavite Hub'}):</span>
-                            <span className={`font-mono font-bold ${bStock.stock > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
-                              {bStock.stock} in stock
+                    {/* Real-time Inventory Status at Selected Branch */}
+                    {matchedProd && bStock && (
+                      <div className="pt-2 border-t border-jds-outline-variant/15 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-jds-on-surface-variant font-medium">Branch Inventory ({modalBranch.includes('Quiapo') ? 'Quiapo Showroom' : 'Cavite Hub'}):</span>
+                          <span className={`font-mono font-bold ${bStock.stock > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
+                            {bStock.stock} in stock
+                          </span>
+                          {bStock.reserved > 0 && (
+                            <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
+                              ({bStock.reserved} on hold)
                             </span>
-                            {bStock.reserved > 0 && (
-                              <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
-                                ({bStock.reserved} on hold)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Staff Stock Hold Toggle Section */}
-                      <div className="p-3 rounded-xl bg-jds-surface border border-jds-outline-variant/30 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              id="hold-stock-toggle"
-                              checked={modalHoldStock}
-                              onChange={(e) => setModalHoldStock(e.target.checked)}
-                              className="h-4 w-4 rounded border-jds-outline-variant text-jds-primary focus:ring-jds-primary cursor-pointer"
-                            />
-                            <label htmlFor="hold-stock-toggle" className="text-xs font-bold text-jds-on-surface cursor-pointer select-none">
-                              Hold Stock for Pickup
-                            </label>
-                          </div>
-
-                          {selectedInquiry.is_reservation && (
-                            <button
-                              type="button"
-                              onClick={handleReleaseHoldDirectly}
-                              disabled={modalSaving}
-                              className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                              title="Release current inventory hold back to available stock"
-                            >
-                              Release Hold
-                            </button>
                           )}
                         </div>
+                      </div>
+                    )}
 
-                        {modalHoldStock ? (
-                          <div className="text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                              <span>
-                                Locking <strong>{modalHoldQty} unit(s)</strong> at {modalBranch.includes('Quiapo') ? 'Quiapo Showroom' : 'Cavite Hub'}.
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <span className="text-stone-600 dark:text-stone-300 font-semibold">Hold Qty:</span>
-                              <input
-                                type="number"
-                                min="1"
-                                max={matchedProd ? Math.max(1, bStock?.stock || 99) : 99}
-                                value={modalHoldQty}
-                                onChange={(e) => setModalHoldQty(Math.max(1, Number(e.target.value) || 1))}
-                                className="w-14 text-center font-bold font-mono text-xs p-1 rounded border border-emerald-300 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100"
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-[11px] text-jds-on-surface-variant">
-                            Unchecked: Consultation only (physical inventory remains freely available to walk-in customers).
-                          </p>
+                    {/* Staff Stock Hold Toggle Section */}
+                    <div className="p-3 rounded-xl bg-jds-surface border border-jds-outline-variant/30 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="hold-stock-toggle"
+                            checked={modalHoldStock}
+                            onChange={(e) => setModalHoldStock(e.target.checked)}
+                            className="h-4 w-4 rounded border-jds-outline-variant text-jds-primary focus:ring-jds-primary cursor-pointer"
+                          />
+                          <label htmlFor="hold-stock-toggle" className="text-xs font-bold text-jds-on-surface cursor-pointer select-none">
+                            Hold Stock for Pickup
+                          </label>
+                        </div>
+
+                        {selectedInquiry.is_reservation && (
+                          <button
+                            type="button"
+                            onClick={handleReleaseHoldDirectly}
+                            disabled={modalSaving}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                            title="Release current inventory hold back to available stock"
+                          >
+                            Release Hold
+                          </button>
                         )}
                       </div>
-                    </div>
-                  )
-                })()}
 
-                {/* Customer Location & Address Details */}
-                <div className="p-3.5 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/20 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
-                      Customer Location & Address
-                    </span>
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-jds-surface border border-jds-outline-variant/30 text-jds-on-surface-variant">
-                      {selectedInquiry.province || 'Philippines'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                    <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20 sm:col-span-3">
-                      <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">House / Street Address</span>
-                      <span className="font-semibold text-jds-on-surface truncate block">
-                        {selectedInquiry.street_address || (selectedInquiry.delivery_address ? selectedInquiry.delivery_address.split(',')[0] : 'Not Specified')}
-                      </span>
-                    </div>
-                    <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
-                      <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">Barangay / District</span>
-                      <span className="font-semibold text-jds-on-surface truncate block">
-                        {selectedInquiry.barangay ? ((selectedInquiry.city || '').toLowerCase().includes('manila') && !(selectedInquiry.city || '').toLowerCase().includes('metro') ? selectedInquiry.barangay : `Brgy. ${selectedInquiry.barangay.replace(/^brgy\.?\s*/i, '')}`) : 'Not Specified'}
-                      </span>
-                    </div>
-                    <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
-                      <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">City / Municipality</span>
-                      <span className="font-semibold text-jds-on-surface truncate block">
-                        {selectedInquiry.city || 'Showroom Customer'}
-                      </span>
-                    </div>
-                    <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
-                      <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">Province</span>
-                      <span className="font-semibold text-jds-on-surface truncate block">
-                        {selectedInquiry.province || 'Metro Manila (NCR)'}
-                      </span>
+                      {modalHoldStock ? (
+                        <div className="text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>
+                              Locking <strong>{modalHoldQty} unit(s)</strong> at {modalBranch.includes('Quiapo') ? 'Quiapo Showroom' : 'Cavite Hub'}.
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-stone-600 dark:text-stone-300 font-semibold">Hold Qty:</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max={matchedProd ? Math.max(1, bStock?.stock || 99) : 99}
+                              value={modalHoldQty}
+                              onChange={(e) => setModalHoldQty(Math.max(1, Number(e.target.value) || 1))}
+                              className="w-14 text-center font-bold font-mono text-xs p-1 rounded border border-emerald-300 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-jds-on-surface-variant">
+                          Unchecked: Consultation only (physical inventory remains freely available to walk-in customers).
+                        </p>
+                      )}
                     </div>
                   </div>
-                  {selectedInquiry.delivery_address && (
-                    <div className="text-[11px] text-jds-on-surface-variant flex items-center gap-1.5 pt-1.5 border-t border-jds-outline-variant/10">
-                      <MapPin className="h-3.5 w-3.5 text-jds-primary shrink-0" />
-                      <span className="truncate">{selectedInquiry.delivery_address}</span>
-                    </div>
+                )
+              })()}
+
+              {/* Customer Location & Address Details */}
+              <div className="p-3.5 rounded-xl bg-jds-surface-container-low/60 border border-jds-outline-variant/20 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-jds-on-surface-variant/70">
+                    Customer Location & Address
+                  </span>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-jds-surface border border-jds-outline-variant/30 text-jds-on-surface-variant">
+                    {selectedInquiry.province || 'Philippines'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20 sm:col-span-3">
+                    <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">House / Street Address</span>
+                    <span className="font-semibold text-jds-on-surface truncate block">
+                      {selectedInquiry.street_address || (selectedInquiry.delivery_address ? selectedInquiry.delivery_address.split(',')[0] : 'Not Specified')}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
+                    <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">Barangay / District</span>
+                    <span className="font-semibold text-jds-on-surface truncate block">
+                      {selectedInquiry.barangay ? ((selectedInquiry.city || '').toLowerCase().includes('manila') && !(selectedInquiry.city || '').toLowerCase().includes('metro') ? selectedInquiry.barangay : `Brgy. ${selectedInquiry.barangay.replace(/^brgy\.?\s*/i, '')}`) : 'Not Specified'}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
+                    <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">City / Municipality</span>
+                    <span className="font-semibold text-jds-on-surface truncate block">
+                      {selectedInquiry.city || 'Showroom Customer'}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-jds-surface border border-jds-outline-variant/20">
+                    <span className="text-[10px] text-jds-on-surface-variant block mb-0.5">Province</span>
+                    <span className="font-semibold text-jds-on-surface truncate block">
+                      {selectedInquiry.province || 'Metro Manila (NCR)'}
+                    </span>
+                  </div>
+                </div>
+                {selectedInquiry.delivery_address && (
+                  <div className="text-[11px] text-jds-on-surface-variant flex items-center gap-1.5 pt-1.5 border-t border-jds-outline-variant/10">
+                    <MapPin className="h-3.5 w-3.5 text-jds-primary shrink-0" />
+                    <span className="truncate">{selectedInquiry.delivery_address}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Editable Fields Form */}
+              <div className="space-y-4">
+                {/* Status Selector */}
+                <div>
+                  <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                    Inquiry Status
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {INQUIRY_STATUSES.map((st) => {
+                      const isSelected = modalStatus === st
+                      const cfg = getInquiryStatusConfig(st)
+                      return (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setModalStatus(st)}
+                          className={`p-2.5 rounded-xl text-xs font-bold border text-left transition-all flex items-center justify-between ${isSelected
+                            ? `${cfg.badgeClass} ring-2 ring-jds-primary/20`
+                            : 'border-jds-outline-variant/30 text-jds-on-surface-variant hover:bg-jds-surface-container-low'
+                            }`}
+                        >
+                          <span>{cfg.label}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {modalStatus === 'Completed' && (isPickupTicket(selectedInquiry) || selectedInquiry.is_reservation) && (
+                    <p className="mt-2 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
+                      Marking Completed here releases any active Stock Hold without deducting physical inventory or issuing a warranty QR pass. Use Fulfill via Register Sale for storefront checkout.
+                    </p>
                   )}
                 </div>
 
-                {/* Editable Fields Form */}
-                <div className="space-y-4">
-                  {/* Status Selector */}
+                {/* Showroom Business Hours Banner */}
+                <div className="p-3 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/60 text-xs text-jds-on-surface flex items-start gap-2.5">
+                  <Clock className="h-4 w-4 text-jds-primary shrink-0 mt-0.5" />
                   <div>
-                    <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                      Inquiry Status
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {INQUIRY_STATUSES.map((st) => {
-                        const isSelected = modalStatus === st
-                        const cfg = getInquiryStatusConfig(st)
-                        return (
-                          <button
-                            key={st}
-                            type="button"
-                            onClick={() => setModalStatus(st)}
-                            className={`p-2.5 rounded-xl text-xs font-bold border text-left transition-all flex items-center justify-between ${isSelected
-                              ? `${cfg.badgeClass} ring-2 ring-jds-primary/20`
-                              : 'border-jds-outline-variant/30 text-jds-on-surface-variant hover:bg-jds-surface-container-low'
-                              }`}
-                          >
-                            <span>{cfg.label}</span>
-                            {isSelected && <Check className="w-3.5 h-3.5" />}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {modalStatus === 'Completed' && (isPickupTicket(selectedInquiry) || selectedInquiry.is_reservation) && (
-                      <p className="mt-2 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
-                        Marking Completed here releases any active Stock Hold without deducting physical inventory or issuing a warranty QR pass. Use Fulfill via Register Sale for storefront checkout.
-                      </p>
-                    )}
+                    <span className="font-bold block text-jds-on-surface">Showroom Business Hours</span>
+                    <span className="text-[11px] text-jds-on-surface-variant block mt-0.5">
+                      Monday to Saturday: 8:00 AM – 5:30 PM • Closed on Sundays
+                    </span>
                   </div>
+                </div>
 
-                  {/* Showroom Business Hours Banner */}
-                  <div className="p-3 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/60 text-xs text-jds-on-surface flex items-start gap-2.5">
-                    <Clock className="h-4 w-4 text-jds-primary shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold block text-jds-on-surface">Showroom Business Hours</span>
-                      <span className="text-[11px] text-jds-on-surface-variant block mt-0.5">
-                        Monday to Saturday: 8:00 AM – 5:30 PM • Closed on Sundays
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Date & Time Slot */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs font-semibold text-jds-on-surface">
-                          Scheduled Visit Date <span className="text-amber-600">*</span>
-                        </label>
-                        <span className="text-[11px] text-jds-on-surface-variant font-medium">Mon – Sat Only</span>
-                      </div>
-                      <input
-                        type="date"
-                        min={minBusinessDateStr}
-                        required
-                        value={modalDate}
-                        onClick={(e) => {
-                          try {
-                            e.currentTarget.showPicker?.()
-                          } catch (err) { }
-                        }}
-                        onChange={(e) => {
-                          setModalDate(e.target.value)
-                          setModalError('')
-                        }}
-                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs font-semibold text-jds-on-surface">
-                          Time Slot <span className="text-amber-600">*</span>
-                        </label>
-                        <span className="text-[11px] text-jds-on-surface-variant font-medium">8:00 AM – 5:30 PM</span>
-                      </div>
-                      <input
-                        type="time"
-                        min="09:00"
-                        max="17:00"
-                        step="900"
-                        required
-                        value={modalTime}
-                        onClick={(e) => {
-                          try {
-                            e.currentTarget.showPicker?.()
-                          } catch (err) { }
-                        }}
-                        onChange={(e) => {
-                          setModalTime(e.target.value)
-                          setModalError('')
-                        }}
-                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary font-semibold cursor-pointer"
-                      />
-                    </div>
-                  </div>
-
-                  {modalError && (
-                    <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{modalError}</span>
-                    </div>
-                  )}
-
-                  {/* Branch */}
+                {/* Date & Time Slot */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                      Showroom Branch
-                    </label>
-                    <select
-                      value={modalBranch}
-                      onChange={(e) => setModalBranch(e.target.value)}
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-semibold text-jds-on-surface">
+                        Scheduled Visit Date <span className="text-amber-600">*</span>
+                      </label>
+                      <span className="text-[11px] text-jds-on-surface-variant font-medium">Mon – Sat Only</span>
+                    </div>
+                    <input
+                      type="date"
+                      min={minBusinessDateStr}
+                      required
+                      value={modalDate}
+                      onClick={(e) => {
+                        try {
+                          e.currentTarget.showPicker?.()
+                        } catch (err) { }
+                      }}
+                      onChange={(e) => {
+                        setModalDate(e.target.value)
+                        setModalError('')
+                      }}
                       className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
-                    >
-                      <option value="Cavite Distribution Hub">Cavite Distribution Hub</option>
-                      <option value="Quiapo Branch (Manila)">Quiapo Branch (Manila Showroom)</option>
-                    </select>
+                    />
                   </div>
 
-                  {/* Staff Notes */}
                   <div>
-                    <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                      Staff Notes & Next Steps
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={modalStaffNotes}
-                      onChange={(e) => setModalStaffNotes(e.target.value)}
-                      placeholder="Record customer notes, requirements, or conversation summaries..."
-                      className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary resize-none"
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-semibold text-jds-on-surface">
+                        Time Slot <span className="text-amber-600">*</span>
+                      </label>
+                      <span className="text-[11px] text-jds-on-surface-variant font-medium">8:00 AM – 5:30 PM</span>
+                    </div>
+                    <OperatingTimeSelect
+                      value={modalTime}
+                      onChange={(nextVal) => {
+                        setModalTime(nextVal)
+                        setModalError('')
+                      }}
+                      hourAriaLabel="Modal Time Hour"
+                      minuteAriaLabel="Modal Time Minute"
+                      selectClassName="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary font-semibold cursor-pointer"
                     />
                   </div>
                 </div>
 
-                {/* Direct Contact Links */}
-                {selectedInquiry.email && (
-                  <div className="flex items-center gap-3 pt-2">
-                    <a
-                      href={`mailto:${selectedInquiry.email}`}
-                      className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-300 px-3 py-2 rounded-xl flex items-center gap-1.5 hover:bg-blue-100 transition-colors"
-                    >
-                      <Mail className="w-3.5 h-3.5" />
-                      <span>Send Email</span>
-                    </a>
+                {modalError && (
+                  <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{modalError}</span>
                   </div>
                 )}
+
+                {/* Branch */}
+                <div>
+                  <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                    Showroom Branch
+                  </label>
+                  <select
+                    value={modalBranch}
+                    onChange={(e) => setModalBranch(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
+                  >
+                    <option value="Cavite Distribution Hub">Cavite Distribution Hub</option>
+                    <option value="Quiapo Branch (Manila)">Quiapo Branch (Manila Showroom)</option>
+                  </select>
+                </div>
+
+                {/* Staff Notes */}
+                <div>
+                  <label className="block text-xs font-semibold text-jds-on-surface mb-1">
+                    Staff Notes & Next Steps
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={modalStaffNotes}
+                    onChange={(e) => setModalStaffNotes(e.target.value)}
+                    placeholder="Record customer notes, requirements, or conversation summaries..."
+                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Direct Contact Links */}
+              {selectedInquiry.email && (
+                <div className="flex items-center gap-3 pt-2">
+                  <a
+                    href={`mailto:${selectedInquiry.email}`}
+                    className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-300 px-3 py-2 rounded-xl flex items-center gap-1.5 hover:bg-blue-100 transition-colors"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Send Email</span>
+                  </a>
+                </div>
+              )}
             </div>
           )
         )}
@@ -2708,23 +2705,15 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate 
                         </label>
                         <span className="text-[11px] text-jds-on-surface-variant font-medium">8:00 AM – 5:30 PM</span>
                       </div>
-                      <input
-                        type="time"
-                        min="09:00"
-                        max="17:00"
-                        step="900"
-                        required
+                      <OperatingTimeSelect
                         value={newVisitTime}
-                        onClick={(e) => {
-                          try {
-                            e.currentTarget.showPicker?.()
-                          } catch (err) { }
-                        }}
-                        onChange={(e) => {
-                          setNewVisitTime(e.target.value)
+                        onChange={(nextVal) => {
+                          setNewVisitTime(nextVal)
                           setNewError('')
                         }}
-                        className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary font-semibold cursor-pointer"
+                        hourAriaLabel="New Visit Time Hour"
+                        minuteAriaLabel="New Visit Time Minute"
+                        selectClassName="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary font-semibold cursor-pointer"
                       />
                     </div>
                   </div>

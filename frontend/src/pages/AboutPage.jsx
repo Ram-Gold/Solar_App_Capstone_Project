@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import { isBranchOpenNow } from '../lib/branchHours'
 import {
   HiOutlineSparkles,
   HiOutlineCheckBadge,
@@ -554,9 +555,20 @@ export default function AboutPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <HiOutlineClock className="text-jds-primary text-2xl shrink-0" />
-                  <span className="text-body-md text-jds-on-surface">
-                    Monday to Saturday, 8:00 AM – 5:30 PM (Closed on Sundays)
-                  </span>
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="text-body-md text-jds-on-surface">
+                      Monday to Saturday, 8:00 AM – 5:30 PM (Closed on Sundays)
+                    </span>
+                    <span
+                      className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+                        isBranchOpenNow()
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-stone-100 text-stone-600 border-stone-200'
+                      }`}
+                    >
+                      {isBranchOpenNow() ? 'Open Now' : 'Closed'}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <HiOutlinePhone className="text-jds-primary text-2xl shrink-0" />

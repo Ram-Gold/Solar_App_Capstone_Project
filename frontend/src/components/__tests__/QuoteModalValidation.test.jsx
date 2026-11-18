@@ -60,10 +60,10 @@ describe('QuoteModal Inline Validation', () => {
     expect(form.noValidate).toBe(true)
 
     const dateInput = document.body.querySelector('input[type="date"]')
-    const timeInput = document.body.querySelector('input[type="time"]')
+    const hourSelect = screen.getByLabelText(/Hour/i)
 
     fireEvent.change(dateInput, { target: { value: '' } })
-    fireEvent.change(timeInput, { target: { value: '' } })
+    fireEvent.change(hourSelect, { target: { value: '' } })
     fireEvent.click(screen.getByRole('checkbox'))
 
     fireEvent.click(screen.getByRole('button', { name: /Confirm Reservation Pass/i }))

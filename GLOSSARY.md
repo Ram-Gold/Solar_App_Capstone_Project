@@ -53,5 +53,13 @@ A confirmed equipment sale or installation record tracked through fulfillment.
 _Avoid_: Purchase, transaction
 
 **Warranty Claim**:
-A customer-submitted or staff-logged post-sale defect or service ticket tracked through `Diagnostic Intake` (`in_review`), `Approved for Release` (`approved`), `Handover Complete` (`resolved`), and `Declined` (`rejected`).
+A customer-submitted or staff-logged post-sale defect or service ticket (limited to one lifetime claim per registered product purchase) tracked through `Diagnostic Intake` (`in_review`), `For Verification / Checking` (`checking`), `Approved for Repair / Replacement` (`approved`), `Ready for Release / Pickup` (`ready_for_release`), `Handover Complete` (`resolved`), and `Declined` (`rejected`).
 _Avoid_: Support ticket, RMA, return
+
+**Showroom Branch**:
+One of JD Solar's two physical locations (`Quiapo Showroom (Manila)` and `Cavite Distribution Hub`) where customers schedule **Store Pickups** and **Consultation Inquiries**, each displaying live Open or Closed status.
+_Avoid_: Store, warehouse, outlet
+
+**Operating Hours**:
+The active showroom schedule of Monday through Saturday, 8:00 AM to 5:30 PM (`Asia/Manila`), closed Sundays; only valid 30-minute time slots within Operating Hours are offered for scheduling.
+_Avoid_: Store hours, 24/7 availability

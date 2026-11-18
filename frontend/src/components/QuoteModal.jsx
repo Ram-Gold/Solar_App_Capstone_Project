@@ -27,7 +27,14 @@ import { getBranchStock } from '../lib/inventoryUtils'
 import { extractFacebookHandle, formatFacebookUrl } from '../lib/facebookUtils'
 import useModalBehavior from '../hooks/useModalBehavior'
 import AnimatedConfirmation from './ui/AnimatedConfirmation'
+import OperatingTimeSelect from './ui/OperatingTimeSelect'
 import { getMainProductImage } from '../lib/productImageUtils'
+import {
+  BRANCH_OPERATING_HOURS,
+  OPERATING_TIME_SLOTS,
+  isBranchOpenNow,
+  formatTime24To12,
+} from '../lib/branchHours'
 
 const BRANCHES = [
   {
@@ -51,28 +58,8 @@ const INQUIRY_TOPICS = [
   'General Inquiries & Specifications',
 ]
 
-export const BUSINESS_HOURS = {
-  startHour: 8,
-  endHour: 17,
-  endMinute: 30,
-  startStr: '08:00',
-  endStr: '17:30',
-  daysDescription: 'Monday through Saturday',
-  hoursDescription: '8:00 AM – 5:30 PM',
-}
-
-export const BUSINESS_TIME_SLOTS = [
-  { value: '08:00', label: '8:00 AM' },
-  { value: '09:00', label: '9:00 AM' },
-  { value: '10:00', label: '10:00 AM' },
-  { value: '11:00', label: '11:00 AM' },
-  { value: '13:00', label: '1:00 PM' },
-  { value: '14:00', label: '2:00 PM' },
-  { value: '15:00', label: '3:00 PM' },
-  { value: '16:00', label: '4:00 PM' },
-  { value: '17:00', label: '5:00 PM' },
-  { value: '17:30', label: '5:30 PM' },
-]
+export const BUSINESS_HOURS = BRANCH_OPERATING_HOURS
+export const BUSINESS_TIME_SLOTS = OPERATING_TIME_SLOTS
 
 export const getNextBusinessDay = () => {
   const d = new Date()
@@ -142,6 +129,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
 
   // Generated Ticket State
   const [generatedTicket, setGeneratedTicket] = useState(null)
+  const [emailStatus, setEmailStatus] = useState('idle')
   const [errors, setErrors] = useState({})
   const [isConfirmedTransition, setIsConfirmedTransition] = useState(false)
 
@@ -150,6 +138,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
       setMode(initialMode || 'reserve')
       setStep(initialStep || 1)
       setIsConfirmedTransition(false)
+      setEmailStatus('idle')
       setErrors({})
       setCopied(false)
       setLoading(false)
@@ -170,6 +159,17 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
   if (!isOpen) return null
 
   const isReserve = mode === 'reserve'
+  const branchOpenNow = isBranchOpenNow()
+
+  const clearFieldError = (field) => {
+    if (errors[field]) {
+      setErrors((prev) => {
+        const next = { ...prev }
+        delete next[field]
+        return next
+      })
+    }
+  }
 
   const handlePhoneChange = (e) => {
     const val = normalizePhMobile(e.target.value)
@@ -305,9 +305,17 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
 
       // Dispatch confirmation & inquiry receipt email if email provided
       if (finalTicket.email) {
-        sendInquiryTicketEmail(finalTicket).catch(emailErr => {
-          console.warn('Inquiry ticket email dispatch warning:', emailErr)
-        })
+        setEmailStatus('sending')
+        sendInquiryTicketEmail(finalTicket)
+          .then((res) => {
+            setEmailStatus(res?.success === false ? 'failed' : 'sent')
+          })
+          .catch((emailErr) => {
+            console.warn('Inquiry ticket email dispatch warning:', emailErr)
+            setEmailStatus('failed')
+          })
+      } else {
+        setEmailStatus('idle')
       }
     } catch (err) {
       console.error('Submission error:', err)
@@ -659,13 +667,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                       key={b.id}
                       onClick={() => {
                         setSelectedBranch(isSelected ? '' : b.name)
-                        if (errors.selectedBranch) {
-                          setErrors((prev) => {
-                            const next = { ...prev }
-                            delete next.selectedBranch
-                            return next
-                          })
-                        }
+                        clearFieldError('selectedBranch')
                       }}
                       className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${isSelected
                         ? isReserve
@@ -678,7 +680,20 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                         <div className="flex items-center gap-2">
                           <Building2 className={`h-4 w-4 shrink-0 ${isSelected ? (isReserve ? 'text-amber-600' : 'text-blue-600') : 'text-stone-400'}`} />
                           <div>
-                            <p className="text-xs font-bold text-stone-900">{b.name}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-xs font-bold text-stone-900">{b.name}</p>
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${branchOpenNow
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-stone-100 text-stone-600 border-stone-200'
+                                  }`}
+                              >
+                                {branchOpenNow ? 'Open Now' : 'Closed'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-stone-500 mt-0.5">
+                              {BRANCH_OPERATING_HOURS.summary}
+                            </p>
                             {bStock && (
                               <p className={`text-[11px] font-medium ${bStock.available > 0 ? 'text-emerald-700' : 'text-stone-500'}`}>
                                 {bStock.available > 0
@@ -734,13 +749,15 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                   } catch (err) { }
                 }}
                 onChange={(e) => {
-                  setVisitDate(e.target.value)
-                  if (errors.visitDate) {
-                    setErrors((prev) => {
-                      const next = { ...prev }
-                      delete next.visitDate
-                      return next
-                    })
+                  const nextDate = e.target.value
+                  setVisitDate(nextDate)
+                  if (nextDate && new Date(`${nextDate}T00:00:00`).getDay() === 0) {
+                    setErrors((prev) => ({
+                      ...prev,
+                      visitDate: 'Our showrooms are closed on Sundays. Please choose Monday through Saturday.',
+                    }))
+                  } else {
+                    clearFieldError('visitDate')
                   }
                 }}
                 className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors cursor-pointer ${errors.visitDate
@@ -756,7 +773,7 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
               )}
             </div>
 
-            {/* Time Slot Input */}
+            {/* Two-Part Hour + 5-Minute Selector (Out-of-hours times are omitted) */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-semibold text-stone-700">
@@ -765,30 +782,13 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
                 <span className="text-[11px] text-stone-500 font-medium">8:00 AM – 5:30 PM</span>
               </div>
 
-              {/* Time Input constrained to business hours (09:00 - 17:00) with showPicker on click */}
-              <input
-                type="time"
-                min="09:00"
-                max="17:00"
-                step="900"
-                required
+              <OperatingTimeSelect
                 value={visitTime}
-                onClick={(e) => {
-                  try {
-                    e.currentTarget.showPicker?.()
-                  } catch (err) { }
+                onChange={(nextVal) => {
+                  setVisitTime(nextVal)
+                  clearFieldError('visitTime')
                 }}
-                onChange={(e) => {
-                  setVisitTime(e.target.value)
-                  if (errors.visitTime) {
-                    setErrors((prev) => {
-                      const next = { ...prev }
-                      delete next.visitTime
-                      return next
-                    })
-                  }
-                }}
-                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors cursor-pointer ${errors.visitTime
+                selectClassName={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors cursor-pointer ${errors.visitTime
                   ? 'border-red-400 bg-red-50/20'
                   : 'border-stone-200 bg-stone-50/40 focus:border-amber-500 focus:bg-white'
                   }`}
@@ -978,10 +978,40 @@ export default function QuoteModal({ isOpen, onClose, product, initialMode = 're
 
               {/* Email Confirmation Notice */}
               {generatedTicket.email && (
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 text-xs">
-                  <MailCheck className="h-4 w-4 text-amber-600 shrink-0" />
+                <div
+                  className={`flex items-center gap-2 p-3 rounded-xl border text-xs ${
+                    emailStatus === 'failed'
+                      ? 'bg-red-50 border-red-200 text-red-900'
+                      : emailStatus === 'sent'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                        : 'bg-amber-500/10 border-amber-500/20 text-amber-900'
+                  }`}
+                >
+                  <MailCheck
+                    className={`h-4 w-4 shrink-0 ${
+                      emailStatus === 'failed'
+                        ? 'text-red-600'
+                        : emailStatus === 'sent'
+                          ? 'text-emerald-600'
+                          : 'text-amber-600'
+                    }`}
+                  />
                   <span className="leading-tight">
-                    Official pass &amp; inquiry receipt details sent to <strong>{generatedTicket.email}</strong>.
+                    {emailStatus === 'sending' && (
+                      <>
+                        Sending confirmation email to <strong>{generatedTicket.email}</strong>...
+                      </>
+                    )}
+                    {emailStatus === 'failed' && (
+                      <>
+                        Email delivery failed — please save or copy your ticket code (<strong>{generatedTicket.ticket_code}</strong>).
+                      </>
+                    )}
+                    {(emailStatus === 'sent' || emailStatus === 'idle') && (
+                      <>
+                        Confirmation email sent to <strong>{generatedTicket.email}</strong>.
+                      </>
+                    )}
                   </span>
                 </div>
               )}
