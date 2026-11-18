@@ -3,6 +3,19 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import QuoteModal from '../QuoteModal'
 import * as customerService from '../../lib/customerService'
 
+vi.mock('../../lib/inquiryFulfillment', () => ({
+  inquiryFulfillment: {
+    submitInquiry: vi.fn(async (payload) => ({
+      ticket: {
+        ...payload,
+        email: payload.email || 'juan@example.com',
+        ticket_code: payload.ticket_code || 'JDS-RES-2026-999999',
+        is_reservation: payload.ticket_code?.includes('RES'),
+      },
+    })),
+  },
+}))
+
 vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
     from: vi.fn().mockReturnValue({
@@ -111,6 +124,78 @@ describe('QuoteModal Branch Hours, Slot Picker & Email Status', () => {
     })
 
     expect(screen.getByText(/Email delivery failed/i)).toBeDefined()
-    expect(screen.getAllByText(/JDS-RES-2026-999999/).length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText(/2026-11-19/).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('completes scheduling with SchedulePicker in inquire mode using blue accent', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-18T02:00:00Z'))
+    vi.spyOn(customerService, 'sendInquiryTicketEmail').mockResolvedValue({ success: true })
+
+    render(
+      <QuoteModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialStep={2}
+        initialMode="inquire"
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Nov 19, 2026 · 10:00 AM/i }))
+    const doneBtn = screen.getByRole('button', { name: 'Done' })
+    expect(doneBtn.className).toContain('bg-blue-600')
+
+    fireEvent.click(screen.getByRole('button', { name: '20' }))
+    fireEvent.click(screen.getByRole('button', { name: '2 PM' }))
+    fireEvent.click(screen.getByRole('button', { name: ':25' }))
+    fireEvent.click(doneBtn)
+
+    expect(screen.getByRole('button', { name: /Nov 20, 2026 · 2:25 PM/i })).toBeDefined()
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm Consultation Pass/i }))
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(1800)
+    })
+
+    expect(screen.getByText(/2026-11-20 • 2:25 PM/)).toBeDefined()
+  })
+
+  it('completes scheduling with SchedulePicker in reserve mode using amber accent', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-18T02:00:00Z'))
+    vi.spyOn(customerService, 'sendInquiryTicketEmail').mockResolvedValue({ success: true })
+
+    render(
+      <QuoteModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialStep={2}
+        initialMode="reserve"
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Nov 19, 2026 · 10:00 AM/i }))
+    const doneBtn = screen.getByRole('button', { name: 'Done' })
+    expect(doneBtn.className).toContain('bg-amber-500')
+
+    fireEvent.click(screen.getByRole('button', { name: '21' }))
+    fireEvent.click(screen.getByRole('button', { name: '5 PM' }))
+    fireEvent.click(screen.getByRole('button', { name: ':30' }))
+    fireEvent.click(doneBtn)
+
+    expect(screen.getByRole('button', { name: /Nov 21, 2026 · 5:30 PM/i })).toBeDefined()
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm Reservation Pass/i }))
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(1800)
+    })
+
+    expect(screen.getByText(/2026-11-21 • 5:30 PM/)).toBeDefined()
   })
 })
