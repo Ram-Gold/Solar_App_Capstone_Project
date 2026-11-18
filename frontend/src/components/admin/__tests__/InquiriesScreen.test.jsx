@@ -100,4 +100,19 @@ describe('InquiriesScreen', () => {
       expect(screen.queryByText(/Log New Customer Inquiry/i)).toBeNull()
     })
   })
+
+  it('enables calendar drag-and-drop only for admin roleVariant, disabling it for staff', async () => {
+    const { rerender } = render(<InquiriesScreen initialViewMode="calendar" roleVariant="staff" />)
+    await waitFor(() => {
+      expect(screen.getAllByText('Maria Santos').length).toBeGreaterThan(0)
+    })
+
+    // Calendar cards when staff: no draggable="true" elements
+    expect(document.querySelectorAll('[draggable="true"]').length).toBe(0)
+
+    rerender(<InquiriesScreen initialViewMode="calendar" roleVariant="admin" />)
+    await waitFor(() => {
+      expect(document.querySelectorAll('[draggable="true"]').length).toBeGreaterThan(0)
+    })
+  })
 })

@@ -395,7 +395,8 @@ function getMonthDays(targetDate) {
   return days
 }
 
-export default function InquiriesScreen({ initialViewMode = 'table', onNavigate, initialSearch = '' }) {
+export default function InquiriesScreen({ initialViewMode = 'table', onNavigate, initialSearch = '', roleVariant = 'staff' }) {
+  const isAdmin = roleVariant === 'admin'
   const [inquiries, setInquiries] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -872,10 +873,10 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate,
       const { inquiry, productDelta, holdChanged } = await inquiryFulfillment.updateInquiry(
         selectedInquiry,
         {
-          visitDate: modalDate,
+          visitDate: selectedInquiry.visit_date || modalDate,
           visitTime24: modalTime,
           status: modalStatus,
-          storeBranch: modalBranch,
+          storeBranch: selectedInquiry.store_branch || modalBranch,
           staffNotes: modalStaffNotes,
           holdStock: modalHoldStock,
           holdQty: modalHoldQty,
@@ -898,7 +899,7 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate,
 
       setModalHoldStock(Boolean(inquiry.is_reservation))
       setSelectedInquiry(inquiry)
-      setModalSuccess('Inquiry schedule and status updated.')
+      setModalSuccess('Inquiry status and notes updated.')
       showToast(`Inquiry ${selectedInquiry.ticket_code} updated successfully.`)
       notifyOpsUpdated({ topics: holdChanged ? ['inquiries', 'inventory'] : ['inquiries'] })
     } catch (err) {
@@ -909,8 +910,9 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate,
     }
   }
 
-  // Drag and drop reschedule
+  // Drag and drop reschedule (Admin only)
   const handleDragStart = (e, ticketId) => {
+    if (!isAdmin) return
     e.dataTransfer.setData('text/plain', String(ticketId))
     e.dataTransfer.effectAllowed = 'move'
     setDraggingTicketId(ticketId)
@@ -937,6 +939,7 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate,
   const handleDrop = async (e, dateStr, hour, minute = 0) => {
     e.preventDefault()
     setDragOverSlot(null)
+    if (!isAdmin) return
     const ticketIdStr = e.dataTransfer.getData('text/plain') || draggingTicketId
     if (!ticketIdStr) return
 
@@ -1516,8 +1519,8 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate,
                             return (
                               <div
                                 key={ticket.id || ticket.ticket_code}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, ticket.id)}
+                                draggable={isAdmin}
+                                onDragStart={isAdmin ? (e) => handleDragStart(e, ticket.id) : undefined}
                                 onDragEnd={handleDragEnd}
                                 onClick={() => handleOpenInquiry(ticket)}
                                 style={ticket.layout.style}
@@ -2333,29 +2336,20 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate,
                   </div>
                 </div>
 
-                {/* Combined Mon–Sat Calendar & Hour/5-Min Schedule Picker */}
+                {/* Read-Only Visitor Schedule */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-semibold text-jds-on-surface">
-                      Visit Schedule <span className="text-amber-600">*</span>
+                      Visit Schedule
                     </label>
-                    <span className="text-[11px] text-jds-on-surface-variant font-medium">Mon – Sat · 8:00 AM – 5:30 PM</span>
+                    <span className="text-[11px] text-jds-on-surface-variant font-medium">Read-only</span>
                   </div>
-                  <SchedulePicker
-                    date={modalDate}
-                    time={modalTime}
-                    minDate={minBusinessDateStr}
-                    onDateChange={(nextVal) => {
-                      setModalDate(nextVal)
-                      setModalError('')
-                    }}
-                    onTimeChange={(nextVal) => {
-                      setModalTime(nextVal)
-                      setModalError('')
-                    }}
-                    hasError={Boolean(modalError)}
-                    accent="blue"
-                  />
+                  <div className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/60 text-jds-on-surface font-semibold flex items-center justify-between gap-2">
+                    <span>
+                      {selectedInquiry.visit_date || 'Unscheduled'}
+                      {selectedInquiry.visit_time_slot ? ` • ${selectedInquiry.visit_time_slot}` : ''}
+                    </span>
+                  </div>
                 </div>
 
                 {modalError && (
@@ -2365,19 +2359,17 @@ export default function InquiriesScreen({ initialViewMode = 'table', onNavigate,
                   </div>
                 )}
 
-                {/* Branch */}
+                {/* Read-Only Showroom Branch */}
                 <div>
-                  <label className="block text-xs font-semibold text-jds-on-surface mb-1">
-                    Showroom Branch
-                  </label>
-                  <select
-                    value={modalBranch}
-                    onChange={(e) => setModalBranch(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/40 bg-jds-surface text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
-                  >
-                    <option value="Cavite Distribution Hub">Cavite Distribution Hub</option>
-                    <option value="Quiapo Branch (Manila)">Quiapo Branch (Manila Showroom)</option>
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-jds-on-surface">
+                      Showroom Branch
+                    </label>
+                    <span className="text-[11px] text-jds-on-surface-variant font-medium">Read-only</span>
+                  </div>
+                  <div className="w-full text-xs p-2.5 rounded-xl border border-jds-outline-variant/30 bg-jds-surface-container-low/60 text-jds-on-surface font-semibold">
+                    {selectedInquiry.store_branch || modalBranch || 'Cavite Distribution Hub'}
+                  </div>
                 </div>
 
                 {/* Staff Notes */}

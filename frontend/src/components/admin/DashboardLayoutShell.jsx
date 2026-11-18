@@ -27,15 +27,18 @@ export default function DashboardLayoutShell({
     setActiveScreen(screen)
   }
 
-  const screenProps =
-    activeScreen === 'images'
-      ? { onNavigate: handleNavigate, initialTab: 'media' }
-      : activeScreen === 'register-sale'
-        ? { onNavigate: handleNavigate, preselectedTicketId: navPayload?.ticketId ?? null }
-        : { onNavigate: handleNavigate }
+  const screenProps = {
+    onNavigate: handleNavigate,
+    initialSearch: navPayload?.searchQuery ?? '',
+    initialItemId: navPayload?.itemId ?? null,
+    ...(activeScreen === 'images' ? { initialTab: 'media' } : {}),
+    ...(activeScreen === 'register-sale'
+      ? { preselectedTicketId: navPayload?.ticketId ?? null }
+      : {}),
+  }
 
   return (
-    <div className="flex h-[calc(100dvh-54px)] sm:h-[calc(100dvh-73px)] overflow-hidden bg-jds-surface relative">
+    <div className="flex h-[calc(100dvh-65px)] sm:h-[calc(100dvh-73px)] lg:h-[calc(100dvh-69px)] overflow-hidden bg-jds-surface relative">
       <a
         href="#dashboard-main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-4 focus:z-[80] focus:px-4 focus:py-2.5 focus:rounded-lg focus:bg-jds-primary focus:text-jds-on-primary focus:font-bold focus:outline-2 focus:outline-jds-primary-container"
@@ -85,7 +88,7 @@ export default function DashboardLayoutShell({
               fallbackTitle={fallbackTitle}
               onReset={() => setActiveScreen('dashboard')}
             >
-              <ActiveComponent key={activeScreen} {...screenProps} />
+              <ActiveComponent key={activeScreen} roleVariant={roleVariant} {...screenProps} />
             </ErrorBoundary>
           </main>
         </div>

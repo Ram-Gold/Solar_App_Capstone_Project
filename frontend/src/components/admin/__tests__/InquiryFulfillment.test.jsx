@@ -256,8 +256,9 @@ describe('Inquiry Fulfillment, Stock Holds, and Counters', () => {
       expect(screen.getByLabelText(/Hold Stock for Pickup/i)).toBeTruthy()
     })
 
-    const branchSelect = screen.getByDisplayValue('Cavite Distribution Hub')
-    fireEvent.change(branchSelect, { target: { value: 'Quiapo Branch (Manila)' } })
+    // Visitor-submitted branch & schedule are read-only in the Edit modal
+    expect(screen.getAllByText('Read-only').length).toBe(2)
+    expect(screen.getAllByText('Cavite Distribution Hub').length).toBeGreaterThan(0)
     fireEvent.click(screen.getByLabelText(/Hold Stock for Pickup/i))
     fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }))
 
@@ -269,7 +270,7 @@ describe('Inquiry Fulfillment, Stock Holds, and Counters', () => {
     const reserveIdx = mockCallLog.findIndex((c) => c.op === 'rpc' && c.fnName === 'reserve_product_stock')
     expect(updateIdx).toBeGreaterThan(-1)
     expect(reserveIdx).toBeGreaterThan(updateIdx)
-    expect(mockCallLog[updateIdx].payload.store_branch).toBe('Quiapo Branch (Manila)')
+    expect(mockCallLog[updateIdx].payload.store_branch).toBe('Cavite Distribution Hub')
   })
 
   it('auto-releases Stock Hold when marking Completed, deleting, or bulk-purging without calling missing RPC', async () => {

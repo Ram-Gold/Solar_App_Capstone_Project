@@ -25,7 +25,7 @@ The full-privilege operational interface (`/admin`) that extends Staff Workspace
 _Avoid_: Admin dashboard, control panel
 
 **Inquiry**:
-A consultative customer request (`quote_tickets`) spanning two subtypes: **Consultation Inquiry** and **Store Pickup**.
+A consultative customer request (`quote_tickets`) spanning two subtypes: **Consultation Inquiry** and **Store Pickup**. Customer-submitted **Showroom Branch** and visit schedule are read-only during operational review.
 _Avoid_: Quote cart, checkout, lead
 
 **Consultation Inquiry**:
@@ -63,3 +63,7 @@ _Avoid_: Store, warehouse, outlet
 **Operating Hours**:
 The active showroom schedule of Monday through Saturday, 8:00 AM to 5:30 PM (`Asia/Manila`), closed Sundays; only valid 30-minute time slots within Operating Hours are offered for scheduling.
 _Avoid_: Store hours, 24/7 availability
+
+**Inquiry Rate Limit**:
+A protective cap of 3 combined **Inquiries** (**Consultation Inquiries** and **Store Pickups**, including cancelled ones) per rolling 60-minute window per customer session/IP, from which **Staff Workspace** and **Admin Console** operators are exempt.
+_Avoid_: Spam filter, request quota
