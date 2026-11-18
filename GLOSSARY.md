@@ -16,6 +16,22 @@ _Avoid_: Match wizard, configurator, quiz
 The authenticated customer view (`/portal`) for tracking registered purchases, warranties, fault diagnostics, and warranty claims.
 _Avoid_: Customer dashboard, client area, user account
 
+**Staff Member**:
+An authenticated showroom or operations employee who operates the **Staff Workspace** (`/staff`) to handle daily inquiries, sales registration, product stock, and forward-only warranty claim processing.
+_Avoid_: Counter staff, employee, agent
+
+**Administrator**:
+A full-privilege operator who uses the **Admin Console** (`/admin`) with unrestricted access to pricing, order management, user/role administration, destructive deletions, and warranty claim overrides.
+_Avoid_: Superuser, owner, manager
+
+**Customer**:
+An authenticated buyer who accesses the **Customer Portal** (`/portal`) via email/password or an activation token to view registered purchases, track warranty coverage, run fault diagnostics, and submit a **Warranty Claim**.
+_Avoid_: Client, buyer, account
+
+**Public Guest**:
+An unauthenticated visitor browsing the **Product Catalog** (`/browse`), using the **Product Matcher** (`/match`), or submitting an **Inquiry** within the **Inquiry Rate Limit**.
+_Avoid_: Anonymous user, shopper, visitor
+
 **Staff Workspace**:
 The operational interface (`/staff`) for staff members to manage inquiries, sales registration, customers, warranties, products, and orders.
 _Avoid_: Staff dashboard, backoffice
