@@ -174,7 +174,12 @@ export default function SchedulePicker({
   const accentSelected =
     accent === 'blue'
       ? 'bg-blue-600 text-white font-bold shadow-sm'
-      : 'bg-stone-900 text-white font-bold shadow-sm'
+      : 'bg-amber-500 text-white font-bold shadow-sm'
+
+  const accentDoneBtn =
+    accent === 'blue'
+      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+      : 'bg-amber-500 hover:bg-amber-600 text-white'
 
   const handlePrevMonth = () => {
     if (viewMonth === 0) {
@@ -311,7 +316,7 @@ export default function SchedulePicker({
             <div
               role="listbox"
               aria-label="Operating Hour"
-              className="max-h-48 sm:max-h-52 overflow-y-auto space-y-1 pr-0.5"
+              className="max-h-48 sm:max-h-52 overflow-y-auto no-scrollbar space-y-1 pr-0.5"
             >
               {hasLegacyHour && (
                 <button
@@ -346,7 +351,7 @@ export default function SchedulePicker({
             <div
               role="listbox"
               aria-label="Operating Minute"
-              className="max-h-48 sm:max-h-52 overflow-y-auto space-y-1 pr-0.5"
+              className="max-h-48 sm:max-h-52 overflow-y-auto no-scrollbar space-y-1 pr-0.5"
             >
               {hasLegacyMinute && (
                 <button
@@ -388,7 +393,7 @@ export default function SchedulePicker({
         <button
           type="button"
           onClick={() => setIsOpen(false)}
-          className="px-3.5 py-1.5 rounded-lg bg-stone-900 text-white text-xs font-bold hover:bg-stone-800 transition-colors shrink-0 cursor-pointer"
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors shrink-0 cursor-pointer ${accentDoneBtn}`}
         >
           Done
         </button>
