@@ -76,4 +76,32 @@ describe('SchedulePicker', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     expect(screen.queryByText('Mo')).toBeNull()
   })
+
+  it('renders as a floating portal popup without backdrop, closes on outside click, and stops click propagation to parent', () => {
+    const parentBackdropClick = vi.fn()
+    render(
+      <div onClick={parentBackdropClick}>
+        <SchedulePicker
+          date="2026-11-19"
+          time="10:00"
+          minDate="2026-11-19"
+          onDateChange={vi.fn()}
+          onTimeChange={vi.fn()}
+        />
+      </div>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Nov 19, 2026 · 10:00 AM/i }))
+    parentBackdropClick.mockClear()
+    const popup = screen.getByTestId('schedule-floating-popup')
+    expect(popup.className).toContain('fixed')
+
+    // Clicking inside the floating popup must not bubble to parent backdrop
+    fireEvent.click(popup)
+    expect(parentBackdropClick).not.toHaveBeenCalled()
+
+    // Clicking outside on document.body closes the floating popup
+    fireEvent.mouseDown(document.body)
+    expect(screen.queryByTestId('schedule-floating-popup')).toBeNull()
+  })
 })
