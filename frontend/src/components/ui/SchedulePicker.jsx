@@ -225,7 +225,7 @@ export default function SchedulePicker({
       style={popupStyle}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
-      className="fixed z-[10050] rounded-2xl border border-stone-200 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.22)] overflow-y-auto"
+      className="fixed z-[10050] rounded-2xl border border-stone-200 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.22)] overflow-y-auto no-scrollbar"
     >
       <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-stone-200">
         {/* Left: 6-Column Mon–Sat Calendar */}
