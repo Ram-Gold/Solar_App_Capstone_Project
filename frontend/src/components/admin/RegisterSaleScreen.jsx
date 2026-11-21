@@ -19,7 +19,7 @@ import {
   X
 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
-import { searchCustomerByPhone, registerCustomerAndSale } from '../../lib/customerService'
+import { searchCustomerByPhone, searchOpenInquiryByPhone, registerCustomerAndSale } from '../../lib/customerService'
 import { getAvailableQuantity, getBranchStock, getReservedQuantity } from '../../lib/inventoryUtils'
 import { isPickupInquiry, notifyOpsUpdated } from '../../lib/inquiryStatusUtils'
 import {
@@ -33,8 +33,28 @@ import {
 } from '../../lib/sanitize.js'
 import QRReceiptModal from './QRReceiptModal'
 
+function resolveBranchFromTicket(ticket) {
+  if (!ticket?.store_branch) return null
+  return ticket.store_branch.toLowerCase().includes('quiapo') ? 'Quiapo' : 'Cavite'
+}
+
+function buildItemsFromTicket(ticket, catalogProducts) {
+  if (!ticket?.product_id) return null
+  const prod = catalogProducts.find((p) => String(p.id) === String(ticket.product_id))
+  const qty = Math.max(1, Number(ticket.quantity) || 1)
+  const today = new Date().toISOString().split('T')[0]
+  return Array.from({ length: qty }, () => ({
+    productId: String(ticket.product_id),
+    serialNumber: '',
+    warrantyMonths: prod?.default_warranty_months || 24,
+    purchaseDate: today
+  }))
+}
+
 export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = null }) {
   const autoSelectedTicketRef = useRef(null)
+  const branchTouchedRef = useRef(false)
+  const itemsTouchedRef = useRef(false)
   const [phoneNumber, setPhoneNumber] = useState('')
   const [phoneTouched, setPhoneTouched] = useState(false)
 
@@ -47,6 +67,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
   const [isSearchingPhone, setIsSearchingPhone] = useState(false)
   const [isReturningCustomer, setIsReturningCustomer] = useState(false)
   const [existingCustomerRecord, setExistingCustomerRecord] = useState(null)
+  const [matchedInquiry, setMatchedInquiry] = useState(null)
 
   // Reservation fulfillment state
   const [saleMode, setSaleMode] = useState(preselectedTicketId ? 'reservation' : 'walk_in') // 'walk_in' | 'reservation'
@@ -87,13 +108,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
           .order('id', { ascending: false })
 
         if (!error && data) {
-          const resOnly = data.filter(
-            (t) =>
-              t.is_reservation ||
-              isPickupInquiry(t) ||
-              (preselectedTicketId && String(t.id) === String(preselectedTicketId))
-          )
-          setActiveReservations(resOnly)
+          setActiveReservations(data)
         }
       } catch (err) {
         console.warn('Failed to load active reservations:', err)
@@ -143,30 +158,58 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
     if (cleanPhone.length < 7) {
       setIsReturningCustomer(false)
       setExistingCustomerRecord(null)
+      setMatchedInquiry(null)
       return
     }
 
     const timer = setTimeout(async () => {
       setIsSearchingPhone(true)
       const { customer } = await searchCustomerByPhone(cleanPhone)
-      setIsSearchingPhone(false)
       if (customer) {
+        setIsSearchingPhone(false)
         setIsReturningCustomer(true)
         setExistingCustomerRecord(customer)
+        setMatchedInquiry(null)
         if (!fullName) {
           setFullName(customer.full_name)
         }
         if (!email && customer.email) {
           setEmail(customer.email)
         }
-      } else {
+      } else if (saleMode === 'walk_in') {
         setIsReturningCustomer(false)
         setExistingCustomerRecord(null)
+        const { inquiry } = await searchOpenInquiryByPhone(cleanPhone)
+        setIsSearchingPhone(false)
+        if (inquiry) {
+          setMatchedInquiry(inquiry)
+          if (!fullName && inquiry.customer_name) {
+            setFullName(inquiry.customer_name)
+          }
+          if (!email && inquiry.email) {
+            setEmail(inquiry.email)
+          }
+          const inquiryBranch = resolveBranchFromTicket(inquiry)
+          if (inquiryBranch && !branchTouchedRef.current) {
+            setBranchLocation(inquiryBranch)
+          }
+          if (!itemsTouchedRef.current) {
+            const prefilledItems = buildItemsFromTicket(inquiry, catalogProducts)
+            if (prefilledItems) setItems(prefilledItems)
+          }
+        } else {
+          setMatchedInquiry(null)
+        }
+      } else {
+        setIsSearchingPhone(false)
+        setIsReturningCustomer(false)
+        setExistingCustomerRecord(null)
+        setMatchedInquiry(null)
       }
     }, 400)
 
     return () => clearTimeout(timer)
-  }, [phoneNumber])
+  }, [phoneNumber, saleMode])
 
   const handleSelectReservation = useCallback((ticketId) => {
     setSelectedReservationId(ticketId)
@@ -182,24 +225,11 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
       if (ticket.customer_name) setFullName(ticket.customer_name)
       if (ticket.mobile_contact) setPhoneNumber(sanitizePhone(ticket.mobile_contact))
       if (ticket.email) setEmail(ticket.email)
-      if (ticket.store_branch) {
-        setBranchLocation(ticket.store_branch.toLowerCase().includes('quiapo') ? 'Quiapo' : 'Cavite')
-      }
+      const ticketBranch = resolveBranchFromTicket(ticket)
+      if (ticketBranch) setBranchLocation(ticketBranch)
 
-      if (ticket.product_id) {
-        const prod = catalogProducts.find(p => String(p.id) === String(ticket.product_id))
-        const qty = Math.max(1, Number(ticket.quantity) || 1)
-        const newItems = []
-        for (let i = 0; i < qty; i++) {
-          newItems.push({
-            productId: String(ticket.product_id),
-            serialNumber: '',
-            warrantyMonths: prod?.default_warranty_months || 24,
-            purchaseDate: new Date().toISOString().split('T')[0]
-          })
-        }
-        setItems(newItems)
-      }
+      const prefilledItems = buildItemsFromTicket(ticket, catalogProducts)
+      if (prefilledItems) setItems(prefilledItems)
     }
   }, [activeReservations, catalogProducts])
 
@@ -223,6 +253,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
   }
 
   const handleAddItem = () => {
+    itemsTouchedRef.current = true
     const defaultProd = catalogProducts[0]
     setItems(prev => [
       ...prev,
@@ -270,6 +301,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
   }
 
   const handleItemChange = (index, field, value) => {
+    itemsTouchedRef.current = true
     setItems(prev => {
       const updated = [...prev]
       let val = value
@@ -336,8 +368,10 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
       return
     }
 
-    // Direct walk-in sales must not deplete temporarily reserved units
-    if (!selectedReservation) {
+    // Direct walk-in sales (and consultations without a Stock Hold) must not deplete temporarily reserved units
+    const linkedTicketId = selectedReservation?.id || matchedInquiry?.id || null
+    const hasStockHold = Boolean(selectedReservation?.is_reservation || (!selectedReservation && matchedInquiry?.is_reservation))
+    if (!hasStockHold) {
       const requestedCounts = {}
       for (const it of items) {
         const pid = String(it.productId)
@@ -368,7 +402,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
         password: finalPassword,
         branchLocation,
         items,
-        ticketId: selectedReservation?.id || null,
+        ticketId: linkedTicketId,
         onEmailStatusChange: (statusUpdate) => {
           setLiveEmailStatus(statusUpdate)
           setQrModalData(prev =>
@@ -385,9 +419,12 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
         }
       })
 
-      if (selectedReservation?.id) {
-        setActiveReservations((prev) => prev.filter((t) => String(t.id) !== String(selectedReservation.id)))
+      if (linkedTicketId) {
+        setActiveReservations((prev) => prev.filter((t) => String(t.id) !== String(linkedTicketId)))
       }
+      setMatchedInquiry(null)
+    branchTouchedRef.current = false
+    itemsTouchedRef.current = false
       notifyOpsUpdated()
 
       setQrModalData({
@@ -417,6 +454,9 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
     setShowPassword(false)
     setIsReturningCustomer(false)
     setExistingCustomerRecord(null)
+    setMatchedInquiry(null)
+    branchTouchedRef.current = false
+    itemsTouchedRef.current = false
     setErrorMessage('')
     if (catalogProducts.length > 0) {
       setItems([
@@ -450,7 +490,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
           >
             <option value="walk_in">Direct Walk-In Sale</option>
             <option value="reservation">
-              Fulfill Reservation ({activeReservations.length})
+              Fulfill Inquiry / Reservation ({activeReservations.length})
             </option>
           </select>
         </div>
@@ -462,7 +502,10 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
           <select
             id="reg-branch-select"
             value={branchLocation}
-            onChange={(e) => setBranchLocation(e.target.value)}
+            onChange={(e) => {
+              branchTouchedRef.current = true
+              setBranchLocation(e.target.value)
+            }}
             className="bg-transparent font-semibold text-jds-on-surface focus:outline-none cursor-pointer"
           >
             <option value="Quiapo">Quiapo Branch</option>
@@ -488,7 +531,7 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-bold text-jds-on-surface">
               <Ticket className="w-4 h-4 text-jds-primary" />
-              <span>Select Reservation Ticket</span>
+              <span>Select Inquiry or Reservation Ticket</span>
             </div>
             {selectedReservation && (
               <button
@@ -504,14 +547,15 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
 
           <div className="grid grid-cols-1 gap-2">
             <select
+              aria-label="Select Inquiry or Reservation Ticket"
               value={selectedReservationId}
               onChange={(e) => handleSelectReservation(e.target.value)}
               className="w-full bg-jds-surface border border-jds-outline-variant rounded-lg px-3.5 py-2.5 text-xs font-medium text-jds-on-surface focus:outline-none focus:border-jds-primary cursor-pointer"
             >
-              <option value="">Select a reservation ticket (JDS-RES-*)...</option>
+              <option value="">Select an inquiry or reservation ticket (JDS-INQ-* / JDS-RES-*)...</option>
               {activeReservations.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.ticket_code} — {t.customer_name} ({t.product_name} × {t.quantity || 1}) [{t.store_branch || 'Store'}]
+                  {t.ticket_code} — {t.customer_name} ({t.product_name} × {t.quantity || 1}) [{t.is_reservation || isPickupInquiry(t) ? 'Store Pickup' : 'Consultation'} · {t.store_branch || 'Store'}]
                 </option>
               ))}
             </select>
@@ -521,7 +565,15 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
             <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2 animate-in fade-in">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>
-                <strong>Linked Reservation: {selectedReservation.ticket_code}</strong>. Stock hold will convert into an in-store sale upon completion.
+                {selectedReservation.is_reservation ? (
+                  <>
+                    <strong>Linked Reservation: {selectedReservation.ticket_code}</strong>. Stock hold will convert into an in-store sale upon completion.
+                  </>
+                ) : (
+                  <>
+                    <strong>Linked Inquiry: {selectedReservation.ticket_code}</strong>. Inquiry will be marked Completed and unreserved branch stock will be deducted upon completion.
+                  </>
+                )}
               </span>
             </div>
           )}
@@ -536,14 +588,38 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
               <span>Customer Identification</span>
             </div>
 
-            {/* Returning customer indicator */}
-            {isReturningCustomer && (
+            {/* Returning customer / Open inquiry indicator */}
+            {isReturningCustomer ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 animate-in fade-in">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Returning Customer
               </span>
-            )}
+            ) : matchedInquiry ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-in fade-in">
+                <Ticket className="w-3.5 h-3.5" />
+                Open Inquiry Found: {matchedInquiry.ticket_code}
+              </span>
+            ) : null}
           </div>
+
+          {!isReturningCustomer && matchedInquiry && !selectedReservation && (
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-800 dark:text-amber-200 flex items-center justify-between gap-2 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <Ticket className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>
+                  <strong>{matchedInquiry.is_reservation || isPickupInquiry(matchedInquiry) ? 'Store Pickup' : 'Consultation Inquiry'} ({matchedInquiry.ticket_code})</strong>
+                  {matchedInquiry.product_name ? ` — ${matchedInquiry.product_name} × ${matchedInquiry.quantity || 1}` : ''}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMatchedInquiry(null)}
+                className="text-xs font-semibold text-amber-700 dark:text-amber-300 hover:underline shrink-0 cursor-pointer"
+              >
+                Unlink Inquiry
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
             {/* Phone */}

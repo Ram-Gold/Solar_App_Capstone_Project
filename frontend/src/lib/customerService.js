@@ -446,6 +446,35 @@ export async function searchCustomerByPhone(rawPhone) {
 }
 
 /**
+ * Searches for the latest open Inquiry (Pending or Confirmed) matching a phone number.
+ */
+export async function searchOpenInquiryByPhone(rawPhone) {
+  const phone = sanitizePhone(rawPhone) || (rawPhone || '').trim()
+  if (!phone) return { inquiry: null, error: null }
+
+  try {
+    const { data, error } = await supabase
+      .from('quote_tickets')
+      .select('id, ticket_code, customer_name, mobile_contact, email, product_id, product_name, quantity, store_branch, is_reservation, status, purpose_of_visitation')
+      .eq('mobile_contact', phone)
+      .in('status', ['Pending', 'Confirmed'])
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      console.warn('searchOpenInquiryByPhone query error:', error)
+      return { inquiry: null, error }
+    }
+
+    return { inquiry: data || null, error: null }
+  } catch (err) {
+    console.error('searchOpenInquiryByPhone exception:', err)
+    return { inquiry: null, error: err }
+  }
+}
+
+/**
  * Registers or looks up a customer, logs purchases, generates the QR portal link,
  * and queues/dispatches an account creation confirmation email when a new customer
  * account is created or when an email is newly added/updated.

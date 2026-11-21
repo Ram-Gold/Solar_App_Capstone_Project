@@ -105,6 +105,10 @@ vi.mock('../../lib/customerService', () => ({
   searchCustomerByPhone: vi.fn().mockResolvedValue({
     customer: null,
     purchases: []
+  }),
+  searchOpenInquiryByPhone: vi.fn().mockResolvedValue({
+    inquiry: null,
+    error: null
   })
 }))
 

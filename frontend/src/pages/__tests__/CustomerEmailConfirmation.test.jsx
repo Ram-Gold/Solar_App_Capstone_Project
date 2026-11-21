@@ -40,6 +40,10 @@ vi.mock('../../lib/customerService', () => ({
     customer: null,
     purchases: []
   }),
+  searchOpenInquiryByPhone: vi.fn().mockResolvedValue({
+    inquiry: null,
+    error: null
+  }),
   registerCustomerAndSale: vi.fn(),
   fetchCustomerPortalData: vi.fn(),
   getCustomerAuthStatus: vi.fn(),
