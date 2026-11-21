@@ -165,28 +165,34 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
     const timer = setTimeout(async () => {
       setIsSearchingPhone(true)
       const { customer } = await searchCustomerByPhone(cleanPhone)
+      let resolvedName = fullName
+      let resolvedEmail = email
+
       if (customer) {
-        setIsSearchingPhone(false)
         setIsReturningCustomer(true)
         setExistingCustomerRecord(customer)
-        setMatchedInquiry(null)
-        if (!fullName) {
+        if (!resolvedName) {
+          resolvedName = customer.full_name
           setFullName(customer.full_name)
         }
-        if (!email && customer.email) {
+        if (!resolvedEmail && customer.email) {
+          resolvedEmail = customer.email
           setEmail(customer.email)
         }
-      } else if (saleMode === 'walk_in') {
+      } else {
         setIsReturningCustomer(false)
         setExistingCustomerRecord(null)
+      }
+
+      if (saleMode === 'walk_in') {
         const { inquiry } = await searchOpenInquiryByPhone(cleanPhone)
         setIsSearchingPhone(false)
         if (inquiry) {
           setMatchedInquiry(inquiry)
-          if (!fullName && inquiry.customer_name) {
+          if (!resolvedName && inquiry.customer_name) {
             setFullName(inquiry.customer_name)
           }
-          if (!email && inquiry.email) {
+          if (!resolvedEmail && inquiry.email) {
             setEmail(inquiry.email)
           }
           const inquiryBranch = resolveBranchFromTicket(inquiry)
@@ -202,8 +208,6 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
         }
       } else {
         setIsSearchingPhone(false)
-        setIsReturningCustomer(false)
-        setExistingCustomerRecord(null)
         setMatchedInquiry(null)
       }
     }, 400)
@@ -588,21 +592,24 @@ export default function RegisterSaleScreen({ onNavigate, preselectedTicketId = n
               <span>Customer Identification</span>
             </div>
 
-            {/* Returning customer / Open inquiry indicator */}
-            {isReturningCustomer ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 animate-in fade-in">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Returning Customer
-              </span>
-            ) : matchedInquiry ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-in fade-in">
-                <Ticket className="w-3.5 h-3.5" />
-                Open Inquiry Found: {matchedInquiry.ticket_code}
-              </span>
-            ) : null}
+            {/* Returning customer / Open inquiry indicators */}
+            <div className="flex flex-wrap items-center gap-2">
+              {isReturningCustomer && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 animate-in fade-in">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Returning Customer
+                </span>
+              )}
+              {matchedInquiry && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-in fade-in">
+                  <Ticket className="w-3.5 h-3.5" />
+                  Open Inquiry Found: {matchedInquiry.ticket_code}
+                </span>
+              )}
+            </div>
           </div>
 
-          {!isReturningCustomer && matchedInquiry && !selectedReservation && (
+          {matchedInquiry && !selectedReservation && (
             <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-800 dark:text-amber-200 flex items-center justify-between gap-2 animate-in fade-in">
               <div className="flex items-center gap-2">
                 <Ticket className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />

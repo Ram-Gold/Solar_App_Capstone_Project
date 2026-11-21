@@ -281,7 +281,7 @@ describe('Ticket 01: Inquiry Lookup by Phone in Direct Walk-In Sale', () => {
     expect(screen.getByText(/Purchased Products \(2\)/i)).toBeTruthy()
   })
 
-  it('Ticket 01: returning Customer record takes precedence over open Inquiry lookup', async () => {
+  it('Ticket 01: returning Customer record takes precedence for name/email while still surfacing open Inquiry', async () => {
     const mockProducts = [
       { id: 10, name: '550W Monocrystalline Solar Panel', default_warranty_months: 24, stock_quantity: 8, stock_quiapo: 3, stock_cavite: 5, is_archived: false }
     ]
@@ -292,11 +292,24 @@ describe('Ticket 01: Inquiry Lookup by Phone in Direct Walk-In Sale', () => {
       email: 'returning@example.com',
       access_token: 'tok-42'
     }
+    const openInquiry = {
+      id: 99,
+      ticket_code: 'JDS-INQ-0099',
+      customer_name: 'Inquiry Alias',
+      mobile_contact: '09171119999',
+      email: 'alias@example.com',
+      product_id: 10,
+      product_name: '550W Monocrystalline Solar Panel',
+      quantity: 3,
+      store_branch: 'Cavite Distribution Hub',
+      is_reservation: false,
+      status: 'Confirmed'
+    }
 
     mockSupabase.from.mockImplementation((table) => {
       if (table === 'products') return createChain({ data: mockProducts, error: null })
       if (table === 'customers') return createChain({ data: existingCustomer, error: null })
-      if (table === 'quote_tickets') return createQuoteTicketsMock([], { id: 99, ticket_code: 'JDS-INQ-0099' })
+      if (table === 'quote_tickets') return createQuoteTicketsMock([], openInquiry)
       return createChain({ data: [], error: null })
     })
 
@@ -307,11 +320,14 @@ describe('Ticket 01: Inquiry Lookup by Phone in Direct Walk-In Sale', () => {
     await act(async () => {
       vi.advanceTimersByTime(450)
       await Promise.resolve()
+      await Promise.resolve()
     })
 
     expect(screen.getByText(/Returning Customer/i)).toBeTruthy()
-    expect(screen.queryByText(/Open Inquiry Found/i)).toBeNull()
+    expect(screen.getByText(/Open Inquiry Found: JDS-INQ-0099/i)).toBeTruthy()
     expect(screen.getByLabelText(/Customer Full Name/i).value).toBe('Returning Buyer')
+    expect(screen.getByLabelText(/Customer Email Address/i).value).toBe('returning@example.com')
+    expect(screen.getByText(/Purchased Products \(3\)/i)).toBeTruthy()
   })
 
   it('Ticket 02: unlinking a matched Inquiry omits p_ticket_id on Direct Walk-In Sale submit, while Store Pickup with Stock Hold converts cleanly', async () => {
