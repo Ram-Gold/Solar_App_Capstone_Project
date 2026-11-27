@@ -4,6 +4,11 @@ import {
   parseProductPrice,
   scorePowerFit,
   scoreBudgetFit,
+  inferFormFactor,
+  inferMountingOptions,
+  scoreFormFactorFit,
+  scoreMountingFit,
+  resolveEffectiveUnitBudget,
   matchSolarProducts,
 } from '../multiCriteriaMatcher'
 
@@ -433,6 +438,222 @@ describe('Dynamic Catalog Bounds & Max-Value Sliders (MCDSS)', () => {
       expect(consultMatch.breakdown.budgetScore).toBe(70)
       expect(consultMatch.priceInfo.isUnlisted).toBe(true)
       expect(consultMatch.explanation).toContain('Price confirmed at store branch via inquiry')
+    })
+  })
+
+  describe('RAM-10, RAM-11 & RAM-12: Form Factor, Mounting, Bulk Quantity & Transparent Scoring', () => {
+    const extendedCatalog = [
+      {
+        id: 201,
+        name: 'Integrated Solar Street Light 200W',
+        type: 'Integrated Solar Street Light',
+        watt: 200,
+        min_price: 1500,
+        max_price: 2500,
+        price_range: '1500-2500',
+        waterproof_grade: 'IP67',
+        solar_panel: 'Monocrystalline',
+        in_stock: true,
+        stock_quantity: 12,
+      },
+      {
+        id: 202,
+        name: 'Aviation Aluminum Solar Road Light 500W',
+        type: 'Aviation Aluminum Solar Road Light',
+        watt: 500,
+        min_price: 3000,
+        max_price: 4500,
+        price_range: '3000-4500',
+        waterproof_grade: 'IP65',
+        solar_panel: 'Monocrystalline',
+        in_stock: true,
+        stock_quantity: 8,
+      },
+      {
+        id: 203,
+        name: 'Solar Floodlight JDL 300W',
+        type: 'Solar Floodlight JDL',
+        watt: 300,
+        min_price: 2000,
+        max_price: 3000,
+        price_range: '2000-3000',
+        waterproof_grade: 'IP67',
+        solar_panel: '6V 35W',
+        in_stock: true,
+        stock_quantity: 15,
+      },
+      {
+        id: 204,
+        name: 'KKSKY Solar Floodlight 400W',
+        type: 'KKSKY Solar Floodlight',
+        watt: 400,
+        min_price: null,
+        max_price: null,
+        price_range: null,
+        waterproof_grade: 'IP67',
+        solar_panel: '6V 40W',
+        in_stock: true,
+        stock_quantity: 20,
+      },
+    ]
+
+    it('infers Form Factor (All-in-One vs Split-Type) and Mounting options from existing product columns', () => {
+      expect(inferFormFactor(extendedCatalog[0])).toBe('integrated')
+      expect(inferFormFactor(extendedCatalog[1])).toBe('integrated')
+      expect(inferFormFactor(extendedCatalog[2])).toBe('split')
+      expect(inferFormFactor(extendedCatalog[3])).toBe('split')
+
+      expect(inferMountingOptions(extendedCatalog[0])).toEqual(['pole', 'wall'])
+      expect(inferMountingOptions(extendedCatalog[1])).toEqual(['pole'])
+      expect(inferMountingOptions(extendedCatalog[2])).toEqual(['wall', 'pole'])
+
+      expect(scoreFormFactorFit(extendedCatalog[2], 'split')).toBe(1.0)
+      expect(scoreFormFactorFit(extendedCatalog[0], 'split')).toBe(0.25)
+      expect(scoreMountingFit(extendedCatalog[1], 'wall')).toBe(0.30)
+      expect(scoreMountingFit(extendedCatalog[2], 'wall')).toBe(1.0)
+    })
+
+    it('calculates effective per-unit budget and estimated project totals for bulk quantities', () => {
+      expect(resolveEffectiveUnitBudget({ budget: 30000, budgetMode: 'total', quantity: 10 })).toBe(3000)
+      expect(resolveEffectiveUnitBudget({ budget: 3000, budgetMode: 'unit', quantity: 10 })).toBe(3000)
+
+      const result = matchSolarProducts(
+        extendedCatalog,
+        {
+          location: 'street',
+          formFactor: 'split',
+          mounting: 'wall',
+          powerNeeds: 300,
+          quantity: 10,
+          budget: 30000,
+          budgetMode: 'total',
+        },
+        { separateUnlisted: true }
+      )
+
+      const floodMatch = result.matches[0]
+      expect(floodMatch.product.id).toBe(203)
+      expect(floodMatch.totalPriceInfo).toMatchObject({
+        min: 20000,
+        max: 30000,
+        quantity: 10,
+        hasPrice: true,
+      })
+      expect(floodMatch.breakdown.formFactorScore).toBe(100)
+      expect(floodMatch.breakdown.mountingScore).toBe(100)
+      expect(floodMatch.breakdownDetails).toHaveLength(4)
+    })
+
+    it('segregates null-price floodlights into unlistedMatches when separateUnlisted is enabled', () => {
+      const result = matchSolarProducts(
+        extendedCatalog,
+        {
+          location: 'commercial',
+          formFactor: 'split',
+          mounting: 'wall',
+          powerNeeds: 400,
+          budget: 3500,
+          budgetMode: 'unit',
+          quantity: 1,
+        },
+        { separateUnlisted: true }
+      )
+
+      expect(result.matches.every((m) => !m.priceInfo.isUnlisted)).toBe(true)
+      expect(result.unlistedMatches.length).toBe(1)
+      expect(result.unlistedMatches[0].product.id).toBe(204)
+      expect(result.unlistedMatches[0].inferredSpecs.formFactorLabel).toBe('Split-Type')
+    })
+
+    it('flags belowMinimumBudget and ranks closest entry-level alternatives by price proximity', () => {
+      const result = matchSolarProducts(
+        extendedCatalog,
+        {
+          location: 'road',
+          powerNeeds: 500,
+          budget: 800,
+          budgetMode: 'unit',
+          quantity: 2,
+        },
+        { separateUnlisted: true }
+      )
+
+      expect(result.budgetFeedback.belowMinimumBudget).toBe(true)
+      expect(result.budgetFeedback.lowestUnitPrice).toBe(1500)
+      expect(result.budgetFeedback.lowestTotalPrice).toBe(3000)
+      expect(result.budgetFeedback.gapPerUnit).toBe(700)
+      expect(result.thresholdRelaxed).toBe(true)
+      expect(result.matches[0].product.id).toBe(201) // Cheapest entry-level solar unit (₱1,500)
+    })
+
+    it('defensively scores 0 or negative budget and wattage as 0% and triggers Below-Minimum Budget', () => {
+      const sample = extendedCatalog[0] // 200W, ₱1,500-2,500
+      expect(scoreBudgetFit(sample, 0, 5000)).toBe(0)
+      expect(scoreBudgetFit(sample, -500, 5000)).toBe(0)
+      expect(scorePowerFit(sample, 0, 1000)).toBe(0)
+      expect(scorePowerFit(sample, -100, 1000)).toBe(0)
+      expect(resolveEffectiveUnitBudget({ budget: 0, budgetMode: 'total', quantity: 5 })).toBe(0)
+
+      const result = matchSolarProducts(
+        extendedCatalog,
+        {
+          location: 'street',
+          powerNeeds: 0,
+          budget: 0,
+          budgetMode: 'unit',
+          quantity: 2,
+        },
+        { separateUnlisted: true }
+      )
+
+      expect(result.budgetFeedback.belowMinimumBudget).toBe(true)
+      expect(result.budgetFeedback.effectiveUnitBudget).toBe(0)
+      expect(result.budgetFeedback.gapPerUnit).toBe(1500)
+      expect(result.budgetFeedback.gapTotal).toBe(3000)
+
+      const topMatch = result.matches[0]
+      expect(topMatch.product.id).toBe(201)
+      expect(topMatch.breakdown.budgetScore).toBe(0)
+      expect(topMatch.breakdown.powerScore).toBe(0)
+      expect(topMatch.compromise.hasCompromise).toBe(true)
+      expect(topMatch.compromise.type).toBe('budget')
+
+      const budgetDetail = topMatch.breakdownDetails.find((d) => d.key === 'budget')
+      const powerDetail = topMatch.breakdownDetails.find((d) => d.key === 'power')
+      expect(budgetDetail.score).toBe(0)
+      expect(budgetDetail.isAny).toBe(false)
+      expect(budgetDetail.detail).toContain('₱0 budget is below')
+      expect(budgetDetail.detail).not.toContain('Fits your budget')
+      expect(powerDetail.score).toBe(0)
+      expect(powerDetail.isAny).toBe(false)
+      expect(powerDetail.detail).toContain('0W is below')
+    })
+
+    it('marks unset (Any) criteria with isAny and unlisted products with isUnlisted in breakdownDetails', () => {
+      const result = matchSolarProducts(
+        extendedCatalog,
+        {
+          location: 'street',
+          formFactor: 'any',
+          mounting: 'any',
+          powerNeeds: 'any',
+          budget: 'any',
+          budgetMode: 'unit',
+          quantity: 1,
+        },
+        { separateUnlisted: true }
+      )
+
+      const pricedDetails = result.matches[0].breakdownDetails
+      expect(pricedDetails.find((d) => d.key === 'location').isAny).toBe(false)
+      expect(pricedDetails.find((d) => d.key === 'formAndMount').isAny).toBe(true)
+      expect(pricedDetails.find((d) => d.key === 'power').isAny).toBe(true)
+      expect(pricedDetails.find((d) => d.key === 'budget').isAny).toBe(true)
+      expect(pricedDetails.find((d) => d.key === 'budget').isUnlisted).toBe(false)
+
+      const unlistedBudgetDetail = result.unlistedMatches[0].breakdownDetails.find((d) => d.key === 'budget')
+      expect(unlistedBudgetDetail.isUnlisted).toBe(true)
+      expect(unlistedBudgetDetail.isAny).toBe(false)
     })
   })
 })

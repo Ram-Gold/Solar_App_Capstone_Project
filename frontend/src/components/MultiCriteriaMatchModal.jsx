@@ -4,70 +4,117 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   HiOutlineXMark,
   HiOutlineSparkles,
-  HiOutlineAdjustmentsHorizontal,
-  HiOutlineCurrencyDollar,
-  HiOutlineMapPin,
-  HiOutlineBolt,
   HiOutlineArrowRight,
-  HiOutlineQuestionMarkCircle } from 'react-icons/hi2'
+  HiOutlineArrowLeft,
+  HiOutlineExclamationTriangle,
+  HiOutlineChevronDown,
+} from 'react-icons/hi2'
 import { matchSolarProducts, getCatalogBounds } from '../lib/multiCriteriaMatcher'
 import useModalBehavior from '../hooks/useModalBehavior'
-
-const LOCATIONS = [
-  {
-    id: 'road',
-    label: 'Main Road / Highway',
-    desc: 'Wide beam angle, 6m–9m pole heights',
-    recommendedWatt: 500,
-  },
-  {
-    id: 'street',
-    label: 'Street / Subdivision',
-    desc: 'Community streets, alleys, 4m–6m poles',
-    recommendedWatt: 300,
-  },
-  {
-    id: 'home',
-    label: 'Home / Gate / Garden',
-    desc: 'Perimeters, gates, residential yard, 3m–4m',
-    recommendedWatt: 150,
-  },
-  {
-    id: 'commercial',
-    label: 'Commercial / Warehouse',
-    desc: 'Parking compounds, commercial grounds',
-    recommendedWatt: 400,
-  },
-]
+import {
+  LOCATIONS,
+  FORM_FACTORS,
+  MOUNTING_OPTIONS,
+  QUANTITY_PRESETS,
+  formatPriceRange,
+  formatEstimatedTotal,
+  getBudgetValidationError,
+  getWattageValidationError,
+} from './matcher/matcherConfig'
+import NumericCriterionInput from './matcher/NumericCriterionInput'
+import MatchBreakdownPopover from './matcher/MatchBreakdownPopover'
 
 export default function MultiCriteriaMatchModal({ isOpen, onClose, products = [] }) {
   const { backdropProps } = useModalBehavior({ isOpen, onClose })
   const bounds = useMemo(() => getCatalogBounds(products), [products])
 
+  const [hasSubmitted, setHasSubmitted] = useState(false)
   const [location, setLocation] = useState('street')
+  const [formFactor, setFormFactor] = useState('any')
+  const [mounting, setMounting] = useState('any')
   const [powerNeeds, setPowerNeeds] = useState(300)
+  const [wattageManuallyEdited, setWattageManuallyEdited] = useState(false)
+  const [quantity, setQuantity] = useState(1)
   const [budget, setBudget] = useState(3000)
-  const [threshold, setThreshold] = useState(0.70) // 70% threshold
+  const [budgetMode, setBudgetMode] = useState('unit')
 
-  // Real-time multi-criteria calculation
+  const safeQuantity = Math.max(1, Number(quantity) || 1)
+  const selectedLocation = LOCATIONS.find((l) => l.id === location)
+  const selectedFormFactor = FORM_FACTORS.find((f) => f.id === formFactor)
+  const selectedMounting = MOUNTING_OPTIONS.find((m) => m.id === mounting)
+
   const matchResult = useMemo(() => {
-    return matchSolarProducts(products, {
-      location,
-      powerNeeds: Number(powerNeeds),
-      budget: budget === 'any' ? 'any' : Number(budget),
-    }, {
-      threshold: Number(threshold),
-      limit: 6,
-      catalogBounds: bounds,
-    })
-  }, [products, location, powerNeeds, budget, threshold, bounds])
+    return matchSolarProducts(
+      products,
+      {
+        location,
+        formFactor,
+        mounting,
+        powerNeeds: powerNeeds === 'any' || powerNeeds === '' ? 'any' : Number(powerNeeds),
+        quantity: safeQuantity,
+        budget: budget === 'any' || budget === '' ? 'any' : Number(budget),
+        budgetMode,
+      },
+      {
+        threshold: 0.70,
+        limit: 6,
+        unlistedLimit: 4,
+        separateUnlisted: true,
+        catalogBounds: bounds,
+      }
+    )
+  }, [products, location, formFactor, mounting, powerNeeds, safeQuantity, budget, budgetMode, bounds])
+
+  const wattageError = getWattageValidationError(powerNeeds)
+  const budgetError = getBudgetValidationError(budget)
+
+  const handleBudgetModeSwitch = (nextMode) => {
+    if (nextMode === budgetMode) return
+    if (budget === 'any' || budget === '' || budget === null || budget === undefined) {
+      setBudgetMode(nextMode)
+      return
+    }
+    const currentNum = Number(budget)
+    if (isNaN(currentNum) || currentNum <= 0) {
+      setBudgetMode(nextMode)
+      return
+    }
+    setBudget(
+      nextMode === 'total'
+        ? Math.round(currentNum * safeQuantity)
+        : Math.max(100, Math.round(currentNum / safeQuantity))
+    )
+    setBudgetMode(nextMode)
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (wattageError || budgetError) return
+    if (powerNeeds === '' || powerNeeds === null) setPowerNeeds('any')
+    if (budget === '' || budget === null) setBudget('any')
+    setQuantity(Math.max(1, Number(quantity) || 1))
+    setHasSubmitted(true)
+  }
+
+  const powerPresets = [...bounds.powerPresets, { label: 'Any', value: 'any' }]
+  const budgetPresets =
+    budgetMode === 'total' && safeQuantity > 1
+      ? [
+          { label: `₱${(1500 * safeQuantity).toLocaleString()}`, value: 1500 * safeQuantity },
+          { label: `₱${(2500 * safeQuantity).toLocaleString()}`, value: 2500 * safeQuantity },
+          { label: `₱${(3500 * safeQuantity).toLocaleString()}`, value: 3500 * safeQuantity },
+          { label: 'Any', value: 'any' },
+        ]
+      : bounds.budgetPresets
 
   if (!isOpen) return null
+
+  const selectClasses =
+    'w-full appearance-none rounded-xl bg-white border border-jds-outline-variant/60 px-3.5 py-2.5 pr-9 text-sm font-medium text-jds-on-surface outline-none transition-all focus:border-jds-primary focus:ring-2 focus:ring-jds-primary/20 cursor-pointer'
 
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-        {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -76,7 +123,6 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
           className="fixed inset-0 bg-jds-on-surface/40 backdrop-blur-md transition-opacity"
         />
 
-        {/* Modal Window */}
         <motion.div
           initial={{ opacity: 0, scale: 0.96, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -92,329 +138,373 @@ export default function MultiCriteriaMatchModal({ isOpen, onClose, products = []
               </div>
               <div>
                 <h2 className="text-title-lg font-bold text-jds-on-surface">
-                  Multi-Criteria Product Matching Engine
+                  {hasSubmitted ? 'Your best matches' : 'Find your solar light'}
                 </h2>
                 <p className="text-body-sm text-jds-on-surface-variant">
-                  Evaluate candidates by Location, Power Needs, and Budget threshold
+                  {hasSubmitted
+                    ? 'Here are the closest matches based on your answers.'
+                    : 'Fill in what you know, then click Submit to see matching solar lights.'}
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container-high rounded-full transition-colors"
+              className="p-2 text-jds-on-surface-variant hover:text-jds-on-surface hover:bg-jds-surface-container-high rounded-full transition-colors cursor-pointer"
               aria-label="Close modal"
             >
               <HiOutlineXMark className="size-6" />
             </button>
           </div>
 
-          {/* Modal Body */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {/* Input Criteria Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-jds-surface-container-lowest p-5 rounded-2xl border border-jds-outline-variant/30">
-              
-              {/* Criterion 1: Location */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-label-md font-bold text-jds-on-surface">
-                  <HiOutlineMapPin className="text-jds-primary" />
-                  <span>1. Installation Location</span>
-                </label>
-                <div className="grid grid-cols-1 gap-2">
-                  {LOCATIONS.map((loc) => {
-                    const isSelected = location === loc.id
-                    return (
-                      <button
-                        key={loc.id}
-                        type="button"
-                        onClick={() => {
-                          setLocation(loc.id)
-                          setPowerNeeds(loc.recommendedWatt)
+          {/* Body */}
+          {!hasSubmitted ? (
+            <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Dropdown Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label htmlFor="modal-location" className="block text-label-md font-bold text-jds-on-surface">
+                      Where will you put it?
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="modal-location"
+                        value={location}
+                        onChange={(e) => {
+                          const nextId = e.target.value
+                          const loc = LOCATIONS.find((l) => l.id === nextId)
+                          setLocation(nextId)
+                          if (!wattageManuallyEdited && loc) {
+                            setPowerNeeds(loc.recommendedWatt)
+                          }
                         }}
-                        className={`text-left p-2.5 rounded-xl border text-sm transition-all ${
-                          isSelected
-                            ? 'border-jds-primary bg-jds-primary/10 text-jds-on-surface font-semibold shadow-sm'
-                            : 'border-jds-outline-variant/30 hover:border-jds-outline-variant text-jds-on-surface-variant hover:bg-white'
-                        }`}
+                        className={selectClasses}
                       >
-                        <div className="font-bold text-label-sm">{loc.label}</div>
-                        <div className="text-[11px] text-jds-on-surface-variant/70 leading-tight">
-                          {loc.desc}
+                        {LOCATIONS.map((loc) => (
+                          <option key={loc.id} value={loc.id}>
+                            {loc.label}
+                          </option>
+                        ))}
+                      </select>
+                      <HiOutlineChevronDown className="size-4 text-jds-on-surface-variant pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+                    </div>
+                    {selectedLocation && (
+                      <p className="text-[11px] text-jds-on-surface-variant/80">{selectedLocation.desc}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="modal-form-factor" className="block text-label-md font-bold text-jds-on-surface">
+                      Light style
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="modal-form-factor"
+                        value={formFactor}
+                        onChange={(e) => setFormFactor(e.target.value)}
+                        className={selectClasses}
+                      >
+                        {FORM_FACTORS.map((ff) => (
+                          <option key={ff.id} value={ff.id}>
+                            {ff.label}
+                          </option>
+                        ))}
+                      </select>
+                      <HiOutlineChevronDown className="size-4 text-jds-on-surface-variant pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+                    </div>
+                    {selectedFormFactor && (
+                      <p className="text-[11px] text-jds-on-surface-variant/80">{selectedFormFactor.desc}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="modal-mounting" className="block text-label-md font-bold text-jds-on-surface">
+                      How will you mount it?
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="modal-mounting"
+                        value={mounting}
+                        onChange={(e) => setMounting(e.target.value)}
+                        className={selectClasses}
+                      >
+                        {MOUNTING_OPTIONS.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+                      <HiOutlineChevronDown className="size-4 text-jds-on-surface-variant pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+                    </div>
+                    {selectedMounting && (
+                      <p className="text-[11px] text-jds-on-surface-variant/80">{selectedMounting.desc}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t border-jds-outline-variant/25" />
+
+                {/* Numeric Inputs */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <NumericCriterionInput
+                    id="modal-wattage"
+                    label="Brightness (watts)"
+                    helperText="Leave blank for any wattage"
+                    value={powerNeeds}
+                    onChange={(val) => {
+                      setPowerNeeds(val)
+                      setWattageManuallyEdited(true)
+                    }}
+                    presets={powerPresets}
+                    suffix="W"
+                    placeholder="Any"
+                    min={50}
+                    max={2000}
+                    allowAny
+                    compact
+                    variant="modal"
+                    error={wattageError}
+                  />
+
+                  <NumericCriterionInput
+                    id="modal-quantity"
+                    label="How many units?"
+                    helperText="Shows estimated total cost"
+                    value={quantity}
+                    onChange={(val) => setQuantity(val === '' ? '' : Math.max(1, Number(val) || 1))}
+                    presets={QUANTITY_PRESETS.map((q) => ({ label: q === 50 ? '50+' : `${q}`, value: q }))}
+                    suffix={safeQuantity === 1 ? 'unit' : 'units'}
+                    placeholder="1"
+                    min={1}
+                    max={10000}
+                    compact
+                    variant="modal"
+                  />
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <label htmlFor="modal-budget" className="text-label-md font-bold text-jds-on-surface">
+                        Budget
+                      </label>
+                      <div className="inline-flex rounded-lg bg-jds-surface-container-high p-0.5 text-[10px] font-bold">
+                        <button
+                          type="button"
+                          onClick={() => handleBudgetModeSwitch('unit')}
+                          className={`px-2 py-0.5 rounded-md cursor-pointer ${
+                            budgetMode === 'unit'
+                              ? 'bg-white text-jds-on-surface shadow-2xs'
+                              : 'text-jds-on-surface-variant'
+                          }`}
+                        >
+                          Per unit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleBudgetModeSwitch('total')}
+                          className={`px-2 py-0.5 rounded-md cursor-pointer ${
+                            budgetMode === 'total'
+                              ? 'bg-white text-jds-on-surface shadow-2xs'
+                              : 'text-jds-on-surface-variant'
+                          }`}
+                        >
+                          Total
+                        </button>
+                      </div>
+                    </div>
+                    <NumericCriterionInput
+                      id="modal-budget"
+                      helperText={
+                        budgetMode === 'total' && safeQuantity > 1
+                          ? `Total for ${safeQuantity} units (leave blank for any)`
+                          : 'Max price per light (leave blank for any)'
+                      }
+                      value={budget}
+                      onChange={setBudget}
+                      presets={budgetPresets}
+                      prefix="₱"
+                      placeholder="Any"
+                      min={100}
+                      allowAny
+                      compact
+                      variant="modal"
+                      error={budgetError}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Footer */}
+              <div className="px-6 py-3.5 border-t border-jds-outline-variant/20 bg-jds-surface-container-lowest flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 bg-jds-surface-container-high hover:bg-jds-surface-container-highest text-jds-on-surface rounded-xl text-label-sm font-bold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-jds-primary hover:bg-jds-primary/90 text-white rounded-xl text-label-sm font-bold transition-colors cursor-pointer"
+                >
+                  <span>Submit</span>
+                  <HiOutlineArrowRight className="size-4" />
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                {matchResult.budgetFeedback?.belowMinimumBudget && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-jds-on-surface"
+                  >
+                    <HiOutlineExclamationTriangle className="size-5 text-jds-primary shrink-0 mt-0.5" />
+                    <div className="space-y-0.5 tabular-nums">
+                      <div className="font-bold">Budget is below our lowest-priced solar light</div>
+                      <p className="text-jds-on-surface-variant">
+                        Your budget of ₱{matchResult.budgetFeedback.effectiveUnitBudget?.toLocaleString()} per unit is below our lowest-priced light at ₱
+                        {matchResult.budgetFeedback.lowestUnitPrice?.toLocaleString()} each. Here are the closest options by price.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {matchResult.matches.map((item, index) => {
+                    const product = item.product
+                    const isTopPick = index === 0 && item.matchPercentage >= 80
+
+                    return (
+                      <div
+                        key={product.id}
+                        className="p-4 rounded-2xl bg-white border border-jds-outline-variant/30 hover:border-jds-primary shadow-xs transition-all flex flex-col justify-between group"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-2 gap-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <MatchBreakdownPopover
+                                label={`${item.matchPercentage}% match`}
+                                details={item.breakdownDetails}
+                                variant="modal"
+                                badgeClassName={`text-label-sm font-extrabold px-2.5 py-0.5 rounded-full border tabular-nums ${
+                                  item.matchPercentage >= 85
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : item.matchPercentage >= 70
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : 'bg-slate-50 text-slate-700 border-slate-200'
+                                }`}
+                              />
+                              {isTopPick && !item.compromise?.hasCompromise && (
+                                <span className="text-[11px] bg-jds-primary-container text-jds-on-primary-container px-2 py-0.5 rounded-full font-bold">
+                                  Best fit
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-right shrink-0 tabular-nums">
+                              <span className="text-label-md font-bold text-jds-primary block">
+                                {product.price_range ? formatPriceRange(product.price_range) : 'Ask for price'}
+                              </span>
+                              {safeQuantity > 1 && item.totalPriceInfo?.hasPrice && (
+                                <span className="text-[10px] font-semibold text-jds-on-surface-variant block">
+                                  Total: {formatEstimatedTotal(item.totalPriceInfo)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <h4 className="text-label-lg font-bold text-jds-on-surface line-clamp-1 mb-3">
+                            {product.name}
+                          </h4>
+
+                          <div className="flex flex-wrap gap-1.5 mb-4 text-[11px]">
+                            <span className="bg-jds-surface-container-high px-2 py-0.5 rounded-md text-jds-on-surface font-semibold tabular-nums">
+                              {product.watt}W
+                            </span>
+                            <span className="bg-jds-surface-container-high px-2 py-0.5 rounded-md text-jds-on-surface">
+                              {item.inferredSpecs?.formFactorLabel}
+                            </span>
+                            <span className="bg-jds-surface-container-high px-2 py-0.5 rounded-md text-jds-on-surface">
+                              {product.waterproof_grade || 'IP65'}
+                            </span>
+                          </div>
                         </div>
-                      </button>
+
+                        <Link
+                          to={`/product/${product.id}`}
+                          onClick={onClose}
+                          className="w-full flex items-center justify-center gap-1.5 text-label-sm font-bold py-2 px-3 rounded-xl bg-jds-primary/10 text-jds-primary hover:bg-jds-primary hover:text-white transition-all text-center"
+                        >
+                          <span>Inquire this</span>
+                          <HiOutlineArrowRight className="text-sm" />
+                        </Link>
+                      </div>
                     )
                   })}
                 </div>
-              </div>
 
-              {/* Criterion 2: Power Needs */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 text-label-md font-bold text-jds-on-surface">
-                    <HiOutlineBolt className="text-jds-primary" />
-                    <span>2. Power Needs</span>
-                  </label>
-                  <span className="text-label-md font-bold text-jds-primary bg-jds-primary/10 px-2 py-0.5 rounded-lg">
-                    {Number(powerNeeds) >= bounds.maxWatt ? `${bounds.maxWatt}W (Max Power)` : `${powerNeeds}W`}
-                  </span>
-                </div>
-
-                <p className="text-[12px] text-jds-on-surface-variant/80">
-                  Target light output required for your pole height and area size.
-                </p>
-
-                <input
-                  type="range"
-                  min={bounds.minWatt}
-                  max={bounds.maxWatt}
-                  step="50"
-                  value={powerNeeds}
-                  onChange={(e) => setPowerNeeds(Number(e.target.value))}
-                  className="w-full h-2 bg-jds-surface-container-highest rounded-lg appearance-none cursor-pointer accent-jds-primary"
-                />
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {bounds.powerPresets.map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setPowerNeeds(preset)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
-                        powerNeeds === preset
-                          ? 'bg-jds-primary text-white border-jds-primary'
-                          : 'bg-white border-jds-outline-variant/30 text-jds-on-surface-variant hover:border-jds-primary'
-                      }`}
-                    >
-                      {preset}W
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Criterion 3: Budget */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 text-label-md font-bold text-jds-on-surface">
-                    <HiOutlineCurrencyDollar className="text-jds-primary" />
-                    <span>3. Target Budget</span>
-                  </label>
-                  <span className="text-label-md font-bold text-jds-primary bg-jds-primary/10 px-2 py-0.5 rounded-lg">
-                    {budget === 'any' || Number(budget) >= bounds.maxPrice
-                      ? `₱${bounds.maxPrice.toLocaleString()}+ (Any Budget)`
-                      : `₱${Number(budget).toLocaleString()}`}
-                  </span>
-                </div>
-
-                <p className="text-[12px] text-jds-on-surface-variant/80">
-                  Maximum target unit price in Philippine Peso.
-                </p>
-
-                {budget !== 'any' && (
-                  <input
-                    type="range"
-                    min={bounds.minPrice}
-                    max={bounds.maxPrice}
-                    step={bounds.maxPrice > 10000 ? 500 : 250}
-                    value={Number(budget)}
-                    onChange={(e) => {
-                      // Always keep budget numeric; 'any' is set only by preset buttons
-                      setBudget(Number(e.target.value))
-                    }}
-                    className="w-full h-2 bg-jds-surface-container-highest rounded-lg appearance-none cursor-pointer accent-jds-primary"
-                  />
-                )}
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {bounds.budgetPresets.map((b) => (
-                    <button
-                      key={b.label}
-                      type="button"
-                      onClick={() => setBudget(b.value)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
-                        budget === b.value
-                          ? 'bg-jds-primary text-white border-jds-primary'
-                          : 'bg-white border-jds-outline-variant/30 text-jds-on-surface-variant hover:border-jds-primary'
-                      }`}
-                    >
-                      {b.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Threshold Control Bar */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-jds-primary/5 rounded-2xl border border-jds-primary/20">
-              <div className="flex items-center gap-2">
-                <HiOutlineAdjustmentsHorizontal className="text-jds-primary text-lg" />
-                <span className="text-label-sm font-bold text-jds-on-surface">
-                  Matching Sensitivity Threshold:
-                </span>
-                <span className="text-label-sm font-extrabold text-jds-primary bg-white px-2 py-0.5 rounded-lg border border-jds-primary/30 shadow-xs">
-                  {Math.round(threshold * 100)}%
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 w-full sm:w-64">
-                <span className="text-[11px] text-jds-on-surface-variant">Loose (50%)</span>
-                <input
-                  type="range"
-                  min="0.50"
-                  max="0.90"
-                  step="0.05"
-                  value={threshold}
-                  onChange={(e) => setThreshold(Number(e.target.value))}
-                  className="w-full h-2 bg-jds-surface-container-highest rounded-lg appearance-none cursor-pointer accent-jds-primary"
-                />
-                <span className="text-[11px] text-jds-on-surface-variant">Strict (90%)</span>
-              </div>
-            </div>
-
-            {/* Matching Results Header */}
-            <div className="flex items-center justify-between pt-2">
-              <div className="text-label-md font-bold text-jds-on-surface">
-                Matched Candidates ({matchResult.matches.length})
-                {matchResult.thresholdRelaxed && (
-                  <span className="ml-2 text-xs font-normal text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                    Threshold relaxed to show closest alternatives
-                  </span>
-                )}
-              </div>
-              <span className="text-xs text-jds-on-surface-variant">
-                Evaluated against {matchResult.totalEvaluated} inventory items
-              </span>
-            </div>
-
-            {/* Candidate Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {matchResult.matches.map((item, index) => {
-                const product = item.product
-                const isTopPick = index === 0 && item.matchPercentage >= 80
-
-                return (
-                  <div
-                    key={product.id}
-                    className="p-4 rounded-2xl bg-white border border-jds-outline-variant/30 hover:border-jds-primary shadow-xs transition-all flex flex-col justify-between group"
-                  >
-                    <div>
-                      {/* Top Badge Row */}
-                      <div className="flex items-center justify-between mb-2 gap-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span
-                            className={`text-label-sm font-extrabold px-2.5 py-0.5 rounded-full border ${
-                              item.matchPercentage >= 85
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : item.matchPercentage >= 70
-                                ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                : 'bg-slate-50 text-slate-700 border-slate-200'
-                            }`}
-                          >
-                            {item.matchPercentage}% Match
-                          </span>
-                          {isTopPick && !item.compromise?.hasCompromise && (
-                            <span className="text-[11px] bg-jds-primary-container text-jds-on-primary-container px-2 py-0.5 rounded-full font-bold">
-                              Best Fit
-                            </span>
-                          )}
-                          {item.compromise?.hasCompromise && (
-                            <span className="text-[11px] bg-amber-500/15 text-amber-800 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
-                              {item.compromise.label}
-                            </span>
-                          )}
-                          {item.priceInfo?.isUnlisted && (
-                            <span className="text-[11px] bg-amber-500/15 text-amber-800 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
-                              Price upon Inquiry
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="text-label-md font-bold text-jds-primary block">
-                            {product.price_range ? `₱${product.price_range}` : 'Inquire for price'}
-                          </span>
-                          <span className="text-[10px] text-jds-on-surface-variant/70 block">
-                            Prices may vary
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Product Name */}
-                      <h4 className="text-label-lg font-bold text-jds-on-surface line-clamp-1 mb-1">
-                        {product.name}
-                      </h4>
-
-                      {/* Match Explanation */}
-                      <p className="text-[12px] text-jds-on-surface-variant/80 mb-3 line-clamp-2">
-                        {item.explanation}
-                      </p>
-
-                      {/* Criteria Score Mini-Bars */}
-                      <div className="grid grid-cols-3 gap-2 bg-jds-surface-container-lowest p-2 rounded-xl mb-3 border border-jds-outline-variant/20">
-                        <div className={item.compromise?.type === 'budget' ? 'bg-amber-500/10 border border-amber-500/30 p-1 rounded-lg' : ''}>
-                          <div className="text-[10px] text-jds-on-surface-variant font-medium">Budget Fit</div>
-                          <div className={`text-label-sm font-bold ${item.compromise?.type === 'budget' ? 'text-amber-700' : 'text-jds-on-surface'}`}>
-                            {item.breakdown.budgetScore}%
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] text-jds-on-surface-variant font-medium">Location Fit</div>
-                          <div className="text-label-sm font-bold text-jds-on-surface">{item.breakdown.locationScore}%</div>
-                        </div>
-                        <div className={item.compromise?.type === 'wattage' ? 'bg-amber-500/10 border border-amber-500/30 p-1 rounded-lg' : ''}>
-                          <div className="text-[10px] text-jds-on-surface-variant font-medium">Power Fit</div>
-                          <div className={`text-label-sm font-bold ${item.compromise?.type === 'wattage' ? 'text-amber-700' : 'text-jds-on-surface'}`}>
-                            {item.breakdown.powerScore}%
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Specs Tags */}
-                      <div className="flex flex-wrap gap-1.5 mb-4 text-[11px]">
-                        <span className="bg-jds-surface-container-high px-2 py-0.5 rounded-md text-jds-on-surface font-semibold">
-                          {product.watt}W
-                        </span>
-                        <span className="bg-jds-surface-container-high px-2 py-0.5 rounded-md text-jds-on-surface">
-                          {product.waterproof_grade || 'IP65'}
-                        </span>
-                        {product.battery && (
-                          <span className="bg-jds-surface-container-high px-2 py-0.5 rounded-md text-jds-on-surface truncate max-w-[180px]">
-                            {product.battery.split(' ')[0]}
-                          </span>
-                        )}
-                      </div>
+                {matchResult.unlistedMatches?.length > 0 && (
+                  <div className="space-y-3 pt-2 border-t border-jds-outline-variant/25">
+                    <div className="text-label-md font-bold text-jds-on-surface">
+                      Price upon inquiry ({matchResult.unlistedMatches.length})
                     </div>
-
-                    {/* Action Button */}
-                    <Link
-                      to={`/product/${product.id}`}
-                      onClick={onClose}
-                      className="w-full flex items-center justify-center gap-1.5 text-label-sm font-bold py-2 px-3 rounded-xl bg-jds-primary/10 text-jds-primary hover:bg-jds-primary hover:text-white transition-all text-center"
-                    >
-                      <span>{item.priceInfo?.isUnlisted ? 'Inquire for pricing' : 'View Specifications'}</span>
-                      <HiOutlineArrowRight className="text-sm" />
-                    </Link>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {matchResult.unlistedMatches.map((item) => {
+                        const p = item.product
+                        return (
+                          <div
+                            key={p.id}
+                            className="p-3.5 rounded-xl bg-jds-surface-container-lowest border border-jds-outline-variant/30 flex items-center justify-between gap-3"
+                          >
+                            <div className="min-w-0 space-y-1">
+                              <div className="text-xs font-bold text-jds-on-surface truncate">{p.name}</div>
+                              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-jds-on-surface-variant tabular-nums">
+                                <span>{p.watt}W</span>
+                                <span>·</span>
+                                <span>{item.inferredSpecs?.formFactorLabel}</span>
+                                <MatchBreakdownPopover
+                                  label={`${Math.round((item.technicalScore ?? item.compositeScore) * 100)}% fit`}
+                                  details={item.breakdownDetails}
+                                  variant="modal"
+                                  badgeClassName="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-jds-surface-container-high text-jds-on-surface border border-jds-outline-variant/30"
+                                />
+                              </div>
+                            </div>
+                            <Link
+                              to={`/product/${p.id}`}
+                              onClick={onClose}
+                              className="shrink-0 text-xs font-bold text-jds-primary hover:underline"
+                            >
+                              Inquire this
+                            </Link>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                )
-              })}
-            </div>
-          </div>
+                )}
+              </div>
 
-          {/* Footer */}
-          <div className="px-6 py-3 border-t border-jds-outline-variant/20 bg-jds-surface-container-lowest flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="space-y-0.5 text-xs text-jds-on-surface-variant">
-              <div className="flex items-center gap-1.5">
-                <HiOutlineQuestionMarkCircle className="text-base shrink-0" />
-                <span>Multi-criteria weights: Budget (35%), Location (35%), Power Needs (30%)</span>
-              </div>
-              <div className="text-[11px] text-jds-on-surface-variant/75 pl-5">
-                Price note: Listed values are general ranges and prices may vary depending on mounting brackets and store branch inspection.
+              {/* Results Footer */}
+              <div className="px-6 py-3.5 border-t border-jds-outline-variant/20 bg-jds-surface-container-lowest flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHasSubmitted(false)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-jds-surface-container-high hover:bg-jds-surface-container-highest text-jds-on-surface rounded-xl text-label-sm font-bold transition-colors cursor-pointer"
+                >
+                  <HiOutlineArrowLeft className="size-4" />
+                  <span>Edit answers</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 bg-jds-primary hover:bg-jds-primary/90 text-white rounded-xl text-label-sm font-bold transition-colors cursor-pointer"
+                >
+                  Done
+                </button>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="self-end sm:self-auto px-4 py-2 bg-jds-surface-container-high hover:bg-jds-surface-container-highest text-jds-on-surface rounded-xl text-label-sm font-bold transition-colors"
-            >
-              Close
-            </button>
-          </div>
+          )}
         </motion.div>
       </div>
     </AnimatePresence>

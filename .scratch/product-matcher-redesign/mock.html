@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JD Solar — Product Matcher Redesign Mock (Internal Preview)</title>
+  <style>
+    :root {
+      --bg: #f8f7f4;
+      --surface: #ffffff;
+      --surface-muted: #f1efe9;
+      --border: #e2dfd7;
+      --text: #18181b;
+      --text-muted: #52525b;
+      --accent: #d97706;
+      --accent-soft: #fef3c7;
+      --accent-text: #92400e;
+      --ok: #15803d;
+      --ok-soft: #dcfce7;
+      --warn: #b45309;
+      --warn-soft: #ffedd5;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(24, 24, 27, 0.06), 0 4px 16px rgba(24, 24, 27, 0.04);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .tabular { font-variant-numeric: tabular-nums; }
+    .container { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+
+    /* Internal Transparency Banner */
+    .internal-banner {
+      background: #18181b;
+      color: #f4f4f5;
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+    .internal-banner summary {
+      cursor: pointer;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      list-style: none;
+    }
+    .internal-banner ul { margin: 10px 0 0 18px; padding: 0; color: #d4d4d8; }
+    .internal-banner li { margin-bottom: 6px; }
+
+    /* Header */
+    .page-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-text);
+      margin-bottom: 4px;
+    }
+    h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+    .subtitle { margin: 4px 0 0; font-size: 14px; color: var(--text-muted); }
+
+    /* Two-Door Landing Screen */
+    .door-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .door-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: left;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: border-color 0.15s, transform 0.12s;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .door-card:hover { border-color: #18181b; transform: translateY(-1px); }
+    .door-kicker {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent-text);
+    }
+    .door-title { font-size: 19px; font-weight: 700; margin: 4px 0; }
+    .door-desc { font-size: 13.5px; color: var(--text-muted); margin: 0; }
+
+    /* Card & Stepper */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+    .stepper { display: flex; gap: 8px; margin-bottom: 18px; }
+    .step-pill {
+      flex: 1;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--surface-muted);
+      cursor: pointer;
+    }
+    .step-pill.done { background: var(--accent); }
+    .step-pill.current { background: #18181b; }
+
+    .step-title { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+    .step-desc { font-size: 13.5px; color: var(--text-muted); margin: 0 0 16px; }
+
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+    .choice-card {
+      text-align: left;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .choice-card:hover { border-color: #a1a1aa; }
+    .choice-card.selected { border-color: var(--accent); background: #fffbeb; }
+    .choice-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; display: block; }
+    .choice-meta { font-size: 12.5px; color: var(--text-muted); display: block; }
+    .choice-tag {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--surface-muted);
+      color: var(--text);
+    }
+
+    /* Numeric Inputs & Preset Pills */
+    .field-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+    .field-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .input-wrap {
+      display: flex;
+      align-items: center;
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      padding: 0 12px;
+    }
+    .input-wrap:focus-within { border-color: #18181b; }
+    .input-wrap input {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      padding: 10px 4px;
+      font-size: 15px;
+      font-weight: 600;
+      background: transparent;
+    }
+    .input-unit { font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
+
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .pill {
+      border: 1px solid var(--border);
+      background: var(--surface-muted);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .pill.active { background: #18181b; color: #ffffff; border-color: #18181b; }
+
+    .nav-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .btn {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary { background: #18181b; color: #ffffff; border-color: #18181b; }
+
+    /* Inline Criteria Summary Bar on Results */
+    .criteria-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface-muted);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 18px;
+      font-size: 12.5px;
+    }
+    .criteria-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-weight: 600;
+    }
+
+    /* Alerts */
+    .alert {
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      border: 1px solid;
+    }
+    .alert-warn { background: var(--warn-soft); border-color: #fdba74; color: #7c2d12; }
+    .alert-info { background: #f4f4f5; border-color: var(--border); color: var(--text); }
+
+    /* Results Cards */
+    .section-heading {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 22px 0 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .product-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+    .badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+    .badge-ok { background: var(--ok-soft); color: var(--ok); }
+    .badge-warn { background: var(--warn-soft); color: var(--warn); }
+    .badge-neutral { background: var(--surface-muted); color: var(--text-muted); }
+
+    .prod-name { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
+    .prod-type { font-size: 12px; color: var(--text-muted); margin: 0 0 10px; }
+    .price-block { font-size: 16px; font-weight: 700; }
+    .price-sub { font-size: 12px; color: var(--text-muted); }
+
+    .why-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+    .why-box strong { display: block; margin-bottom: 4px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+    .why-box ul { margin: 0 0 0 16px; padding: 0; }
+    .why-box li { margin-bottom: 2px; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Internal Design Transparency Banner (Mock Only) -->
+    <details class="internal-banner" open>
+      <summary>
+        <span>Internal Mock Preview — Design Choices &amp; Tradeoffs (Hidden from Production)</span>
+        <span>Click to collapse</span>
+      </summary>
+      <ul>
+        <li><strong>Separate Two-Door Landing Screen:</strong> Users choose <em>Help Me Choose</em> (guided steps) or <em>I Know My Specs</em> (direct numeric form) upfront, with a one-click switch at any time.</li>
+        <li><strong>Zero Sliders (RAM-12):</strong> All numeric fields use <code>inputmode="numeric"</code> paired with one-tap preset pills.</li>
+        <li><strong>Verified Static Metadata Map:</strong> Uses a deterministic lookup map by <code>product.type</code> (covering the 12 Solar types) for Form Factor (All-in-One vs. Split-Type) and Mounting Style—zero DB changes, zero regex guessing.</li>
+        <li><strong>Mixed Results with Honest Badges:</strong> Priced streetlights and <code>NULL</code>-price floodlights appear in one ranked list; unpriced floodlights receive a neutral 70% budget score and a clear <em>Price on Inquiry</em> badge.</li>
+        <li><strong>Per-Unit / Total Budget + Branch Stock Check:</strong> Quantity multiplies unit price ranges and checks against live Quiapo + Cavite branch stock; <em>Need a Pole</em> acts as a ranking preference + quote note.</li>
+        <li><strong>Solar-Focused Scope:</strong> Scoped to the 51 Solar products, with a clear link to browse the 50 AC Grid (220V) products.</li>
+      </ul>
+    </details>
+
+    <header class="page-header">
+      <div>
+        <div class="eyebrow">JD Solar Product Matcher</div>
+        <h1>Find the Right Solar Light for Your Site</h1>
+        <p class="subtitle">Matches your site, sun exposure, quantity, and budget against our 51 solar units. Looking for 220V AC Grid? <a href="#ac-browse" onclick="alert('Links to /browse?power_source=AC%20Grid (50 AC Grid products)')">Browse Catalog</a></p>
+      </div>
+      <button id="btnChangeDoor" class="btn hidden" onclick="showLanding()">Switch Entry Mode</button>
+    </header>
+
+    <!-- TWO-DOOR LANDING SCREEN -->
+    <section id="landingPanel" class="door-grid">
+      <button class="door-card" onclick="enterMode('guided')">
+        <div>
+          <div class="door-kicker">Recommended for First-Time Buyers</div>
+          <h2 class="door-title">Help Me Choose</h2>
+          <p class="door-desc">Answer 4 plain-language questions about your site, sunlight, and budget. We translate your answers into matching solar units.</p>
+        </div>
+        <span class="btn btn-primary" style="align-self:flex-start;">Start Guided Flow</span>
+      </button>
+
+      <button class="door-card" onclick="enterMode('direct')">
+        <div>
+          <div class="door-kicker">Fast Track for Contractors</div>
+          <h2 class="door-title">I Know My Specs</h2>
+          <p class="door-desc">Jump straight to direct numeric inputs for wattage, form factor, mounting, bulk quantity, and budget—no sliders.</p>
+        </div>
+        <span class="btn" style="align-self:flex-start;">Enter Specs Directly</span>
+      </button>
+    </section>
+
+    <!-- GUIDED FLOW -->
+    <section id="guidedPanel" class="card hidden">
+      <div class="stepper" id="stepper">
+        <div class="step-pill current" onclick="goStep(1)" title="Step 1: Installation Site"></div>
+        <div class="step-pill" onclick="goStep(2)" title="Step 2: Sun Exposure & Mounting"></div>
+        <div class="step-pill" onclick="goStep(3)" title="Step 3: Brightness & Quantity"></div>
+        <div class="step-pill" onclick="goStep(4)" title="Step 4: Budget"></div>
+      </div>
+
+      <!-- Step 1 -->
+      <div id="step1">
+        <h2 class="step-title">1. Where will the light be installed?</h2>
+        <p class="step-desc">We use your mounting height and area size to recommend a practical brightness range.</p>
+        <div class="option-grid">
+          <button class="choice-card" data-site="home" onclick="selectSite('home', 150)">
+            <span class="choice-title">Gate, Yard, or Pathway</span>
+            <span class="choice-meta">3m–4m mounting height. Focused light for entrances, fences, and walkways.</span>
+            <span class="choice-tag">Typical: 100W–200W</span>
+          </button>
+          <button class="choice-card selected" data-site="street" onclick="selectSite('street', 300)">
+            <span class="choice-title">Subdivision or Barangay Street</span>
+            <span class="choice-meta">4m–6m pole height. Balanced street coverage spaced 20m–30m apart.</span>
+            <span class="choice-tag">Typical: 200W–300W</span>
+          </button>
+          <button class="choice-card" data-site="road" onclick="selectSite('road', 500)">
+            <span class="choice-title">Main Road or Highway</span>
+            <span class="choice-meta">6m–10m+ pole height. High-output optics spaced 30m–45m apart.</span>
+            <span class="choice-tag">Typical: 400W–600W+</span>
+          </button>
+          <button class="choice-card" data-site="covered" onclick="selectSite('covered', 200)">
+            <span class="choice-title">Covered Yard, Court, or Warehouse</span>
+            <span class="choice-meta">Wide-area flood lighting, often under a roof or eaves with a separate panel.</span>
+            <span class="choice-tag">Floodlight / Split-Type</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div id="step2" class="hidden">
+        <h2 class="step-title">2. Sun Exposure &amp; Mounting Setup</h2>
+        <p class="step-desc">Determines whether an integrated unit works or if you need a separate solar panel on a cable.</p>
+        <div class="field-label">Does the mounting spot get direct sunlight all day?</div>
+        <div class="option-grid" style="margin-bottom: 16px;">
+          <button class="choice-card selected" data-form="integrated" onclick="selectForm('integrated')">
+            <span class="choice-title">Yes — Open Sky Above</span>
+            <span class="choice-meta">All-in-One integrated unit. Clean look, zero external wiring.</span>
+          </button>
+          <button class="choice-card" data-form="split" onclick="selectForm('split')">
+            <span class="choice-title">No — Under Roof or Shade</span>
+            <span class="choice-meta">Split-Type / Floodlight with separate panel placed in full sun.</span>
+          </button>
+          <button class="choice-card" data-form="any" onclick="selectForm('any')">
+            <span class="choice-title">Show Both Options</span>
+            <span class="choice-meta">Compare integrated streetlights and separate-panel floodlights.</span>
+          </button>
+        </div>
+
+        <div class="field-label">How will you mount it?</div>
+        <div class="option-grid">
+          <button class="choice-card selected" data-mount="wall_or_existing" onclick="selectMount('wall_or_existing')">
+            <span class="choice-title">Wall, Gate, or Existing Post</span>
+            <span class="choice-meta">Uses standard mounting bracket (no new pole needed).</span>
+          </button>
+          <button class="choice-card" data-mount="with_pole" onclick="selectMount('with_pole')">
+            <span class="choice-title">Need a Pole / New Pole Install</span>
+            <span class="choice-meta">Prioritizes pole-mount fixtures and adds a pole quote note.</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div id="step3" class="hidden">
+        <h2 class="step-title">3. Brightness (Wattage) &amp; Quantity</h2>
+        <p class="step-desc">Pre-filled from your site choice. Type an exact number or tap a preset.</p>
+        <div class="field-row">
+          <div>
+            <div class="field-label"><span>Target Wattage</span><span class="price-sub">Editable anytime</span></div>
+            <div class="input-wrap">
+              <input id="gWatt" type="number" inputmode="numeric" min="25" max="1000" value="300" oninput="syncFromGuided()" />
+              <span class="input-unit">W</span>
+            </div>
+            <div class="pills">
+              <button class="pill" onclick="setWatt(100)">100W</button>
+              <button class="pill" onclick="setWatt(200)">200W</button>
+              <button class="pill active" onclick="setWatt(300)">300W</button>
+              <button class="pill" onclick="setWatt(500)">500W</button>
+            </div>
+          </div>
+          <div>
+            <div class="field-label"><span>Quantity Needed</span><span class="price-sub">Checks Quiapo + Cavite stock</span></div>
+            <div class="input-wrap">
+              <input id="gQty" type="number" inputmode="numeric" min="1" max="500" value="1" oninput="syncFromGuided()" />
+              <span class="input-unit">units</span>
+            </div>
+            <div class="pills">
+              <button class="pill active" onclick="setQty(1)">1 unit</button>
+              <button class="pill" onclick="setQty(5)">5 units</button>
+              <button class="pill" onclick="setQty(10)">10 units</button>
+              <button class="pill" onclick="setQty(25)">25 units</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div id="step4" class="hidden">
+        <h2 class="step-title">4. Target Budget</h2>
+        <p class="step-desc">Choose whether your budget is per unit or for the whole project.</p>
+        <div class="pills" style="margin-bottom: 12px;">
+          <button class="pill active" id="scopeUnit" onclick="setBudgetScope('unit')">Per Unit</button>
+          <button class="pill" id="scopeTotal" onclick="setBudgetScope('total')">Total Project</button>
+        </div>
+        <div class="field-row">
+          <div>
+            <div class="field-label"><span id="budgetLabel">Max Budget (Per Unit)</span></div>
+            <div class="input-wrap">
+              <span class="input-unit">PHP</span>
+              <input id="gBudget" type="number" inputmode="numeric" min="0" step="100" value="3500" oninput="syncFromGuided()" />
+            </div>
+            <div class="pills">
+              <button class="pill" onclick="setBudget(1500)">1,500</button>
+              <button class="pill" onclick="setBudget(2500)">2,500</button>
+              <button class="pill active" onclick="setBudget(3500)">3,500</button>
+              <button class="pill" onclick="setBudget(null)">Flexible / Any</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <button class="btn" id="btnBack" onclick="prevStep()" disabled>Back</button>
+        <button class="btn btn-primary" id="btnNext" onclick="nextStep()">Next Step</button>
+      </div>
+    </section>
+
+    <!-- DIRECT SPEC FORM -->
+    <section id="directPanel" class="card hidden">
+      <h2 class="step-title">Direct Specification Form</h2>
+      <p class="step-desc">Enter your exact project parameters. Results update live below.</p>
+      <div class="field-row">
+        <div>
+          <div class="field-label"><span>Site / Application</span></div>
+          <select id="dSite" class="input-wrap" style="width:100%; padding:10px; font-weight:600;" onchange="syncFromDirect()">
+            <option value="home">Gate / Yard (3m–4m)</option>
+            <option value="street" selected>Subdivision / Street (4m–6m)</option>
+            <option value="road">Main Road / Highway (6m–10m+)</option>
+            <option value="covered">Covered Area / Warehouse</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-label"><span>Category / Form Factor</span></div>
+          <select id="dForm" class="input-wrap" style="width:100%; padding:10px; font-weight:600;" onchange="syncFromDirect()">
+            <option value="integrated" selected>All-in-One (Integrated Streetlight)</option>
+            <option value="split">Split-Type / Solar Floodlight</option>
+            <option value="any">Any Form Factor</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-label"><span>Mounting / Pole</span></div>
+          <select id="dMount" class="input-wrap" style="width:100%; padding:10px; font-weight:600;" onchange="syncFromDirect()">
+            <option value="wall_or_existing" selected>Wall / Existing Post</option>
+            <option value="with_pole">Need Pole (Ranking + Quote Note)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div>
+          <div class="field-label"><span>Target Wattage (W)</span></div>
+          <div class="input-wrap">
+            <input id="dWatt" type="number" inputmode="numeric" value="300" oninput="syncFromDirect()" />
+            <span class="input-unit">W</span>
+          </div>
+        </div>
+        <div>
+          <div class="field-label"><span>Quantity</span></div>
+          <div class="input-wrap">
+            <input id="dQty" type="number" inputmode="numeric" min="1" value="1" oninput="syncFromDirect()" />
+            <span class="input-unit">units</span>
+          </div>
+        </div>
+        <div>
+          <div class="field-label"><span>Budget Scope &amp; Amount (PHP)</span></div>
+          <div style="display:flex; gap:8px;">
+            <select id="dScope" class="input-wrap" style="padding:10px; font-weight:600;" onchange="syncFromDirect()">
+              <option value="unit" selected>Per Unit</option>
+              <option value="total">Total</option>
+            </select>
+            <div class="input-wrap" style="flex:1;">
+              <span class="input-unit">PHP</span>
+              <input id="dBudget" type="number" inputmode="numeric" value="3500" oninput="syncFromDirect()" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULTS SECTION -->
+    <section id="resultsSection" class="hidden">
+      <div class="criteria-bar" id="criteriaBar"></div>
+      <div id="budgetAlert" class="alert alert-warn hidden"></div>
+      <div id="poleAlert" class="alert alert-info hidden"></div>
+
+      <div class="section-heading">
+        <span>Matched Solar Equipment (Ranked)</span>
+        <span class="price-sub" id="resultCount"></span>
+      </div>
+      <div class="result-grid" id="resultGrid"></div>
+    </section>
+  </div>
+
+  <script>
+    // Verified static lookup map by product.type (no DB schema change required)
+    const TYPE_METADATA = {
+      'Integrated Solar Street Light': { formFactor: 'integrated', mountStyle: 'pole' },
+      'Integrated Solar Street Light (Warm White)': { formFactor: 'integrated', mountStyle: 'pole' },
+      'Aviation Aluminum Solar Street Light': { formFactor: 'integrated', mountStyle: 'pole' },
+      'Aviation Aluminum Solar Road Light': { formFactor: 'integrated', mountStyle: 'pole' },
+      'Solar Floodlight JDL': { formFactor: 'split', mountStyle: 'wall_or_bracket' },
+      'Solar Flood Light UP39 (Warm White)': { formFactor: 'split', mountStyle: 'wall_or_bracket' },
+      'KKSKY Solar Floodlight': { formFactor: 'split', mountStyle: 'wall_or_bracket' }
+    };
+
+    const state = {
+      mode: 'landing', // 'landing' | 'guided' | 'direct'
+      step: 1,
+      site: 'street',
+      formFactor: 'integrated',
+      mounting: 'wall_or_existing',
+      watt: 300,
+      wattEdited: false,
+      qty: 1,
+      budgetScope: 'unit',
+      budget: 3500
+    };
+
+    const CATALOG = [
+      { id: 1, name: 'JD Integrated Solar Street Light 300W', type: 'Integrated Solar Street Light', watt: 300, min: 2500, max: 3500, stockQuiapo: 12, stockCavite: 8, control: 'Remote + Light Control', ip: 'IP65' },
+      { id: 2, name: 'JD Aviation Aluminum Solar Street Light 200W', type: 'Aviation Aluminum Solar Street Light', watt: 200, min: 1500, max: 2500, stockQuiapo: 6, stockCavite: 4, control: 'Motion Sensor + Remote', ip: 'IP65' },
+      { id: 3, name: 'JD Aviation Aluminum Solar Road Light 500W', type: 'Aviation Aluminum Solar Road Light', watt: 500, min: 3000, max: 4500, stockQuiapo: 3, stockCavite: 2, control: 'Radar Sensor + Timer', ip: 'IP66' },
+      { id: 4, name: 'JD Integrated Solar Street Light (Warm White) 150W', type: 'Integrated Solar Street Light (Warm White)', watt: 150, min: 1000, max: 2000, stockQuiapo: 14, stockCavite: 10, control: 'Light Control + Remote', ip: 'IP65' },
+      { id: 5, name: 'Solar Floodlight JDL 300W', type: 'Solar Floodlight JDL', watt: 300, min: null, max: null, stockQuiapo: 9, stockCavite: 11, control: 'Separate Panel (5m Cable) + Remote', ip: 'IP66' },
+      { id: 6, name: 'Solar Flood Light UP39 (Warm White) 200W', type: 'Solar Flood Light UP39 (Warm White)', watt: 200, min: null, max: null, stockQuiapo: 5, stockCavite: 7, control: 'Separate Panel + Remote', ip: 'IP65' },
+      { id: 7, name: 'KKSKY Solar Floodlight 500W', type: 'KKSKY Solar Floodlight', watt: 500, min: null, max: null, stockQuiapo: 2, stockCavite: 3, control: 'Separate Panel + Remote', ip: 'IP66' }
+    ];
+
+    function showLanding() {
+      state.mode = 'landing';
+      document.getElementById('landingPanel').classList.remove('hidden');
+      document.getElementById('guidedPanel').classList.add('hidden');
+      document.getElementById('directPanel').classList.add('hidden');
+      document.getElementById('resultsSection').classList.add('hidden');
+      document.getElementById('btnChangeDoor').classList.add('hidden');
+    }
+
+    function enterMode(mode) {
+      state.mode = mode;
+      document.getElementById('landingPanel').classList.add('hidden');
+      document.getElementById('guidedPanel').classList.toggle('hidden', mode !== 'guided');
+      document.getElementById('directPanel').classList.toggle('hidden', mode !== 'direct');
+      document.getElementById('resultsSection').classList.remove('hidden');
+      document.getElementById('btnChangeDoor').classList.remove('hidden');
+      syncInputs();
+      renderResults();
+    }
+
+    function goStep(n) {
+      state.step = n;
+      for (let i = 1; i <= 4; i++) document.getElementById('step' + i).classList.toggle('hidden', i !== n);
+      document.querySelectorAll('.step-pill').forEach((p, idx) => {
+        p.classList.remove('current', 'done');
+        if (idx + 1 < n) p.classList.add('done');
+        if (idx + 1 === n) p.classList.add('current');
+      });
+      document.getElementById('btnBack').disabled = n === 1;
+      document.getElementById('btnNext').textContent = n === 4 ? 'View Matches' : 'Next Step';
+    }
+
+    function nextStep() {
+      if (state.step < 4) goStep(state.step + 1);
+      else document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+    }
+    function prevStep() { if (state.step > 1) goStep(state.step - 1); }
+
+    function selectSite(site, recWatt) {
+      state.site = site;
+      if (!state.wattEdited) state.watt = recWatt;
+      if (site === 'covered') state.formFactor = 'split';
+      document.querySelectorAll('[data-site]').forEach(el => el.classList.toggle('selected', el.dataset.site === site));
+      syncInputs();
+      renderResults();
+    }
+
+    function selectForm(form) {
+      state.formFactor = form;
+      document.querySelectorAll('[data-form]').forEach(el => el.classList.toggle('selected', el.dataset.form === form));
+      syncInputs();
+      renderResults();
+    }
+
+    function selectMount(mount) {
+      state.mounting = mount;
+      document.querySelectorAll('[data-mount]').forEach(el => el.classList.toggle('selected', el.dataset.mount === mount));
+      syncInputs();
+      renderResults();
+    }
+
+    function setWatt(w) { state.watt = w; state.wattEdited = true; syncInputs(); renderResults(); }
+    function setQty(q) { state.qty = q; syncInputs(); renderResults(); }
+    function setBudgetScope(scope) {
+      state.budgetScope = scope;
+      document.getElementById('scopeUnit').classList.toggle('active', scope === 'unit');
+      document.getElementById('scopeTotal').classList.toggle('active', scope === 'total');
+      document.getElementById('budgetLabel').textContent = scope === 'unit' ? 'Max Budget (Per Unit)' : 'Max Budget (Total Project)';
+      syncInputs();
+      renderResults();
+    }
+    function setBudget(b) { state.budget = b; syncInputs(); renderResults(); }
+
+    function syncFromGuided() {
+      state.wattEdited = true;
+      state.watt = Math.max(25, Number(document.getElementById('gWatt').value) || 25);
+      state.qty = Math.max(1, Number(document.getElementById('gQty').value) || 1);
+      const bVal = document.getElementById('gBudget').value;
+      state.budget = bVal === '' ? null : Number(bVal);
+      syncInputs();
+      renderResults();
+    }
+
+    function syncFromDirect() {
+      state.site = document.getElementById('dSite').value;
+      state.formFactor = document.getElementById('dForm').value;
+      state.mounting = document.getElementById('dMount').value;
+      state.watt = Math.max(25, Number(document.getElementById('dWatt').value) || 25);
+      state.qty = Math.max(1, Number(document.getElementById('dQty').value) || 1);
+      state.budgetScope = document.getElementById('dScope').value;
+      const bVal = document.getElementById('dBudget').value;
+      state.budget = bVal === '' ? null : Number(bVal);
+      renderResults();
+    }
+
+    function syncInputs() {
+      document.getElementById('gWatt').value = state.watt;
+      document.getElementById('dWatt').value = state.watt;
+      document.getElementById('gQty').value = state.qty;
+      document.getElementById('dQty').value = state.qty;
+      document.getElementById('gBudget').value = state.budget ?? '';
+      document.getElementById('dBudget').value = state.budget ?? '';
+      document.getElementById('dSite').value = state.site;
+      document.getElementById('dForm').value = state.formFactor;
+      document.getElementById('dMount').value = state.mounting;
+      document.getElementById('dScope').value = state.budgetScope;
+    }
+
+    function renderResults() {
+      const perUnitBudget = state.budget === null ? null : (state.budgetScope === 'total' ? Math.floor(state.budget / state.qty) : state.budget);
+
+      const siteLabels = { home: 'Gate / Yard', street: 'Subdivision / Street', road: 'Main Road / Highway', covered: 'Covered / Warehouse' };
+      const formLabels = { integrated: 'All-in-One', split: 'Split-Type / Floodlight', any: 'Any Form Factor' };
+      document.getElementById('criteriaBar').innerHTML = `
+        <strong>Your Criteria:</strong>
+        <span class="criteria-chip">${siteLabels[state.site]}</span>
+        <span class="criteria-chip">${formLabels[state.formFactor]}</span>
+        <span class="criteria-chip tabular">${state.watt}W Target</span>
+        <span class="criteria-chip tabular">${state.qty} ${state.qty === 1 ? 'unit' : 'units'}</span>
+        <span class="criteria-chip tabular">${perUnitBudget === null ? 'Flexible Budget' : 'PHP ' + perUnitBudget.toLocaleString() + '/unit'}</span>
+        <button class="btn" style="margin-left:auto; padding:4px 10px; font-size:12px;" onclick="enterMode('direct')">Edit Inline</button>
+      `;
+
+      const bAlert = document.getElementById('budgetAlert');
+      if (perUnitBudget !== null && perUnitBudget < 1000) {
+        bAlert.classList.remove('hidden');
+        bAlert.innerHTML = `<strong>Below Entry-Level Price:</strong> Priced solar streetlights start at <strong>PHP 1,000/unit</strong>. Showing the closest entry-level options and quote-only floodlights below.`;
+      } else {
+        bAlert.classList.add('hidden');
+      }
+
+      const pAlert = document.getElementById('poleAlert');
+      if (state.mounting === 'with_pole') {
+        pAlert.classList.remove('hidden');
+        pAlert.innerHTML = `<strong>Mounting Note:</strong> Fixtures ship with standard mounting brackets; poles are quoted separately during consultation.`;
+      } else {
+        pAlert.classList.add('hidden');
+      }
+
+      const ranked = CATALOG.map(p => {
+        const meta = TYPE_METADATA[p.type] || { formFactor: 'unknown', mountStyle: 'unknown' };
+        const wattDiff = Math.abs(p.watt - state.watt);
+        const wattScore = Math.max(0.3, 1 - wattDiff / 500);
+        const isQuoteOnly = p.min === null;
+        const budgetScore = isQuoteOnly ? 0.70 : (perUnitBudget === null ? 1 : (p.max <= perUnitBudget ? 1 : (p.min <= perUnitBudget ? 0.85 : 0.45)));
+        const formScore = (state.formFactor === 'any' || meta.formFactor === state.formFactor) ? 1 : 0.55;
+        const mountScore = (state.mounting === 'with_pole' && meta.mountStyle === 'pole') ? 1 : (state.mounting === 'wall_or_existing' ? 0.95 : 0.75);
+        const pct = Math.round((wattScore * 0.35 + budgetScore * 0.35 + formScore * 0.20 + mountScore * 0.10) * 100);
+        const totalStock = p.stockQuiapo + p.stockCavite;
+
+        const reasons = [
+          `${p.watt}W (${wattDiff === 0 ? 'exact wattage match' : wattDiff + 'W from target'})`,
+          `Form factor: ${meta.formFactor === 'integrated' ? 'All-in-One Integrated' : 'Split-Type / Separate Panel'}`,
+          isQuoteOnly
+            ? 'Price on Inquiry (neutral 70% budget score)'
+            : (perUnitBudget === null ? 'Flexible budget' : (p.min <= perUnitBudget ? `Fits PHP ${perUnitBudget.toLocaleString()}/unit budget` : `PHP ${(p.min - perUnitBudget).toLocaleString()} above unit budget`))
+        ];
+        return { ...p, pct, totalStock, isQuoteOnly, reasons };
+      }).sort((a, b) => b.pct - a.pct);
+
+      document.getElementById('resultCount').textContent = `${ranked.length} solar units`;
+      document.getElementById('resultGrid').innerHTML = ranked.map(p => `
+        <article class="product-card">
+          <div>
+            <div class="badge-row">
+              <span class="badge badge-ok tabular">${p.pct}% Match</span>
+              ${p.isQuoteOnly ? `<span class="badge badge-neutral">Price on Inquiry</span>` : ''}
+              <span class="badge ${p.totalStock >= state.qty ? 'badge-neutral' : 'badge-warn'} tabular">
+                ${p.totalStock >= state.qty ? `In Stock (${p.totalStock}: Q ${p.stockQuiapo} / C ${p.stockCavite})` : `Stock Shortfall (${p.totalStock} avail for ${state.qty} req)`}
+              </span>
+            </div>
+            <h3 class="prod-name">${p.name}</h3>
+            <p class="prod-type">${p.type} &middot; ${p.control} &middot; ${p.ip}</p>
+            ${p.isQuoteOnly
+              ? `<div class="price-block">Price on Inquiry <span class="price-sub">(${state.qty} ${state.qty === 1 ? 'unit' : 'units'})</span></div>`
+              : `<div class="price-block tabular">PHP ${p.min.toLocaleString()} – ${p.max.toLocaleString()} <span class="price-sub">/ unit</span></div>
+                 ${state.qty > 1 ? `<div class="price-sub tabular">Est. Total (${state.qty}x): <strong>PHP ${(p.min * state.qty).toLocaleString()} – ${(p.max * state.qty).toLocaleString()}</strong></div>` : ''}`
+            }
+          </div>
+          <div class="why-box">
+            <strong>Why This Matched</strong>
+            <ul>${p.reasons.map(r => `<li>${r}</li>`).join('')}</ul>
+          </div>
+          <button class="btn btn-primary" onclick="alert('Opens Inquiry pre-filled with: ${p.name}, Qty ${state.qty}, Mounting: ${state.mounting}')">Inquire This</button>
+        </article>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

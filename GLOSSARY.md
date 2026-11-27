@@ -9,8 +9,16 @@ The public equipment browsing and filtering experience (`/browse`).
 _Avoid_: Storefront, shop, cart
 
 **Product Matcher**:
-The interactive multi-step guided recommendation flow (`/match`) that matches customer site, load, and budget requirements to solar equipment.
+The interactive recommendation flow (`/match` and its quick-match modal) supporting both **Guided Assessment** (plain-language site conditions) and **Direct Spec Entry** (wattage, form factor, mounting, quantity, and budget) with an on-demand **Match Breakdown**.
 _Avoid_: Match wizard, configurator, quiz
+
+**Match Breakdown**:
+The per-factor compatibility summary (location, light style and mounting, wattage, and budget) explaining how a recommended solar product scored against the user's entered criteria.
+_Avoid_: Score dump, algorithm details, debug math
+
+**Below-Minimum Budget**:
+A matching state where a user's positive per-unit budget falls below the lowest-priced available solar product in the catalog, prompting a gap notice and ranking entry-level alternatives by price proximity.
+_Avoid_: Zero budget, no results error, cheap fallback
 
 **Customer Portal**:
 The authenticated customer view (`/portal`) for tracking registered purchases, warranties, fault diagnostics, and warranty claims.
