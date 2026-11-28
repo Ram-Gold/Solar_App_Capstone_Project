@@ -6,7 +6,7 @@ CREATE OR REPLACE FUNCTION public.submit_warranty_claim(
     p_purchase_id uuid,
     p_category text,
     p_description text,
-    p_media_urls text[]
+    p_media_urls text[] DEFAULT '{}'::text[]
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -38,16 +38,18 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Unauthorized: Purchase does not belong to this customer');
     END IF;
 
-    -- Enforce one lifetime warranty claim per customer account
+    -- Serialize concurrent claim submissions for the same purchased product
+    PERFORM pg_advisory_xact_lock(hashtext(p_purchase_id::text));
+
+    -- Enforce one lifetime warranty claim per purchased product (purchase_id)
     IF EXISTS (
         SELECT 1
-        FROM public.warranty_claims wc
-        JOIN public.customer_purchases cp ON cp.id = wc.purchase_id
-        WHERE cp.customer_id = v_customer_id
+        FROM public.warranty_claims
+        WHERE purchase_id = p_purchase_id
     ) THEN
         RETURN jsonb_build_object(
             'success', false,
-            'error', 'A warranty claim has already been filed for your account.'
+            'error', 'A warranty claim has already been filed for this purchased product.'
         );
     END IF;
 
@@ -61,7 +63,7 @@ BEGIN
         p_purchase_id,
         p_category,
         p_description,
-        p_media_urls,
+        COALESCE(p_media_urls, '{}'::text[]),
         'pending'
     )
     RETURNING id INTO v_claim_id;
@@ -79,22 +81,8 @@ RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = public, pg_temp
 AS $function$
-DECLARE
-    v_customer_id UUID;
 BEGIN
-    SELECT customer_id INTO v_customer_id
-    FROM public.customer_purchases
-    WHERE id = NEW.purchase_id;
-
-    IF v_customer_id IS NOT NULL AND EXISTS (
-        SELECT 1
-        FROM public.warranty_claims wc
-        JOIN public.customer_purchases cp ON cp.id = wc.purchase_id
-        WHERE cp.customer_id = v_customer_id
-    ) THEN
-        RAISE EXCEPTION 'A warranty claim has already been filed for your account.'
-            USING ERRCODE = '23505';
-    END IF;
+    PERFORM pg_advisory_xact_lock(hashtext(NEW.purchase_id::text));
 
     IF EXISTS (
         SELECT 1
@@ -108,8 +96,7 @@ BEGIN
 END;
 $function$;
 
-DROP TRIGGER IF EXISTS trg_enforce_single_claim_per_purchase ON public.warranty_claims;
-CREATE TRIGGER trg_enforce_single_claim_per_purchase
+CREATE OR REPLACE TRIGGER trg_enforce_single_claim_per_purchase
     BEFORE INSERT ON public.warranty_claims
     FOR EACH ROW
     EXECUTE FUNCTION public.enforce_single_claim_per_purchase();

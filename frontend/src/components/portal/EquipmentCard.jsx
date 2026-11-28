@@ -60,14 +60,12 @@ function getCoverageState(purchase, hasClaimedReplacement) {
 export default function EquipmentCard({
   purchase,
   linkedClaims = [],
-  existingAccountClaim = null,
   onTroubleshoot,
   onFileClaim,
   onViewClaims,
 }) {
   const existingClaim = linkedClaims[0] || null
   const hasExistingClaim = linkedClaims.length > 0
-  const hasAccountClaim = Boolean(existingAccountClaim)
   const hasClaimedReplacement = linkedClaims.some(
     (c) => c.status === 'resolved' || c.status === 'approved' || c.status === 'ready_for_release'
   )
@@ -78,7 +76,7 @@ export default function EquipmentCard({
   const StatusIcon = coverage.icon
   const thumbUrl = getMainProductImage(purchase.product_image)
   const warrantyMonths = purchase.warranty_months || 24
-  const isSupportOnly = purchase.is_voided || hasExistingClaim || hasAccountClaim
+  const isSupportOnly = purchase.is_voided || hasExistingClaim
 
   return (
     <article className="rounded-2xl bg-jds-surface-container-lowest dark:bg-jds-surface border border-jds-outline-variant/50 p-5 flex flex-col justify-between gap-4 shadow-xs hover:border-jds-outline transition-all">
@@ -186,9 +184,7 @@ export default function EquipmentCard({
                 ? 'Self-diagnostic guide and non-warranty branch servicing remain available.'
                 : hasClaimedReplacement
                   ? '1-time replacement fulfilled. Self-diagnostics and branch servicing remain available.'
-                  : hasExistingClaim
-                    ? 'One warranty claim has already been filed for this unit. Self-diagnostics remain available.'
-                    : 'A warranty claim is already on file for your account. Self-diagnostics remain available.'}
+                  : 'One warranty claim has already been filed for this unit. Self-diagnostics remain available.'}
             </p>
             <button
               type="button"

@@ -421,7 +421,16 @@ export default function CustomerPortalPage() {
   }
 
   const { customer, purchases = [], claims = [] } = portalData
-  const existingAccountClaim = claims[0] || null
+  const getClaimsForPurchase = (purchaseId) =>
+    claims.filter(
+      (c) =>
+        c.customer_purchase_id === purchaseId ||
+        c.customer_purchases?.id === purchaseId ||
+        c.purchase_id === purchaseId
+    )
+  const selectedPurchaseClaim = selectedPurchaseForClaim
+    ? getClaimsForPurchase(selectedPurchaseForClaim.id)[0] || null
+    : null
   const activeWarrantiesCount = purchases.filter(p => p.is_warranty_active).length
   const openClaims = claims.filter(c => ['in_review', 'pending', 'checking', 'approved', 'ready_for_release'].includes(c.status || 'in_review'))
   const resolvedCustomerEmail = authStatus.email || customer.email || ''
@@ -632,24 +641,18 @@ export default function CustomerPortalPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {purchases.map((p) => {
-                  const linkedClaims = claims.filter(
-                    (c) =>
-                      c.customer_purchase_id === p.id ||
-                      c.customer_purchases?.id === p.id ||
-                      c.purchase_id === p.id
-                  )
+                  const linkedClaims = getClaimsForPurchase(p.id)
                   return (
                     <EquipmentCard
                       key={p.id}
                       purchase={p}
                       linkedClaims={linkedClaims}
-                      existingAccountClaim={existingAccountClaim}
                       onTroubleshoot={(item) => {
                         setSelectedPurchaseForClaim(item)
                         setDiagnosticMode('assistant')
                       }}
                       onFileClaim={(item) => {
-                        if (existingAccountClaim || claims.some((c) => c.purchase_id === item.id)) {
+                        if (getClaimsForPurchase(item.id).length > 0) {
                           setActiveTab('claims')
                           return
                         }
@@ -913,7 +916,7 @@ export default function CustomerPortalPage() {
           onClose={() => setSelectedPurchaseForClaim(null)}
           purchase={selectedPurchaseForClaim}
           customerToken={token}
-          existingAccountClaim={existingAccountClaim}
+          existingClaim={selectedPurchaseClaim}
           onClaimSubmitted={handleClaimSubmitted}
           onTrackClaims={() => setActiveTab('claims')}
           initialMode={diagnosticMode}

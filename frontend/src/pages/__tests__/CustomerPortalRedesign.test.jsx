@@ -11,6 +11,8 @@ vi.mock('../../lib/customerService', () => ({
   deleteCustomerAccount: vi.fn(),
   confirmCustomerEmailByToken: vi.fn(),
   queueAndSendCustomerConfirmationEmail: vi.fn(),
+  uploadEvidenceFile: vi.fn(),
+  submitWarrantyClaim: vi.fn(),
 }))
 
 vi.mock('../../context/AuthContext', () => ({
@@ -137,6 +139,97 @@ describe('CustomerPortalPage — Calm Device Hub & Modal Verification', () => {
       expect(screen.getByText('TICKET #A4F912C0')).toBeTruthy()
       expect(screen.getByLabelText('Claim progress')).toBeTruthy()
       expect(screen.getByText(/Bring battery pack to Quiapo branch/i)).toBeTruthy()
+    })
+  })
+
+  it('enforces one claim per purchased product without locking other products on the dashboard', async () => {
+    // mockPortalPayload has purch-1 (no claim) and purch-2 (1 active claim)
+    renderPortal()
+
+    await waitFor(() => {
+      expect(screen.getByText(/Welcome, Juan Dela Cruz!/i)).toBeTruthy()
+    })
+
+    // Only purch-1 should show File Claim; purch-2 should show Active Ticket + Run Troubleshooting Guide
+    const fileClaimBtns = screen.getAllByRole('button', { name: /^File Claim$/i })
+    expect(fileClaimBtns).toHaveLength(1)
+    expect(screen.getByRole('button', { name: /Active Ticket #A4F912C0/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Run Troubleshooting Guide/i })).toBeTruthy()
+
+    // Opening File Claim on unclaimed purch-1 opens the claim form for purch-1
+    fireEvent.click(fileClaimBtns[0])
+    await waitFor(() => {
+      expect(screen.getByText('Filing Claim For:')).toBeTruthy()
+      expect(screen.getByRole('button', { name: /Submit Warranty Claim Ticket/i })).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByLabelText('Close'))
+    await waitFor(() => {
+      expect(screen.queryByText('Filing Claim For:')).toBeNull()
+    })
+
+    // Opening Run Troubleshooting Guide on claimed purch-2 keeps File Warranty Claim locked for that unit
+    fireEvent.click(screen.getByRole('button', { name: /Run Troubleshooting Guide/i }))
+    await waitFor(() => {
+      const lockedTab = screen.getByRole('button', { name: /Claim On File/i })
+      expect(lockedTab.disabled).toBe(true)
+    })
+  })
+
+  it('allows filing a claim on each unclaimed unit when a customer owns 3 units of the same product and 1 already has a claim', async () => {
+    customerService.submitWarrantyClaim.mockResolvedValue({
+      success: true,
+      claimId: 'b88f0022-1111-2222-3333-444455556666',
+    })
+    customerService.fetchCustomerPortalData.mockResolvedValueOnce({
+      data: {
+        ...mockPortalPayload.data,
+        purchases: [
+          { ...mockPortalPayload.data.purchases[0], id: 'unit-1', product_name: 'Solar Floodlight JDL 1000W', serial_number: 'SN-1' },
+          { ...mockPortalPayload.data.purchases[0], id: 'unit-2', product_name: 'Solar Floodlight JDL 1000W', serial_number: 'SN-2' },
+          { ...mockPortalPayload.data.purchases[0], id: 'unit-3', product_name: 'Solar Floodlight JDL 1000W', serial_number: 'SN-3' },
+        ],
+        claims: [
+          {
+            id: '654ff9a8-7d19-4ea2-9130-813aaed6979f',
+            purchase_id: 'unit-1',
+            issue_category: 'No Power',
+            description: 'Unit 1 stopped charging.',
+            status: 'in_review',
+            created_at: '2026-11-28T08:13:53Z',
+            product_name: 'Solar Floodlight JDL 1000W',
+            serial_number: 'SN-1',
+          },
+        ],
+      },
+      error: null,
+    })
+
+    renderPortal()
+
+    await waitFor(() => {
+      expect(screen.getByText(/Welcome, Juan Dela Cruz!/i)).toBeTruthy()
+    })
+
+    // 1 claimed unit locked, 2 unclaimed units unlocked
+    const fileClaimBtns = screen.getAllByRole('button', { name: /^File Claim$/i })
+    expect(fileClaimBtns).toHaveLength(2)
+    expect(screen.getByRole('button', { name: /Active Ticket #654FF9A8/i })).toBeTruthy()
+
+    // Submit a claim on unit-2
+    fireEvent.click(fileClaimBtns[0])
+    const textarea = await screen.findByPlaceholderText(/Describe the observed hardware failure symptoms/i)
+    fireEvent.change(textarea, { target: { value: 'Unit 2 battery drains after 1 hour.' } })
+    fireEvent.click(screen.getByRole('button', { name: /Submit Warranty Claim Ticket/i }))
+
+    await waitFor(() => {
+      expect(customerService.submitWarrantyClaim).toHaveBeenCalledWith(
+        expect.objectContaining({
+          token: 'cust-token-1',
+          purchaseId: 'unit-2',
+          description: 'Unit 2 battery drains after 1 hour.',
+        })
+      )
     })
   })
 

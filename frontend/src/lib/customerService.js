@@ -1040,32 +1040,15 @@ export async function submitWarrantyClaim({
     console.warn('RPC submit_warranty_claim failed, trying direct insert fallback:', err)
   }
 
-  // 2. Direct insert fallback (account-level + per-purchase duplicate claim guard)
-  const { data: purchaseRow } = await supabase
-    .from('customer_purchases')
-    .select('customer_id')
-    .eq('id', purchaseId)
-    .maybeSingle()
-
-  let purchaseIdsToCheck = [purchaseId]
-  if (purchaseRow?.customer_id) {
-    const { data: accountPurchases } = await supabase
-      .from('customer_purchases')
-      .select('id')
-      .eq('customer_id', purchaseRow.customer_id)
-    if (Array.isArray(accountPurchases) && accountPurchases.length > 0) {
-      purchaseIdsToCheck = accountPurchases.map((p) => p.id)
-    }
-  }
-
+  // 2. Direct insert fallback (per-purchase duplicate claim guard)
   const { data: existingClaims } = await supabase
     .from('warranty_claims')
     .select('id')
-    .in('purchase_id', purchaseIdsToCheck)
+    .eq('purchase_id', purchaseId)
     .limit(1)
 
   if (Array.isArray(existingClaims) && existingClaims.length > 0) {
-    throw new Error('A warranty claim has already been filed for your account.')
+    throw new Error('A warranty claim has already been filed for this purchased product.')
   }
 
   const { data, error } = await supabase

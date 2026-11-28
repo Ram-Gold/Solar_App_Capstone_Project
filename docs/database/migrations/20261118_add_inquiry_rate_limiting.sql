@@ -14,7 +14,7 @@ CREATE OR REPLACE FUNCTION public.enforce_inquiry_rate_limit()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_is_privileged boolean := false;
@@ -28,11 +28,9 @@ DECLARE
 BEGIN
   -- Exempt authenticated staff and admin operators
   IF auth.uid() IS NOT NULL THEN
-    SELECT EXISTS (
-      SELECT 1
-      FROM public.user_profiles
-      WHERE id = auth.uid()
-        AND role IN ('staff', 'admin')
+    SELECT (
+      EXISTS (SELECT 1 FROM public.admins WHERE id = auth.uid())
+      OR EXISTS (SELECT 1 FROM public.staff WHERE id = auth.uid())
     ) INTO v_is_privileged;
 
     IF v_is_privileged THEN

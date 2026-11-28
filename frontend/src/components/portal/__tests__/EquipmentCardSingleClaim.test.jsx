@@ -59,14 +59,14 @@ describe('EquipmentCard single-claim-per-purchase enforcement', () => {
     expect(screen.getByRole('button', { name: /Claim Filed #CLAIM-99/i })).toBeTruthy()
   })
 
-  it('blocks File Warranty Claim inside FaultDiagnosticModal when account already has a claim', () => {
+  it('blocks File Warranty Claim inside FaultDiagnosticModal when this purchased product already has a claim', () => {
     render(
       <FaultDiagnosticModal
         isOpen={true}
         onClose={vi.fn()}
         purchase={{ ...basePurchase, product_name: 'Eco LED Flood Light 100W', is_warranty_active: true }}
         customerToken="tok-1"
-        existingAccountClaim={{ id: 'claim-acc-1', status: 'in_review' }}
+        existingClaim={{ id: 'claim-pur-1', purchase_id: 'pur-1', status: 'in_review' }}
         onClaimSubmitted={vi.fn()}
         onTrackClaims={vi.fn()}
         initialMode="claim"
@@ -77,5 +77,23 @@ describe('EquipmentCard single-claim-per-purchase enforcement', () => {
     expect(blockedTab.disabled).toBe(true)
     expect(screen.queryByRole('button', { name: /Submit Warranty Claim Ticket/i })).toBeNull()
     expect(screen.getByRole('button', { name: /Troubleshooting Wizard/i })).toBeTruthy()
+  })
+
+  it('allows File Warranty Claim inside FaultDiagnosticModal when this purchased product has no claim', () => {
+    render(
+      <FaultDiagnosticModal
+        isOpen={true}
+        onClose={vi.fn()}
+        purchase={{ ...basePurchase, id: 'pur-2', product_name: 'Eco LED Flood Light 100W', is_warranty_active: true }}
+        customerToken="tok-1"
+        existingClaim={null}
+        onClaimSubmitted={vi.fn()}
+        onTrackClaims={vi.fn()}
+        initialMode="claim"
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /Submit Warranty Claim Ticket/i })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Claim On File/i })).toBeNull()
   })
 })

@@ -226,12 +226,12 @@ export default function FaultDiagnosticModal({
   onClose,
   purchase,
   customerToken,
-  existingAccountClaim = null,
+  existingClaim = null,
   onClaimSubmitted,
   onTrackClaims,
   initialMode = 'assistant', // 'assistant' | 'claim'
 }) {
-  const isClaimBlocked = Boolean(existingAccountClaim)
+  const isClaimBlocked = Boolean(existingClaim)
   const [activeTab, setActiveTab] = useState(
     initialMode === 'claim' && !isClaimBlocked ? 'claim' : 'wizard'
   )
@@ -268,7 +268,7 @@ export default function FaultDiagnosticModal({
       setIsSafetyModalOpen(false)
       return
     }
-    setActiveTab(initialMode === 'claim' ? 'claim' : 'wizard')
+    setActiveTab(initialMode === 'claim' && !isClaimBlocked ? 'claim' : 'wizard')
     setSelectedCategories([ISSUE_CATEGORIES[0].id])
     setIsSuccess(false)
     setSubmittedClaimId(null)
@@ -468,6 +468,7 @@ export default function FaultDiagnosticModal({
 
   // Transfer diagnostic summary into the warranty claim form
   const transferToClaim = (suggestedCategory) => {
+    if (isClaimBlocked) return
     if (suggestedCategory) {
       setSelectedCategories([suggestedCategory])
     } else if (selectedRootSymptoms.length > 0) {
@@ -569,7 +570,7 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
     setDescriptionError('')
 
     if (isClaimBlocked) {
-      setClaimError('A warranty claim has already been filed on your account.')
+      setClaimError('A warranty claim has already been filed for this purchased product.')
       return
     }
 
@@ -696,7 +697,7 @@ ${selectedSymptomsText}Customer requested technician bench evaluation.`
                     setActiveTab('claim')
                   }
                 }}
-                title={isClaimBlocked ? 'A warranty claim is already on file for your account' : undefined}
+                title={isClaimBlocked ? 'A warranty claim has already been filed for this unit' : undefined}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${isClaimBlocked
                     ? 'opacity-50 cursor-not-allowed text-jds-on-surface-variant'
                     : activeTab === 'claim'

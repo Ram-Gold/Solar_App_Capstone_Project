@@ -89,7 +89,7 @@ All actor terminology follows [GLOSSARY.md](../../GLOSSARY.md):
 | Capability | Administrator | Staff Member | Customer | Public Guest | Database / RLS Enforcement |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | Submit **Consultation Inquiry** or **Store Pickup** | Yes | Yes | Yes | Yes | `Public insert access for quote_tickets` |
-| **Inquiry Rate Limit** (3 inquiries / 60 min per IP/session) | Exempt (see gap note) | Exempt (see gap note) | Enforced | Enforced | Trigger `enforce_inquiry_rate_limit()` on `quote_tickets` |
+| **Inquiry Rate Limit** (3 inquiries / 60 min per IP/session) | Exempt | Exempt | Enforced | Enforced | Trigger `enforce_inquiry_rate_limit()` on `quote_tickets` |
 | View, filter, and search inquiries (`InquiriesScreen`) | Yes | Yes | Own portal summary | No | `Public read access for quote_tickets` |
 | Update inquiry status and `staff_notes` | Yes | Yes | No | No | `Public update access for quote_tickets` |
 | Create walk-in / phone inquiry from calendar | Yes | Yes | No | No | `Public insert access for quote_tickets` |
@@ -126,7 +126,7 @@ All actor terminology follows [GLOSSARY.md](../../GLOSSARY.md):
 
 | Capability | Administrator | Staff Member | Customer | Public Guest | Database / RLS Enforcement |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Submit **Warranty Claim** (1 lifetime claim per registered purchase) | Can log/manage in console | Can log/manage in console | Yes (via `/portal`) | No | `submit_warranty_claim` RPC (`SECURITY DEFINER`) + unique index |
+| Submit **Warranty Claim** (1 lifetime claim per registered purchase) | Can log/manage in console | Can log/manage in console | Yes (via `/portal`) | No | `submit_warranty_claim` RPC (`SECURITY DEFINER`) + `trg_enforce_single_claim_per_purchase` trigger |
 | View & inspect active claims (`WarrantyClaimsScreen`) | Yes | Yes | Own claims via `/portal` | No | `Staff and Admin full access on warranty_claims` |
 | Advance claim forward (`in_review` -> `checking` -> `approved` -> `ready_for_release` -> `resolved` / `rejected`) | Yes | Yes | No | No | `Staff and Admin full access on warranty_claims` |
 | Reverse stage or reopen terminal claim (`resolved` / `rejected`) | Yes (logged in `staff_notes`) | Blocked (forward-only; terminal locked) | No | No | UI-only state machine (`warrantyClaimWorkflow.js`) |
@@ -174,5 +174,4 @@ The following discrepancies were observed between frontend UI checks and live Su
 3. **`warranty_claims` UI-only state machine**: Forward-only stage transitions for **Staff Members** and archive/restore/delete restrictions are enforced in `WarrantyClaimsScreen.jsx` and `warrantyClaimWorkflow.js`, whereas live RLS (`Staff and Admin full access on warranty_claims`) grants `{authenticated}` `ALL` access.
 4. **`quote_tickets` open RLS**: Calendar drag-and-drop rescheduling is restricted to **Administrators** in `InquiriesScreen.jsx`, while live RLS grants `{public}` `SELECT`, `INSERT`, `UPDATE`, and `DELETE`.
 5. **`customers` and `customer_purchases` broad RLS**: `Delete Account` is restricted to **Administrators** in `CustomersScreen.jsx`, while live RLS grants `{authenticated}` `ALL` access on both tables (and `{anon}` `SELECT` / `DELETE` on `customers`).
-6. **`enforce_inquiry_rate_limit()` role lookup**: The live trigger checks `public.user_profiles WHERE id = auth.uid() AND role IN ('staff', 'admin')` for operator exemption rather than `public.get_user_role()` (which reads `public.admins` and `public.staff`).
-7. **`staff` self-deletion**: `ProfileScreen.jsx` and `Staff can delete own row` RLS both allow a **Staff Member** to permanently delete their own `staff` record.
+6. **`staff` self-deletion**: `ProfileScreen.jsx` and `Staff can delete own row` RLS both allow a **Staff Member** to permanently delete their own `staff` record.
